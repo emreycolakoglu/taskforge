@@ -1,10 +1,26 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PrismaService } from './prisma.service';
+import { mkdtempSync } from 'fs';
+import { join } from 'path';
+import { tmpdir } from 'os';
+import { execSync } from 'child_process';
 
 describe('PrismaService', () => {
   let service: PrismaService;
+  let dbUrl: string;
 
   beforeEach(async () => {
+    const tmpDir = mkdtempSync(join(tmpdir(), 'taskforge-test-'));
+    const dbPath = join(tmpDir, 'test.db');
+    dbUrl = `file:${dbPath}`;
+    const schemaPath = join(__dirname, '..', '..', 'prisma', 'schema.prisma');
+
+    process.env.DATABASE_URL = dbUrl;
+    execSync(
+      `npx prisma db push --skip-generate --accept-data-loss --schema="${schemaPath}"`,
+      { env: { ...process.env, DATABASE_URL: dbUrl }, stdio: 'pipe', cwd: join(__dirname, '..', '..') },
+    );
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [PrismaService],
     }).compile();
@@ -14,6 +30,7 @@ describe('PrismaService', () => {
 
   afterEach(async () => {
     await service?.$disconnect();
+    delete process.env.DATABASE_URL;
   });
 
   it('should be defined', () => {

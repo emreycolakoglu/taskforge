@@ -1,8 +1,8 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from '@/components/theme-provider'
 import { SidebarLayout } from '@/components/sidebar-layout'
-import { HomePage } from '@/pages/HomePage'
-import { KanbanBoard } from '@/components/KanbanBoard'
+import { HomePage } from '@/pages/home-page'
+import { KanbanBoard } from '@/components/kanban-board'
 import { TooltipProvider } from '@/components/ui/tooltip'
 
 export function App() {
