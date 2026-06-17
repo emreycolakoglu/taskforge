@@ -1,0 +1,31 @@
+{
+  "name": "taskforge",
+  "private": true,
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "db:generate": "pnpm --filter @taskforge/api prisma:generate",
+    "db:push": "pnpm --filter @taskforge/api prisma:push",
+    "db:migrate": "pnpm --filter @taskforge/api prisma:migrate",
+    "docker:build": "docker build -t taskforge .",
+    "docker:run": "docker run -p 3000:3000 -p 3001:3001 taskforge"
+  },
+  "devDependencies": {
+    "turbo": "^2.9.16",
+    "typescript": "^5.7.0"
+  },
+  "packageManager": "pnpm@10.12.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@prisma/engines",
+      "prisma",
+      "esbuild",
+      "@prisma/client"
+    ]
+  }
+}
