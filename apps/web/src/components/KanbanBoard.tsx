@@ -1,332 +1,307 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { api } from '../hooks/api';
-import { useSocket } from '../hooks/useSocket';
-import { Board, List, Task, Label } from '../types';
-import { TaskCard } from './TaskCard';
-import { TaskDetail } from './TaskDetail';
-import { CreateTaskModal } from './CreateTaskModal';
+import { useState, useEffect, useCallback } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
+import { ArrowLeft, Plus, X, List, Columns3 } from 'lucide-react'
+import { api } from '@/hooks/api'
+import { useSocket } from '@/hooks/useSocket'
+import { Board, List as ListType, Task, Label } from '@/types'
+import { TaskCard } from './TaskCard'
+import { TaskDetail } from './TaskDetail'
+import { CreateTaskModal } from './CreateTaskModal'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import { ScrollArea } from '@/components/ui/scroll-area'
+import { Separator } from '@/components/ui/separator'
+import { cn } from '@/lib/utils'
 
-interface KanbanBoardProps {
-  board: Board;
-}
-
-export function KanbanBoard({ board }: KanbanBoardProps) {
-  const [lists, setLists] = useState<List[]>([]);
-  const [labels, setLabels] = useState<Label[]>([]);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [creatingInList, setCreatingInList] = useState<string | null>(null);
-  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
+export function KanbanBoard() {
+  const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
+  const [board, setBoard] = useState<Board | null>(null)
+  const [lists, setLists] = useState<ListType[]>([])
+  const [labels, setLabels] = useState<Label[]>([])
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [creatingInList, setCreatingInList] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
 
   const loadBoard = useCallback(async () => {
-    const full = await api.boards.getFull(board.id);
-    setLists(full.lists || []);
-    setLabels(full.labels || []);
-  }, [board.id]);
+    if (!id) return
+    const full = await api.boards.getFull(id)
+    setBoard(full)
+    setLists(full.lists || [])
+    setLabels(full.labels || [])
+  }, [id])
 
-  useEffect(() => { loadBoard(); }, [loadBoard]);
+  useEffect(() => { loadBoard() }, [loadBoard])
 
-  const socket = useSocket(board.id);
+  const socket = useSocket(id)
   useEffect(() => {
-    const unsub1 = socket.on('task:created', loadBoard);
-    const unsub2 = socket.on('task:updated', loadBoard);
-    const unsub3 = socket.on('task:moved', loadBoard);
-    const unsub4 = socket.on('list:created', loadBoard);
-    const unsub5 = socket.on('list:updated', loadBoard);
-    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5(); };
-  }, [socket, loadBoard]);
+    const unsub1 = socket.on('task:created', loadBoard)
+    const unsub2 = socket.on('task:updated', loadBoard)
+    const unsub3 = socket.on('task:moved', loadBoard)
+    const unsub4 = socket.on('list:created', loadBoard)
+    const unsub5 = socket.on('list:updated', loadBoard)
+    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5() }
+  }, [socket, loadBoard])
 
   const handleDragEnd = async (result: DropResult) => {
-    if (!result.destination) return;
-    const { draggableId, source, destination } = result;
+    if (!result.destination) return
+    const { draggableId, source, destination } = result
 
     if (source.droppableId === destination.droppableId) {
-      // Reorder within same list
-      const list = lists.find((l) => l.id === source.droppableId);
-      if (!list?.tasks) return;
-      const reordered = [...list.tasks];
-      const [moved] = reordered.splice(source.index, 1);
-      reordered.splice(destination.index, 0, moved);
-      const items = reordered.map((t, i) => ({ id: t.id, position: i }));
-      await api.tasks.reorder(items);
+      const list = lists.find((l) => l.id === source.droppableId)
+      if (!list?.tasks) return
+      const reordered = [...list.tasks]
+      const [moved] = reordered.splice(source.index, 1)
+      reordered.splice(destination.index, 0, moved)
+      const items = reordered.map((t, i) => ({ id: t.id, position: i }))
+      await api.tasks.reorder(items)
     } else {
-      // Move to different list
-      const targetList = lists.find((l) => l.id === destination.droppableId);
-      const targetTasks = targetList?.tasks || [];
+      const targetList = lists.find((l) => l.id === destination.droppableId)
+      const targetTasks = targetList?.tasks || []
       const position = destination.index < targetTasks.length
         ? targetTasks[destination.index].position
-        : (targetTasks.length > 0 ? targetTasks[targetTasks.length - 1].position + 1 : 0);
-      await api.tasks.move(draggableId, { listId: destination.droppableId, position });
+        : (targetTasks.length > 0 ? targetTasks[targetTasks.length - 1].position + 1 : 0)
+      await api.tasks.move(draggableId, { listId: destination.droppableId, position })
     }
-  };
+  }
 
   const handleCreateTask = async (listId: string, title: string) => {
-    await api.tasks.create({ listId, title });
-    setCreatingInList(null);
-  };
+    await api.tasks.create({ listId, title })
+    setCreatingInList(null)
+  }
 
   async function handleDeleteList(listId: string) {
-    await api.lists.delete(listId);
-    loadBoard();
+    await api.lists.delete(listId)
+    loadBoard()
   }
 
   const priorityColor = (p: string) => {
     switch (p) {
-      case 'urgent': return '#ef4444';
-      case 'high': return '#f97316';
-      case 'medium': return '#6366f1';
-      default: return '#94a3b8';
+      case 'urgent': return 'text-red-500'
+      case 'high': return 'text-orange-500'
+      case 'medium': return 'text-indigo-500'
+      default: return 'text-muted-foreground'
     }
-  };
-
-  if (viewMode === 'list') {
-    return (
-      <div style={{ padding: '24px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '24px' }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 700 }}>{board.name}</h2>
-          <button onClick={() => setViewMode('kanban')} style={toggleBtnStyle}>Kanban</button>
-        </div>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ background: '#f8f9fc' }}>
-              <th style={thStyle}>Task</th>
-              <th style={thStyle}>List</th>
-              <th style={thStyle}>Priority</th>
-              <th style={thStyle}>Assignee</th>
-              <th style={thStyle}>Due</th>
-            </tr>
-          </thead>
-          <tbody>
-            {lists.flatMap((l) =>
-              (l.tasks || []).map((t) => (
-                <tr key={t.id} onClick={() => setSelectedTask(t)} style={{ cursor: 'pointer', borderBottom: '1px solid #eee' }}>
-                  <td style={tdStyle}>{t.title}</td>
-                  <td style={tdStyle}>{l.name}</td>
-                  <td style={tdStyle}>
-                    <span style={{ color: priorityColor(t.priority), fontWeight: 600, fontSize: '12px' }}>
-                      {t.priority}
-                    </span>
-                  </td>
-                  <td style={tdStyle}>{t.assignee || '—'}</td>
-                  <td style={tdStyle}>{t.dueDate ? new Date(t.dueDate).toLocaleDateString() : '—'}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-        {selectedTask && <TaskDetail task={selectedTask} onClose={() => setSelectedTask(null)} onUpdate={loadBoard} />}
-      </div>
-    );
   }
 
+  if (!board) return null
+
   return (
-    <div style={{ padding: '24px', height: 'calc(100vh - 80px)', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <h2 style={{ fontSize: '24px', fontWeight: 700 }}>{board.name}</h2>
-          {labels.map((l) => (
-            <span key={l.id} style={{ background: l.color, color: '#fff', fontSize: '11px', padding: '2px 8px', borderRadius: '10px', fontWeight: 600 }}>
-              {l.name}
-            </span>
-          ))}
-        </div>
-        <div style={{ display: 'flex', gap: '8px' }}>
-          <button onClick={() => setViewMode('list')} style={toggleBtnStyle}>List</button>
-          <button onClick={() => setViewMode('kanban')} style={{ ...toggleBtnStyle, background: '#6366f1', color: '#fff' }}>Kanban</button>
-        </div>
-      </div>
-
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <div style={{ display: 'flex', gap: '16px', flex: 1, overflowX: 'auto' }}>
-          {lists.map((list) => (
-            <Droppable key={list.id} droppableId={list.id}>
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  style={{
-                    minWidth: '280px',
-                    maxWidth: '320px',
-                    flex: 1,
-                    background: snapshot.isDraggingOver ? '#eef2ff' : '#f8f9fc',
-                    borderRadius: '12px',
-                    padding: '12px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    maxHeight: '100%',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', padding: '0 4px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: list.color || '#6366f1' }} />
-                      <h3 style={{ fontSize: '14px', fontWeight: 600, color: '#1a1a2e' }}>{list.name}</h3>
-                      <span style={{ fontSize: '12px', color: '#999', background: '#e8e8f0', padding: '0 8px', borderRadius: '8px' }}>
-                        {list.tasks?.length || 0}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                      <button
-                        onClick={() => setCreatingInList(list.id)}
-                        style={addBtnStyle}
-                        title="Add task"
-                      >
-                        +
-                      </button>
-                      <button
-                        onClick={() => handleDeleteList(list.id)}
-                        style={{ ...addBtnStyle, color: '#ef4444', fontSize: '14px' }}
-                        title="Delete list"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </div>
-
-                  <div style={{ flex: 1, overflowY: 'auto', minHeight: '60px' }}>
-                    {(list.tasks || []).map((task, index) => (
-                      <Draggable key={task.id} draggableId={task.id} index={index}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            onClick={() => setSelectedTask(task)}
-                            style={{
-                              ...provided.draggableProps.style,
-                              background: snapshot.isDragging ? '#fff' : '#fff',
-                              borderRadius: '8px',
-                              padding: '12px',
-                              marginBottom: '8px',
-                              border: '1px solid #e8e8f0',
-                              boxShadow: snapshot.isDragging ? '0 4px 16px rgba(0,0,0,0.1)' : '0 1px 3px rgba(0,0,0,0.04)',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <div style={{ display: 'flex', gap: '6px', marginBottom: '8px', flexWrap: 'wrap' }}>
-                              {task.labels?.map((tl) => (
-                                <span key={tl.labelId} style={{ background: tl.label.color, color: '#fff', fontSize: '10px', padding: '1px 6px', borderRadius: '8px', fontWeight: 600 }}>
-                                  {tl.label.name}
-                                </span>
-                              ))}
-                            </div>
-                            <p style={{ fontSize: '13px', fontWeight: 600, color: '#1a1a2e', marginBottom: '8px', lineHeight: 1.4 }}>
-                              {task.title}
-                            </p>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '11px', color: '#999' }}>
-                              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                {task.priority !== 'medium' && (
-                                  <span style={{ color: priorityColor(task.priority), fontWeight: 600 }}>
-                                    {task.priority}
-                                  </span>
-                                )}
-                                {task._count && task._count.comments > 0 && (
-                                  <span>💬 {task._count.comments}</span>
-                                )}
-                              </div>
-                              {task.assignee && (
-                                <div style={{
-                                  width: '24px', height: '24px', borderRadius: '50%',
-                                  background: 'linear-gradient(135deg, #667eea, #764ba2)',
-                                  color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                  fontSize: '10px', fontWeight: 700,
-                                }}>
-                                  {task.assignee.charAt(0).toUpperCase()}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                    {provided.placeholder}
-                  </div>
-
-                  {creatingInList === list.id && (
-                    <CreateTaskModal
-                      listId={list.id}
-                      onSubmit={(title) => handleCreateTask(list.id, title)}
-                      onClose={() => setCreatingInList(null)}
-                    />
-                  )}
-                </div>
-              )}
-            </Droppable>
-          ))}
-
-          {/* Add list button */}
-          <div style={{ minWidth: '280px' }}>
-            <AddListForm boardId={board.id} onCreated={loadBoard} />
+    <div className="flex flex-col h-full">
+      {/* Header */}
+      <header className="flex items-center justify-between px-6 py-3 border-b shrink-0">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="text-lg font-semibold">{board.name}</h1>
+            <p className="text-xs text-muted-foreground">{board.description}</p>
+          </div>
+          <div className="flex gap-1 ml-4">
+            {labels.map((l) => (
+              <Badge key={l.id} style={{ backgroundColor: l.color }} className="text-white text-[10px] px-1.5 py-0">
+                {l.name}
+              </Badge>
+            ))}
           </div>
         </div>
-      </DragDropContext>
+        <div className="flex items-center gap-2">
+          <Button
+            variant={viewMode === 'list' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('list')}
+          >
+            <List className="h-4 w-4 mr-1" />
+            List
+          </Button>
+          <Button
+            variant={viewMode === 'kanban' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('kanban')}
+          >
+            <Columns3 className="h-4 w-4 mr-1" />
+            Kanban
+          </Button>
+        </div>
+      </header>
 
+      {/* Content */}
+      {viewMode === 'list' ? (
+        <div className="p-6 overflow-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="border-b">
+                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Task</th>
+                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">List</th>
+                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Priority</th>
+                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Assignee</th>
+                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Due</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lists.flatMap((l) =>
+                (l.tasks || []).map((t) => (
+                  <tr
+                    key={t.id}
+                    className="border-b hover:bg-muted/50 cursor-pointer"
+                    onClick={() => setSelectedTask(t)}
+                  >
+                    <td className="py-2.5 px-3 text-sm font-medium">{t.title}</td>
+                    <td className="py-2.5 px-3 text-sm text-muted-foreground">{l.name}</td>
+                    <td className="py-2.5 px-3 text-sm">
+                      <span className={cn("font-semibold text-xs", priorityColor(t.priority))}>
+                        {t.priority}
+                      </span>
+                    </td>
+                    <td className="py-2.5 px-3 text-sm text-muted-foreground">{t.assignee || '—'}</td>
+                    <td className="py-2.5 px-3 text-sm text-muted-foreground">
+                      {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : '—'}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <DragDropContext onDragEnd={handleDragEnd}>
+          <ScrollArea className="flex-1 p-4">
+            <div className="flex gap-4 h-full min-h-0">
+              {lists.map((list) => (
+                <Droppable key={list.id} droppableId={list.id}>
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={cn(
+                        "flex flex-col w-72 shrink-0 rounded-lg border bg-card",
+                        snapshot.isDraggingOver && "bg-accent/50"
+                      )}
+                    >
+                      {/* List header */}
+                      <div className="flex items-center justify-between px-3 py-2.5 border-b">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            style={{ backgroundColor: list.color || '#6366f1' }}
+                          />
+                          <span className="text-sm font-semibold">{list.name}</span>
+                          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                            {list.tasks?.length || 0}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => setCreatingInList(list.id)}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            onClick={() => handleDeleteList(list.id)}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Tasks */}
+                      <div className="flex-1 p-2 space-y-2 min-h-[60px]">
+                        {(list.tasks || []).map((task, index) => (
+                          <Draggable key={task.id} draggableId={task.id} index={index}>
+                            {(provided, snapshot) => (
+                              <div
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                {...provided.dragHandleProps}
+                                onClick={() => setSelectedTask(task)}
+                              >
+                                <TaskCard task={task} isDragging={snapshot.isDragging} />
+                              </div>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </div>
+
+                      {/* Inline create */}
+                      {creatingInList === list.id && (
+                        <div className="p-2 border-t">
+                          <CreateTaskModal
+                            listId={list.id}
+                            onSubmit={(title) => handleCreateTask(list.id, title)}
+                            onClose={() => setCreatingInList(null)}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Droppable>
+              ))}
+
+              {/* Add list */}
+              <div className="w-72 shrink-0">
+                <AddListForm boardId={board.id} onCreated={loadBoard} />
+              </div>
+            </div>
+          </ScrollArea>
+        </DragDropContext>
+      )}
+
+      {/* Task detail modal */}
       {selectedTask && (
         <TaskDetail task={selectedTask} onClose={() => setSelectedTask(null)} onUpdate={loadBoard} />
       )}
     </div>
-  );
+  )
 }
 
 function AddListForm({ boardId, onCreated }: { boardId: string; onCreated: () => void }) {
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState('');
+  const [editing, setEditing] = useState(false)
+  const [name, setName] = useState('')
 
   const handleSubmit = async () => {
-    if (!name.trim()) return;
-    await api.lists.create({ boardId, name: name.trim() });
-    setName('');
-    setEditing(false);
-    onCreated();
-  };
+    if (!name.trim()) return
+    await api.lists.create({ boardId, name: name.trim() })
+    setName('')
+    setEditing(false)
+    onCreated()
+  }
 
-  return editing ? (
-    <div style={{ background: '#f8f9fc', borderRadius: '12px', padding: '12px' }}>
-      <input
-        autoFocus
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-        placeholder="List name..."
-        style={{
-          width: '100%', padding: '8px 10px', border: '2px solid #6366f1',
-          borderRadius: '6px', fontSize: '13px', outline: 'none', marginBottom: '8px',
-        }}
-      />
-      <div style={{ display: 'flex', gap: '8px' }}>
-        <button onClick={handleSubmit} style={{ ...toggleBtnStyle, background: '#6366f1', color: '#fff' }}>Add</button>
-        <button onClick={() => setEditing(false)} style={toggleBtnStyle}>Cancel</button>
+  if (editing) {
+    return (
+      <div className="rounded-lg border bg-card p-3 space-y-2">
+        <Input
+          autoFocus
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+          placeholder="List name..."
+        />
+        <div className="flex gap-2">
+          <Button size="sm" onClick={handleSubmit}>Add</Button>
+          <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
+        </div>
       </div>
-    </div>
-  ) : (
-    <button
+    )
+  }
+
+  return (
+    <Button
+      variant="outline"
+      className="w-full border-dashed text-muted-foreground"
       onClick={() => setEditing(true)}
-      style={{
-        width: '100%', padding: '12px', border: '2px dashed #d0d0e0',
-        borderRadius: '12px', background: 'transparent', cursor: 'pointer',
-        color: '#999', fontSize: '13px', fontWeight: 500, textAlign: 'center',
-      }}
     >
-      + Add List
-    </button>
-  );
+      <Plus className="h-4 w-4 mr-2" />
+      Add List
+    </Button>
+  )
 }
-
-const toggleBtnStyle: React.CSSProperties = {
-  padding: '6px 14px', fontSize: '12px', fontWeight: 600, border: '1px solid #d0d0e0',
-  borderRadius: '6px', background: '#fff', cursor: 'pointer', color: '#666',
-};
-
-const addBtnStyle: React.CSSProperties = {
-  width: '24px', height: '24px', border: 'none', borderRadius: '4px',
-  background: 'transparent', cursor: 'pointer', fontSize: '16px', fontWeight: 600,
-  color: '#999', display: 'flex', alignItems: 'center', justifyContent: 'center',
-  lineHeight: 1,
-};
-
-const thStyle: React.CSSProperties = {
-  padding: '10px 12px', textAlign: 'left', fontSize: '12px', fontWeight: 600, color: '#666', textTransform: 'uppercase', letterSpacing: '0.5px',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '10px 12px', fontSize: '13px',
-};

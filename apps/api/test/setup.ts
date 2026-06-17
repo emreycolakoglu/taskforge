@@ -36,15 +36,12 @@ export function createTestPrisma(): PrismaClient {
 /**
  * Seed a board with default lists and return the created board + lists.
  */
-// Track slug uniqueness for test seeding
-let boardCounter = 0;
-
 export async function seedBoard(prisma: PrismaClient) {
-  boardCounter++;
+  const id = randomUUID().slice(0, 8);
   const board = await prisma.board.create({
     data: {
-      name: `Test Board ${boardCounter}`,
-      slug: `test-board-${boardCounter}`,
+      name: `Test Board ${id}`,
+      slug: `test-board-${id}`,
       description: 'A board for testing',
       lists: {
         create: [

@@ -1,19 +1,27 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { HomePage } from './pages/HomePage';
+import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { ThemeProvider } from '@/components/theme-provider'
+import { SidebarLayout } from '@/components/sidebar-layout'
+import { HomePage } from '@/pages/HomePage'
+import { KanbanBoard } from '@/components/KanbanBoard'
+import { TooltipProvider } from '@/components/ui/tooltip'
 
 export function App() {
   return (
-    <BrowserRouter>
-      <div style={{
-        minHeight: '100vh',
-        background: '#f5f5fa',
-        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-      }}>
+    <ThemeProvider defaultTheme="system" storageKey="taskforge-theme">
+      <BrowserRouter>
         <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/board/:id" element={<HomePage />} />
+          <Route path="/" element={
+            <SidebarLayout>
+              <HomePage />
+            </SidebarLayout>
+          } />
+          <Route path="/board/:id" element={
+            <SidebarLayout>
+              <KanbanBoard />
+            </SidebarLayout>
+          } />
         </Routes>
-      </div>
-    </BrowserRouter>
-  );
+      </BrowserRouter>
+    </ThemeProvider>
+  )
 }

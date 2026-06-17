@@ -47,6 +47,7 @@ describe('CommentsService', () => {
   describe('findByTask', () => {
     it('should return comments in reverse chronological order', async () => {
       await seedComment(prisma, task.id, { body: 'First' });
+      await new Promise(r => setTimeout(r, 5));
       await seedComment(prisma, task.id, { body: 'Second' });
       const comments = await service.findByTask(task.id);
       expect(comments).toHaveLength(2);
