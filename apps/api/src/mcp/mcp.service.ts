@@ -48,20 +48,18 @@ export class McpService {
   private async handleBoards(action: string, params: any) {
     switch (action) {
       case 'list': {
-        const boards = await this.prisma.board.findMany({
-          include: { _count: { select: { lists: true, tasks: true } } },
+        return this.prisma.board.findMany({
+          include: { _count: { select: { lists: true, members: true } } },
         });
-        return { jsonrpc: '2.0', result: boards };
       }
       case 'get': {
-        const board = await this.prisma.board.findUnique({
+        return this.prisma.board.findUnique({
           where: { id: params.id },
           include: {
             lists: { orderBy: { position: 'asc' }, include: { tasks: { where: { status: 'active' }, orderBy: { position: 'asc' } } } },
             labels: true,
           },
         });
-        return { jsonrpc: '2.0', result: board };
       }
       case 'create': {
         const board = await this.prisma.board.create({
@@ -82,26 +80,25 @@ export class McpService {
           include: { lists: true },
         });
         this.events.emit('board:created', board);
-        return { jsonrpc: '2.0', result: board };
+        return board;
       }
       case 'delete': {
         await this.prisma.board.delete({ where: { id: params.id } });
-        return { jsonrpc: '2.0', result: { deleted: true } };
+        return { deleted: true };
       }
       default:
-        return { jsonrpc: '2.0', error: { code: -32601, message: `Unknown action: boards_${action}` } };
+        throw new Error(`Unknown action: boards_${action}`);
     }
   }
 
   private async handleLists(action: string, params: any) {
     switch (action) {
       case 'list': {
-        const lists = await this.prisma.list.findMany({
+        return this.prisma.list.findMany({
           where: { boardId: params.boardId },
           orderBy: { position: 'asc' },
           include: { _count: { select: { tasks: true } } },
         });
-        return { jsonrpc: '2.0', result: lists };
       }
       case 'create': {
         const maxPos = await this.prisma.list.aggregate({
@@ -118,7 +115,7 @@ export class McpService {
           },
         });
         this.events.emit('list:created', list);
-        return { jsonrpc: '2.0', result: list };
+        return list;
       }
       case 'update': {
         const list = await this.prisma.list.update({
@@ -126,14 +123,14 @@ export class McpService {
           data: { name: params.name, color: params.color, wipLimit: params.wipLimit },
         });
         this.events.emit('list:updated', list);
-        return { jsonrpc: '2.0', result: list };
+        return list;
       }
       case 'delete': {
         await this.prisma.list.delete({ where: { id: params.id } });
-        return { jsonrpc: '2.0', result: { deleted: true } };
+        return { deleted: true };
       }
       default:
-        return { jsonrpc: '2.0', error: { code: -32601, message: `Unknown action: lists_${action}` } };
+        throw new Error(`Unknown action: lists_${action}`);
     }
   }
 
@@ -147,7 +144,7 @@ export class McpService {
         if (params.status) where.status = params.status;
         else where.status = 'active';
 
-        const tasks = await this.prisma.task.findMany({
+        return this.prisma.task.findMany({
           where,
           include: {
             list: true,
@@ -157,10 +154,9 @@ export class McpService {
           orderBy: { position: 'asc' },
           take: params.limit || 100,
         });
-        return { jsonrpc: '2.0', result: tasks };
       }
       case 'get': {
-        const task = await this.prisma.task.findUnique({
+        return this.prisma.task.findUnique({
           where: { id: params.id },
           include: {
             list: { include: { board: true } },
@@ -169,10 +165,9 @@ export class McpService {
             activity: { orderBy: { createdAt: 'desc' }, take: 20 },
           },
         });
-        return { jsonrpc: '2.0', result: task };
       }
       case 'search': {
-        const tasks = await this.prisma.task.findMany({
+        return this.prisma.task.findMany({
           where: {
             OR: [
               { title: { contains: params.query } },
@@ -184,7 +179,6 @@ export class McpService {
           take: 20,
           orderBy: { updatedAt: 'desc' },
         });
-        return { jsonrpc: '2.0', result: tasks };
       }
       case 'create': {
         const maxPos = await this.prisma.task.aggregate({
@@ -211,11 +205,11 @@ export class McpService {
           data: { taskId: task.id, actor: params.assignee || 'agent', action: 'created', detail: JSON.stringify({ title: task.title }) },
         });
         this.events.emit('task:created', task);
-        return { jsonrpc: '2.0', result: task };
+        return task;
       }
       case 'update': {
         const existing = await this.prisma.task.findUnique({ where: { id: params.id } });
-        if (!existing) return { jsonrpc: '2.0', error: { code: -32602, message: 'Task not found' } };
+        if (!existing) throw new Error('Task not found');
 
         const data: any = {};
         if (params.title !== undefined) data.title = params.title;
@@ -258,7 +252,7 @@ export class McpService {
         }
 
         this.events.emit('task:updated', task);
-        return { jsonrpc: '2.0', result: task };
+        return task;
       }
       case 'move': {
         const maxPos = await this.prisma.task.aggregate({
@@ -275,25 +269,24 @@ export class McpService {
           data: { taskId: params.id, actor: 'agent', action: 'moved', detail: JSON.stringify({ to: newList?.name }) },
         });
         this.events.emit('task:moved', task);
-        return { jsonrpc: '2.0', result: task };
+        return task;
       }
       case 'delete': {
         await this.prisma.task.update({ where: { id: params.id }, data: { status: 'archived' } });
-        return { jsonrpc: '2.0', result: { archived: true } };
+        return { archived: true };
       }
       default:
-        return { jsonrpc: '2.0', error: { code: -32601, message: `Unknown action: tasks_${action}` } };
+        throw new Error(`Unknown action: tasks_${action}`);
     }
   }
 
   private async handleComments(action: string, params: any) {
     switch (action) {
       case 'list': {
-        const comments = await this.prisma.comment.findMany({
+        return this.prisma.comment.findMany({
           where: { taskId: params.taskId },
           orderBy: { createdAt: 'desc' },
         });
-        return { jsonrpc: '2.0', result: comments };
       }
       case 'create': {
         const comment = await this.prisma.comment.create({
@@ -303,32 +296,30 @@ export class McpService {
           data: { taskId: params.taskId, actor: params.author, action: 'commented', detail: JSON.stringify({ commentId: comment.id }) },
         });
         this.events.emit('comment:created', comment);
-        return { jsonrpc: '2.0', result: comment };
+        return comment;
       }
       default:
-        return { jsonrpc: '2.0', error: { code: -32601, message: `Unknown action: comments_${action}` } };
+        throw new Error(`Unknown action: comments_${action}`);
     }
   }
 
   private async handleLabels(action: string, params: any) {
     switch (action) {
       case 'list': {
-        const labels = await this.prisma.label.findMany({ where: { boardId: params.boardId } });
-        return { jsonrpc: '2.0', result: labels };
+        return this.prisma.label.findMany({ where: { boardId: params.boardId } });
       }
       case 'create': {
-        const label = await this.prisma.label.create({
+        return this.prisma.label.create({
           data: { boardId: params.boardId, name: params.name, color: params.color || '#6366f1' },
         });
-        return { jsonrpc: '2.0', result: label };
       }
       case 'delete': {
         await this.prisma.taskLabel.deleteMany({ where: { labelId: params.id } });
         await this.prisma.label.delete({ where: { id: params.id } });
-        return { jsonrpc: '2.0', result: { deleted: true } };
+        return { deleted: true };
       }
       default:
-        return { jsonrpc: '2.0', error: { code: -32601, message: `Unknown action: labels_${action}` } };
+        throw new Error(`Unknown action: labels_${action}`);
     }
   }
 
@@ -339,16 +330,15 @@ export class McpService {
         if (params.taskId) where.taskId = params.taskId;
         if (params.boardId) where.task = { list: { boardId: params.boardId } };
 
-        const activity = await this.prisma.activity.findMany({
+        return this.prisma.activity.findMany({
           where,
           orderBy: { createdAt: 'desc' },
           take: params.limit || 50,
           include: { task: { select: { id: true, title: true } } },
         });
-        return { jsonrpc: '2.0', result: activity };
       }
       default:
-        return { jsonrpc: '2.0', error: { code: -32601, message: `Unknown action: activity_${action}` } };
+        throw new Error(`Unknown action: activity_${action}`);
     }
   }
 }
