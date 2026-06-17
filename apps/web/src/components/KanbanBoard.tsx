@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Separator } from '@/components/ui/separator'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 
 export function KanbanBoard() {
@@ -79,9 +80,9 @@ export function KanbanBoard() {
 
   const priorityColor = (p: string) => {
     switch (p) {
-      case 'urgent': return 'text-red-500'
-      case 'high': return 'text-orange-500'
-      case 'medium': return 'text-indigo-500'
+      case 'urgent': return 'text-destructive'
+      case 'high': return 'text-orange-600 dark:text-orange-400'
+      case 'medium': return 'text-indigo-600 dark:text-indigo-400'
       default: return 'text-muted-foreground'
     }
   }
@@ -93,8 +94,8 @@ export function KanbanBoard() {
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b shrink-0">
         <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
-            <ArrowLeft className="h-5 w-5" />
+          <Button variant="ghost" size="icon" aria-label="Go back" onClick={() => navigate('/')}>
+            <ArrowLeft className="size-5" />
           </Button>
           <div>
             <h1 className="text-lg font-semibold">{board.name}</h1>
@@ -108,24 +109,21 @@ export function KanbanBoard() {
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant={viewMode === 'list' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('list')}
-          >
-            <List className="h-4 w-4 mr-1" />
+        <ToggleGroup
+          value={viewMode}
+          onValueChange={(v) => v && setViewMode(v as 'kanban' | 'list')}
+          type="single"
+          aria-label="View mode"
+        >
+          <ToggleGroupItem value="list" aria-label="List view">
+            <List data-icon="inline-start" />
             List
-          </Button>
-          <Button
-            variant={viewMode === 'kanban' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('kanban')}
-          >
-            <Columns3 className="h-4 w-4 mr-1" />
+          </ToggleGroupItem>
+          <ToggleGroupItem value="kanban" aria-label="Kanban view">
+            <Columns3 data-icon="inline-start" />
             Kanban
-          </Button>
-        </div>
+          </ToggleGroupItem>
+        </ToggleGroup>
       </header>
 
       {/* Content */}
@@ -149,7 +147,7 @@ export function KanbanBoard() {
                     className="border-b hover:bg-muted/50 cursor-pointer"
                     onClick={() => setSelectedTask(t)}
                   >
-                    <td className="py-2.5 px-3 text-sm font-medium">{t.title}</td>
+                    <td className="py-2.5 px-3 text-sm font-medium truncate max-w-[200px]">{t.title}</td>
                     <td className="py-2.5 px-3 text-sm text-muted-foreground">{l.name}</td>
                     <td className="py-2.5 px-3 text-sm">
                       <span className={cn("font-semibold text-xs", priorityColor(t.priority))}>
@@ -185,7 +183,7 @@ export function KanbanBoard() {
                       <div className="flex items-center justify-between px-3 py-2.5 border-b">
                         <div className="flex items-center gap-2">
                           <div
-                            className="w-2.5 h-2.5 rounded-full shrink-0"
+                            className="size-2.5 rounded-full shrink-0"
                             style={{ backgroundColor: list.color || '#6366f1' }}
                           />
                           <span className="text-sm font-semibold">{list.name}</span>
@@ -197,24 +195,26 @@ export function KanbanBoard() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6"
+                            className="size-6"
+                            aria-label={`Add task to ${list.name}`}
                             onClick={() => setCreatingInList(list.id)}
                           >
-                            <Plus className="h-3.5 w-3.5" />
+                            <Plus className="size-3.5" />
                           </Button>
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                            className="size-6 text-muted-foreground hover:text-destructive"
+                            aria-label={`Delete ${list.name}`}
                             onClick={() => handleDeleteList(list.id)}
                           >
-                            <X className="h-3.5 w-3.5" />
+                            <X className="size-3.5" />
                           </Button>
                         </div>
                       </div>
 
                       {/* Tasks */}
-                      <div className="flex-1 p-2 space-y-2 min-h-[60px]">
+                      <div className="flex-1 p-2 flex flex-col gap-2 min-h-[60px]">
                         {(list.tasks || []).map((task, index) => (
                           <Draggable key={task.id} draggableId={task.id} index={index}>
                             {(provided, snapshot) => (
@@ -278,7 +278,7 @@ function AddListForm({ boardId, onCreated }: { boardId: string; onCreated: () =>
 
   if (editing) {
     return (
-      <div className="rounded-lg border bg-card p-3 space-y-2">
+      <div className="flex flex-col gap-2 rounded-lg border bg-card p-3">
         <Input
           autoFocus
           value={name}
@@ -300,7 +300,7 @@ function AddListForm({ boardId, onCreated }: { boardId: string; onCreated: () =>
       className="w-full border-dashed text-muted-foreground"
       onClick={() => setEditing(true)}
     >
-      <Plus className="h-4 w-4 mr-2" />
+      <Plus data-icon="inline-start" />
       Add List
     </Button>
   )

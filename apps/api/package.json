@@ -2,6 +2,9 @@
   "name": "@taskforge/api",
   "version": "0.1.0",
   "private": true,
+  "prisma": {
+    "seed": "ts-node --transpile-only prisma/seed.ts"
+  },
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",

@@ -10,6 +10,7 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter,
   DialogHeader, DialogTitle, DialogTrigger,
 } from '@/components/ui/dialog'
+import { Label } from '@/components/ui/label'
 
 export function HomePage() {
   const [boards, setBoards] = useState<Board[]>([])
@@ -50,7 +51,7 @@ export function HomePage() {
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
             <Button>
-              <Plus className="mr-2 h-4 w-4" />
+              <Plus data-icon="inline-start" />
               New Board
             </Button>
           </DialogTrigger>
@@ -61,18 +62,20 @@ export function HomePage() {
                 Create a new board with default lists (Backlog, To Do, In Progress, Review, Done).
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4 py-2">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Name</label>
+            <div className="flex flex-col gap-4 py-2">
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="board-name">Name</Label>
                 <Input
+                  id="board-name"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Sprint 24"
                 />
               </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Slug</label>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="board-slug">Slug</Label>
                 <Input
+                  id="board-slug"
                   value={slug}
                   onChange={(e) => setSlug(e.target.value.replace(/[^a-z0-9-]/g, '').toLowerCase())}
                   placeholder="sprint-24"
@@ -91,22 +94,23 @@ export function HomePage() {
         {boards.map((board) => (
           <Card
             key={board.id}
-            className="cursor-pointer hover:shadow-md transition-shadow"
+            className="cursor-pointer hover:shadow-md motion-reduce:transition-none transition-shadow"
             onClick={() => navigate(`/board/${board.id}`)}
           >
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-2">
-                  <LayoutDashboard className="h-5 w-5 text-muted-foreground" />
+                  <LayoutDashboard className="size-5 text-muted-foreground" />
                   <CardTitle className="text-base">{board.name}</CardTitle>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  className="size-8 text-muted-foreground hover:text-destructive"
+                  aria-label={`Delete ${board.name}`}
                   onClick={(e) => handleDelete(e, board.id)}
                 >
-                  <Trash2 className="h-4 w-4" />
+                  <Trash2 className="size-4" />
                 </Button>
               </div>
             </CardHeader>
@@ -119,9 +123,9 @@ export function HomePage() {
           </Card>
         ))}
         {boards.length === 0 && (
-          <div className="col-span-full text-center py-12">
-            <LayoutDashboard className="mx-auto h-12 w-12 text-muted-foreground/50" />
-            <p className="mt-4 text-sm text-muted-foreground">
+          <div className="col-span-full flex flex-col items-center gap-2 py-12">
+            <LayoutDashboard className="size-12 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">
               No boards yet. Create one to get started!
             </p>
           </div>

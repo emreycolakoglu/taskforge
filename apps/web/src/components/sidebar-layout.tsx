@@ -30,7 +30,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         {/* Sidebar */}
         <aside
           className={cn(
-            "flex flex-col border-r bg-sidebar-background text-sidebar-foreground transition-all duration-200",
+            "flex flex-col border-r bg-sidebar-background text-sidebar-foreground transition-transform motion-reduce:transition-none duration-200",
             collapsed ? "w-16" : "w-56"
           )}
         >
@@ -40,14 +40,14 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             collapsed && "justify-center px-0"
           )}>
             {collapsed ? (
-              <span className="text-lg font-bold text-sidebar-primary">TF</span>
+              <span className="text-sm font-bold text-sidebar-primary">TF</span>
             ) : (
-              <span className="text-lg font-bold text-sidebar-primary">TaskForge</span>
+              <span className="text-base font-bold text-sidebar-primary">TaskForge</span>
             )}
           </div>
 
           {/* Nav */}
-          <nav className="flex-1 space-y-1 p-2">
+          <nav className="flex-1 flex flex-col gap-1 p-2">
             {navItems.map((item) => {
               const isActive = location.pathname === item.href
               return (
@@ -62,8 +62,9 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                           : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                         collapsed && "justify-center px-2"
                       )}
+                      aria-current={isActive ? "page" : undefined}
                     >
-                      <item.icon className="h-5 w-5 shrink-0" />
+                      <item.icon className="size-5 shrink-0" data-icon="inline-start" />
                       {!collapsed && <span>{item.label}</span>}
                     </Link>
                   </TooltipTrigger>
@@ -78,7 +79,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           <Separator className="bg-sidebar-border" />
 
           {/* Bottom actions */}
-          <div className="p-2 space-y-1">
+          <div className="flex flex-col gap-1 p-2">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -88,12 +89,13 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                     "w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                     collapsed && "justify-center"
                   )}
+                  aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
                   onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
                 >
                   {theme === "dark" ? (
-                    <Sun className="h-5 w-5 shrink-0" />
+                    <Sun className="size-5 shrink-0" data-icon="inline-start" />
                   ) : (
-                    <Moon className="h-5 w-5 shrink-0" />
+                    <Moon className="size-5 shrink-0" data-icon="inline-start" />
                   )}
                   {!collapsed && <span>{theme === "dark" ? "Light" : "Dark"} Mode</span>}
                 </Button>
@@ -114,12 +116,13 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                     "w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                     collapsed && "justify-center"
                   )}
+                  aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
                   onClick={() => setCollapsed(!collapsed)}
                 >
                   {collapsed ? (
-                    <PanelLeft className="h-5 w-5 shrink-0" />
+                    <PanelLeft className="size-5 shrink-0" data-icon="inline-start" />
                   ) : (
-                    <PanelLeftClose className="h-5 w-5 shrink-0" />
+                    <PanelLeftClose className="size-5 shrink-0" data-icon="inline-start" />
                   )}
                   {!collapsed && <span>Collapse</span>}
                 </Button>
@@ -134,7 +137,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-auto" id="main-content">
           {children}
         </main>
       </div>

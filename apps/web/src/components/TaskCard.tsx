@@ -10,9 +10,9 @@ interface TaskCardProps {
 export function TaskCard({ task, isDragging }: TaskCardProps) {
   const priorityColor = (p: string) => {
     switch (p) {
-      case 'urgent': return 'text-red-500'
-      case 'high': return 'text-orange-500'
-      case 'medium': return 'text-indigo-500'
+      case 'urgent': return 'text-destructive'
+      case 'high': return 'text-orange-600 dark:text-orange-400'
+      case 'medium': return 'text-indigo-600 dark:text-indigo-400'
       default: return 'text-muted-foreground'
     }
   }
@@ -20,7 +20,7 @@ export function TaskCard({ task, isDragging }: TaskCardProps) {
   return (
     <div
       className={cn(
-        "rounded-lg border bg-card p-3 cursor-pointer transition-shadow",
+        "rounded-lg border bg-card p-3 cursor-pointer transition-shadow motion-reduce:transition-none",
         isDragging ? "shadow-lg ring-2 ring-primary" : "shadow-sm hover:shadow-md"
       )}
     >
@@ -51,12 +51,15 @@ export function TaskCard({ task, isDragging }: TaskCardProps) {
             </span>
           )}
           {task._count && task._count.comments > 0 && (
-            <span>💬 {task._count.comments}</span>
+            <span aria-label={`${task._count.comments} comments`}>💬 {task._count.comments}</span>
           )}
         </div>
         {task.assignee && (
           <div className="flex items-center gap-1.5">
-            <div className="w-5 h-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-[9px] font-bold">
+            <div
+              className="size-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-[9px] font-bold"
+              aria-hidden="true"
+            >
               {task.assignee.charAt(0).toUpperCase()}
             </div>
           </div>

@@ -5,9 +5,10 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { cn } from '@/lib/utils'
 
@@ -50,16 +51,23 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
   }
 
   const priorityOptions = ['low', 'medium', 'high', 'urgent'] as const
-  const priorityColors: Record<string, string> = {
-    low: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400',
-    medium: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900 dark:text-indigo-300',
-    high: 'bg-orange-100 text-orange-600 dark:bg-orange-900 dark:text-orange-300',
-    urgent: 'bg-red-100 text-red-600 dark:bg-red-900 dark:text-red-300',
+  const priorityPillClass = (p: string) => {
+    if (priority !== p) return ''
+    switch (p) {
+      case 'urgent': return 'bg-destructive text-destructive-foreground'
+      case 'high': return 'bg-orange-500 text-white'
+      case 'medium': return 'bg-indigo-500 text-white'
+      case 'low': return 'bg-muted text-muted-foreground'
+      default: return ''
+    }
   }
 
   return (
     <Dialog open onOpenChange={() => onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] p-0">
+        <DialogHeader className="sr-only">
+          <DialogTitle>Task: {task.title}</DialogTitle>
+        </DialogHeader>
         <div className="flex flex-col h-full max-h-[80vh]">
           {/* Header with priority + save */}
           <div className="flex items-center justify-between px-6 py-3 border-b shrink-0">
@@ -71,8 +79,8 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
                   className={cn(
                     "px-2.5 py-1 rounded-md text-xs font-semibold transition-colors",
                     priority === p
-                      ? priorityColors[p]
-                      : 'text-muted-foreground hover:bg-muted'
+                      ? priorityPillClass(p)
+                      : 'text-muted-foreground hover:bg-accent'
                   )}
                 >
                   {p}
@@ -111,10 +119,11 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
                 <TabsTrigger value="activity">Activity ({activity.length})</TabsTrigger>
               </TabsList>
 
-              <TabsContent value="details" className="space-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Description</label>
+              <TabsContent value="details" className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="task-description" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Description</Label>
                   <Textarea
+                    id="task-description"
                     value={description}
                     onChange={(e) => setDescription(e.target.value)}
                     rows={4}
@@ -122,9 +131,10 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
                   />
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Assignee</label>
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="task-assignee" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Assignee</Label>
                   <Input
+                    id="task-assignee"
                     value={assignee}
                     onChange={(e) => setAssignee(e.target.value)}
                     placeholder="User or agent ID..."
@@ -140,7 +150,7 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
                 <Separator />
 
                 {/* Comments */}
-                <div className="space-y-3">
+                <div className="flex flex-col gap-3">
                   <h4 className="text-sm font-semibold">Comments ({comments.length})</h4>
                   <div className="flex gap-2">
                     <Input
@@ -151,11 +161,11 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
                     />
                     <Button size="sm" onClick={handleAddComment}>Send</Button>
                   </div>
-                  <div className="space-y-3">
+                  <div className="flex flex-col gap-3">
                     {comments.map((c) => (
-                      <div key={c.id} className="space-y-1">
+                      <div key={c.id} className="flex flex-col gap-1">
                         <div className="flex items-center justify-between">
-                          <span className="text-xs font-semibold text-indigo-500">{c.author}</span>
+                          <span className="text-xs font-semibold text-primary">{c.author}</span>
                           <span className="text-xs text-muted-foreground">
                             {new Date(c.createdAt).toLocaleDateString()}
                           </span>
@@ -168,10 +178,10 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
               </TabsContent>
 
               <TabsContent value="activity">
-                <div className="space-y-3">
+                <div className="flex flex-col gap-3">
                   {activity.map((a) => (
                     <div key={a.id} className="text-sm">
-                      <span className="font-semibold text-indigo-500">{a.actor}</span>
+                      <span className="font-semibold text-primary">{a.actor}</span>
                       {' '}{a.action}
                       {a.detail && (() => {
                         try {

@@ -28,11 +28,11 @@ TaskForge is a full-stack task management application with three interfaces — 
 
 | Home Page | Kanban Board |
 |-----------|-------------|
-| ![Home Page](screenshots/home-page.png) | ![Kanban Board](screenshots/kanban-board.png) |
+| ![Home Page](apps/web/public/screenshots/home.png) | ![Kanban Board](apps/web/public/screenshots/kanban.png) |
 
 | List View | Task Detail |
 |-----------|-------------|
-| ![List View](screenshots/list-view.png) | ![Task Detail](screenshots/task-detail.png) |
+| ![List View](apps/web/public/screenshots/list-view.png) | ![Task Detail](apps/web/public/screenshots/task-detail.png) |
 
 ---
 
