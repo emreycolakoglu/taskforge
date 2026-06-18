@@ -1,13 +1,15 @@
 import { Task } from '@/types'
-import { Badge } from '@/components/ui/badge'
 import { cn } from '@/lib/utils'
+import { LabelPill } from './label-pill'
+import { LabelManager } from './label-manager'
 
 interface TaskCardProps {
   task: Task
   isDragging?: boolean
+  boardId?: string
 }
 
-export function TaskCard({ task, isDragging }: TaskCardProps) {
+export function TaskCard({ task, isDragging, boardId }: TaskCardProps) {
   const priorityColor = (p: string) => {
     switch (p) {
       case 'urgent': return 'text-destructive'
@@ -17,6 +19,8 @@ export function TaskCard({ task, isDragging }: TaskCardProps) {
     }
   }
 
+  const labels = task.taskLabels ?? task.labels ?? []
+
   return (
     <div
       className={cn(
@@ -25,16 +29,10 @@ export function TaskCard({ task, isDragging }: TaskCardProps) {
       )}
     >
       {/* Labels */}
-      {task.labels && task.labels.length > 0 && (
+      {labels.length > 0 && (
         <div className="flex flex-wrap gap-1 mb-2">
-          {task.labels.map((tl) => (
-            <Badge
-              key={tl.labelId}
-              style={{ backgroundColor: tl.label.color }}
-              className="text-white text-[10px] px-1.5 py-0"
-            >
-              {tl.label.name}
-            </Badge>
+          {labels.map((tl) => (
+            <LabelPill key={tl.labelId} label={tl.label} />
           ))}
         </div>
       )}
@@ -59,17 +57,20 @@ export function TaskCard({ task, isDragging }: TaskCardProps) {
             <span aria-label={`${task._count.comments} comments`}>💬 {task._count.comments}</span>
           )}
         </div>
-        {task.assignee && (
-          <div className="flex items-center gap-1.5">
-            <div
-              className="size-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-[9px] font-bold"
-              aria-hidden="true"
-            >
-              {task.assignee.displayName.charAt(0).toUpperCase()}
+        <div className="flex items-center gap-1.5">
+          {task.assignee && (
+            <div className="flex items-center gap-1.5">
+              <div
+                className="size-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-[9px] font-bold"
+                aria-hidden="true"
+              >
+                {task.assignee.displayName.charAt(0).toUpperCase()}
+              </div>
+              <span className="text-[11px] text-muted-foreground">{task.assignee.displayName}</span>
             </div>
-            <span className="text-[11px] text-muted-foreground">{task.assignee.displayName}</span>
-          </div>
-        )}
+          )}
+          {boardId && <LabelManager task={task} boardId={boardId} />}
+        </div>
       </div>
     </div>
   )

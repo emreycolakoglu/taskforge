@@ -129,18 +129,21 @@ model Task {
 }
 
 model Label {
-  id      String @id @default(cuid())
-  boardId String
-  name    String
-  color   String @default("#6366f1")
+  id        String   @id @default(cuid())
+  boardId   String
+  name      String
+  color     String   @default("#6366f1")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   board  Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
   tasks  TaskLabel[]
 }
 
 model TaskLabel {
-  taskId  String
-  labelId String
+  taskId     String
+  labelId    String
+  assignedAt DateTime @default(now())
 
   task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
   label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)

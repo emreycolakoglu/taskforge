@@ -1,13 +1,23 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { LabelsService } from '../labels/labels.service';
 import { CreateBoardDto, UpdateBoardDto } from './dto/board.dto';
+
+const DEFAULT_LABELS = [
+  { name: 'Bug', color: '#EF4444' },
+  { name: 'Feature', color: '#22C55E' },
+  { name: 'Improvement', color: '#3B82F6' },
+  { name: 'Documentation', color: '#A855F7' },
+  { name: 'Urgent', color: '#F97316' },
+];
 
 @Injectable()
 export class BoardsService {
   constructor(
     private prisma: PrismaService,
     private events: EventsService,
+    private labelsService: LabelsService,
   ) {}
 
   async findAll() {
@@ -71,6 +81,12 @@ export class BoardsService {
       },
       include: { lists: true },
     });
+
+    // Seed default labels for the new board
+    for (const labelData of DEFAULT_LABELS) {
+      await this.labelsService.create(board.id, labelData);
+    }
+
     this.events.emit('board:created', board);
     return board;
   }

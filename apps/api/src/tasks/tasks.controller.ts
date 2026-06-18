@@ -45,6 +45,16 @@ export class TasksController {
   @Put('reorder')
   reorder(@Body() dto: ReorderTasksDto) { return this.service.reorder(dto); }
 
+  @Post(':taskId/labels/:labelId')
+  attachLabel(@Param('taskId') taskId: string, @Param('labelId') labelId: string) {
+    return this.service.attachLabel(taskId, labelId);
+  }
+
+  @Delete(':taskId/labels/:labelId')
+  detachLabel(@Param('taskId') taskId: string, @Param('labelId') labelId: string) {
+    return this.service.detachLabel(taskId, labelId);
+  }
+
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: Request) {
     const user = (req as any).user as AuthedUser | undefined;

@@ -37,25 +37,34 @@ describe('LabelsService', () => {
     await prisma.board.deleteMany();
   });
 
-  describe('findByBoard', () => {
+  describe('findAll', () => {
     it('should return labels for a board', async () => {
       await seedLabel(prisma, board.id);
       await seedLabel(prisma, board.id);
-      const labels = await service.findByBoard(board.id);
+      const labels = await service.findAll(board.id);
       expect(labels).toHaveLength(2);
+    });
+  });
+
+  describe('findOne', () => {
+    it('should return a single label', async () => {
+      const label = await seedLabel(prisma, board.id);
+      const found = await service.findOne(label.id);
+      expect(found.id).toBe(label.id);
+      expect(found.name).toBe(label.name);
+    });
+
+    it('should throw NotFoundException for non-existent label', async () => {
+      await expect(service.findOne('nonexistent')).rejects.toThrow('Label not found');
     });
   });
 
   describe('create', () => {
     it('should create a label', async () => {
-      const label = await service.create({ boardId: board.id, name: 'feature', color: '#22c55e' });
+      const label = await service.create(board.id, { name: 'feature', color: '#22C55E' });
       expect(label.name).toBe('feature');
-      expect(label.color).toBe('#22c55e');
-    });
-
-    it('should use default color when not provided', async () => {
-      const label = await service.create({ boardId: board.id, name: 'bug' });
-      expect(label.color).toBe('#6366f1');
+      expect(label.color).toBe('#22C55E');
+      expect(label.boardId).toBe(board.id);
     });
   });
 
@@ -66,14 +75,22 @@ describe('LabelsService', () => {
       expect(updated.name).toBe('critical');
       expect(updated.color).toBe('#ff0000');
     });
+
+    it('should throw on non-existent label', async () => {
+      await expect(service.update('nonexistent', { name: 'x' })).rejects.toThrow('Label not found');
+    });
   });
 
   describe('remove', () => {
     it('should delete a label', async () => {
       const label = await seedLabel(prisma, board.id);
       await service.remove(label.id);
-      const labels = await service.findByBoard(board.id);
+      const labels = await service.findAll(board.id);
       expect(labels).toHaveLength(0);
+    });
+
+    it('should throw on non-existent label', async () => {
+      await expect(service.remove('nonexistent')).rejects.toThrow('Label not found');
     });
   });
 });

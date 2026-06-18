@@ -1,7 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
-import { CreateLabelDto, UpdateLabelDto } from './dto/label.dto';
+import { CreateLabelDto } from './dto/create-label.dto';
+import { UpdateLabelDto } from './dto/update-label.dto';
 
 @Injectable()
 export class LabelsService {
@@ -10,19 +11,25 @@ export class LabelsService {
     private events: EventsService,
   ) {}
 
-  async findByBoard(boardId: string) {
+  async findAll(boardId: string) {
     return this.prisma.label.findMany({ where: { boardId }, orderBy: { name: 'asc' } });
   }
 
-  async create(dto: CreateLabelDto, _user?: { id: string; displayName: string }) {
-    const label = await this.prisma.label.create({
-      data: { boardId: dto.boardId, name: dto.name, color: dto.color ?? '#6366f1' },
-    });
-    this.events.emit('label:created', label, dto.boardId);
+  async findOne(id: string) {
+    const label = await this.prisma.label.findUnique({ where: { id } });
+    if (!label) throw new NotFoundException('Label not found');
     return label;
   }
 
-  async update(id: string, dto: UpdateLabelDto, _user?: { id: string; displayName: string }) {
+  async create(boardId: string, dto: CreateLabelDto) {
+    const label = await this.prisma.label.create({
+      data: { boardId, name: dto.name, color: dto.color },
+    });
+    this.events.emit('label:created', label, boardId);
+    return label;
+  }
+
+  async update(id: string, dto: UpdateLabelDto) {
     const label = await this.prisma.label.findUnique({ where: { id } });
     if (!label) throw new NotFoundException('Label not found');
     const updated = await this.prisma.label.update({ where: { id }, data: dto });
@@ -30,7 +37,7 @@ export class LabelsService {
     return updated;
   }
 
-  async remove(id: string, _user?: { id: string; displayName: string }) {
+  async remove(id: string) {
     const label = await this.prisma.label.findUnique({ where: { id } });
     if (!label) throw new NotFoundException('Label not found');
     await this.prisma.taskLabel.deleteMany({ where: { labelId: id } });

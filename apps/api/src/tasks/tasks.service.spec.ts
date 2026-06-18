@@ -247,4 +247,37 @@ describe('TasksService', () => {
       expect(archivedActivity!.actor).toBe(user.displayName);
     });
   });
+
+  describe('attachLabel', () => {
+    it('should attach a label to a task', async () => {
+      const task = await seedTask(prisma, board.lists[0].id);
+      const label = await seedLabel(prisma, board.id);
+      const taskLabel = await service.attachLabel(task.id, label.id);
+      expect(taskLabel.taskId).toBe(task.id);
+      expect(taskLabel.labelId).toBe(label.id);
+      expect(taskLabel.label).toBeDefined();
+      expect(taskLabel.label.name).toBe('bug');
+    });
+
+    it('should throw on non-existent task', async () => {
+      const label = await seedLabel(prisma, board.id);
+      await expect(service.attachLabel('nonexistent', label.id)).rejects.toThrow('Task not found');
+    });
+  });
+
+  describe('detachLabel', () => {
+    it('should detach a label from a task', async () => {
+      const task = await seedTask(prisma, board.lists[0].id);
+      const label = await seedLabel(prisma, board.id);
+      await service.attachLabel(task.id, label.id);
+      await service.detachLabel(task.id, label.id);
+      const refreshed = await service.findOne(task.id);
+      expect(refreshed.labels).toHaveLength(0);
+    });
+
+    it('should throw on non-existent task', async () => {
+      const label = await seedLabel(prisma, board.id);
+      await expect(service.detachLabel('nonexistent', label.id)).rejects.toThrow('Task not found');
+    });
+  });
 });

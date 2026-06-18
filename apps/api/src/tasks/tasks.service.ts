@@ -289,4 +289,50 @@ export class TasksService {
     this.events.emit('task:deleted', { id }, boardId);
     return archived;
   }
+
+  async attachLabel(taskId: string, labelId: string) {
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { list: { select: { boardId: true } } },
+    });
+    if (!task) throw new NotFoundException('Task not found');
+
+    const taskLabel = await this.prisma.taskLabel.create({
+      data: { taskId, labelId },
+      include: { label: true },
+    });
+
+    const updatedTask = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        labels: { include: { label: true } },
+        list: { select: { boardId: true } },
+      },
+    });
+
+    this.events.emit('task.label.attached', updatedTask, task.list.boardId);
+    return taskLabel;
+  }
+
+  async detachLabel(taskId: string, labelId: string) {
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { list: { select: { boardId: true } } },
+    });
+    if (!task) throw new NotFoundException('Task not found');
+
+    await this.prisma.taskLabel.delete({
+      where: { taskId_labelId: { taskId, labelId } },
+    });
+
+    const updatedTask = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: {
+        labels: { include: { label: true } },
+        list: { select: { boardId: true } },
+      },
+    });
+
+    this.events.emit('task.label.detached', updatedTask, task.list.boardId);
+  }
 }

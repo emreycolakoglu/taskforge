@@ -12,6 +12,7 @@ import { LoginPage } from '@/pages/login-page'
 import { SignupPage } from '@/pages/signup-page'
 
 import { KanbanBoard } from '@/components/kanban-board'
+import { BoardSettingsPage } from '@/pages/board-settings-page'
 
 export function App() {
   return (
@@ -30,6 +31,11 @@ export function App() {
             <Route path="/board/:id" element={
               <SidebarLayout>
                 <KanbanBoard />
+              </SidebarLayout>
+            } />
+            <Route path="/board/:id/settings" element={
+              <SidebarLayout>
+                <BoardSettingsPage />
               </SidebarLayout>
             } />
             <Route path="/tasks" element={

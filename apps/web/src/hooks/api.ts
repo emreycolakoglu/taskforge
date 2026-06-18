@@ -1,4 +1,4 @@
-import { API_BASE, Board, List, Task, Comment, Label, User, AuthStatus, OnboardRequest, AuthResponse, InviteTokenResponse, Invite, Settings } from '../types';
+import { API_BASE, Board, List, Task, TaskLabel, Comment, Label, User, AuthStatus, OnboardRequest, AuthResponse, InviteTokenResponse, Invite, Settings } from '../types';
 
 const TOKEN_KEY = 'taskforge_token';
 
@@ -128,12 +128,16 @@ export const api = {
 
   // Labels
   labels: {
-    list: (boardId: string) => request<Label[]>(`/labels/board/${boardId}`),
-    create: (data: { boardId: string; name: string; color?: string }) =>
-      request<Label>('/labels', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: Partial<Label>) =>
-      request<Label>(`/labels/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    list: (boardId: string) => request<Label[]>(`/boards/${boardId}/labels`),
+    create: (boardId: string, data: { name: string; color: string }) =>
+      request<Label>(`/boards/${boardId}/labels`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: { name?: string; color?: string }) =>
+      request<Label>(`/labels/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/labels/${id}`, { method: 'DELETE' }),
+    attach: (taskId: string, labelId: string) =>
+      request<TaskLabel>(`/tasks/${taskId}/labels/${labelId}`, { method: 'POST' }),
+    detach: (taskId: string, labelId: string) =>
+      request<void>(`/tasks/${taskId}/labels/${labelId}`, { method: 'DELETE' }),
   },
 
   // MCP

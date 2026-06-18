@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
-import { ArrowLeft, Plus, X, List, Columns3 } from 'lucide-react'
+import { ArrowLeft, Plus, X, List, Columns3, Settings, SlidersHorizontal } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/hooks/api'
 import { useBoardFull } from '@/hooks/use-boards'
@@ -11,11 +11,10 @@ import { Task, Label } from '@/types'
 import { TaskCard } from './task-card'
 import { TaskDetail } from './task-detail'
 import { CreateTaskModal } from './create-task-modal'
+import { LabelPill } from './label-pill'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
 
@@ -31,6 +30,7 @@ export function KanbanBoard() {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [creatingInList, setCreatingInList] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
+  const [activeLabelIds, setActiveLabelIds] = useState<string[]>([])
 
   const createTask = useCreateTask()
 
@@ -74,6 +74,30 @@ export function KanbanBoard() {
     queryClient.invalidateQueries({ queryKey: ['boards', id!, 'full'] })
   }
 
+  const toggleLabelFilter = (labelId: string) => {
+    setActiveLabelIds((prev) =>
+      prev.includes(labelId)
+        ? prev.filter((id) => id !== labelId)
+        : [...prev, labelId]
+    )
+  }
+
+  const clearFilters = () => setActiveLabelIds([])
+
+  /** Filter tasks: show only tasks that have ALL active labels. */
+  const filterTask = useCallback((task: Task) => {
+    if (activeLabelIds.length === 0) return true
+    const taskLabelIds = (task.taskLabels ?? task.labels ?? []).map((tl) => tl.labelId)
+    return activeLabelIds.every((id) => taskLabelIds.includes(id))
+  }, [activeLabelIds])
+
+  const filteredLists = useMemo(() => {
+    return lists.map((list) => ({
+      ...list,
+      tasks: (list.tasks || []).filter(filterTask),
+    }))
+  }, [lists, filterTask])
+
   const priorityColor = (p: string) => {
     switch (p) {
       case 'urgent': return 'text-destructive'
@@ -97,30 +121,54 @@ export function KanbanBoard() {
             <h1 className="text-lg font-semibold">{board.name}</h1>
             <p className="text-xs text-muted-foreground">{board.description}</p>
           </div>
-          <div className="flex gap-1 ml-4">
-            {labels.map((l) => (
-              <Badge key={l.id} style={{ backgroundColor: l.color }} className="text-white text-[10px] px-1.5 py-0">
-                {l.name}
-              </Badge>
-            ))}
-          </div>
         </div>
-        <ToggleGroup
-          value={viewMode}
-          onValueChange={(v) => v && setViewMode(v as 'kanban' | 'list')}
-          type="single"
-          aria-label="View mode"
-        >
-          <ToggleGroupItem value="list" aria-label="List view">
-            <List data-icon="inline-start" />
-            List
-          </ToggleGroupItem>
-          <ToggleGroupItem value="kanban" aria-label="Kanban view">
-            <Columns3 data-icon="inline-start" />
-            Kanban
-          </ToggleGroupItem>
-        </ToggleGroup>
+        <div className="flex items-center gap-2">
+          <ToggleGroup
+            value={viewMode}
+            onValueChange={(v) => v && setViewMode(v as 'kanban' | 'list')}
+            type="single"
+            aria-label="View mode"
+          >
+            <ToggleGroupItem value="list" aria-label="List view">
+              <List data-icon="inline-start" />
+              List
+            </ToggleGroupItem>
+            <ToggleGroupItem value="kanban" aria-label="Kanban view">
+              <Columns3 data-icon="inline-start" />
+              Kanban
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <Button variant="ghost" size="icon" aria-label="Board settings" onClick={() => navigate(`/board/${id}/settings`)}>
+            <Settings className="size-5" />
+          </Button>
+        </div>
       </header>
+
+      {/* Label filter bar */}
+      {labels.length > 0 && (
+        <div className="flex items-center gap-2 px-6 py-2 border-b bg-muted/30 shrink-0">
+          <SlidersHorizontal className="size-3.5 text-muted-foreground shrink-0" />
+          <div className="flex flex-wrap gap-1.5 items-center">
+            {labels.map((label) => {
+              const isActive = activeLabelIds.includes(label.id)
+              return (
+                <LabelPill
+                  key={label.id}
+                  label={label}
+                  active={isActive || undefined}
+                  onClick={() => toggleLabelFilter(label.id)}
+                />
+              )
+            })}
+          </div>
+          {activeLabelIds.length > 0 && (
+            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={clearFilters}>
+              <X className="size-3 mr-1" />
+              Clear
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Content */}
       {viewMode === 'list' ? (
@@ -131,13 +179,14 @@ export function KanbanBoard() {
                 <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Task</th>
                 <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">List</th>
                 <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Priority</th>
+                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Labels</th>
                 <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Assignee</th>
                 <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Due</th>
               </tr>
             </thead>
             <tbody>
               {lists.flatMap((l) =>
-                (l.tasks || []).map((t) => (
+                (l.tasks || []).filter(filterTask).map((t) => (
                   <tr
                     key={t.id}
                     className="border-b hover:bg-muted/50 cursor-pointer"
@@ -155,6 +204,13 @@ export function KanbanBoard() {
                         {t.priority}
                       </span>
                     </td>
+                    <td className="py-2.5 px-3 text-sm">
+                      <div className="flex flex-wrap gap-1">
+                        {(t.taskLabels ?? t.labels ?? []).map((tl) => (
+                          <LabelPill key={tl.labelId} label={tl.label} />
+                        ))}
+                      </div>
+                    </td>
                     <td className="py-2.5 px-3 text-sm text-muted-foreground">{t.assignee?.displayName || '—'}</td>
                     <td className="py-2.5 px-3 text-sm text-muted-foreground">
                       {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : '—'}
@@ -169,7 +225,7 @@ export function KanbanBoard() {
         <DragDropContext onDragEnd={handleDragEnd}>
           <ScrollArea className="flex-1 p-4">
             <div className="flex gap-4 h-full min-h-0">
-              {lists.map((list) => (
+              {filteredLists.map((list) => (
                 <Droppable key={list.id} droppableId={list.id}>
                   {(provided, snapshot) => (
                     <div
@@ -225,7 +281,7 @@ export function KanbanBoard() {
                                 {...provided.dragHandleProps}
                                 onClick={() => setSelectedTask(task)}
                               >
-                                <TaskCard task={task} isDragging={snapshot.isDragging} />
+                                <TaskCard task={task} isDragging={snapshot.isDragging} boardId={id} />
                               </div>
                             )}
                           </Draggable>

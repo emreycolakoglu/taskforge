@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BoardsService } from './boards.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { LabelsService } from '../labels/labels.service';
 import { createTestPrisma, seedBoard } from '../../test/setup';
 
 describe('BoardsService', () => {
@@ -11,8 +12,9 @@ describe('BoardsService', () => {
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     const events = new EventsService();
+    const labelsService = new LabelsService(prisma, events);
     const module: TestingModule = await Test.createTestingModule({
-      providers: [BoardsService, { provide: PrismaService, useValue: prisma }, { provide: EventsService, useValue: events }],
+      providers: [BoardsService, { provide: PrismaService, useValue: prisma }, { provide: EventsService, useValue: events }, { provide: LabelsService, useValue: labelsService }],
     }).compile();
     service = module.get<BoardsService>(BoardsService);
   });
@@ -86,6 +88,18 @@ describe('BoardsService', () => {
       expect(board.lists).toHaveLength(5);
       const listNames = board.lists.map((l) => l.name);
       expect(listNames).toEqual(['Backlog', 'To Do', 'In Progress', 'Review', 'Done']);
+    });
+
+    it('should create a board with 5 default labels', async () => {
+      const board = await service.create({ name: 'Label Board', slug: 'label-board', identifier: 'LBL' });
+      const labels = await prisma.label.findMany({ where: { boardId: board.id } });
+      expect(labels).toHaveLength(5);
+      const labelNames = labels.map((l) => l.name);
+      expect(labelNames).toContain('Bug');
+      expect(labelNames).toContain('Feature');
+      expect(labelNames).toContain('Improvement');
+      expect(labelNames).toContain('Documentation');
+      expect(labelNames).toContain('Urgent');
     });
 
     it('should create a board with description', async () => {

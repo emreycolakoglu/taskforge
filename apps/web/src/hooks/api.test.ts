@@ -336,4 +336,104 @@ describe('api', () => {
     expect(result).toHaveLength(2);
     expect(result[0].displayName).toBe('Alice');
   });
+
+  it('should make GET request to list labels for a board', async () => {
+    const labels = [{ id: 'lb1', boardId: 'b1', name: 'bug', color: '#EF4444', createdAt: '2026-01-01', updatedAt: '2026-01-01' }];
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(labels),
+    });
+
+    const { api } = await import('./api');
+    const result = await api.labels.list('b1');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/boards/b1/labels', expect.objectContaining({
+      headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+    }));
+    expect(result).toEqual(labels);
+  });
+
+  it('should make POST request to create a label', async () => {
+    const newLabel = { id: 'lb1', boardId: 'b1', name: 'bug', color: '#EF4444', createdAt: '2026-01-01', updatedAt: '2026-01-01' };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(newLabel),
+    });
+
+    const { api } = await import('./api');
+    const result = await api.labels.create('b1', { name: 'bug', color: '#EF4444' });
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/boards/b1/labels', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'bug', color: '#EF4444' }),
+    });
+    expect(result.id).toBe('lb1');
+  });
+
+  it('should make PATCH request to update a label', async () => {
+    const updated = { id: 'lb1', boardId: 'b1', name: 'feature', color: '#22C55E', createdAt: '2026-01-01', updatedAt: '2026-01-02' };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(updated),
+    });
+
+    const { api } = await import('./api');
+    const result = await api.labels.update('lb1', { name: 'feature' });
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/labels/lb1', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: 'feature' }),
+    });
+    expect(result.name).toBe('feature');
+  });
+
+  it('should make DELETE request to remove a label', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(undefined),
+    });
+
+    const { api } = await import('./api');
+    await api.labels.delete('lb1');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/labels/lb1', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    });
+  });
+
+  it('should make POST request to attach a label to a task', async () => {
+    const taskLabel = { taskId: 't1', labelId: 'lb1', assignedAt: '2026-01-01T00:00:00Z', label: { id: 'lb1', boardId: 'b1', name: 'bug', color: '#EF4444', createdAt: '2026-01-01', updatedAt: '2026-01-01' } };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(taskLabel),
+    });
+
+    const { api } = await import('./api');
+    const result = await api.labels.attach('t1', 'lb1');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/labels/lb1', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(result.taskId).toBe('t1');
+    expect(result.labelId).toBe('lb1');
+  });
+
+  it('should make DELETE request to detach a label from a task', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(undefined),
+    });
+
+    const { api } = await import('./api');
+    await api.labels.detach('t1', 'lb1');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/labels/lb1', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    });
+  });
 });

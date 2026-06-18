@@ -42,6 +42,7 @@ export interface Task {
   updatedAt: string;
   list?: List;
   labels?: TaskLabel[];
+  taskLabels?: TaskLabel[];
   comments?: Comment[];
   activity?: Activity[];
   _count?: { comments: number };
@@ -50,6 +51,7 @@ export interface Task {
 export interface TaskLabel {
   taskId: string;
   labelId: string;
+  assignedAt: string;
   label: Label;
 }
 
@@ -58,6 +60,8 @@ export interface Label {
   boardId: string;
   name: string;
   color: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Comment {
@@ -141,3 +145,18 @@ export interface Settings {
 }
 
 export const API_BASE = '/api';
+
+export const PREDEFINED_COLORS = [
+  '#EF4444', // red
+  '#F97316', // orange
+  '#F59E0B', // amber
+  '#22C55E', // green
+  '#14B8A6', // teal
+  '#06B6D4', // cyan
+  '#3B82F6', // blue
+  '#6366F1', // indigo
+  '#A855F7', // purple
+  '#EC4899', // pink
+  '#78716C', // stone
+  '#64748B', // slate
+];
