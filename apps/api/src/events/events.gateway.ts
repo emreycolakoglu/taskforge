@@ -12,7 +12,7 @@ import { AuthService } from '../auth/auth.service';
 
 @WebSocketGateway({
   cors: { origin: '*', methods: ['GET', 'POST'] },
-  namespace: '/ws',
+  path: '/ws/',
 })
 export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
@@ -25,8 +25,12 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   ) {}
 
   afterInit() {
-    this.events.observe().subscribe(({ event, data }) => {
-      this.server.emit(event, data);
+    this.events.observe().subscribe(({ event, data, boardId }) => {
+      if (boardId) {
+        this.server.to(`board:${boardId}`).emit(event, data);
+      } else {
+        this.server.emit(event, data);
+      }
     });
   }
 
@@ -39,12 +43,6 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
       }
     }, 5000);
     this.authTimeouts.set(client.id, timeout);
-
-    // Client can subscribe to specific board
-    const boardId = client.handshake.query.boardId as string;
-    if (boardId) {
-      client.join(`board:${boardId}`);
-    }
   }
 
   handleDisconnect(client: Socket) {
@@ -56,7 +54,7 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   }
 
   @SubscribeMessage('auth')
-  async handleAuth(client: Socket, data: { token: string }) {
+  async handleAuth(client: Socket, data: { token: string; boardId?: string }) {
     try {
       const user = await this.authService.validateSession(data.token);
       if (!user) {
@@ -77,18 +75,15 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
       client.data.userId = user.id;
       client.data.user = user;
 
+      // Join board room if boardId provided
+      if (data.boardId) {
+        client.join(`board:${data.boardId}`);
+      }
+
       client.emit('auth_success', { user });
     } catch {
       client.emit('auth_error', { message: 'Authentication failed' });
       client.disconnect(true);
     }
-  }
-
-  private requireAuth(client: Socket): boolean {
-    if (!client.data.authenticated) {
-      client.emit('error', { message: 'Not authenticated' });
-      return false;
-    }
-    return true;
   }
 }

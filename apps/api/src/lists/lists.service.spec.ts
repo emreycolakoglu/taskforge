@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ListsService } from './lists.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { EventsService } from '../events/events.service';
 import { createTestPrisma, seedBoard } from '../../test/setup';
 
 describe('ListsService', () => {
@@ -10,8 +11,9 @@ describe('ListsService', () => {
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
+    const events = new EventsService();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [ListsService, { provide: PrismaService, useValue: prisma }],
+      providers: [ListsService, { provide: PrismaService, useValue: prisma }, { provide: EventsService, useValue: events }],
     }).compile();
     service = module.get<ListsService>(ListsService);
   });

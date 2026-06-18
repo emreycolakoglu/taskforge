@@ -1,13 +1,15 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { io, Socket } from 'socket.io-client';
 import { getToken } from './api';
-
-const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 
 export function useSocket(boardId?: string) {
   const queryClient = useQueryClient();
-  const wsRef = useRef<WebSocket | null>(null);
+  const socketRef = useRef<Socket | null>(null);
   const listenersRef = useRef<Map<string, Set<(data: unknown) => void>>>(new Map());
+  const boardIdRef = useRef(boardId);
+
+  boardIdRef.current = boardId;
 
   const on = useCallback((event: string, handler: (data: unknown) => void) => {
     if (!listenersRef.current.has(event)) {
@@ -17,73 +19,126 @@ export function useSocket(boardId?: string) {
     return () => listenersRef.current.get(event)?.delete(handler);
   }, []);
 
+  // Create socket once — stays connected regardless of boardId changes
   useEffect(() => {
-    const url = boardId ? `${WS_URL}?boardId=${boardId}` : WS_URL;
-    const ws = new WebSocket(url);
-    wsRef.current = ws;
+    const socket = io({
+      path: '/ws/',
+      transports: ['websocket'],
+    });
 
-    ws.onopen = () => {
+    socketRef.current = socket;
+
+    socket.on('connect', () => {
       const token = getToken();
       if (token) {
-        ws.send(JSON.stringify({ type: 'auth', token }));
+        socket.emit('auth', { token, boardId: boardIdRef.current });
       }
+    });
+
+    socket.on('auth_error', () => {
+      console.error('WebSocket auth failed');
+    });
+
+    socket.on('auth_success', () => {
+      // Authenticated successfully
+    });
+
+    const invalidateByEvent = (eventName: string, eventData: unknown) => {
+      const bid = boardIdRef.current;
+
+      if (
+        eventName === 'task:created' ||
+        eventName === 'task:updated' ||
+        eventName === 'task:deleted' ||
+        eventName === 'task:moved'
+      ) {
+        const task = eventData as { id?: string; listId?: string; boardId?: string };
+        if (task.id) {
+          queryClient.invalidateQueries({ queryKey: ['tasks', task.id] });
+        }
+        if (task.boardId) {
+          queryClient.invalidateQueries({ queryKey: ['tasks', 'board', task.boardId] });
+        }
+        queryClient.invalidateQueries({ queryKey: ['boards'] });
+        if (bid) {
+          queryClient.invalidateQueries({ queryKey: ['boards', bid] });
+          queryClient.invalidateQueries({ queryKey: ['boards', bid, 'full'] });
+        }
+      }
+
+      if (eventName === 'comment:created' || eventName === 'comment:deleted') {
+        const comment = eventData as { taskId?: string };
+        if (comment.taskId) {
+          queryClient.invalidateQueries({ queryKey: ['comments', comment.taskId] });
+        }
+      }
+
+      if (
+        eventName === 'label:created' ||
+        eventName === 'label:updated' ||
+        eventName === 'label:deleted'
+      ) {
+        if (bid) {
+          queryClient.invalidateQueries({ queryKey: ['labels', bid] });
+        }
+      }
+
+      if (
+        eventName === 'list:created' ||
+        eventName === 'list:updated' ||
+        eventName === 'list:deleted' ||
+        eventName === 'list:reordered'
+      ) {
+        if (bid) {
+          queryClient.invalidateQueries({ queryKey: ['boards', bid] });
+          queryClient.invalidateQueries({ queryKey: ['boards', bid, 'full'] });
+        }
+      }
+
+      // Notify custom listeners
+      const handlers = listenersRef.current.get(eventName);
+      handlers?.forEach((h) => h(eventData));
     };
 
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        if (data.type === 'auth_error') {
-          console.error('WebSocket auth failed');
-          return;
-        }
-        if (data.type === 'auth_success') {
-          return;
-        }
-        const { event: eventName, data: eventData } = data;
+    const eventTypes = [
+      'task:created',
+      'task:updated',
+      'task:deleted',
+      'task:moved',
+      'comment:created',
+      'comment:deleted',
+      'label:created',
+      'label:updated',
+      'label:deleted',
+      'list:created',
+      'list:updated',
+      'list:deleted',
+      'list:reordered',
+      'board:created',
+    ];
 
-        // Invalidate relevant react-query caches based on event type
-        if (eventName === 'task:created' || eventName === 'task:updated' || eventName === 'task:deleted' || eventName === 'task:moved') {
-          const task = eventData as { id?: string; listId?: string; boardId?: string };
-          if (task.id) {
-            queryClient.invalidateQueries({ queryKey: ['tasks', task.id] });
-          }
-          if (task.boardId) {
-            queryClient.invalidateQueries({ queryKey: ['tasks', 'board', task.boardId] });
-          }
-          // Invalidate all board queries since task counts may change
-          queryClient.invalidateQueries({ queryKey: ['boards'] });
-          if (boardId) {
-            queryClient.invalidateQueries({ queryKey: ['boards', boardId] });
-            queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] });
-          }
-        }
-        if (eventName === 'comment:created' || eventName === 'comment:deleted') {
-          const comment = eventData as { taskId?: string };
-          if (comment.taskId) {
-            queryClient.invalidateQueries({ queryKey: ['comments', comment.taskId] });
-          }
-        }
-        if (eventName === 'label:created' || eventName === 'label:updated' || eventName === 'label:deleted') {
-          if (boardId) {
-            queryClient.invalidateQueries({ queryKey: ['labels', boardId] });
-          }
-        }
-        if (eventName === 'list:created' || eventName === 'list:updated' || eventName === 'list:deleted' || eventName === 'list:reordered') {
-          if (boardId) {
-            queryClient.invalidateQueries({ queryKey: ['boards', boardId] });
-            queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] });
-          }
-        }
+    eventTypes.forEach((eventType) => {
+      socket.on(eventType, (data: unknown) => {
+        invalidateByEvent(eventType, data);
+      });
+    });
 
-        const handlers = listenersRef.current.get(eventName);
-        handlers?.forEach((h) => h(eventData));
-      } catch {
-        // ignore malformed messages
-      }
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
     };
+  }, [queryClient]);
 
-    return () => ws.close();
-  }, [boardId, queryClient]);
+  // Re-join board room when boardId changes (without reconnecting)
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (socket && socket.connected && boardId) {
+      const token = getToken();
+      if (token) {
+        socket.emit('auth', { token, boardId });
+      }
+    }
+  }, [boardId]);
 
   return { on };
 }

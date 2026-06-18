@@ -1,15 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { Subject, Observable } from 'rxjs';
 
+export interface EventPayload {
+  event: string;
+  data: any;
+  boardId?: string;
+}
+
 @Injectable()
 export class EventsService {
-  private eventSubject = new Subject<{ event: string; data: any }>();
+  private eventSubject = new Subject<EventPayload>();
 
-  emit(event: string, data: any) {
-    this.eventSubject.next({ event, data });
+  emit(event: string, data: any, boardId?: string) {
+    this.eventSubject.next({ event, data, boardId });
   }
 
-  observe(): Observable<{ event: string; data: any }> {
+  observe(): Observable<EventPayload> {
     return this.eventSubject.asObservable();
   }
 }

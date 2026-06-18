@@ -1,10 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { EventsService } from '../events/events.service';
 import { CreateBoardDto, UpdateBoardDto } from './dto/board.dto';
 
 @Injectable()
 export class BoardsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private events: EventsService,
+  ) {}
 
   async findAll() {
     return this.prisma.board.findMany({
@@ -49,7 +53,7 @@ export class BoardsService {
   }
 
   async create(dto: CreateBoardDto, _user?: { id: string; displayName: string }) {
-    return this.prisma.board.create({
+    const board = await this.prisma.board.create({
       data: {
         name: dto.name,
         slug: dto.slug,
@@ -66,15 +70,20 @@ export class BoardsService {
       },
       include: { lists: true },
     });
+    this.events.emit('board:created', board);
+    return board;
   }
 
   async update(id: string, dto: UpdateBoardDto, _user?: { id: string; displayName: string }) {
     await this.findOne(id);
-    return this.prisma.board.update({ where: { id }, data: dto });
+    const board = await this.prisma.board.update({ where: { id }, data: dto });
+    this.events.emit('board:updated', board, id);
+    return board;
   }
 
   async remove(id: string, _user?: { id: string; displayName: string }) {
     await this.findOne(id);
-    return this.prisma.board.delete({ where: { id } });
+    await this.prisma.board.delete({ where: { id } });
+    this.events.emit('board:deleted', { id }, id);
   }
 }

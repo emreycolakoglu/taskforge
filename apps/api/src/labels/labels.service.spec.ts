@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { LabelsService } from './labels.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { EventsService } from '../events/events.service';
 import { createTestPrisma, seedBoard, seedLabel } from '../../test/setup';
 
 describe('LabelsService', () => {
@@ -10,8 +11,9 @@ describe('LabelsService', () => {
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
+    const events = new EventsService();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [LabelsService, { provide: PrismaService, useValue: prisma }],
+      providers: [LabelsService, { provide: PrismaService, useValue: prisma }, { provide: EventsService, useValue: events }],
     }).compile();
     service = module.get<LabelsService>(LabelsService);
   });

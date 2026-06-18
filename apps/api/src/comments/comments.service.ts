@@ -37,13 +37,25 @@ export class CommentsService {
       },
     });
 
-    this.events.emit('comment:created', comment);
+    const task = await this.prisma.task.findUnique({
+      where: { id: dto.taskId },
+      include: { list: { select: { boardId: true } } },
+    });
+
+    this.events.emit('comment:created', comment, task?.list?.boardId);
     return comment;
   }
 
   async remove(id: string) {
     const comment = await this.prisma.comment.findUnique({ where: { id } });
     if (!comment) throw new NotFoundException('Comment not found');
-    return this.prisma.comment.delete({ where: { id } });
+
+    const task = await this.prisma.task.findUnique({
+      where: { id: comment.taskId },
+      include: { list: { select: { boardId: true } } },
+    });
+
+    await this.prisma.comment.delete({ where: { id } });
+    this.events.emit('comment:deleted', { id }, task?.list?.boardId);
   }
 }

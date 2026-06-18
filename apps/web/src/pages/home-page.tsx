@@ -1,44 +1,59 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Plus, Trash2, LayoutDashboard } from 'lucide-react'
-import { useBoards, useCreateBoard, useDeleteBoard } from '@/hooks/use-boards'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Plus, Trash2, LayoutDashboard } from "lucide-react";
+import { useBoards, useCreateBoard, useDeleteBoard } from "@/hooks/use-boards";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter,
-  DialogHeader, DialogTitle, DialogTrigger,
-} from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 export function HomePage() {
-  const [open, setOpen] = useState(false)
-  const [name, setName] = useState('')
-  const navigate = useNavigate()
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const navigate = useNavigate();
 
-  const { data: boards = [] } = useBoards()
-  const createBoard = useCreateBoard()
-  const deleteBoard = useDeleteBoard()
+  const { data: boards = [] } = useBoards();
+  const createBoard = useCreateBoard();
+  const deleteBoard = useDeleteBoard();
 
   const handleCreate = () => {
-    if (!name.trim()) return
-    const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+    if (!name.trim()) return;
+    const slug = name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "");
     createBoard.mutate(
       { name: name.trim(), slug },
       {
         onSuccess: (board) => {
-          setOpen(false)
-          setName('')
-          navigate(`/board/${board.id}`)
+          setOpen(false);
+          setName("");
+          navigate(`/board/${board.id}`);
         },
       },
-    )
-  }
+    );
+  };
 
   const handleDelete = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation()
-    deleteBoard.mutate(id)
-  }
+    e.stopPropagation();
+    deleteBoard.mutate(id);
+  };
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -60,7 +75,8 @@ export function HomePage() {
             <DialogHeader>
               <DialogTitle>Create Board</DialogTitle>
               <DialogDescription>
-                Create a new board with default lists (Backlog, To Do, In Progress, Review, Done).
+                Create a new board with default lists (Backlog, To Do, In
+                Progress, Review, Done).
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-4 py-2">
@@ -75,7 +91,9 @@ export function HomePage() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+              <Button variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
               <Button onClick={handleCreate}>Create Board</Button>
             </DialogFooter>
           </DialogContent>
@@ -124,5 +142,5 @@ export function HomePage() {
         )}
       </div>
     </div>
-  )
+  );
 }

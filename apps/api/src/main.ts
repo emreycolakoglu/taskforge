@@ -36,9 +36,14 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3000;
   await app.listen(port);
+  const spaAvailable = fs.existsSync(indexPath);
   console.log(`TaskForge running on http://localhost:${port}`);
   console.log(`  REST + MCP API: http://localhost:${port}/api`);
   console.log(`  WebSocket: ws://localhost:${port}/ws`);
-  console.log(`  SPA: http://localhost:${port}/`);
+  if (spaAvailable) {
+    console.log(`  SPA: http://localhost:${port}/`);
+  } else {
+    console.log(`  SPA: http://localhost:5173/ (Vite dev server)`);
+  }
 }
 bootstrap();

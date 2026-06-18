@@ -12,14 +12,27 @@ describe('EventsService', () => {
   });
 
   it('should emit and observe events', (done) => {
-    const subscription = service.observe().subscribe(({ event, data }) => {
+    const subscription = service.observe().subscribe(({ event, data, boardId }) => {
       expect(event).toBe('test:event');
       expect(data).toEqual({ foo: 'bar' });
+      expect(boardId).toBeUndefined();
       subscription.unsubscribe();
       done();
     });
 
     service.emit('test:event', { foo: 'bar' });
+  });
+
+  it('should emit events with boardId', (done) => {
+    const subscription = service.observe().subscribe(({ event, data, boardId }) => {
+      expect(event).toBe('task:created');
+      expect(data).toEqual({ id: '1' });
+      expect(boardId).toBe('board-123');
+      subscription.unsubscribe();
+      done();
+    });
+
+    service.emit('task:created', { id: '1' }, 'board-123');
   });
 
   it('should support multiple events', (done) => {

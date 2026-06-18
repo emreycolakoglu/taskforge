@@ -109,7 +109,7 @@ export class TasksService {
       },
     });
 
-    this.events.emit('task:created', task);
+    this.events.emit('task:created', task, task.list.boardId);
     return task;
   }
 
@@ -169,7 +169,7 @@ export class TasksService {
       });
     }
 
-    this.events.emit('task:updated', task);
+    this.events.emit('task:updated', task, task.list.boardId);
     return task;
   }
 
@@ -204,7 +204,7 @@ export class TasksService {
       },
     });
 
-    this.events.emit('task:moved', task);
+    this.events.emit('task:moved', task, task.list.boardId);
     return task;
   }
 
@@ -216,7 +216,8 @@ export class TasksService {
   }
 
   async remove(id: string, user?: { id: string; displayName: string }) {
-    await this.findOne(id);
+    const task = await this.findOne(id);
+    const boardId = task.list.boardId;
     await this.prisma.activity.create({
       data: {
         taskId: id,
@@ -226,6 +227,8 @@ export class TasksService {
         detail: JSON.stringify({ reason: 'manual archive' }),
       },
     });
-    return this.prisma.task.update({ where: { id }, data: { status: 'archived' } });
+    const archived = await this.prisma.task.update({ where: { id }, data: { status: 'archived' } });
+    this.events.emit('task:deleted', { id }, boardId);
+    return archived;
   }
 }

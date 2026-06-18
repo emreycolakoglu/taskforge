@@ -63,16 +63,6 @@ describe('EventsGateway', () => {
       expect(client.disconnect).toHaveBeenCalledWith(true);
     });
 
-    it('should join board room when boardId query param is present', () => {
-      const client = createMockSocket({
-        handshake: { query: { boardId: 'board-123' } },
-      });
-
-      gateway.handleConnection(client);
-
-      expect(client.join).toHaveBeenCalledWith('board:board-123');
-    });
-
     it('should not disconnect client if they authenticate before timeout', async () => {
       const client = createMockSocket();
       mockAuthService.validateSession.mockResolvedValue({
@@ -122,6 +112,17 @@ describe('EventsGateway', () => {
       expect(client.data.userId).toBe('user-1');
       expect(client.data.user).toEqual(user);
       expect(client.emit).toHaveBeenCalledWith('auth_success', { user });
+    });
+
+    it('should join board room when boardId is provided in auth message', async () => {
+      const user = { id: 'user-1', displayName: 'Test User', role: 'member', email: 'test@example.com' };
+      mockAuthService.validateSession.mockResolvedValue(user);
+      const client = createMockSocket();
+
+      gateway.handleConnection(client);
+      await gateway.handleAuth(client, { token: 'valid-token', boardId: 'board-123' });
+
+      expect(client.join).toHaveBeenCalledWith('board:board-123');
     });
 
     it('should disconnect a client with an invalid token', async () => {

@@ -94,6 +94,7 @@ export class McpService {
       }
       case 'delete': {
         await this.prisma.board.delete({ where: { id: params.id } });
+        this.events.emit('board:deleted', { id: params.id }, params.id);
         return { deleted: true };
       }
       default:
@@ -124,7 +125,7 @@ export class McpService {
             wipLimit: params.wipLimit,
           },
         });
-        this.events.emit('list:created', list);
+        this.events.emit('list:created', list, params.boardId);
         return list;
       }
       case 'update': {
@@ -132,11 +133,13 @@ export class McpService {
           where: { id: params.id },
           data: { name: params.name, color: params.color, wipLimit: params.wipLimit },
         });
-        this.events.emit('list:updated', list);
+        this.events.emit('list:updated', list, list.boardId);
         return list;
       }
       case 'delete': {
+        const list = await this.prisma.list.findUnique({ where: { id: params.id } });
         await this.prisma.list.delete({ where: { id: params.id } });
+        this.events.emit('list:deleted', { id: params.id }, list?.boardId);
         return { deleted: true };
       }
       default:
@@ -216,7 +219,7 @@ export class McpService {
         await this.prisma.activity.create({
           data: { taskId: task.id, actorId, actor, action: 'created', detail: JSON.stringify({ title: task.title }) },
         });
-        this.events.emit('task:created', task);
+        this.events.emit('task:created', task, task.list?.boardId);
         return task;
       }
       case 'update': {
@@ -263,7 +266,7 @@ export class McpService {
           });
         }
 
-        this.events.emit('task:updated', task);
+        this.events.emit('task:updated', task, task.list?.boardId);
         return task;
       }
       case 'move': {
@@ -280,11 +283,16 @@ export class McpService {
         await this.prisma.activity.create({
           data: { taskId: params.id, actorId, actor, action: 'moved', detail: JSON.stringify({ to: newList?.name }) },
         });
-        this.events.emit('task:moved', task);
+        this.events.emit('task:moved', task, task.list?.boardId);
         return task;
       }
       case 'delete': {
+        const existingTask = await this.prisma.task.findUnique({
+          where: { id: params.id },
+          include: { list: { select: { boardId: true } } },
+        });
         await this.prisma.task.update({ where: { id: params.id }, data: { status: 'archived' } });
+        this.events.emit('task:deleted', { id: params.id }, existingTask?.list?.boardId);
         return { archived: true };
       }
       default:
@@ -309,7 +317,11 @@ export class McpService {
         await this.prisma.activity.create({
           data: { taskId: params.taskId, actorId, actor: authorName, action: 'commented', detail: JSON.stringify({ commentId: comment.id }) },
         });
-        this.events.emit('comment:created', comment);
+        const task = await this.prisma.task.findUnique({
+          where: { id: params.taskId },
+          include: { list: { select: { boardId: true } } },
+        });
+        this.events.emit('comment:created', comment, task?.list?.boardId);
         return comment;
       }
       default:
@@ -323,13 +335,17 @@ export class McpService {
         return this.prisma.label.findMany({ where: { boardId: params.boardId } });
       }
       case 'create': {
-        return this.prisma.label.create({
+        const label = await this.prisma.label.create({
           data: { boardId: params.boardId, name: params.name, color: params.color || '#6366f1' },
         });
+        this.events.emit('label:created', label, params.boardId);
+        return label;
       }
       case 'delete': {
+        const label = await this.prisma.label.findUnique({ where: { id: params.id } });
         await this.prisma.taskLabel.deleteMany({ where: { labelId: params.id } });
         await this.prisma.label.delete({ where: { id: params.id } });
+        this.events.emit('label:deleted', { id: params.id }, label?.boardId);
         return { deleted: true };
       }
       default:
