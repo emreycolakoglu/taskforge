@@ -3,7 +3,7 @@ import { BoardsService } from './boards.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { LabelsService } from '../labels/labels.service';
-import { createTestPrisma, seedBoard } from '../../test/setup';
+import { createTestPrisma, seedBoard, seedTask, seedLabel, seedComment, seedUser } from '../../test/setup';
 
 describe('BoardsService', () => {
   let service: BoardsService;
@@ -76,6 +76,43 @@ describe('BoardsService', () => {
         expect(list).toHaveProperty('tasks');
         expect(Array.isArray(list.tasks)).toBe(true);
       }
+    });
+
+    it('should include assignee, _count (comments), labels, and taskNumber on tasks', async () => {
+      const seeded = await seedBoard(prisma);
+      const list = seeded.lists[0];
+      const label = await seedLabel(prisma, seeded.id);
+      const user = await seedUser(prisma);
+      const task = await seedTask(prisma, list.id, { assigneeId: user.id });
+      // Attach label to task
+      await prisma.taskLabel.create({ data: { taskId: task.id, labelId: label.id } });
+      // Add a comment
+      await seedComment(prisma, task.id);
+
+      const board = await service.findFull(seeded.id);
+      const tasks = board.lists.flatMap((l: any) => l.tasks);
+      const found = tasks.find((t: any) => t.id === task.id);
+
+      expect(found).toBeDefined();
+      expect(found.assignee).toMatchObject({ id: user.id, email: user.email, displayName: user.displayName, role: user.role });
+      expect(found._count).toEqual({ comments: 1 });
+      expect(found.labels).toHaveLength(1);
+      expect(found.labels[0].label).toBeDefined();
+      expect(found.taskNumber).toBe(`${seeded.identifier}-${task.number}`);
+    });
+
+    it('should return null assignee when no assignee is set', async () => {
+      const seeded = await seedBoard(prisma);
+      const list = seeded.lists[0];
+      const task = await seedTask(prisma, list.id);
+
+      const board = await service.findFull(seeded.id);
+      const found = board.lists.flatMap((l: any) => l.tasks).find((t: any) => t.id === task.id);
+
+      expect(found).toBeDefined();
+      expect(found.assignee).toBeNull();
+      expect(found._count).toEqual({ comments: 0 });
+      expect(found.taskNumber).toBe(`${seeded.identifier}-${task.number}`);
     });
   });
 

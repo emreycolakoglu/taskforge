@@ -10,10 +10,17 @@ import { useCreateTask } from '@/hooks/use-tasks'
 import { useSocket } from '@/hooks/use-socket'
 import { Task, Label } from '@/types'
 import { TaskCard } from './task-card'
-import { TaskDetail } from './task-detail'
 import { CreateTaskModal } from './create-task-modal'
 import { LabelPill } from './label-pill'
 import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
@@ -28,10 +35,10 @@ export function KanbanBoard() {
   const lists = board?.lists || []
   const labels: Label[] = board?.labels || []
 
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [creatingInList, setCreatingInList] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
   const [activeLabelIds, setActiveLabelIds] = useState<string[]>([])
+  const [pendingDeleteListId, setPendingDeleteListId] = useState<string | null>(null)
 
   const createTask = useCreateTask()
 
@@ -120,6 +127,10 @@ export function KanbanBoard() {
     }
   }
 
+  const pendingDeleteList = pendingDeleteListId
+    ? lists.find((l) => l.id === pendingDeleteListId)
+    : null
+
   if (!board) return null
 
   return (
@@ -203,7 +214,7 @@ export function KanbanBoard() {
                   <tr
                     key={t.id}
                     className="border-b hover:bg-muted/50 cursor-pointer"
-                    onClick={() => setSelectedTask(t)}
+                    onClick={() => navigate(`/board/${id}/task/${t.id}`)}
                   >
                     <td className="py-2.5 px-3 text-sm font-medium truncate max-w-[200px]">
                       {t.taskNumber && (
@@ -276,7 +287,7 @@ export function KanbanBoard() {
                             size="icon"
                             className="size-6 text-muted-foreground hover:text-destructive"
                             aria-label={`Delete ${list.name}`}
-                            onClick={() => handleDeleteList(list.id)}
+                            onClick={() => setPendingDeleteListId(list.id)}
                           >
                             <X className="size-3.5" />
                           </Button>
@@ -292,7 +303,7 @@ export function KanbanBoard() {
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
                                 {...provided.dragHandleProps}
-                                onClick={() => setSelectedTask(task)}
+                                onClick={() => navigate(`/board/${id}/task/${task.id}`)}
                               >
                                 <TaskCard task={task} isDragging={snapshot.isDragging} boardId={id} />
                               </div>
@@ -326,10 +337,36 @@ export function KanbanBoard() {
         </DragDropContext>
       )}
 
-      {/* Task detail modal */}
-      {selectedTask && (
-        <TaskDetail task={selectedTask} onClose={() => setSelectedTask(null)} />
-      )}
+      {/* Delete list confirmation dialog */}
+      <Dialog
+        open={pendingDeleteListId !== null}
+        onOpenChange={(open) => { if (!open) setPendingDeleteListId(null) }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete list</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &ldquo;{pendingDeleteList?.name}&rdquo;? All tasks in this list will also be deleted. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDeleteListId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (pendingDeleteListId) {
+                  handleDeleteList(pendingDeleteListId)
+                  setPendingDeleteListId(null)
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

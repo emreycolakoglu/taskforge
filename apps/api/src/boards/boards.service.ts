@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { LabelsService } from '../labels/labels.service';
+import { withTaskNumber } from '../tasks/tasks.service';
 import { CreateBoardDto, UpdateBoardDto } from './dto/board.dto';
 
 const DEFAULT_LABELS = [
@@ -50,7 +51,12 @@ export class BoardsService {
             tasks: {
               where: { status: 'active' },
               orderBy: { position: 'asc' },
-              include: { labels: { include: { label: true } }, comments: true },
+              include: {
+                assignee: { select: { id: true, email: true, displayName: true, role: true } },
+                labels: { include: { label: true } },
+                _count: { select: { comments: true } },
+                board: { select: { identifier: true } },
+              },
             },
           },
         },
@@ -59,6 +65,12 @@ export class BoardsService {
       },
     });
     if (!board) throw new NotFoundException('Board not found');
+
+    // Apply taskNumber transform to each task
+    for (const list of board.lists) {
+      list.tasks = list.tasks.map(withTaskNumber);
+    }
+
     return board;
   }
 

@@ -110,7 +110,7 @@ export function LabelManager({ task, boardId }: LabelManagerProps) {
           <Tag className="size-3" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent align="start" className="w-48 p-2">
+      <PopoverContent align="start" className="w-48 p-2" onClick={(e) => e.stopPropagation()}>
         <div className="text-xs font-medium text-muted-foreground mb-1.5">Labels</div>
         <div className="flex flex-col gap-1">
           {allLabels.map((label) => {
@@ -121,7 +121,10 @@ export function LabelManager({ task, boardId }: LabelManagerProps) {
                 key={label.id}
                 type="button"
                 disabled={isPending}
-                onClick={() => toggle(label.id)}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  toggle(label.id)
+                }}
                 className={cn(
                   'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent transition-colors text-left',
                   isAttached && 'bg-accent/50',

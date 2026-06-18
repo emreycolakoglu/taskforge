@@ -3,7 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { CreateTaskDto, UpdateTaskDto, MoveTaskDto, ReorderTasksDto } from './dto/task.dto';
 
-function withTaskNumber(task: any): any {
+export function withTaskNumber(task: any): any {
   const identifier = task.board?.identifier ?? task.list?.board?.identifier;
   return {
     ...task,
