@@ -1,12 +1,11 @@
 import { useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 import {
-  LayoutDashboard, ListChecks, Settings, Moon, Sun, PanelLeftClose, PanelLeft,
+  LayoutDashboard, ListChecks, Settings, PanelLeftClose, PanelLeft,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { useTheme } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
 
 interface SidebarLayoutProps {
@@ -15,13 +14,11 @@ interface SidebarLayoutProps {
 
 export function SidebarLayout({ children }: SidebarLayoutProps) {
   const [collapsed, setCollapsed] = useState(false)
-  const { theme, setTheme } = useTheme()
   const location = useLocation()
 
   const navItems = [
     { icon: LayoutDashboard, label: "Boards", href: "/" },
     { icon: ListChecks, label: "Tasks", href: "/tasks" },
-    { icon: Settings, label: "Settings", href: "/settings" },
   ]
 
   return (
@@ -78,35 +75,29 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
 
           <Separator className="bg-sidebar-border" />
 
-          {/* Bottom actions */}
+          {/* Bottom section: Settings + Collapse */}
           <div className="flex flex-col gap-1 p-2">
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size={collapsed ? "icon" : "default"}
+                <Link
+                  to="/settings"
                   className={cn(
-                    "w-full justify-start text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
-                    collapsed && "justify-center"
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    location.pathname === "/settings"
+                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                      : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                    collapsed && "justify-center px-2"
                   )}
-                  aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-                  onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  aria-current={location.pathname === "/settings" ? "page" : undefined}
                 >
-                  {theme === "dark" ? (
-                    <Sun className="size-5 shrink-0" data-icon="inline-start" />
-                  ) : (
-                    <Moon className="size-5 shrink-0" data-icon="inline-start" />
-                  )}
-                  {!collapsed && <span>{theme === "dark" ? "Light" : "Dark"} Mode</span>}
-                </Button>
+                  <Settings className="size-5 shrink-0" data-icon="inline-start" />
+                  {!collapsed && <span>Settings</span>}
+                </Link>
               </TooltipTrigger>
               {collapsed && (
-                <TooltipContent side="right">
-                  {theme === "dark" ? "Light Mode" : "Dark Mode"}
-                </TooltipContent>
+                <TooltipContent side="right">Settings</TooltipContent>
               )}
             </Tooltip>
-
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
