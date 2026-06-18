@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { ArrowLeft, Plus, X, List, Columns3, Settings, SlidersHorizontal } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import { api } from '@/hooks/api'
 import { useBoardFull } from '@/hooks/use-boards'
 import { useCreateTask } from '@/hooks/use-tasks'
@@ -41,24 +42,29 @@ export function KanbanBoard() {
     if (!result.destination || !id) return
     const { draggableId, source, destination } = result
 
-    if (source.droppableId === destination.droppableId) {
-      const list = lists.find((l) => l.id === source.droppableId)
-      if (!list?.tasks) return
-      const reordered = [...list.tasks]
-      const [moved] = reordered.splice(source.index, 1)
-      reordered.splice(destination.index, 0, moved)
-      const items = reordered.map((t, i) => ({ id: t.id, position: i }))
-      await api.tasks.reorder(items)
-    } else {
-      const targetList = lists.find((l) => l.id === destination.droppableId)
-      const targetTasks = targetList?.tasks || []
-      const position = destination.index < targetTasks.length
-        ? targetTasks[destination.index].position
-        : (targetTasks.length > 0 ? targetTasks[targetTasks.length - 1].position + 1 : 0)
-      await api.tasks.move(draggableId, { listId: destination.droppableId, position })
+    try {
+      if (source.droppableId === destination.droppableId) {
+        const list = lists.find((l) => l.id === source.droppableId)
+        if (!list?.tasks) return
+        const reordered = [...list.tasks]
+        const [moved] = reordered.splice(source.index, 1)
+        reordered.splice(destination.index, 0, moved)
+        const items = reordered.map((t, i) => ({ id: t.id, position: i }))
+        await api.tasks.reorder(items)
+      } else {
+        const targetList = lists.find((l) => l.id === destination.droppableId)
+        const targetTasks = targetList?.tasks || []
+        const position = destination.index < targetTasks.length
+          ? targetTasks[destination.index].position
+          : (targetTasks.length > 0 ? targetTasks[targetTasks.length - 1].position + 1 : 0)
+        await api.tasks.move(draggableId, { listId: destination.droppableId, position })
+      }
+    } catch (error) {
+      toast.error("Failed to move task", { description: error instanceof Error ? error.message : 'Unknown error' })
     }
-    // Invalidate after reorder/move so the UI refreshes
     queryClient.invalidateQueries({ queryKey: ['boards', id, 'full'] })
+    queryClient.invalidateQueries({ queryKey: ['tasks', 'board', id] })
+    queryClient.invalidateQueries({ queryKey: ['tasks', draggableId] })
   }, [id, lists, queryClient])
 
   const handleCreateTask = (listId: string, title: string) => {
@@ -70,8 +76,15 @@ export function KanbanBoard() {
   }
 
   async function handleDeleteList(listId: string) {
-    await api.lists.delete(listId)
-    queryClient.invalidateQueries({ queryKey: ['boards', id!, 'full'] })
+    try {
+      await api.lists.delete(listId)
+      toast.success("List deleted")
+      queryClient.invalidateQueries({ queryKey: ['boards', id!, 'full'] })
+      queryClient.invalidateQueries({ queryKey: ['boards'] })
+    } catch (error) {
+      toast.error("Failed to delete list", { description: error instanceof Error ? error.message : 'Unknown error' })
+      queryClient.invalidateQueries({ queryKey: ['boards', id!, 'full'] })
+    }
   }
 
   const toggleLabelFilter = (labelId: string) => {
@@ -328,10 +341,17 @@ function AddListForm({ boardId }: { boardId: string }) {
 
   const handleSubmit = async () => {
     if (!name.trim()) return
-    await api.lists.create({ boardId, name: name.trim() })
-    setName('')
-    setEditing(false)
-    queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] })
+    try {
+      await api.lists.create({ boardId, name: name.trim() })
+      toast.success("List created")
+      setName('')
+      setEditing(false)
+      queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] })
+      queryClient.invalidateQueries({ queryKey: ['boards'] })
+    } catch (error) {
+      toast.error("Failed to create list", { description: error instanceof Error ? error.message : 'Unknown error' })
+      queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] })
+    }
   }
 
   if (editing) {

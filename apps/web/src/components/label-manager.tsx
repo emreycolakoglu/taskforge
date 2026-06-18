@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react'
 import { Tag } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '@/hooks/api'
 import { useLabels } from '@/hooks/use-labels'
 import { useQueryClient } from '@tanstack/react-query'
@@ -74,12 +75,15 @@ export function LabelManager({ task, boardId }: LabelManagerProps) {
     try {
       if (isAttached) {
         await api.labels.detach(task.id, labelId)
+        toast.success("Label removed")
       } else {
         await api.labels.attach(task.id, labelId)
+        toast.success("Label attached")
       }
-    } catch {
+    } catch (error) {
       // Rollback on error
       queryClient.setQueryData(queryKey, previous)
+      toast.error(isAttached ? "Failed to remove label" : "Failed to attach label", { description: error instanceof Error ? error.message : 'Unknown error' })
     } finally {
       setPending((prev) => {
         const next = new Set(prev)
@@ -88,6 +92,8 @@ export function LabelManager({ task, boardId }: LabelManagerProps) {
       })
       // Refetch to ensure consistency
       queryClient.invalidateQueries({ queryKey })
+      queryClient.invalidateQueries({ queryKey: ['tasks', task.id] })
+      queryClient.invalidateQueries({ queryKey: ['labels', boardId] })
     }
   }, [task.id, task.taskLabels, task.labels, boardId, allLabels, currentLabelIds, queryClient])
 

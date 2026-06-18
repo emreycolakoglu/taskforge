@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { api } from './api';
 
 export function useUsers() {
@@ -20,7 +21,11 @@ export function useCreateInvite() {
   return useMutation({
     mutationFn: () => api.auth.createInvite(),
     onSuccess: () => {
+      toast.success("Invite created");
       queryClient.invalidateQueries({ queryKey: ['invites'] });
+    },
+    onError: (error) => {
+      toast.error("Failed to create invite", { description: error.message });
     },
   });
 }
@@ -30,7 +35,11 @@ export function useRevokeInvite() {
   return useMutation({
     mutationFn: (id: string) => api.auth.revokeInvite(id),
     onSuccess: () => {
+      toast.success("Invite revoked");
       queryClient.invalidateQueries({ queryKey: ['invites'] });
+    },
+    onError: (error) => {
+      toast.error("Failed to revoke invite", { description: error.message });
     },
   });
 }

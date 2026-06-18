@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { api } from './api';
 import type { Label } from '../types';
 
@@ -12,10 +13,15 @@ export function useLabels(boardId: string) {
 export function useCreateLabel() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { boardId: string; name: string; color?: string }) =>
-      api.labels.create(data),
+    mutationFn: ({ boardId, ...data }: { boardId: string; name: string; color?: string }) =>
+      api.labels.create(boardId, data),
     onSuccess: (_data, variables) => {
+      toast.success("Label created");
       queryClient.invalidateQueries({ queryKey: ['labels', variables.boardId] });
+      queryClient.invalidateQueries({ queryKey: ['boards', variables.boardId, 'full'] });
+    },
+    onError: (error) => {
+      toast.error("Failed to create label", { description: error.message });
     },
   });
 }
@@ -26,7 +32,12 @@ export function useUpdateLabel() {
     mutationFn: ({ id, data, boardId }: { id: string; data: Partial<Label>; boardId: string }) =>
       api.labels.update(id, data),
     onSuccess: (_data, variables) => {
+      toast.success("Label updated");
       queryClient.invalidateQueries({ queryKey: ['labels', variables.boardId] });
+      queryClient.invalidateQueries({ queryKey: ['boards', variables.boardId, 'full'] });
+    },
+    onError: (error) => {
+      toast.error("Failed to update label", { description: error.message });
     },
   });
 }
@@ -37,7 +48,12 @@ export function useDeleteLabel() {
     mutationFn: ({ id, boardId }: { id: string; boardId: string }) =>
       api.labels.delete(id),
     onSuccess: (_data, variables) => {
+      toast.success("Label deleted");
       queryClient.invalidateQueries({ queryKey: ['labels', variables.boardId] });
+      queryClient.invalidateQueries({ queryKey: ['boards', variables.boardId, 'full'] });
+    },
+    onError: (error) => {
+      toast.error("Failed to delete label", { description: error.message });
     },
   });
 }

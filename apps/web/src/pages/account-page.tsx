@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
 import { api } from '@/hooks/api';
 import { useCreateInvite } from '@/hooks/use-users';
@@ -10,14 +12,11 @@ import { Separator } from '@/components/ui/separator';
 
 export function AccountPage() {
   const { user, updateUser, logout } = useAuth();
+  const queryClient = useQueryClient();
   const [displayName, setDisplayName] = useState(user?.displayName ?? '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmNewPassword, setConfirmNewPassword] = useState('');
-  const [nameMsg, setNameMsg] = useState('');
-  const [pwMsg, setPwMsg] = useState('');
-  const [nameError, setNameError] = useState('');
-  const [pwError, setPwError] = useState('');
 
   const createInvite = useCreateInvite();
 
@@ -25,26 +24,23 @@ export function AccountPage() {
 
   const handleNameUpdate = async (e: FormEvent) => {
     e.preventDefault();
-    setNameError('');
-    setNameMsg('');
     try {
       await updateUser({ displayName });
-      setNameMsg('Display name updated');
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success("Name updated");
     } catch (err) {
-      setNameError(err instanceof Error ? err.message : 'Failed to update');
+      toast.error("Failed to update name", { description: err instanceof Error ? err.message : 'Unknown error' });
     }
   };
 
   const handlePasswordUpdate = async (e: FormEvent) => {
     e.preventDefault();
-    setPwError('');
-    setPwMsg('');
     if (newPassword !== confirmNewPassword) {
-      setPwError('Passwords do not match');
+      toast.error("Passwords do not match");
       return;
     }
     if (newPassword.length < 6) {
-      setPwError('Password must be at least 6 characters');
+      toast.error("Password must be at least 6 characters");
       return;
     }
     try {
@@ -52,9 +48,10 @@ export function AccountPage() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmNewPassword('');
-      setPwMsg('Password updated');
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      toast.success("Password updated");
     } catch (err) {
-      setPwError(err instanceof Error ? err.message : 'Failed to update');
+      toast.error("Failed to update password", { description: err instanceof Error ? err.message : 'Unknown error' });
     }
   };
 
@@ -63,10 +60,10 @@ export function AccountPage() {
       onSuccess: (res) => {
         const url = `${window.location.origin}/signup/${res.token}`;
         navigator.clipboard.writeText(url);
-        alert(`Invite link copied to clipboard!\n\n${url}`);
+        toast.success("Invite link copied to clipboard", { description: url });
       },
       onError: (err) => {
-        alert(err.message || 'Failed to create invite');
+        toast.error("Failed to create invite", { description: err.message });
       },
     });
   };
@@ -75,9 +72,9 @@ export function AccountPage() {
     try {
       const res = await api.auth.createBotToken();
       await navigator.clipboard.writeText(res.token);
-      alert('Bot token copied to clipboard!');
+      toast.success("Bot token created", { description: res.token });
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to create bot token');
+      toast.error("Failed to create bot token", { description: err instanceof Error ? err.message : 'Unknown error' });
     }
   };
 
@@ -121,8 +118,6 @@ export function AccountPage() {
                 required
               />
             </div>
-            {nameError && <p className="text-sm text-destructive">{nameError}</p>}
-            {nameMsg && <p className="text-sm text-green-600">{nameMsg}</p>}
             <Button type="submit" className="w-fit">Save Name</Button>
           </form>
         </CardContent>
@@ -166,8 +161,6 @@ export function AccountPage() {
                 required
               />
             </div>
-            {pwError && <p className="text-sm text-destructive">{pwError}</p>}
-            {pwMsg && <p className="text-sm text-green-600">{pwMsg}</p>}
             <Button type="submit" className="w-fit">Update Password</Button>
           </form>
         </CardContent>

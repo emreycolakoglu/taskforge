@@ -1,5 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import { Moon, Sun, Monitor, Copy, LinkIcon, Ban, Plus } from 'lucide-react'
+import { toast } from 'sonner'
 import { useTheme } from '@/components/theme-provider'
 import { useAuth } from '@/contexts/auth-context'
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings'
@@ -58,7 +59,6 @@ function GeneralTab() {
   const isAdmin = user?.role === 'admin'
 
   const [title, setTitle] = useState('')
-  const [savedTitle, setSavedTitle] = useState(false)
 
   useEffect(() => {
     if (settings?.title) {
@@ -69,13 +69,7 @@ function GeneralTab() {
   const handleSaveTitle = (e: FormEvent) => {
     e.preventDefault()
     if (!title.trim()) return
-    setSavedTitle(false)
-    updateSettings.mutate({ title: title.trim() }, {
-      onSuccess: () => {
-        setSavedTitle(true)
-        setTimeout(() => setSavedTitle(false), 3000)
-      },
-    })
+    updateSettings.mutate({ title: title.trim() })
   }
 
   return (
@@ -124,20 +118,10 @@ function GeneralTab() {
                     disabled={updateSettings.isPending}
                   />
                 </div>
-                {updateSettings.isError && (
-                  <p className="text-sm text-destructive">
-                    {updateSettings.error instanceof Error
-                      ? updateSettings.error.message
-                      : 'Failed to save'}
-                  </p>
-                )}
                 <div className="flex items-center gap-3">
                   <Button type="submit" disabled={updateSettings.isPending || !title.trim()}>
                     {updateSettings.isPending ? 'Saving…' : 'Save Title'}
                   </Button>
-                  {savedTitle && (
-                    <span className="text-sm text-green-600">Saved!</span>
-                  )}
                 </div>
               </form>
             ) : (
@@ -239,6 +223,7 @@ function InvitesTab() {
       const result = await createInvite.mutateAsync(undefined as never)
       const link = `${window.location.origin}/signup/${result.token}`
       await navigator.clipboard.writeText(link)
+      toast.success("Invite link copied to clipboard")
     } finally {
       setCreating(false)
     }

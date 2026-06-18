@@ -81,6 +81,7 @@ export function useSocket(boardId?: string) {
         const comment = eventData as { taskId?: string };
         if (comment.taskId) {
           queryClient.invalidateQueries({ queryKey: ['comments', comment.taskId] });
+          queryClient.invalidateQueries({ queryKey: ['tasks', comment.taskId] });
         }
       }
 
@@ -91,6 +92,7 @@ export function useSocket(boardId?: string) {
       ) {
         if (bid) {
           queryClient.invalidateQueries({ queryKey: ['labels', bid] });
+          queryClient.invalidateQueries({ queryKey: ['boards', bid, 'full'] });
         }
       }
 

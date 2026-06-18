@@ -43,6 +43,7 @@ export function TaskDetail({ task, onClose }: TaskDetailProps) {
   const handleSave = () => {
     updateTask.mutate({
       id: task.id,
+      boardId,
       data: {
         title,
         description,
