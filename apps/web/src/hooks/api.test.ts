@@ -57,19 +57,19 @@ describe('api', () => {
   });
 
   it('should make POST request to create board', async () => {
-    const newBoard = { id: 'b1', name: 'New Board', slug: 'new-board' };
+    const newBoard = { id: 'b1', name: 'New Board', slug: 'new-board', identifier: 'NB' };
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(newBoard),
     });
 
     const { api } = await import('./api');
-    const result = await api.boards.create({ name: 'New Board', slug: 'new-board' });
+    const result = await api.boards.create({ name: 'New Board', slug: 'new-board', identifier: 'NB' });
 
     expect(mockFetch).toHaveBeenCalledWith('/api/boards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: 'New Board', slug: 'new-board' }),
+      body: JSON.stringify({ name: 'New Board', slug: 'new-board', identifier: 'NB' }),
     });
     expect(result.id).toBe('b1');
   });

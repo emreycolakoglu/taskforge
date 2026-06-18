@@ -57,7 +57,7 @@ describe('AuthService', () => {
 
       // Create a task to verify it remains unassigned (no auto-claim)
       await prisma.task.create({
-        data: { listId: list.id, title: 'Unassigned task', position: 0 },
+        data: { listId: list.id, boardId: board.id, number: 1, title: 'Unassigned task', position: 0 },
       });
 
       const result = await service.onboard({

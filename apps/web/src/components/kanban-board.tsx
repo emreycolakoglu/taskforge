@@ -143,7 +143,12 @@ export function KanbanBoard() {
                     className="border-b hover:bg-muted/50 cursor-pointer"
                     onClick={() => setSelectedTask(t)}
                   >
-                    <td className="py-2.5 px-3 text-sm font-medium truncate max-w-[200px]">{t.title}</td>
+                    <td className="py-2.5 px-3 text-sm font-medium truncate max-w-[200px]">
+                      {t.taskNumber && (
+                        <span className="text-muted-foreground font-normal mr-1">{t.taskNumber}</span>
+                      )}
+                      {t.title}
+                    </td>
                     <td className="py-2.5 px-3 text-sm text-muted-foreground">{l.name}</td>
                     <td className="py-2.5 px-3 text-sm">
                       <span className={cn("font-semibold text-xs", priorityColor(t.priority))}>

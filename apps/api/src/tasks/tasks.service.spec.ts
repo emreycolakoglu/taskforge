@@ -89,6 +89,13 @@ describe('TasksService', () => {
       const results = await service.search('zzzznotfound');
       expect(results).toHaveLength(0);
     });
+
+    it('should find tasks by task number format (e.g. ABC-1)', async () => {
+      await seedTask(prisma, board.lists[0].id, { title: 'Fix login bug' });
+      const results = await service.search(`${board.identifier}-1`);
+      expect(results).toHaveLength(1);
+      expect(results[0].taskNumber).toBe(`${board.identifier}-1`);
+    });
   });
 
   describe('findOne', () => {
@@ -113,6 +120,7 @@ describe('TasksService', () => {
       expect(task.title).toBe('New task');
       expect(task.position).toBe(0);
       expect(task.priority).toBe('medium');
+      expect(task.taskNumber).toBe(`${board.identifier}-1`);
     });
 
     it('should create a task with labels', async () => {
@@ -136,6 +144,15 @@ describe('TasksService', () => {
       }, user);
       expect(task.priority).toBe('urgent');
       expect(task.assigneeId).toBeNull();
+    });
+
+    it('should increment task number for each task on the same board', async () => {
+      const task1 = await service.create({ listId: board.lists[0].id, title: 'Task 1' }, user);
+      const task2 = await service.create({ listId: board.lists[1].id, title: 'Task 2' }, user);
+      expect(task1.number).toBe(1);
+      expect(task2.number).toBe(2);
+      expect(task1.taskNumber).toBe(`${board.identifier}-1`);
+      expect(task2.taskNumber).toBe(`${board.identifier}-2`);
     });
 
     it('should log activity on creation', async () => {

@@ -51,7 +51,7 @@ export function TasksPage() {
       {results.length > 0 && (
         <div className="border rounded-lg divide-y">
           {results.map((task) => {
-            const board = task.list?.boardId ? boards[task.list.boardId] : undefined
+            const board = task.boardId ? boards[task.boardId] : (task.list?.boardId ? boards[task.list.boardId] : undefined)
             return (
               <button
                 key={task.id}
@@ -62,7 +62,12 @@ export function TasksPage() {
                 }}
               >
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-sm truncate">{task.title}</span>
+                  <span className="font-medium text-sm truncate">
+                    {task.taskNumber && (
+                      <span className="text-muted-foreground font-normal mr-1">{task.taskNumber}</span>
+                    )}
+                    {task.title}
+                  </span>
                   <span className={cn('text-xs font-semibold shrink-0', priorityColor(task.priority))}>
                     {task.priority}
                   </span>

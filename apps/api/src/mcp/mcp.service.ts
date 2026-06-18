@@ -2,6 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 
+function withTaskNumber(task: any): any {
+  const identifier = task.board?.identifier ?? task.list?.board?.identifier;
+  return {
+    ...task,
+    taskNumber: identifier ? `${identifier}-${task.number}` : null,
+  };
+}
+
 interface McpRequest {
   method: string;
   params: any;
@@ -76,6 +84,7 @@ export class McpService {
           data: {
             name: params.name,
             slug: params.slug,
+            identifier: (params.identifier || '???').toUpperCase(),
             description: params.description,
             lists: {
               create: [
@@ -153,36 +162,56 @@ export class McpService {
     switch (action) {
       case 'list': {
         const where: any = {};
-        if (params.boardId) where.list = { boardId: params.boardId };
+        if (params.boardId) where.boardId = params.boardId;
         if (params.listId) where.listId = params.listId;
         if (params.assigneeId) where.assigneeId = params.assigneeId;
         if (params.status) where.status = params.status;
         else where.status = 'active';
 
-        return this.prisma.task.findMany({
+        const tasks = await this.prisma.task.findMany({
           where,
           include: {
             list: true,
+            board: { select: { identifier: true } },
             labels: { include: { label: true } },
             _count: { select: { comments: true } },
           },
           orderBy: { position: 'asc' },
           take: params.limit || 100,
         });
+        return tasks.map(withTaskNumber);
       }
       case 'get': {
-        return this.prisma.task.findUnique({
+        const task = await this.prisma.task.findUnique({
           where: { id: params.id },
           include: {
             list: { include: { board: true } },
+            board: { select: { identifier: true } },
             labels: { include: { label: true } },
             comments: { orderBy: { createdAt: 'desc' } },
             activity: { orderBy: { createdAt: 'desc' }, take: 20 },
           },
         });
+        return task ? withTaskNumber(task) : null;
       }
       case 'search': {
-        return this.prisma.task.findMany({
+        const taskNumMatch = params.query?.match(/^([A-Z]{1,3})-(\d+)$/i);
+        if (taskNumMatch) {
+          const [, prefix, numStr] = taskNumMatch;
+          const results = await this.prisma.task.findMany({
+            where: {
+              board: { identifier: { equals: prefix.toUpperCase() } },
+              number: parseInt(numStr, 10),
+              status: 'active',
+            },
+            include: { list: { include: { board: true } }, board: { select: { identifier: true } }, labels: { include: { label: true } } },
+            take: 20,
+            orderBy: { updatedAt: 'desc' },
+          });
+          return results.map(withTaskNumber);
+        }
+
+        const results = await this.prisma.task.findMany({
           where: {
             OR: [
               { title: { contains: params.query } },
@@ -190,37 +219,57 @@ export class McpService {
             ],
             status: 'active',
           },
-          include: { list: { include: { board: true } }, labels: { include: { label: true } } },
+          include: { list: { include: { board: true } }, board: { select: { identifier: true } }, labels: { include: { label: true } } },
           take: 20,
           orderBy: { updatedAt: 'desc' },
         });
+        return results.map(withTaskNumber);
       }
       case 'create': {
-        const maxPos = await this.prisma.task.aggregate({
-          where: { listId: params.listId },
-          _max: { position: true },
-        });
-        const task = await this.prisma.task.create({
-          data: {
-            listId: params.listId,
-            title: params.title,
-            description: params.description,
-            position: params.position ?? (maxPos._max.position ?? -1) + 1,
-            priority: params.priority || 'medium',
-            assigneeId: params.assigneeId ?? user?.id ?? null,
-            dueDate: params.dueDate ? new Date(params.dueDate) : undefined,
-            metadata: params.metadata ? JSON.stringify(params.metadata) : undefined,
-            labels: params.labelIds?.length
-              ? { create: params.labelIds.map((id: string) => ({ labelId: id })) }
-              : undefined,
-          },
-          include: { labels: { include: { label: true } }, list: true },
+        const task = await this.prisma.$transaction(async (tx) => {
+          const list = await tx.list.findUniqueOrThrow({
+            where: { id: params.listId },
+          });
+          const board = await tx.board.findUniqueOrThrow({
+            where: { id: list.boardId },
+          });
+
+          const taskNumber = board.nextTaskNum;
+          await tx.board.update({
+            where: { id: board.id },
+            data: { nextTaskNum: taskNumber + 1 },
+          });
+
+          const maxPos = await tx.task.aggregate({
+            where: { listId: params.listId },
+            _max: { position: true },
+          });
+
+          return tx.task.create({
+            data: {
+              listId: params.listId,
+              boardId: list.boardId,
+              number: taskNumber,
+              title: params.title,
+              description: params.description ?? null,
+              position: params.position ?? (maxPos._max.position ?? -1) + 1,
+              priority: params.priority || 'medium',
+              assigneeId: params.assigneeId ?? user?.id ?? null,
+              dueDate: params.dueDate ? new Date(params.dueDate) : null,
+              metadata: params.metadata ? JSON.stringify(params.metadata) : null,
+              status: 'active',
+              labels: params.labelIds?.length
+                ? { create: params.labelIds.map((id: string) => ({ labelId: id })) }
+                : undefined,
+            },
+            include: { labels: { include: { label: true } }, list: { include: { board: true } }, board: { select: { identifier: true } } },
+          });
         });
         await this.prisma.activity.create({
           data: { taskId: task.id, actorId, actor, action: 'created', detail: JSON.stringify({ title: task.title }) },
         });
         this.events.emit('task:created', task, task.list?.boardId);
-        return task;
+        return withTaskNumber(task);
       }
       case 'update': {
         const existing = await this.prisma.task.findUnique({ where: { id: params.id } });
@@ -248,7 +297,7 @@ export class McpService {
         const task = await this.prisma.task.update({
           where: { id: params.id },
           data,
-          include: { labels: { include: { label: true } }, list: true },
+          include: { labels: { include: { label: true } }, list: { include: { board: true } }, board: { select: { identifier: true } } },
         });
 
         const changes: string[] = [];
@@ -267,7 +316,7 @@ export class McpService {
         }
 
         this.events.emit('task:updated', task, task.list?.boardId);
-        return task;
+        return withTaskNumber(task);
       }
       case 'move': {
         const maxPos = await this.prisma.task.aggregate({
@@ -277,22 +326,22 @@ export class McpService {
         const task = await this.prisma.task.update({
           where: { id: params.id },
           data: { listId: params.listId, position: params.position ?? (maxPos._max.position ?? -1) + 1 },
-          include: { list: true },
+          include: { list: { include: { board: true } }, board: { select: { identifier: true } } },
         });
         const newList = await this.prisma.list.findUnique({ where: { id: params.listId } });
         await this.prisma.activity.create({
           data: { taskId: params.id, actorId, actor, action: 'moved', detail: JSON.stringify({ to: newList?.name }) },
         });
         this.events.emit('task:moved', task, task.list?.boardId);
-        return task;
+        return withTaskNumber(task);
       }
       case 'delete': {
         const existingTask = await this.prisma.task.findUnique({
           where: { id: params.id },
-          include: { list: { select: { boardId: true } } },
+          select: { boardId: true },
         });
         await this.prisma.task.update({ where: { id: params.id }, data: { status: 'archived' } });
-        this.events.emit('task:deleted', { id: params.id }, existingTask?.list?.boardId);
+        this.events.emit('task:deleted', { id: params.id }, existingTask?.boardId);
         return { archived: true };
       }
       default:

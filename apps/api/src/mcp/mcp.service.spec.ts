@@ -72,10 +72,11 @@ describe('McpService', () => {
     it('should create a board with default lists', async () => {
       const res = await service.handleRequest({
         method: 'boards_create',
-        params: { name: 'MCP Board', slug: 'mcp-board', description: 'Created via MCP' },
+        params: { name: 'MCP Board', slug: 'mcp-board', identifier: 'MCP', description: 'Created via MCP' },
         id: 3,
       }, user);
       expect(res.result.name).toBe('MCP Board');
+      expect(res.result.identifier).toBe('MCP');
       expect(res.result.lists).toHaveLength(5);
     });
   });
@@ -162,6 +163,14 @@ describe('McpService', () => {
       const res = await service.handleRequest({ method: 'tasks_search', params: { query: 'bug' }, id: 12 }, user);
       expect(res.result).toHaveLength(1);
       expect(res.result[0].title).toBe('Critical bug fix');
+      expect(res.result[0]).toHaveProperty('taskNumber');
+    });
+
+    it('should search tasks by task number format', async () => {
+      await seedTask(prisma, board.lists[0].id, { title: 'Find by number' });
+      const res = await service.handleRequest({ method: 'tasks_search', params: { query: `${board.identifier}-1` }, id: 128 }, user);
+      expect(res.result).toHaveLength(1);
+      expect(res.result[0].taskNumber).toBe(`${board.identifier}-1`);
     });
   });
 
@@ -175,6 +184,8 @@ describe('McpService', () => {
       }, user);
       expect(res.result.title).toBe('MCP task');
       expect(res.result.labels).toHaveLength(1);
+      expect(res.result).toHaveProperty('taskNumber');
+      expect(res.result).toHaveProperty('boardId');
     });
 
     it('should default assigneeId to authenticated user when not provided', async () => {

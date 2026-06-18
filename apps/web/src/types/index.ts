@@ -2,12 +2,14 @@ export interface Board {
   id: string;
   name: string;
   slug: string;
+  identifier: string;
   description?: string;
   createdAt: string;
   lists?: List[];
   labels?: Label[];
   members?: Member[];
   _count?: { lists: number; tasks: number };
+  nextTaskNum?: number;
 }
 
 export interface List {
@@ -24,6 +26,9 @@ export interface List {
 export interface Task {
   id: string;
   listId: string;
+  boardId: string;
+  number: number;
+  taskNumber: string;
   title: string;
   description?: string;
   position: number;

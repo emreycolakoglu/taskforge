@@ -38,10 +38,17 @@ export function createTestPrisma(): PrismaClient {
  */
 export async function seedBoard(prisma: PrismaClient) {
   const id = randomUUID().slice(0, 8);
+  // Generate a unique 3-letter uppercase identifier using the random id.
+  // Map hex digits to letters: 0→A, 1→B, ... f→P
+  const identifier = id.slice(0, 3).split('').map(c => {
+    const n = parseInt(c, 16);
+    return String.fromCharCode(65 + n);
+  }).join('');
   const board = await prisma.board.create({
     data: {
       name: `Test Board ${id}`,
       slug: `test-board-${id}`,
+      identifier,
       description: 'A board for testing',
       lists: {
         create: [
@@ -68,22 +75,51 @@ export async function seedLabel(prisma: PrismaClient, boardId: string) {
 }
 
 /**
- * Seed a task in a list.
+ * Seed a task in a list. Derives boardId from the list and auto-increments number.
+ * Also updates the board's nextTaskNum counter.
  */
 export async function seedTask(prisma: PrismaClient, listId: string, overrides: Record<string, any> = {}) {
-  const { assigneeId, ...rest } = overrides;
-  return prisma.task.create({
+  const { assigneeId, boardId: overrideBoardId, number: overrideNumber, ...rest } = overrides;
+  let boardId = overrideBoardId;
+  if (!boardId) {
+    const list = await prisma.list.findUniqueOrThrow({ where: { id: listId } });
+    boardId = list.boardId;
+  }
+  const number = overrideNumber != null ? overrideNumber : await getNextTaskNumber(prisma, boardId);
+
+  const task = await prisma.task.create({
     data: {
       listId,
+      boardId,
+      number,
       title: rest.title || 'Test task',
       description: rest.description || 'A task for testing',
       position: rest.position ?? 0,
       priority: rest.priority || 'medium',
       assigneeId: assigneeId ?? null,
       status: rest.status || 'active',
-      ...rest,
     },
   });
+
+  // Keep board.nextTaskNum in sync so service-level creation works correctly
+  const board = await prisma.board.findUniqueOrThrow({ where: { id: boardId } });
+  await prisma.board.update({
+    where: { id: boardId },
+    data: { nextTaskNum: Math.max(board.nextTaskNum, number + 1) },
+  });
+
+  return task;
+}
+
+/**
+ * Helper: get the next task number for a board.
+ */
+async function getNextTaskNumber(prisma: PrismaClient, boardId: string): Promise<number> {
+  const maxResult = await prisma.task.aggregate({
+    where: { boardId },
+    _max: { number: true },
+  });
+  return (maxResult._max.number ?? 0) + 1;
 }
 
 /**

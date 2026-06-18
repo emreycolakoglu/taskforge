@@ -3,6 +3,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { CreateTaskDto, UpdateTaskDto, MoveTaskDto, ReorderTasksDto } from './dto/task.dto';
 
+function withTaskNumber(task: any): any {
+  const identifier = task.board?.identifier ?? task.list?.board?.identifier;
+  return {
+    ...task,
+    taskNumber: identifier ? `${identifier}-${task.number}` : null,
+  };
+}
+
 @Injectable()
 export class TasksService {
   constructor(
@@ -11,35 +19,61 @@ export class TasksService {
   ) {}
 
   async findByBoard(boardId: string) {
-    return this.prisma.task.findMany({
+    const tasks = await this.prisma.task.findMany({
       where: {
         list: { boardId },
         status: 'active',
       },
       include: {
         list: true,
+        board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
         _count: { select: { comments: true } },
       },
       orderBy: { position: 'asc' },
     });
+    return tasks.map(withTaskNumber);
   }
 
   async findByList(listId: string) {
-    return this.prisma.task.findMany({
+    const tasks = await this.prisma.task.findMany({
       where: { listId, status: 'active' },
       include: {
+        list: { include: { board: true } },
+        board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
         _count: { select: { comments: true } },
       },
       orderBy: { position: 'asc' },
     });
+    return tasks.map(withTaskNumber);
   }
 
   async search(query: string) {
-    return this.prisma.task.findMany({
+    const taskNumMatch = query.match(/^([A-Z]{1,3})-(\d+)$/i);
+    if (taskNumMatch) {
+      const [, prefix, numStr] = taskNumMatch;
+      const results = await this.prisma.task.findMany({
+        where: {
+          board: { identifier: { equals: prefix.toUpperCase() } },
+          number: parseInt(numStr, 10),
+          status: 'active',
+        },
+        include: {
+          list: { include: { board: true } },
+          board: { select: { identifier: true } },
+          assignee: { select: { id: true, email: true, displayName: true, role: true } },
+          labels: { include: { label: true } },
+        },
+        take: 20,
+        orderBy: { updatedAt: 'desc' },
+      });
+      return results.map(withTaskNumber);
+    }
+
+    const results = await this.prisma.task.findMany({
       where: {
         OR: [
           { title: { contains: query } },
@@ -49,12 +83,14 @@ export class TasksService {
       },
       include: {
         list: { include: { board: true } },
+        board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
       },
       take: 20,
       orderBy: { updatedAt: 'desc' },
     });
+    return results.map(withTaskNumber);
   }
 
   async findOne(id: string) {
@@ -62,6 +98,7 @@ export class TasksService {
       where: { id },
       include: {
         list: { include: { board: true } },
+        board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
         comments: { orderBy: { createdAt: 'desc' } },
@@ -69,34 +106,53 @@ export class TasksService {
       },
     });
     if (!task) throw new NotFoundException('Task not found');
-    return task;
+    return withTaskNumber(task);
   }
 
   async create(dto: CreateTaskDto, user?: { id: string; displayName: string }) {
-    const maxPos = await this.prisma.task.aggregate({
-      where: { listId: dto.listId },
-      _max: { position: true },
-    });
+    const task = await this.prisma.$transaction(async (tx) => {
+      const list = await tx.list.findUniqueOrThrow({
+        where: { id: dto.listId },
+      });
+      const board = await tx.board.findUniqueOrThrow({
+        where: { id: list.boardId },
+      });
 
-    const task = await this.prisma.task.create({
-      data: {
-        listId: dto.listId,
-        title: dto.title,
-        description: dto.description,
-        position: dto.position ?? (maxPos._max.position ?? -1) + 1,
-        priority: dto.priority ?? 'medium',
-        assigneeId: dto.assigneeId ?? null,
-        dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
-        metadata: dto.metadata,
-        labels: dto.labelIds?.length
-          ? { create: dto.labelIds.map((labelId) => ({ labelId })) }
-          : undefined,
-      },
-      include: {
-        assignee: { select: { id: true, email: true, displayName: true, role: true } },
-        labels: { include: { label: true } },
-        list: true,
-      },
+      const taskNumber = board.nextTaskNum;
+      await tx.board.update({
+        where: { id: board.id },
+        data: { nextTaskNum: taskNumber + 1 },
+      });
+
+      const maxPos = await tx.task.aggregate({
+        where: { listId: dto.listId },
+        _max: { position: true },
+      });
+
+      return tx.task.create({
+        data: {
+          listId: dto.listId,
+          boardId: list.boardId,
+          number: taskNumber,
+          title: dto.title,
+          description: dto.description ?? null,
+          position: dto.position ?? (maxPos._max.position ?? -1) + 1,
+          priority: dto.priority ?? 'medium',
+          status: 'active',
+          assigneeId: dto.assigneeId ?? null,
+          dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+          metadata: dto.metadata ?? null,
+          labels: dto.labelIds?.length
+            ? { create: dto.labelIds.map((labelId: string) => ({ labelId })) }
+            : undefined,
+        },
+        include: {
+          assignee: { select: { id: true, email: true, displayName: true, role: true } },
+          labels: { include: { label: true } },
+          list: { include: { board: true } },
+          board: { select: { identifier: true } },
+        },
+      });
     });
 
     await this.prisma.activity.create({
@@ -110,7 +166,7 @@ export class TasksService {
     });
 
     this.events.emit('task:created', task, task.list.boardId);
-    return task;
+    return withTaskNumber(task);
   }
 
   async update(id: string, dto: UpdateTaskDto, user?: { id: string; displayName: string }) {
@@ -143,7 +199,8 @@ export class TasksService {
       include: {
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
-        list: true,
+        list: { include: { board: true } },
+        board: { select: { identifier: true } },
       },
     });
 
@@ -170,7 +227,7 @@ export class TasksService {
     }
 
     this.events.emit('task:updated', task, task.list.boardId);
-    return task;
+    return withTaskNumber(task);
   }
 
   async move(id: string, dto: MoveTaskDto, user?: { id: string; displayName: string }) {
@@ -189,7 +246,8 @@ export class TasksService {
       include: {
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
-        list: true,
+        list: { include: { board: true } },
+        board: { select: { identifier: true } },
       },
     });
 
@@ -205,7 +263,7 @@ export class TasksService {
     });
 
     this.events.emit('task:moved', task, task.list.boardId);
-    return task;
+    return withTaskNumber(task);
   }
 
   async reorder(dto: ReorderTasksDto) {

@@ -7,6 +7,7 @@ describe('Types', () => {
       id: 'b1',
       name: 'Test',
       slug: 'test',
+      identifier: 'TST',
       createdAt: '2026-01-01T00:00:00Z',
       lists: [],
       labels: [],
@@ -15,12 +16,16 @@ describe('Types', () => {
     };
     expect(board.id).toBe('b1');
     expect(board.name).toBe('Test');
+    expect(board.identifier).toBe('TST');
   });
 
   it('should have correct type structure for Task', () => {
     const task: Task = {
       id: 't1',
       listId: 'l1',
+      boardId: 'b1',
+      number: 1,
+      taskNumber: 'TST-1',
       title: 'Test task',
       position: 0,
       priority: 'high',
@@ -34,6 +39,7 @@ describe('Types', () => {
     };
     expect(task.title).toBe('Test task');
     expect(task.priority).toBe('high');
+    expect(task.taskNumber).toBe('TST-1');
   });
 
   it('should accept all priority levels', () => {

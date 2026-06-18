@@ -82,7 +82,7 @@ export const api = {
     list: () => request<Board[]>('/boards'),
     get: (id: string) => request<Board>(`/boards/${id}`),
     getFull: (id: string) => request<Board>(`/boards/${id}/full`),
-    create: (data: { name: string; slug: string; description?: string }) =>
+    create: (data: { name: string; slug: string; identifier: string; description?: string }) =>
       request<Board>('/boards', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Board>) =>
       request<Board>(`/boards/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

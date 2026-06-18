@@ -25,7 +25,7 @@ export function TaskDetail({ task, onClose }: TaskDetailProps) {
   const { data: freshTask } = useTask(task.id)
   // Use fresh task data from react-query if available, fall back to prop
   const currentTask = freshTask ?? task
-  const boardId = currentTask.list?.boardId ?? task.list?.boardId ?? ''
+  const boardId = currentTask.boardId || currentTask.list?.boardId || task.list?.boardId || ''
 
   const { data: labels = [] } = useLabels(boardId)
   const { data: comments = [] } = useComments(task.id)
@@ -103,6 +103,9 @@ export function TaskDetail({ task, onClose }: TaskDetailProps) {
 
           {/* Body */}
           <ScrollArea className="flex-1 px-6 py-4">
+            {currentTask.taskNumber && (
+              <p className="text-sm text-muted-foreground mb-1">{currentTask.taskNumber}</p>
+            )}
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}

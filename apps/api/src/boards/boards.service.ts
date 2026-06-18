@@ -57,6 +57,7 @@ export class BoardsService {
       data: {
         name: dto.name,
         slug: dto.slug,
+        identifier: dto.identifier.toUpperCase(),
         description: dto.description,
         lists: {
           create: [
@@ -76,7 +77,9 @@ export class BoardsService {
 
   async update(id: string, dto: UpdateBoardDto, _user?: { id: string; displayName: string }) {
     await this.findOne(id);
-    const board = await this.prisma.board.update({ where: { id }, data: dto });
+    const data: Record<string, any> = { ...dto };
+    if (dto.identifier) data.identifier = dto.identifier.toUpperCase();
+    const board = await this.prisma.board.update({ where: { id }, data });
     this.events.emit('board:updated', board, id);
     return board;
   }

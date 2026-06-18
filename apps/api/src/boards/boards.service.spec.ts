@@ -79,9 +79,10 @@ describe('BoardsService', () => {
 
   describe('create', () => {
     it('should create a board with 5 default lists', async () => {
-      const board = await service.create({ name: 'New Board', slug: 'new-board' });
+      const board = await service.create({ name: 'New Board', slug: 'new-board', identifier: 'NEW' });
       expect(board.name).toBe('New Board');
       expect(board.slug).toBe('new-board');
+      expect(board.identifier).toBe('NEW');
       expect(board.lists).toHaveLength(5);
       const listNames = board.lists.map((l) => l.name);
       expect(listNames).toEqual(['Backlog', 'To Do', 'In Progress', 'Review', 'Done']);
@@ -91,9 +92,15 @@ describe('BoardsService', () => {
       const board = await service.create({
         name: 'Sprint',
         slug: 'sprint-1',
+        identifier: 'SPR',
         description: 'Q3 sprint',
       });
       expect(board.description).toBe('Q3 sprint');
+    });
+
+    it('should normalize identifier to uppercase', async () => {
+      const board = await service.create({ name: 'Lower Board', slug: 'lower-board', identifier: 'low' });
+      expect(board.identifier).toBe('LOW');
     });
   });
 

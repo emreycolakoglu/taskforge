@@ -40,7 +40,12 @@ export function TaskCard({ task, isDragging }: TaskCardProps) {
       )}
 
       {/* Title */}
-      <p className="text-sm font-medium leading-snug mb-2">{task.title}</p>
+      <p className="text-sm font-medium leading-snug mb-2">
+        {task.taskNumber && (
+          <span className="text-muted-foreground font-normal mr-1">{task.taskNumber}</span>
+        )}
+        {task.title}
+      </p>
 
       {/* Footer */}
       <div className="flex items-center justify-between text-xs text-muted-foreground">

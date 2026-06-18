@@ -25,6 +25,7 @@ import { Label } from "@/components/ui/label";
 export function HomePage() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const navigate = useNavigate();
 
   const { data: boards = [] } = useBoards();
@@ -33,17 +34,20 @@ export function HomePage() {
 
   const handleCreate = () => {
     if (!name.trim()) return;
+    const upperIdentifier = identifier.trim().toUpperCase();
+    if (!/^[A-Z]{3}$/.test(upperIdentifier)) return;
     const slug = name
       .trim()
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "");
     createBoard.mutate(
-      { name: name.trim(), slug },
+      { name: name.trim(), slug, identifier: upperIdentifier },
       {
         onSuccess: (board) => {
           setOpen(false);
           setName("");
+          setIdentifier("");
           navigate(`/board/${board.id}`);
         },
       },
@@ -89,12 +93,29 @@ export function HomePage() {
                   placeholder="Sprint 24"
                 />
               </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="board-identifier">Identifier</Label>
+                <Input
+                  id="board-identifier"
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value.toUpperCase().replace(/[^A-Z]/g, "").slice(0, 3))}
+                  maxLength={3}
+                  placeholder="ABC"
+                  className={!/^[A-Z]{3}$/.test(identifier) && identifier.length > 0 ? "border-destructive" : ""}
+                />
+                <p className="text-xs text-muted-foreground">
+                  3-letter prefix for task numbers (e.g., ABC → ABC-1)
+                </p>
+                {identifier.length > 0 && !/^[A-Z]{3}$/.test(identifier) && (
+                  <p className="text-xs text-destructive">Identifier must be exactly 3 letters</p>
+                )}
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
-              <Button onClick={handleCreate}>Create Board</Button>
+              <Button onClick={handleCreate} disabled={!name.trim() || !/^[A-Z]{3}$/.test(identifier)}>Create Board</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
