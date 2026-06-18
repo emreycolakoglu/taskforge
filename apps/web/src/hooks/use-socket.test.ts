@@ -5,6 +5,7 @@ import { renderHook, act } from '@testing-library/react';
 
 const mockSocket = {
   on: vi.fn(),
+  off: vi.fn(),
   emit: vi.fn(),
   disconnect: vi.fn(),
   connected: false,
@@ -31,7 +32,7 @@ vi.mock('./api', () => ({
 
 // --- Import after mocks are hoisted ---
 
-import { useSocket } from './use-socket';
+import { useSocket, _resetSocket } from './use-socket';
 import { io } from 'socket.io-client';
 
 describe('useSocket', () => {
@@ -40,14 +41,16 @@ describe('useSocket', () => {
     mockSocket.on.mockReturnThis();
     mockSocket.connected = false;
     mockGetToken.mockReturnValue(null);
+    // Reset the module-level singleton so each test gets a fresh socket
+    _resetSocket();
   });
 
-  it('should call io with path /ws/ and websocket transport', () => {
+  it('should call io with path /ws/ and polling+websocket transports', () => {
     renderHook(() => useSocket());
 
     expect(io).toHaveBeenCalledWith({
       path: '/ws/',
-      transports: ['websocket'],
+      transports: ['polling', 'websocket'],
     });
   });
 
@@ -114,7 +117,7 @@ describe('useSocket', () => {
     expect(mockSocket.emit).not.toHaveBeenCalled();
   });
 
-  it('should create socket only once even when boardId changes', () => {
+  it('should reuse the singleton socket across renders', () => {
     const { rerender } = renderHook(
       ({ boardId }: { boardId?: string }) => useSocket(boardId),
       { initialProps: { boardId: 'board-1' } },
@@ -166,14 +169,16 @@ describe('useSocket', () => {
     expect(mockSocket.emit).not.toHaveBeenCalled();
   });
 
-  it('should disconnect socket on unmount', () => {
+  it('should not disconnect the singleton socket on unmount', () => {
     const { unmount } = renderHook(() => useSocket());
 
-    expect(mockSocket.disconnect).not.toHaveBeenCalled();
+    // Clear disconnect calls from any prior setup (e.g. _resetSocket)
+    mockSocket.disconnect.mockClear();
 
     unmount();
 
-    expect(mockSocket.disconnect).toHaveBeenCalled();
+    // Singleton socket persists across mount/unmount cycles
+    expect(mockSocket.disconnect).not.toHaveBeenCalled();
   });
 
   it('should register auth_error handler', () => {
@@ -185,5 +190,19 @@ describe('useSocket', () => {
     )?.[1];
 
     expect(authErrorHandler).toBeDefined();
+  });
+
+  it('should remove event listeners on unmount without disconnecting', () => {
+    const { unmount } = renderHook(() => useSocket());
+
+    mockSocket.disconnect.mockClear();
+    mockSocket.off.mockClear();
+
+    unmount();
+
+    // Should have called .off() for each event type + connect/auth_error/auth_success
+    expect(mockSocket.off).toHaveBeenCalled();
+    // But should NOT have called .disconnect()
+    expect(mockSocket.disconnect).not.toHaveBeenCalled();
   });
 });

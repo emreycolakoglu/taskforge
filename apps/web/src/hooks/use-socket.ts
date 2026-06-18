@@ -3,9 +3,20 @@ import { useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { getToken } from './api';
 
+// Module-level singleton: survives React StrictMode mount/unmount/remount cycle
+// and avoids EPIPE errors from rapid connect/disconnect cycles.
+let socket: Socket | null = null;
+
+/** @internal Reset singleton for tests */
+export function _resetSocket() {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+}
+
 export function useSocket(boardId?: string) {
   const queryClient = useQueryClient();
-  const socketRef = useRef<Socket | null>(null);
   const listenersRef = useRef<Map<string, Set<(data: unknown) => void>>>(new Map());
   const boardIdRef = useRef(boardId);
 
@@ -19,19 +30,19 @@ export function useSocket(boardId?: string) {
     return () => listenersRef.current.get(event)?.delete(handler);
   }, []);
 
-  // Create socket once — stays connected regardless of boardId changes
+  // Create or reuse the singleton socket
   useEffect(() => {
-    const socket = io({
-      path: '/ws/',
-      transports: ['websocket'],
-    });
-
-    socketRef.current = socket;
+    if (!socket) {
+      socket = io({
+        path: '/ws/',
+        transports: ['polling', 'websocket'],
+      });
+    }
 
     socket.on('connect', () => {
       const token = getToken();
       if (token) {
-        socket.emit('auth', { token, boardId: boardIdRef.current });
+        socket!.emit('auth', { token, boardId: boardIdRef.current });
       }
     });
 
@@ -118,20 +129,24 @@ export function useSocket(boardId?: string) {
     ];
 
     eventTypes.forEach((eventType) => {
-      socket.on(eventType, (data: unknown) => {
+      socket!.on(eventType, (data: unknown) => {
         invalidateByEvent(eventType, data);
       });
     });
 
+    // Don't disconnect on StrictMode cleanup — the singleton persists
     return () => {
-      socket.disconnect();
-      socketRef.current = null;
+      eventTypes.forEach((eventType) => {
+        socket?.off(eventType);
+      });
+      socket?.off('connect');
+      socket?.off('auth_error');
+      socket?.off('auth_success');
     };
   }, [queryClient]);
 
   // Re-join board room when boardId changes (without reconnecting)
   useEffect(() => {
-    const socket = socketRef.current;
     if (socket && socket.connected && boardId) {
       const token = getToken();
       if (token) {
