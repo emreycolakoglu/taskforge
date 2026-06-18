@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CommentsService } from './comments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
-import { createTestPrisma, seedBoard, seedTask, seedComment } from '../../test/setup';
+import { createTestPrisma, seedBoard, seedTask, seedComment, seedUser } from '../../test/setup';
 
 describe('CommentsService', () => {
   let service: CommentsService;
@@ -10,6 +10,7 @@ describe('CommentsService', () => {
   let events: EventsService;
   let board: any;
   let task: any;
+  let user: { id: string; displayName: string };
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
@@ -31,6 +32,8 @@ describe('CommentsService', () => {
   beforeEach(async () => {
     board = await seedBoard(prisma);
     task = await seedTask(prisma, board.lists[0].id);
+    const dbUser = await seedUser(prisma);
+    user = { id: dbUser.id, displayName: dbUser.displayName };
   });
 
   afterEach(async () => {
@@ -42,6 +45,7 @@ describe('CommentsService', () => {
     await prisma.list.deleteMany();
     await prisma.member.deleteMany();
     await prisma.board.deleteMany();
+    await prisma.user.deleteMany();
   });
 
   describe('findByTask', () => {
@@ -56,16 +60,26 @@ describe('CommentsService', () => {
   });
 
   describe('create', () => {
-    it('should create a comment', async () => {
-      const comment = await service.create({ taskId: task.id, author: 'alice', body: 'Looks good!' });
-      expect(comment.author).toBe('alice');
+    it('should create a comment with authenticated user', async () => {
+      const comment = await service.create({ taskId: task.id, body: 'Looks good!' }, user);
+      expect(comment.author).toBe(user.displayName);
+      expect(comment.authorId).toBe(user.id);
       expect(comment.body).toBe('Looks good!');
     });
 
-    it('should log activity on comment', async () => {
-      await service.create({ taskId: task.id, author: 'bob', body: 'Needs review' });
+    it('should create a comment with dto author fallback', async () => {
+      const comment = await service.create({ taskId: task.id, author: 'alice', body: 'Fallback' });
+      expect(comment.author).toBe('alice');
+      expect(comment.authorId).toBeNull();
+    });
+
+    it('should log activity on comment with user', async () => {
+      await service.create({ taskId: task.id, body: 'Needs review' }, user);
       const activity = await prisma.activity.findMany({ where: { taskId: task.id } });
-      expect(activity.some((a) => a.action === 'commented')).toBe(true);
+      const commentActivity = activity.find((a) => a.action === 'commented');
+      expect(commentActivity).toBeDefined();
+      expect(commentActivity!.actorId).toBe(user.id);
+      expect(commentActivity!.actor).toBe(user.displayName);
     });
   });
 

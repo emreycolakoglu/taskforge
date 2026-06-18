@@ -1,6 +1,12 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto, MoveTaskDto, ReorderTasksDto } from './dto/task.dto';
+
+interface AuthedUser {
+  id: string;
+  displayName: string;
+}
 
 @Controller('api/tasks')
 export class TasksController {
@@ -19,17 +25,29 @@ export class TasksController {
   findOne(@Param('id') id: string) { return this.service.findOne(id); }
 
   @Post()
-  create(@Body() dto: CreateTaskDto) { return this.service.create(dto); }
+  create(@Body() dto: CreateTaskDto, @Req() req: Request) {
+    const user = (req as any).user as AuthedUser | undefined;
+    return this.service.create(dto, user);
+  }
 
   @Put(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateTaskDto) { return this.service.update(id, dto); }
+  update(@Param('id') id: string, @Body() dto: UpdateTaskDto, @Req() req: Request) {
+    const user = (req as any).user as AuthedUser | undefined;
+    return this.service.update(id, dto, user);
+  }
 
   @Put(':id/move')
-  move(@Param('id') id: string, @Body() dto: MoveTaskDto) { return this.service.move(id, dto); }
+  move(@Param('id') id: string, @Body() dto: MoveTaskDto, @Req() req: Request) {
+    const user = (req as any).user as AuthedUser | undefined;
+    return this.service.move(id, dto, user);
+  }
 
   @Put('reorder')
   reorder(@Body() dto: ReorderTasksDto) { return this.service.reorder(dto); }
 
   @Delete(':id')
-  remove(@Param('id') id: string) { return this.service.remove(id); }
+  remove(@Param('id') id: string, @Req() req: Request) {
+    const user = (req as any).user as AuthedUser | undefined;
+    return this.service.remove(id, user);
+  }
 }

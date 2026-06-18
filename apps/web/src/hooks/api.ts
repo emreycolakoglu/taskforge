@@ -1,15 +1,82 @@
-import { API_BASE, Board, List, Task, Comment, Label } from '../types';
+import { API_BASE, Board, List, Task, Comment, Label, User, AuthStatus, OnboardRequest, AuthResponse, InviteTokenResponse, Invite, Settings } from '../types';
+
+const TOKEN_KEY = 'taskforge_token';
+
+export function getToken(): string | null {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function clearToken(): void {
+  localStorage.removeItem(TOKEN_KEY);
+}
+
+let onUnauthorized: (() => void) | null = null;
+
+export function setOnUnauthorized(handler: (() => void) | null): void {
+  onUnauthorized = handler;
+}
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const token = getToken();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
   const res = await fetch(`${API_BASE}${url}`, {
-    headers: { 'Content-Type': 'application/json' },
     ...options,
+    headers: { ...headers, ...options?.headers },
   });
+
+  if (res.status === 401) {
+    clearToken();
+    onUnauthorized?.();
+    throw new Error('Unauthorized');
+  }
+
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
 
 export const api = {
+  // Auth
+  auth: {
+    status: () => request<AuthStatus>('/auth/status'),
+    onboard: (data: OnboardRequest) =>
+      request<AuthResponse>('/auth/onboard', { method: 'POST', body: JSON.stringify(data) }),
+    login: (email: string, password: string) =>
+      request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+    logout: () => request<{ success: boolean }>('/auth/logout', { method: 'POST' }),
+    signup: (token: string, data: { email: string; password: string; displayName: string }) =>
+      request<AuthResponse>(`/auth/signup/${token}`, { method: 'POST', body: JSON.stringify(data) }),
+    me: () => request<User>('/auth/me'),
+    updateUser: (data: { displayName?: string; currentPassword?: string; newPassword?: string }) =>
+      request<User>('/auth/me', { method: 'PATCH', body: JSON.stringify(data) }),
+    createInvite: () =>
+      request<InviteTokenResponse>('/auth/invite', { method: 'POST' }),
+    createBotToken: () =>
+      request<InviteTokenResponse>('/auth/bot-token', { method: 'POST' }),
+    users: () =>
+      request<User[]>('/auth/users'),
+    invites: () =>
+      request<Invite[]>('/auth/invites'),
+    revokeInvite: (id: string) =>
+      request<{ success: boolean }>(`/auth/invites/${id}`, { method: 'DELETE' }),
+  },
+
+  // Settings
+  settings: {
+    get: () => request<Settings>('/settings'),
+    getInitialized: () => request<{ initialized: boolean }>('/settings/initialized'),
+    getTitle: () => request<{ title: string }>('/settings/title'),
+    update: (data: { title?: string }) =>
+      request<Settings>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  },
+
   // Boards
   boards: {
     list: () => request<Board[]>('/boards'),
@@ -40,7 +107,7 @@ export const api = {
     listByList: (listId: string) => request<Task[]>(`/tasks/list/${listId}`),
     get: (id: string) => request<Task>(`/tasks/${id}`),
     search: (q: string) => request<Task[]>(`/tasks/search?q=${encodeURIComponent(q)}`),
-    create: (data: { listId: string; title: string; description?: string; priority?: string; assignee?: string; labelIds?: string[] }) =>
+    create: (data: { listId: string; title: string; description?: string; priority?: string; assigneeId?: string | null; labelIds?: string[] }) =>
       request<Task>('/tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Task>) =>
       request<Task>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
@@ -70,5 +137,5 @@ export const api = {
   },
 
   // MCP
-  mcp: (body: any) => request<any>('/mcp', { method: 'POST', body: JSON.stringify(body) }),
+  mcp: (body: unknown) => request<unknown>('/mcp', { method: 'POST', body: JSON.stringify(body) }),
 };

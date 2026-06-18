@@ -1,43 +1,60 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { ThemeProvider } from '@/components/theme-provider'
+import { AuthProvider } from '@/contexts/auth-context'
 import { SidebarLayout } from '@/components/sidebar-layout'
 import { HomePage } from '@/pages/home-page'
 import { TasksPage } from '@/pages/tasks-page'
 import { SettingsPage } from '@/pages/settings-page'
+import { AccountPage } from '@/pages/account-page'
 import { NotFoundPage } from '@/pages/not-found-page'
+import { OnboardingPage } from '@/pages/onboarding-page'
+import { LoginPage } from '@/pages/login-page'
+import { SignupPage } from '@/pages/signup-page'
+
 import { KanbanBoard } from '@/components/kanban-board'
 
 export function App() {
   return (
     <ThemeProvider defaultTheme="system" storageKey="taskforge-theme">
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={
-            <SidebarLayout>
-              <HomePage />
-            </SidebarLayout>
-          } />
-          <Route path="/board/:id" element={
-            <SidebarLayout>
-              <KanbanBoard />
-            </SidebarLayout>
-          } />
-          <Route path="/tasks" element={
-            <SidebarLayout>
-              <TasksPage />
-            </SidebarLayout>
-          } />
-          <Route path="/settings" element={
-            <SidebarLayout>
-              <SettingsPage />
-            </SidebarLayout>
-          } />
-          <Route path="*" element={
-            <SidebarLayout>
-              <NotFoundPage />
-            </SidebarLayout>
-          } />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/onboarding" element={<OnboardingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup/:token" element={<SignupPage />} />
+            <Route path="/" element={
+              <SidebarLayout>
+                <HomePage />
+              </SidebarLayout>
+            } />
+            <Route path="/board/:id" element={
+              <SidebarLayout>
+                <KanbanBoard />
+              </SidebarLayout>
+            } />
+            <Route path="/tasks" element={
+              <SidebarLayout>
+                <TasksPage />
+              </SidebarLayout>
+            } />
+            <Route path="/settings" element={
+              <SidebarLayout>
+                <SettingsPage />
+              </SidebarLayout>
+            } />
+            <Route path="/account" element={
+              <SidebarLayout>
+                <AccountPage />
+              </SidebarLayout>
+            } />
+
+            <Route path="*" element={
+              <SidebarLayout>
+                <NotFoundPage />
+              </SidebarLayout>
+            } />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>
   )

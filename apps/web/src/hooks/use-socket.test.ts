@@ -6,14 +6,19 @@ describe('useSocket module', () => {
     expect(typeof mod.useSocket).toBe('function');
   });
 
-  it('should have on in the return type from useSocket', async () => {
+  it('should take one optional parameter', async () => {
     const mod = await import('./use-socket');
-    // Use .call to verify the function signature
-    expect(mod.useSocket.length).toBe(1); // takes one optional parameter
+    expect(mod.useSocket.length).toBe(1);
   });
 
   it('should be importable without errors', async () => {
-    // Just importing the module should not throw
     await expect(import('./use-socket')).resolves.toBeDefined();
+  });
+
+  it('should export getToken from api module', async () => {
+    const mod = await import('./api');
+    expect(typeof mod.getToken).toBe('function');
+    expect(typeof mod.setToken).toBe('function');
+    expect(typeof mod.clearToken).toBe('function');
   });
 });

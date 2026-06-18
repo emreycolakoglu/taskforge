@@ -1,12 +1,16 @@
 import { useState } from "react"
 import { Link, useLocation } from "react-router-dom"
 import {
-  LayoutDashboard, ListChecks, Settings, PanelLeftClose, PanelLeft,
+  LayoutDashboard, ListChecks, Settings, PanelLeftClose, PanelLeft, User, LogOut,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { useAuth } from "@/contexts/auth-context"
 
 interface SidebarLayoutProps {
   children: React.ReactNode
@@ -15,6 +19,7 @@ interface SidebarLayoutProps {
 export function SidebarLayout({ children }: SidebarLayoutProps) {
   const [collapsed, setCollapsed] = useState(false)
   const location = useLocation()
+  const { user, logout } = useAuth()
 
   const navItems = [
     { icon: LayoutDashboard, label: "Boards", href: "/" },
@@ -75,7 +80,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
 
           <Separator className="bg-sidebar-border" />
 
-          {/* Bottom section: Settings + Collapse */}
+          {/* Bottom section: Settings + User + Collapse */}
           <div className="flex flex-col gap-1 p-2">
             <Tooltip>
               <TooltipTrigger asChild>
@@ -98,6 +103,45 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                 <TooltipContent side="right">Settings</TooltipContent>
               )}
             </Tooltip>
+
+            {/* User menu */}
+            {user && (
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className={cn(
+                          "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors w-full",
+                          "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+                          collapsed && "justify-center px-2"
+                        )}
+                      >
+                        <User className="size-5 shrink-0" />
+                        {!collapsed && <span className="truncate">{user.displayName}</span>}
+                      </button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  {collapsed && (
+                    <TooltipContent side="right">{user.displayName}</TooltipContent>
+                  )}
+                </Tooltip>
+                <DropdownMenuContent side="right" align="start">
+                  <DropdownMenuItem asChild>
+                    <Link to="/account">
+                      <User className="size-4 mr-2" />
+                      Account
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={logout}>
+                    <LogOut className="size-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button

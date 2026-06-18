@@ -15,6 +15,12 @@ export interface McpResponse {
   error?: { code: number; message: string };
 }
 
+interface AuthUser {
+  id: string;
+  displayName: string;
+  role: string;
+}
+
 @Injectable()
 export class McpService {
   constructor(
@@ -22,17 +28,17 @@ export class McpService {
     private events: EventsService,
   ) {}
 
-  async handleRequest(req: McpRequest): Promise<McpResponse> {
+  async handleRequest(req: McpRequest, user?: AuthUser): Promise<McpResponse> {
     try {
       const [resource, action] = req.method.split('_');
 
       let result: any;
 
       switch (resource) {
-        case 'boards': result = await this.handleBoards(action, req.params); break;
-        case 'lists': result = await this.handleLists(action, req.params); break;
-        case 'tasks': result = await this.handleTasks(action, req.params); break;
-        case 'comments': result = await this.handleComments(action, req.params); break;
+        case 'boards': result = await this.handleBoards(action, req.params, user); break;
+        case 'lists': result = await this.handleLists(action, req.params, user); break;
+        case 'tasks': result = await this.handleTasks(action, req.params, user); break;
+        case 'comments': result = await this.handleComments(action, req.params, user); break;
         case 'labels': result = await this.handleLabels(action, req.params); break;
         case 'activity': result = await this.handleActivity(action, req.params); break;
         default:
@@ -45,7 +51,11 @@ export class McpService {
     }
   }
 
-  private async handleBoards(action: string, params: any) {
+  private actorInfo(user?: AuthUser) {
+    return { actorId: user?.id ?? null, actor: user?.displayName ?? 'agent' };
+  }
+
+  private async handleBoards(action: string, params: any, user?: AuthUser) {
     switch (action) {
       case 'list': {
         return this.prisma.board.findMany({
@@ -91,7 +101,7 @@ export class McpService {
     }
   }
 
-  private async handleLists(action: string, params: any) {
+  private async handleLists(action: string, params: any, user?: AuthUser) {
     switch (action) {
       case 'list': {
         return this.prisma.list.findMany({
@@ -134,13 +144,15 @@ export class McpService {
     }
   }
 
-  private async handleTasks(action: string, params: any) {
+  private async handleTasks(action: string, params: any, user?: AuthUser) {
+    const { actorId, actor } = this.actorInfo(user);
+
     switch (action) {
       case 'list': {
         const where: any = {};
         if (params.boardId) where.list = { boardId: params.boardId };
         if (params.listId) where.listId = params.listId;
-        if (params.assignee) where.assignee = params.assignee;
+        if (params.assigneeId) where.assigneeId = params.assigneeId;
         if (params.status) where.status = params.status;
         else where.status = 'active';
 
@@ -192,7 +204,7 @@ export class McpService {
             description: params.description,
             position: params.position ?? (maxPos._max.position ?? -1) + 1,
             priority: params.priority || 'medium',
-            assignee: params.assignee,
+            assigneeId: params.assigneeId ?? user?.id ?? null,
             dueDate: params.dueDate ? new Date(params.dueDate) : undefined,
             metadata: params.metadata ? JSON.stringify(params.metadata) : undefined,
             labels: params.labelIds?.length
@@ -202,7 +214,7 @@ export class McpService {
           include: { labels: { include: { label: true } }, list: true },
         });
         await this.prisma.activity.create({
-          data: { taskId: task.id, actor: params.assignee || 'agent', action: 'created', detail: JSON.stringify({ title: task.title }) },
+          data: { taskId: task.id, actorId, actor, action: 'created', detail: JSON.stringify({ title: task.title }) },
         });
         this.events.emit('task:created', task);
         return task;
@@ -216,7 +228,7 @@ export class McpService {
         if (params.description !== undefined) data.description = params.description;
         if (params.priority !== undefined) data.priority = params.priority;
         if (params.status !== undefined) data.status = params.status;
-        if (params.assignee !== undefined) data.assignee = params.assignee;
+        if (params.assigneeId !== undefined) data.assigneeId = params.assigneeId;
         if (params.dueDate !== undefined) data.dueDate = new Date(params.dueDate);
         if (params.listId !== undefined) data.listId = params.listId;
         if (params.position !== undefined) data.position = params.position;
@@ -242,12 +254,12 @@ export class McpService {
           const newList = await this.prisma.list.findUnique({ where: { id: params.listId } });
           changes.push(`moved to ${newList?.name}`);
         }
-        if (params.assignee && params.assignee !== existing.assignee) changes.push(`assigned to ${params.assignee}`);
+        if (params.assigneeId && params.assigneeId !== existing.assigneeId) changes.push(`assigned to ${params.assigneeId}`);
         if (params.status && params.status !== existing.status) changes.push(`status: ${params.status}`);
 
         if (changes.length > 0) {
           await this.prisma.activity.create({
-            data: { taskId: params.id, actor: params.assignee || 'agent', action: 'updated', detail: JSON.stringify({ changes }) },
+            data: { taskId: params.id, actorId, actor, action: 'updated', detail: JSON.stringify({ changes }) },
           });
         }
 
@@ -266,7 +278,7 @@ export class McpService {
         });
         const newList = await this.prisma.list.findUnique({ where: { id: params.listId } });
         await this.prisma.activity.create({
-          data: { taskId: params.id, actor: 'agent', action: 'moved', detail: JSON.stringify({ to: newList?.name }) },
+          data: { taskId: params.id, actorId, actor, action: 'moved', detail: JSON.stringify({ to: newList?.name }) },
         });
         this.events.emit('task:moved', task);
         return task;
@@ -280,7 +292,9 @@ export class McpService {
     }
   }
 
-  private async handleComments(action: string, params: any) {
+  private async handleComments(action: string, params: any, user?: AuthUser) {
+    const { actorId, actor: authorName } = this.actorInfo(user);
+
     switch (action) {
       case 'list': {
         return this.prisma.comment.findMany({
@@ -290,10 +304,10 @@ export class McpService {
       }
       case 'create': {
         const comment = await this.prisma.comment.create({
-          data: { taskId: params.taskId, author: params.author, body: params.body },
+          data: { taskId: params.taskId, authorId: actorId, author: authorName, body: params.body },
         });
         await this.prisma.activity.create({
-          data: { taskId: params.taskId, actor: params.author, action: 'commented', detail: JSON.stringify({ commentId: comment.id }) },
+          data: { taskId: params.taskId, actorId, actor: authorName, action: 'commented', detail: JSON.stringify({ commentId: comment.id }) },
         });
         this.events.emit('comment:created', comment);
         return comment;

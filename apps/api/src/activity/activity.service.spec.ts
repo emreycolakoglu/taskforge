@@ -27,8 +27,8 @@ describe('ActivityService', () => {
     // Seed some activity
     await prisma.activity.createMany({
       data: [
-        { taskId: task.id, actor: 'alice', action: 'created', detail: '{"title":"Test task"}' },
-        { taskId: task.id, actor: 'bob', action: 'moved', detail: '{"to":"In Progress"}' },
+        { taskId: task.id, actorId: null, actor: 'alice', action: 'created', detail: '{"title":"Test task"}' },
+        { taskId: task.id, actorId: null, actor: 'bob', action: 'moved', detail: '{"to":"In Progress"}' },
       ],
     });
   });
@@ -55,7 +55,7 @@ describe('ActivityService', () => {
     it('should limit to 50 entries', async () => {
       for (let i = 0; i < 60; i++) {
         await prisma.activity.create({
-          data: { taskId: task.id, actor: 'bot', action: 'updated', detail: `{"i":${i}}` },
+          data: { taskId: task.id, actorId: null, actor: 'bot', action: 'updated', detail: `{"i":${i}}` },
         });
       }
       const activity = await service.findByTask(task.id);
@@ -78,7 +78,7 @@ describe('ActivityService', () => {
     it('should limit to 100 entries', async () => {
       for (let i = 0; i < 150; i++) {
         await prisma.activity.create({
-          data: { taskId: task.id, actor: 'bot', action: 'updated', detail: `{"i":${i}}` },
+          data: { taskId: task.id, actorId: null, actor: 'bot', action: 'updated', detail: `{"i":${i}}` },
         });
       }
       const activity = await service.findByBoard(board.id);

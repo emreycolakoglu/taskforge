@@ -1,39 +1,21 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, ListChecks } from 'lucide-react'
-import { api } from '@/hooks/api'
-import { Task, Board } from '@/types'
-import { Input } from '@/components/ui/input'
+import { useBoards } from '@/hooks/use-boards'
+import { useSearchTasks } from '@/hooks/use-tasks'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 
 /** Global task search page — queries the search endpoint and lets users jump to a task's board */
 export function TasksPage() {
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState<Task[]>([])
-  const [boards, setBoards] = useState<Record<string, Board>>({})
-  const [searched, setSearched] = useState(false)
   const navigate = useNavigate()
 
-  useEffect(() => {
-    api.boards.list().then((list) => {
-      const map: Record<string, Board> = {}
-      for (const b of list) map[b.id] = b
-      setBoards(map)
-    }).catch(() => {})
-  }, [])
+  const { data: boardList = [] } = useBoards()
+  const boards = Object.fromEntries(boardList.map((b) => [b.id, b]))
 
-  const doSearch = useCallback(async () => {
-    if (!query.trim()) { setResults([]); setSearched(false); return }
-    const tasks = await api.tasks.search(query.trim())
-    setResults(tasks)
-    setSearched(true)
-  }, [query])
-
-  useEffect(() => {
-    const timer = setTimeout(doSearch, 300)
-    return () => clearTimeout(timer)
-  }, [doSearch])
+  const { data: results = [], isFetched: hasSearched } = useSearchTasks(query.trim())
 
   const priorityColor = (p: string) => {
     switch (p) {
@@ -43,6 +25,9 @@ export function TasksPage() {
       default: return 'text-muted-foreground'
     }
   }
+
+  // Only show "no results" after a search has been performed with a non-empty query
+  const searched = hasSearched && query.trim().length > 0
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
@@ -98,7 +83,7 @@ export function TasksPage() {
         </div>
       )}
 
-      {searched && results.length === 0 && query.trim() && (
+      {searched && results.length === 0 && (
         <div className="flex flex-col items-center gap-2 py-12">
           <ListChecks className="size-12 text-muted-foreground/50" />
           <p className="text-sm text-muted-foreground">No tasks found for "{query}"</p>

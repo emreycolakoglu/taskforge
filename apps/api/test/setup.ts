@@ -71,16 +71,17 @@ export async function seedLabel(prisma: PrismaClient, boardId: string) {
  * Seed a task in a list.
  */
 export async function seedTask(prisma: PrismaClient, listId: string, overrides: Record<string, any> = {}) {
+  const { assigneeId, ...rest } = overrides;
   return prisma.task.create({
     data: {
       listId,
-      title: overrides.title || 'Test task',
-      description: overrides.description || 'A task for testing',
-      position: overrides.position ?? 0,
-      priority: overrides.priority || 'medium',
-      assignee: overrides.assignee || null,
-      status: overrides.status || 'active',
-      ...overrides,
+      title: rest.title || 'Test task',
+      description: rest.description || 'A task for testing',
+      position: rest.position ?? 0,
+      priority: rest.priority || 'medium',
+      assigneeId: assigneeId ?? null,
+      status: rest.status || 'active',
+      ...rest,
     },
   });
 }
@@ -92,8 +93,25 @@ export async function seedComment(prisma: PrismaClient, taskId: string, override
   return prisma.comment.create({
     data: {
       taskId,
+      authorId: overrides.authorId ?? null,
       author: overrides.author || 'tester',
       body: overrides.body || 'Test comment',
+    },
+  });
+}
+
+/**
+ * Seed a user. Defaults to member role with a hashed password 'password'.
+ */
+export async function seedUser(prisma: PrismaClient, overrides: Record<string, any> = {}) {
+  const bcrypt = require('bcryptjs');
+  const id = randomUUID().slice(0, 8);
+  return prisma.user.create({
+    data: {
+      email: overrides.email || `user-${id}@example.com`,
+      passwordHash: overrides.passwordHash || bcrypt.hashSync('password', 12),
+      displayName: overrides.displayName || `Test User ${id}`,
+      role: overrides.role || 'member',
     },
   });
 }

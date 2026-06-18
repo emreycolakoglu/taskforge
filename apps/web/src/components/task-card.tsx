@@ -60,8 +60,9 @@ export function TaskCard({ task, isDragging }: TaskCardProps) {
               className="size-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-[9px] font-bold"
               aria-hidden="true"
             >
-              {task.assignee.charAt(0).toUpperCase()}
+              {task.assignee.displayName.charAt(0).toUpperCase()}
             </div>
+            <span className="text-[11px] text-muted-foreground">{task.assignee.displayName}</span>
           </div>
         )}
       </div>

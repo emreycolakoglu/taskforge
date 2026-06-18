@@ -48,4 +48,15 @@ describe('PrismaService', () => {
     await service.onModuleDestroy();
     expect(disconnectSpy).toHaveBeenCalled();
   });
+
+  it('should not push schema when tables already exist', async () => {
+    const execSyncSpy = jest.spyOn(require('child_process'), 'execSync');
+    await service.onModuleInit();
+    // Schema already applied in beforeEach, so ensureSchema should be a no-op
+    expect(execSyncSpy).not.toHaveBeenCalledWith(
+      expect.stringContaining('prisma db push'),
+      expect.anything(),
+    );
+    execSyncSpy.mockRestore();
+  });
 });

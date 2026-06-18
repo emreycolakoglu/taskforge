@@ -17,11 +17,12 @@ export class CommentsService {
     });
   }
 
-  async create(dto: CreateCommentDto) {
+  async create(dto: CreateCommentDto, user?: { id: string; displayName: string }) {
     const comment = await this.prisma.comment.create({
       data: {
         taskId: dto.taskId,
-        author: dto.author,
+        authorId: user?.id ?? dto.authorId ?? null,
+        author: user?.displayName ?? dto.author ?? 'system',
         body: dto.body,
       },
     });
@@ -29,7 +30,8 @@ export class CommentsService {
     await this.prisma.activity.create({
       data: {
         taskId: dto.taskId,
-        actor: dto.author,
+        actorId: user?.id ?? dto.authorId ?? null,
+        actor: user?.displayName ?? dto.author ?? 'system',
         action: 'commented',
         detail: JSON.stringify({ commentId: comment.id }),
       },

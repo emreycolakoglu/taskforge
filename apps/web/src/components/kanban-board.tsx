@@ -1,10 +1,13 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd'
 import { ArrowLeft, Plus, X, List, Columns3 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
 import { api } from '@/hooks/api'
+import { useBoardFull } from '@/hooks/use-boards'
+import { useCreateTask } from '@/hooks/use-tasks'
 import { useSocket } from '@/hooks/use-socket'
-import { Board, List as ListType, Task, Label } from '@/types'
+import { Task, Label } from '@/types'
 import { TaskCard } from './task-card'
 import { TaskDetail } from './task-detail'
 import { CreateTaskModal } from './create-task-modal'
@@ -19,35 +22,23 @@ import { cn } from '@/lib/utils'
 export function KanbanBoard() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [board, setBoard] = useState<Board | null>(null)
-  const [lists, setLists] = useState<ListType[]>([])
-  const [labels, setLabels] = useState<Label[]>([])
+  const queryClient = useQueryClient()
+
+  const { data: board } = useBoardFull(id!)
+  const lists = board?.lists || []
+  const labels: Label[] = board?.labels || []
+
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [creatingInList, setCreatingInList] = useState<string | null>(null)
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
 
-  const loadBoard = useCallback(async () => {
-    if (!id) return
-    const full = await api.boards.getFull(id)
-    setBoard(full)
-    setLists(full.lists || [])
-    setLabels(full.labels || [])
-  }, [id])
+  const createTask = useCreateTask()
 
-  useEffect(() => { loadBoard() }, [loadBoard])
+  // WebSocket handles cache invalidation via useSocket
+  useSocket(id)
 
-  const socket = useSocket(id)
-  useEffect(() => {
-    const unsub1 = socket.on('task:created', loadBoard)
-    const unsub2 = socket.on('task:updated', loadBoard)
-    const unsub3 = socket.on('task:moved', loadBoard)
-    const unsub4 = socket.on('list:created', loadBoard)
-    const unsub5 = socket.on('list:updated', loadBoard)
-    return () => { unsub1(); unsub2(); unsub3(); unsub4(); unsub5() }
-  }, [socket, loadBoard])
-
-  const handleDragEnd = async (result: DropResult) => {
-    if (!result.destination) return
+  const handleDragEnd = useCallback(async (result: DropResult) => {
+    if (!result.destination || !id) return
     const { draggableId, source, destination } = result
 
     if (source.droppableId === destination.droppableId) {
@@ -66,16 +57,21 @@ export function KanbanBoard() {
         : (targetTasks.length > 0 ? targetTasks[targetTasks.length - 1].position + 1 : 0)
       await api.tasks.move(draggableId, { listId: destination.droppableId, position })
     }
-  }
+    // Invalidate after reorder/move so the UI refreshes
+    queryClient.invalidateQueries({ queryKey: ['boards', id, 'full'] })
+  }, [id, lists, queryClient])
 
-  const handleCreateTask = async (listId: string, title: string) => {
-    await api.tasks.create({ listId, title })
-    setCreatingInList(null)
+  const handleCreateTask = (listId: string, title: string) => {
+    if (!id) return
+    createTask.mutate(
+      { listId, title, boardId: id },
+      { onSuccess: () => setCreatingInList(null) },
+    )
   }
 
   async function handleDeleteList(listId: string) {
     await api.lists.delete(listId)
-    loadBoard()
+    queryClient.invalidateQueries({ queryKey: ['boards', id!, 'full'] })
   }
 
   const priorityColor = (p: string) => {
@@ -154,7 +150,7 @@ export function KanbanBoard() {
                         {t.priority}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-sm text-muted-foreground">{t.assignee || '—'}</td>
+                    <td className="py-2.5 px-3 text-sm text-muted-foreground">{t.assignee?.displayName || '—'}</td>
                     <td className="py-2.5 px-3 text-sm text-muted-foreground">
                       {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : '—'}
                     </td>
@@ -249,7 +245,7 @@ export function KanbanBoard() {
 
               {/* Add list */}
               <div className="w-72 shrink-0">
-                <AddListForm boardId={board.id} onCreated={loadBoard} />
+                <AddListForm boardId={board.id} />
               </div>
             </div>
           </ScrollArea>
@@ -258,22 +254,23 @@ export function KanbanBoard() {
 
       {/* Task detail modal */}
       {selectedTask && (
-        <TaskDetail task={selectedTask} onClose={() => setSelectedTask(null)} onUpdate={loadBoard} />
+        <TaskDetail task={selectedTask} onClose={() => setSelectedTask(null)} />
       )}
     </div>
   )
 }
 
-function AddListForm({ boardId, onCreated }: { boardId: string; onCreated: () => void }) {
+function AddListForm({ boardId }: { boardId: string }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState('')
+  const queryClient = useQueryClient()
 
   const handleSubmit = async () => {
     if (!name.trim()) return
     await api.lists.create({ boardId, name: name.trim() })
     setName('')
     setEditing(false)
-    onCreated()
+    queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] })
   }
 
   if (editing) {

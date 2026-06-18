@@ -18,6 +18,7 @@ export class TasksService {
       },
       include: {
         list: true,
+        assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
         _count: { select: { comments: true } },
       },
@@ -29,6 +30,7 @@ export class TasksService {
     return this.prisma.task.findMany({
       where: { listId, status: 'active' },
       include: {
+        assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
         _count: { select: { comments: true } },
       },
@@ -47,6 +49,7 @@ export class TasksService {
       },
       include: {
         list: { include: { board: true } },
+        assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
       },
       take: 20,
@@ -59,6 +62,7 @@ export class TasksService {
       where: { id },
       include: {
         list: { include: { board: true } },
+        assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
         comments: { orderBy: { createdAt: 'desc' } },
         activity: { orderBy: { createdAt: 'desc' }, take: 20 },
@@ -68,7 +72,7 @@ export class TasksService {
     return task;
   }
 
-  async create(dto: CreateTaskDto) {
+  async create(dto: CreateTaskDto, user?: { id: string; displayName: string }) {
     const maxPos = await this.prisma.task.aggregate({
       where: { listId: dto.listId },
       _max: { position: true },
@@ -81,7 +85,7 @@ export class TasksService {
         description: dto.description,
         position: dto.position ?? (maxPos._max.position ?? -1) + 1,
         priority: dto.priority ?? 'medium',
-        assignee: dto.assignee,
+        assigneeId: dto.assigneeId ?? null,
         dueDate: dto.dueDate ? new Date(dto.dueDate) : undefined,
         metadata: dto.metadata,
         labels: dto.labelIds?.length
@@ -89,6 +93,7 @@ export class TasksService {
           : undefined,
       },
       include: {
+        assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
         list: true,
       },
@@ -97,7 +102,8 @@ export class TasksService {
     await this.prisma.activity.create({
       data: {
         taskId: task.id,
-        actor: dto.assignee || 'system',
+        actorId: user?.id ?? null,
+        actor: user?.displayName ?? 'system',
         action: 'created',
         detail: JSON.stringify({ title: task.title }),
       },
@@ -107,7 +113,7 @@ export class TasksService {
     return task;
   }
 
-  async update(id: string, dto: UpdateTaskDto) {
+  async update(id: string, dto: UpdateTaskDto, user?: { id: string; displayName: string }) {
     const existing = await this.findOne(id);
     const changes: Record<string, any> = {};
 
@@ -115,7 +121,7 @@ export class TasksService {
     if (dto.description !== undefined) changes.description = dto.description;
     if (dto.priority !== undefined) changes.priority = dto.priority;
     if (dto.status !== undefined) changes.status = dto.status;
-    if (dto.assignee !== undefined) changes.assignee = dto.assignee;
+    if (dto.assigneeId !== undefined) changes.assigneeId = dto.assigneeId;
     if (dto.dueDate !== undefined) changes.dueDate = new Date(dto.dueDate);
     if (dto.metadata !== undefined) changes.metadata = dto.metadata;
     if (dto.listId !== undefined) changes.listId = dto.listId;
@@ -135,6 +141,7 @@ export class TasksService {
       where: { id },
       data: changes,
       include: {
+        assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
         list: true,
       },
@@ -147,14 +154,15 @@ export class TasksService {
       const newList = await this.prisma.list.findUnique({ where: { id: dto.listId } });
       detail.push(`moved to "${newList?.name}"`);
     }
-    if (dto.assignee && dto.assignee !== existing.assignee) detail.push(`assigned to ${dto.assignee}`);
+    if (dto.assigneeId && dto.assigneeId !== existing.assigneeId) detail.push(`assigned to ${dto.assigneeId}`);
     if (dto.status && dto.status !== existing.status) detail.push(`status: ${dto.status}`);
 
     if (detail.length > 0) {
       await this.prisma.activity.create({
         data: {
           taskId: id,
-          actor: dto.assignee || 'system',
+          actorId: user?.id ?? null,
+          actor: user?.displayName ?? 'system',
           action: 'updated',
           detail: JSON.stringify({ changes: detail }),
         },
@@ -165,7 +173,7 @@ export class TasksService {
     return task;
   }
 
-  async move(id: string, dto: MoveTaskDto) {
+  async move(id: string, dto: MoveTaskDto, user?: { id: string; displayName: string }) {
     const existing = await this.findOne(id);
     const maxPos = await this.prisma.task.aggregate({
       where: { listId: dto.listId },
@@ -179,6 +187,7 @@ export class TasksService {
         position: dto.position ?? (maxPos._max.position ?? -1) + 1,
       },
       include: {
+        assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
         list: true,
       },
@@ -188,7 +197,8 @@ export class TasksService {
     await this.prisma.activity.create({
       data: {
         taskId: id,
-        actor: 'system',
+        actorId: user?.id ?? null,
+        actor: user?.displayName ?? 'system',
         action: 'moved',
         detail: JSON.stringify({ from: existing.listId, to: dto.listId, listName: newList?.name }),
       },
@@ -205,12 +215,13 @@ export class TasksService {
     return this.prisma.$transaction(updates);
   }
 
-  async remove(id: string) {
+  async remove(id: string, user?: { id: string; displayName: string }) {
     await this.findOne(id);
     await this.prisma.activity.create({
       data: {
         taskId: id,
-        actor: 'system',
+        actorId: user?.id ?? null,
+        actor: user?.displayName ?? 'system',
         action: 'archived',
         detail: JSON.stringify({ reason: 'manual archive' }),
       },

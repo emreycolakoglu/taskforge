@@ -20,7 +20,7 @@ export class ListsService {
     return list;
   }
 
-  async create(dto: CreateListDto) {
+  async create(dto: CreateListDto, _user?: { id: string; displayName: string }) {
     const maxPos = await this.prisma.list.aggregate({
       where: { boardId: dto.boardId },
       _max: { position: true },
@@ -36,7 +36,7 @@ export class ListsService {
     });
   }
 
-  async update(id: string, dto: UpdateListDto) {
+  async update(id: string, dto: UpdateListDto, _user?: { id: string; displayName: string }) {
     await this.findOne(id);
     return this.prisma.list.update({ where: { id }, data: dto });
   }
@@ -48,7 +48,7 @@ export class ListsService {
     return this.prisma.$transaction(updates);
   }
 
-  async remove(id: string) {
+  async remove(id: string, _user?: { id: string; displayName: string }) {
     await this.findOne(id);
     return this.prisma.list.delete({ where: { id } });
   }

@@ -29,7 +29,8 @@ export interface Task {
   position: number;
   priority: 'low' | 'medium' | 'high' | 'urgent';
   status: 'active' | 'archived' | 'done';
-  assignee?: string;
+  assigneeId?: string | null;
+  assignee?: User | null;
   metadata?: string;
   dueDate?: string;
   createdAt: string;
@@ -76,6 +77,62 @@ export interface Member {
   boardId: string;
   userId: string;
   role: 'admin' | 'member' | 'viewer';
+}
+
+export interface User {
+  id: string;
+  email: string;
+  displayName: string;
+  role: 'admin' | 'member';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuthStatus {
+  onboarded: boolean;
+  title: string | null;
+}
+
+export interface OnboardRequest {
+  email: string;
+  password: string;
+  displayName: string;
+  title: string;
+}
+
+export interface AuthResponse {
+  user: User;
+  session: {
+    token: string;
+    expiresAt: string;
+  };
+}
+
+export interface InviteTokenResponse {
+  id: string;
+  token: string;
+  expiresAt: string;
+}
+
+export interface Invite {
+  id: string;
+  token: string;
+  createdBy: string;
+  creatorName: string;
+  usedBy: string | null;
+  usedAt: string | null;
+  expiresAt: string;
+  createdAt: string;
+  isExpired: boolean;
+  isUsed: boolean;
+}
+
+export interface Settings {
+  id: string;
+  title: string;
+  onboarded: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
 }
 
 export const API_BASE = '/api';

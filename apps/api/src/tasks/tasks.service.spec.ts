@@ -2,13 +2,14 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TasksService } from './tasks.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
-import { createTestPrisma, seedBoard, seedTask, seedLabel } from '../../test/setup';
+import { createTestPrisma, seedBoard, seedTask, seedLabel, seedUser } from '../../test/setup';
 
 describe('TasksService', () => {
   let service: TasksService;
   let prisma: PrismaService;
   let events: EventsService;
   let board: any;
+  let user: { id: string; displayName: string };
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
@@ -29,6 +30,8 @@ describe('TasksService', () => {
 
   beforeEach(async () => {
     board = await seedBoard(prisma);
+    const dbUser = await seedUser(prisma);
+    user = { id: dbUser.id, displayName: dbUser.displayName };
   });
 
   afterEach(async () => {
@@ -40,6 +43,7 @@ describe('TasksService', () => {
     await prisma.list.deleteMany();
     await prisma.member.deleteMany();
     await prisma.board.deleteMany();
+    await prisma.user.deleteMany();
   });
 
   describe('findByBoard', () => {
@@ -105,7 +109,7 @@ describe('TasksService', () => {
 
   describe('create', () => {
     it('should create a task with default position', async () => {
-      const task = await service.create({ listId: board.lists[0].id, title: 'New task' });
+      const task = await service.create({ listId: board.lists[0].id, title: 'New task' }, user);
       expect(task.title).toBe('New task');
       expect(task.position).toBe(0);
       expect(task.priority).toBe('medium');
@@ -117,7 +121,7 @@ describe('TasksService', () => {
         listId: board.lists[0].id,
         title: 'Bug fix',
         labelIds: [label.id],
-      });
+      }, user);
       expect(task.labels).toHaveLength(1);
       expect(task.labels[0].label.name).toBe('bug');
     });
@@ -128,61 +132,73 @@ describe('TasksService', () => {
         title: 'Urgent fix',
         description: 'Fix the critical bug',
         priority: 'urgent',
-        assignee: 'alice',
         dueDate: '2026-07-01T00:00:00Z',
-      });
+      }, user);
       expect(task.priority).toBe('urgent');
-      expect(task.assignee).toBe('alice');
+      expect(task.assigneeId).toBeNull();
     });
 
     it('should log activity on creation', async () => {
-      await service.create({ listId: board.lists[0].id, title: 'New task', assignee: 'bob' });
+      await service.create({ listId: board.lists[0].id, title: 'New task' }, user);
       const activity = await prisma.activity.findMany();
       expect(activity).toHaveLength(1);
       expect(activity[0].action).toBe('created');
+      expect(activity[0].actorId).toBe(user.id);
+      expect(activity[0].actor).toBe(user.displayName);
+    });
+
+    it('should log activity with system actor when no user provided', async () => {
+      await service.create({ listId: board.lists[0].id, title: 'System task' });
+      const activity = await prisma.activity.findMany();
+      expect(activity[0].actorId).toBeNull();
+      expect(activity[0].actor).toBe('system');
     });
   });
 
   describe('update', () => {
     it('should update task title', async () => {
       const seeded = await seedTask(prisma, board.lists[0].id);
-      const updated = await service.update(seeded.id, { title: 'Updated title' });
+      const updated = await service.update(seeded.id, { title: 'Updated title' }, user);
       expect(updated.title).toBe('Updated title');
     });
 
     it('should update task priority', async () => {
       const seeded = await seedTask(prisma, board.lists[0].id);
-      const updated = await service.update(seeded.id, { priority: 'urgent' });
+      const updated = await service.update(seeded.id, { priority: 'urgent' }, user);
       expect(updated.priority).toBe('urgent');
     });
 
     it('should update labels', async () => {
       const seeded = await seedTask(prisma, board.lists[0].id);
       const label = await seedLabel(prisma, board.id);
-      const updated = await service.update(seeded.id, { labelIds: [label.id] });
+      const updated = await service.update(seeded.id, { labelIds: [label.id] }, user);
       expect(updated.labels).toHaveLength(1);
     });
 
     it('should log activity on update', async () => {
       const seeded = await seedTask(prisma, board.lists[0].id);
-      await service.update(seeded.id, { title: 'Changed', assignee: 'alice' });
+      await service.update(seeded.id, { title: 'Changed' }, user);
       const activity = await prisma.activity.findMany({ where: { taskId: seeded.id } });
-      expect(activity.length).toBeGreaterThan(0);
+      expect(activity.some((a) => a.action === 'updated')).toBe(true);
+      expect(activity.find((a) => a.action === 'updated')!.actorId).toBe(user.id);
     });
   });
 
   describe('move', () => {
     it('should move task to another list', async () => {
       const seeded = await seedTask(prisma, board.lists[0].id);
-      const moved = await service.move(seeded.id, { listId: board.lists[2].id });
+      const moved = await service.move(seeded.id, { listId: board.lists[2].id }, user);
       expect(moved.listId).toBe(board.lists[2].id);
     });
 
     it('should log activity on move', async () => {
       const seeded = await seedTask(prisma, board.lists[0].id);
-      await service.move(seeded.id, { listId: board.lists[2].id });
+      await service.move(seeded.id, { listId: board.lists[2].id }, user);
       const activity = await prisma.activity.findMany({ where: { taskId: seeded.id } });
-      expect(activity.some((a) => a.action === 'moved')).toBe(true);
+      const movedActivity = activity.find((a) => a.action === 'moved');
+      expect(movedActivity).toBeDefined();
+      expect(movedActivity!.actorId).toBe(user.id);
+      expect(movedActivity!.actor).toBe(user.displayName);
     });
   });
 
@@ -200,15 +216,18 @@ describe('TasksService', () => {
   describe('remove', () => {
     it('should archive a task (soft delete)', async () => {
       const seeded = await seedTask(prisma, board.lists[0].id);
-      const archived = await service.remove(seeded.id);
+      const archived = await service.remove(seeded.id, user);
       expect(archived.status).toBe('archived');
     });
 
-    it('should log activity on archive', async () => {
+    it('should log activity on archive with user', async () => {
       const seeded = await seedTask(prisma, board.lists[0].id);
-      await service.remove(seeded.id);
+      await service.remove(seeded.id, user);
       const activity = await prisma.activity.findMany({ where: { taskId: seeded.id } });
-      expect(activity.some((a) => a.action === 'archived')).toBe(true);
+      const archivedActivity = activity.find((a) => a.action === 'archived');
+      expect(archivedActivity).toBeDefined();
+      expect(archivedActivity!.actorId).toBe(user.id);
+      expect(archivedActivity!.actor).toBe(user.displayName);
     });
   });
 });

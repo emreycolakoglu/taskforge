@@ -21,7 +21,7 @@ export class CreateTaskDto {
 
   @IsOptional()
   @IsString()
-  assignee?: string;
+  assigneeId?: string;
 
   @IsOptional()
   @IsDateString()
@@ -64,7 +64,7 @@ export class UpdateTaskDto {
 
   @IsOptional()
   @IsString()
-  assignee?: string;
+  assigneeId?: string;
 
   @IsOptional()
   @IsDateString()

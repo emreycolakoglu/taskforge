@@ -1,8 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Trash2, LayoutDashboard } from 'lucide-react'
-import { api } from '@/hooks/api'
-import { Board } from '@/types'
+import { useBoards, useCreateBoard, useDeleteBoard } from '@/hooks/use-boards'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -13,30 +12,32 @@ import {
 import { Label } from '@/components/ui/label'
 
 export function HomePage() {
-  const [boards, setBoards] = useState<Board[]>([])
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
-  const [slug, setSlug] = useState('')
   const navigate = useNavigate()
 
-  useEffect(() => {
-    api.boards.list().then(setBoards).catch(() => {})
-  }, [])
+  const { data: boards = [] } = useBoards()
+  const createBoard = useCreateBoard()
+  const deleteBoard = useDeleteBoard()
 
-  const handleCreate = async () => {
-    if (!name.trim() || !slug.trim()) return
-    const board = await api.boards.create({ name: name.trim(), slug: slug.trim() })
-    setBoards([board, ...boards])
-    setOpen(false)
-    setName('')
-    setSlug('')
-    navigate(`/board/${board.id}`)
+  const handleCreate = () => {
+    if (!name.trim()) return
+    const slug = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '')
+    createBoard.mutate(
+      { name: name.trim(), slug },
+      {
+        onSuccess: (board) => {
+          setOpen(false)
+          setName('')
+          navigate(`/board/${board.id}`)
+        },
+      },
+    )
   }
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
+  const handleDelete = (e: React.MouseEvent, id: string) => {
     e.stopPropagation()
-    await api.boards.delete(id)
-    setBoards(boards.filter((b) => b.id !== id))
+    deleteBoard.mutate(id)
   }
 
   return (
@@ -70,15 +71,6 @@ export function HomePage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Sprint 24"
-                />
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="board-slug">Slug</Label>
-                <Input
-                  id="board-slug"
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value.replace(/[^a-z0-9-]/g, '').toLowerCase())}
-                  placeholder="sprint-24"
                 />
               </div>
             </div>

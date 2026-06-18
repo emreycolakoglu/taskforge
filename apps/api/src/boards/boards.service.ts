@@ -48,7 +48,7 @@ export class BoardsService {
     return board;
   }
 
-  async create(dto: CreateBoardDto) {
+  async create(dto: CreateBoardDto, _user?: { id: string; displayName: string }) {
     return this.prisma.board.create({
       data: {
         name: dto.name,
@@ -68,12 +68,12 @@ export class BoardsService {
     });
   }
 
-  async update(id: string, dto: UpdateBoardDto) {
+  async update(id: string, dto: UpdateBoardDto, _user?: { id: string; displayName: string }) {
     await this.findOne(id);
     return this.prisma.board.update({ where: { id }, data: dto });
   }
 
-  async remove(id: string) {
+  async remove(id: string, _user?: { id: string; displayName: string }) {
     await this.findOne(id);
     return this.prisma.board.delete({ where: { id } });
   }

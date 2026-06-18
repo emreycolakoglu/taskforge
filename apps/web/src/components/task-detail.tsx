@@ -1,6 +1,9 @@
-import { useState, useEffect } from 'react'
-import { api } from '@/hooks/api'
-import { Task, Label as LabelType } from '@/types'
+import { useState } from 'react'
+import { useTask, useUpdateTask } from '@/hooks/use-tasks'
+import { useComments, useCreateComment } from '@/hooks/use-comments'
+import { useLabels } from '@/hooks/use-labels'
+import { useUsers } from '@/hooks/use-users'
+import { Task } from '@/types'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -10,44 +13,52 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { cn } from '@/lib/utils'
 
 interface TaskDetailProps {
   task: Task
   onClose: () => void
-  onUpdate: () => void
 }
 
-export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
-  const [title, setTitle] = useState(task.title)
-  const [description, setDescription] = useState(task.description || '')
-  const [priority, setPriority] = useState<string>(task.priority)
-  const [assignee, setAssignee] = useState(task.assignee || '')
+export function TaskDetail({ task, onClose }: TaskDetailProps) {
+  const { data: freshTask } = useTask(task.id)
+  // Use fresh task data from react-query if available, fall back to prop
+  const currentTask = freshTask ?? task
+  const boardId = currentTask.list?.boardId ?? task.list?.boardId ?? ''
+
+  const { data: labels = [] } = useLabels(boardId)
+  const { data: comments = [] } = useComments(task.id)
+  const { data: users = [] } = useUsers()
+
+  const updateTask = useUpdateTask()
+  const createComment = useCreateComment()
+
+  const [title, setTitle] = useState(currentTask.title)
+  const [description, setDescription] = useState(currentTask.description || '')
+  const [priority, setPriority] = useState<string>(currentTask.priority)
+  const [assigneeId, setAssigneeId] = useState<string>(currentTask.assigneeId ?? '__none__')
   const [comment, setComment] = useState('')
-  const [labels, setLabels] = useState<LabelType[]>([])
-  const [comments, setComments] = useState(task.comments || [])
-  const [activity, setActivity] = useState(task.activity || [])
 
-  useEffect(() => {
-    api.labels.list(task.list?.boardId || '').then(setLabels).catch(() => {})
-    api.comments.list(task.id).then(setComments).catch(() => {})
-  }, [task.id, task.list?.boardId])
-
-  const handleSave = async () => {
-    await api.tasks.update(task.id, {
-      title, description,
-      priority: priority as any,
-      assignee: assignee || undefined,
+  const handleSave = () => {
+    updateTask.mutate({
+      id: task.id,
+      data: {
+        title,
+        description,
+        priority: priority as Task['priority'],
+        assigneeId: assigneeId === '__none__' ? null : assigneeId,
+      },
     })
-    onUpdate()
   }
 
-  const handleAddComment = async () => {
+  const handleAddComment = () => {
     if (!comment.trim()) return
-    const c = await api.comments.create({ taskId: task.id, author: assignee || 'user', body: comment.trim() })
-    setComments([c, ...comments])
-    setComment('')
-    onUpdate()
+    const authorName = users.find(u => u.id === assigneeId)?.displayName || 'user'
+    createComment.mutate(
+      { taskId: task.id, author: authorName, body: comment.trim() },
+      { onSuccess: () => setComment('') },
+    )
   }
 
   const priorityOptions = ['low', 'medium', 'high', 'urgent'] as const
@@ -66,7 +77,7 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
     <Dialog open onOpenChange={() => onClose()}>
       <DialogContent className="max-w-2xl max-h-[90vh] p-0">
         <DialogHeader className="sr-only">
-          <DialogTitle>Task: {task.title}</DialogTitle>
+          <DialogTitle>Task: {currentTask.title}</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col h-full max-h-[80vh]">
           {/* Header with priority + save */}
@@ -99,9 +110,9 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
             />
 
             {/* Labels */}
-            {task.labels && task.labels.length > 0 && (
+            {currentTask.labels && currentTask.labels.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-4">
-                {task.labels.map((tl) => (
+                {currentTask.labels.map((tl) => (
                   <Badge
                     key={tl.labelId}
                     style={{ backgroundColor: tl.label.color }}
@@ -116,7 +127,7 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
             <Tabs defaultValue="details" className="w-full">
               <TabsList className="mb-4">
                 <TabsTrigger value="details">Details</TabsTrigger>
-                <TabsTrigger value="activity">Activity ({activity.length})</TabsTrigger>
+                <TabsTrigger value="activity">Activity ({currentTask.activity?.length ?? 0})</TabsTrigger>
               </TabsList>
 
               <TabsContent value="details" className="flex flex-col gap-4">
@@ -133,17 +144,22 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
 
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="task-assignee" className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Assignee</Label>
-                  <Input
-                    id="task-assignee"
-                    value={assignee}
-                    onChange={(e) => setAssignee(e.target.value)}
-                    placeholder="User or agent ID..."
-                  />
+                  <Select value={assigneeId} onValueChange={setAssigneeId}>
+                    <SelectTrigger id="task-assignee">
+                      <SelectValue placeholder="Unassigned" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Unassigned</SelectItem>
+                      {users.map((u) => (
+                        <SelectItem key={u.id} value={u.id}>{u.displayName}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
-                {task.dueDate && (
+                {currentTask.dueDate && (
                   <p className="text-sm text-muted-foreground">
-                    Due: {new Date(task.dueDate).toLocaleDateString()}
+                    Due: {new Date(currentTask.dueDate).toLocaleDateString()}
                   </p>
                 )}
 
@@ -179,7 +195,7 @@ export function TaskDetail({ task, onClose, onUpdate }: TaskDetailProps) {
 
               <TabsContent value="activity">
                 <div className="flex flex-col gap-3">
-                  {activity.map((a) => (
+                  {currentTask.activity?.map((a) => (
                     <div key={a.id} className="text-sm">
                       <span className="font-semibold text-primary">{a.actor}</span>
                       {' '}{a.action}
