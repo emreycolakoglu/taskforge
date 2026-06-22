@@ -4,7 +4,6 @@ import {
   ListChecks, Settings, PanelLeftClose, PanelLeft, User, LogOut,
   ChevronRight, Loader2, Plus, Columns3,
 } from "lucide-react"
-import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
@@ -43,7 +42,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             <TooltipTrigger asChild>
               <div
                 className={cn(
-                  "flex h-14 items-center gap-2 border-b border-sidebar-border transition-colors w-full",
+                  "flex h-14 items-center gap-2 border-b border-sidebar-border px-4 py-3 transition-colors w-full",
                   collapsed ? "justify-center px-0" : "px-3"
                 )}
               >
@@ -51,7 +50,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                   {avatarLetter}
                 </span>
                 {!collapsed && (
-                  <span className="flex-1 text-sm font-semibold text-sidebar-foreground">TaskForge</span>
+                  <span className="flex-1 text-sm font-medium text-foreground">TaskForge</span>
                 )}
               </div>
             </TooltipTrigger>
@@ -67,10 +66,10 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                 <Link
                   to="/tasks"
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors",
+                    "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
                     location.pathname === "/tasks"
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                      ? "bg-sidebar-accent text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
                     collapsed && "justify-center px-2"
                   )}
                   aria-current={location.pathname === "/tasks" ? "page" : undefined}
@@ -88,17 +87,17 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           {/* Boards section */}
           {!collapsed ? (
             <div className="mt-4 px-2">
-              <div className="flex items-center px-3 mb-1">
+              <div className="flex items-center px-3 pt-4 pb-2 mb-1">
                 <button
                   onClick={() => setBoardsCollapsed(!boardsCollapsed)}
-                  className="flex items-center gap-1 text-xs font-semibold uppercase text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+                  className="flex items-center gap-1 text-xs font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors"
                 >
                   <ChevronRight className={cn("size-3.5 shrink-0 transition-transform duration-200", !boardsCollapsed && "rotate-90")} />
                   BOARDS
                 </button>
                 <button
                   onClick={() => setCreateDialogOpen(true)}
-                  className="ml-auto text-sidebar-foreground/50 hover:text-sidebar-foreground transition-colors"
+                  className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
                   aria-label="Create board"
                 >
                   <Plus className="size-3.5" />
@@ -108,26 +107,32 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                 <>
                   {boardsLoading ? (
                     <div className="flex items-center justify-center py-2">
-                      <Loader2 className="size-4 animate-spin text-sidebar-foreground/50" />
+                      <Loader2 className="size-4 animate-spin text-muted-foreground" />
                     </div>
                   ) : (
                     <div className="flex flex-col gap-0.5">
-                      {boards?.map((board) => (
-                        <Link
-                          key={board.id}
-                          to={`/board/${board.id}`}
-                          className={cn(
-                            "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors",
-                            location.pathname === `/board/${board.id}`
-                              ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                              : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-                          )}
-                          aria-current={location.pathname === `/board/${board.id}` ? "page" : undefined}
-                        >
-                          <Columns3 className="size-4 shrink-0" />
-                          <span>{board.name}</span>
-                        </Link>
-                      ))}
+                      {boards?.map((board) => {
+                        const isActive = location.pathname === `/board/${board.id}`
+                        return (
+                          <Link
+                            key={board.id}
+                            to={`/board/${board.id}`}
+                            className={cn(
+                              "relative flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
+                              isActive
+                                ? "bg-sidebar-accent text-foreground"
+                                : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
+                            )}
+                            aria-current={isActive ? "page" : undefined}
+                          >
+                            {isActive && (
+                              <span className="absolute left-0 h-5 w-0.5 rounded-r bg-primary" />
+                            )}
+                            <Columns3 className="size-4 shrink-0" />
+                            <span>{board.name}</span>
+                          </Link>
+                        )
+                      })}
                     </div>
                   )}
                 </>
@@ -140,8 +145,8 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                   to="/"
                   aria-label="Boards"
                   className={cn(
-                    "flex items-center justify-center rounded-lg px-2 py-1.5 text-sm transition-colors mt-4 mx-2",
-                    "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                    "flex items-center justify-center rounded-md px-2 py-1.5 text-sm transition-colors mt-4 mx-2",
+                    "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
                   )}
                 >
                   <Columns3 className="size-4 shrink-0" />
@@ -154,19 +159,17 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           {/* Spacer to push bottom section down */}
           <div className="flex-1" />
 
-          <Separator className="bg-sidebar-border" />
-
           {/* Bottom section */}
-          <div className="flex flex-col gap-0.5 p-2">
+          <div className="flex flex-col gap-0.5 p-3 border-t border-sidebar-border">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Link
                   to="/settings"
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors",
+                    "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
                     location.pathname.startsWith("/settings")
-                      ? "bg-sidebar-accent text-sidebar-accent-foreground"
-                      : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                      ? "bg-sidebar-accent text-foreground"
+                      : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
                     collapsed && "justify-center px-2"
                   )}
                   aria-current={location.pathname.startsWith("/settings") ? "page" : undefined}
@@ -187,15 +190,17 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                     <DropdownMenuTrigger asChild>
                       <button
                         className={cn(
-                          "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors",
-                          "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                          "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
+                          "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
                           collapsed && "justify-center px-2"
                         )}
                       >
-                        <span className="flex size-4 shrink-0 items-center justify-center rounded bg-sidebar-accent text-sidebar-accent-foreground text-[11px] font-semibold">
+                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-secondary-foreground text-[11px] font-semibold">
                           {avatarLetter}
                         </span>
-                        {!collapsed && <span className="truncate">{user.displayName}</span>}
+                        {!collapsed && (
+                          <span className="truncate text-sm text-foreground">{user.displayName}</span>
+                        )}
                       </button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
@@ -223,8 +228,8 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
               <TooltipTrigger asChild>
                 <button
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-1.5 text-sm transition-colors",
-                    "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+                    "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
+                    "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
                     collapsed && "justify-center px-2"
                   )}
                   aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
@@ -248,7 +253,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         </aside>
 
         {/* Main content */}
-        <main className="flex-1 overflow-auto" id="main-content">
+        <main className="flex-1 overflow-auto bg-background" id="main-content">
           {children}
         </main>
 

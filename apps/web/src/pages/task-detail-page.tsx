@@ -43,9 +43,9 @@ function PriorityIcon({ priority }: { priority: Task['priority'] }) {
     case 'urgent':
       return <AlertTriangle className="size-4 text-destructive" />
     case 'high':
-      return <SignalHigh className="size-4 text-orange-500" />
+      return <SignalHigh className="size-4 text-[#eb5757]" />
     case 'medium':
-      return <SignalMedium className="size-4 text-indigo-500" />
+      return <SignalMedium className="size-4 text-[#5e6ad2]" />
     case 'low':
       return <SignalLow className="size-4 text-muted-foreground" />
   }
@@ -92,14 +92,14 @@ function EditableTitle({
           if (e.key === 'Enter') commit()
           if (e.key === 'Escape') cancel()
         }}
-        className="text-xl font-bold bg-transparent border-b border-primary outline-none w-full"
+        className="text-2xl font-medium tracking-tight text-foreground bg-input rounded-md border border-border px-2 py-1 -mx-2 outline-none w-full focus-visible:ring-2 focus-visible:ring-ring"
       />
     )
   }
 
   return (
     <h1
-      className="text-xl font-bold cursor-text hover:bg-accent/50 rounded px-1 -mx-1"
+      className="text-2xl font-medium tracking-tight text-foreground cursor-text hover:bg-accent/50 rounded px-1 -mx-1"
       onClick={startEdit}
     >
       {value}
@@ -122,14 +122,14 @@ function EditableDescription({
   if (!editing) {
     return (
       <div
-        className="text-sm text-muted-foreground cursor-text hover:bg-accent/50 rounded p-2 -mx-2 min-h-[80px]"
+        className="text-sm text-foreground/90 leading-relaxed cursor-text hover:bg-accent/50 rounded p-2 -mx-2 min-h-[80px]"
         onClick={() => {
           setDraft(value)
           setEditing(true)
         }}
       >
         {value || (
-          <span className="italic">Add a description…</span>
+          <span className="italic text-muted-foreground">Add a description…</span>
         )}
       </div>
     )
@@ -216,7 +216,7 @@ export function TaskDetailPage() {
 
   if (taskLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full bg-background">
         <div className="text-muted-foreground">Loading task…</div>
       </div>
     )
@@ -224,7 +224,7 @@ export function TaskDetailPage() {
 
   if (taskError || !task) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4">
+      <div className="flex flex-col items-center justify-center h-full gap-4 bg-background">
         <p className="text-destructive">Task not found.</p>
         <Button variant="outline" onClick={() => navigate(`/board/${boardId}`)}>
           <ArrowLeft className="size-4 mr-2" />
@@ -254,11 +254,11 @@ export function TaskDetailPage() {
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full">
+    <div className="flex h-full bg-background">
       {/* ── Main content ──────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header bar */}
-        <header className="flex items-center gap-2 px-4 py-2 border-b shrink-0">
+        <header className="bg-secondary border-b border-border px-6 py-3 flex items-center gap-2 shrink-0">
           <Button
             variant="ghost"
             size="icon"
@@ -269,7 +269,7 @@ export function TaskDetailPage() {
           </Button>
 
           {task.taskNumber && (
-            <span className="text-sm text-muted-foreground font-medium mr-1">
+            <span className="font-mono text-sm text-muted-foreground mr-1">
               {task.taskNumber}
             </span>
           )}
@@ -305,7 +305,7 @@ export function TaskDetailPage() {
 
         {/* Scrollable body */}
         <ScrollArea className="flex-1">
-          <div className="max-w-3xl px-6 py-4 space-y-6">
+          <div className="p-6 space-y-6 bg-background max-w-3xl">
             {/* Labels */}
             {taskLabels.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
@@ -349,14 +349,14 @@ export function TaskDetailPage() {
                 </h3>
                 <div className="space-y-2.5">
                   {task.activity.map((a) => (
-                    <div key={a.id} className="text-sm flex items-start gap-2">
+                    <div key={a.id} className="text-sm text-muted-foreground py-2 border-b border-border last:border-0 flex items-start gap-2">
                       <div className="size-5 rounded-full bg-muted flex items-center justify-center shrink-0 mt-0.5">
                         <span className="text-[10px] font-semibold text-muted-foreground">
                           {a.actor.charAt(0).toUpperCase()}
                         </span>
                       </div>
                       <div className="min-w-0">
-                        <span className="font-medium">{a.actor}</span>{' '}
+                        <span className="font-medium text-foreground">{a.actor}</span>{' '}
                         <span className="text-muted-foreground">{a.action}</span>
                         {a.detail && (() => {
                           try {
@@ -373,7 +373,7 @@ export function TaskDetailPage() {
                             return null
                           }
                         })()}
-                        <span className="text-xs text-muted-foreground ml-2">
+                        <span className="font-mono text-xs text-muted-foreground ml-2">
                           {formatTimestamp(a.createdAt)}
                         </span>
                       </div>
@@ -405,19 +405,14 @@ export function TaskDetailPage() {
               </div>
               <div className="space-y-3">
                 {comments.map((c) => (
-                  <div key={c.id} className="flex items-start gap-2">
-                    <div className="size-6 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-[9px] font-bold shrink-0">
-                      {c.author.charAt(0).toUpperCase()}
+                  <div key={c.id} className="bg-card border border-border rounded-md p-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-foreground">{c.author}</span>
+                      <span className="text-xs text-muted-foreground font-mono">
+                        {formatTimestamp(c.createdAt)}
+                      </span>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{c.author}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatTimestamp(c.createdAt)}
-                        </span>
-                      </div>
-                      <p className="text-sm mt-0.5">{c.body}</p>
-                    </div>
+                    <p className="text-sm text-foreground/90 mt-1">{c.body}</p>
                   </div>
                 ))}
                 {comments.length === 0 && (
@@ -430,11 +425,11 @@ export function TaskDetailPage() {
       </div>
 
       {/* ── Right sidebar ─────────────────────────────────────────────────── */}
-      <aside className="w-[280px] border-l bg-muted/30 shrink-0 overflow-y-auto">
-        <div className="p-4 space-y-5">
+      <aside className="w-[280px] bg-secondary border-l border-border shrink-0 overflow-y-auto">
+        <div className="p-4 space-y-4">
           {/* Status */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
               Status
             </label>
             <Select
@@ -453,8 +448,8 @@ export function TaskDetailPage() {
           </div>
 
           {/* Priority */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
               Priority
             </label>
             <div className="flex gap-1">
@@ -466,12 +461,12 @@ export function TaskDetailPage() {
                     'flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors',
                     task.priority === p
                       ? p === 'urgent'
-                        ? 'bg-destructive text-destructive-foreground'
+                        ? 'bg-[#eb5757]/10 text-[#eb5757]'
                         : p === 'high'
-                        ? 'bg-orange-500 text-white'
+                        ? 'bg-[#eb5757]/10 text-[#eb5757]'
                         : p === 'medium'
-                        ? 'bg-indigo-500 text-white'
-                        : 'bg-muted-foreground/20 text-muted-foreground'
+                        ? 'bg-[#5e6ad2]/10 text-[#5e6ad2]'
+                        : 'bg-muted text-muted-foreground'
                       : 'text-muted-foreground hover:bg-accent',
                   )}
                 >
@@ -483,8 +478,8 @@ export function TaskDetailPage() {
           </div>
 
           {/* Assignee */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
               Assignee
             </label>
             <Select
@@ -508,8 +503,8 @@ export function TaskDetailPage() {
           </div>
 
           {/* Labels */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
               Labels
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -530,11 +525,11 @@ export function TaskDetailPage() {
 
           {/* Due date */}
           {task.dueDate && (
-            <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
                 Due date
               </label>
-              <div className="flex items-center gap-1.5 text-sm">
+              <div className="flex items-center gap-1.5 font-mono text-sm text-foreground">
                 <Calendar className="size-3.5 text-muted-foreground" />
                 {new Date(task.dueDate).toLocaleDateString(undefined, {
                   month: 'short',
@@ -546,25 +541,23 @@ export function TaskDetailPage() {
           )}
 
           {/* List */}
-          <div>
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block mb-1.5">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
               List
             </label>
-            <div className="flex items-center gap-1.5 text-sm">
+            <div className="flex items-center gap-1.5 text-sm text-foreground">
               <ListChecks className="size-3.5 text-muted-foreground" />
               {listName}
             </div>
           </div>
 
-          <Separator />
-
-          {/* Timestamps */}
-          <div className="space-y-2 text-xs text-muted-foreground">
-            <div className="flex items-center gap-1.5">
+          <div className="border-t border-border pt-4 space-y-2">
+            {/* Timestamps */}
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
               <Clock className="size-3" />
               Created {formatTimestamp(task.createdAt)}
             </div>
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
               <Clock className="size-3" />
               Updated {formatTimestamp(task.updatedAt)}
             </div>

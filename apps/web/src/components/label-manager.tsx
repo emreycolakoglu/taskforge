@@ -126,12 +126,12 @@ export function LabelManager({ task, boardId }: LabelManagerProps) {
                   toggle(label.id)
                 }}
                 className={cn(
-                  'flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent transition-colors text-left',
-                  isAttached && 'bg-accent/50',
+                  'flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors text-left text-foreground',
+                  isAttached && 'bg-accent',
                 )}
               >
                 <span
-                  className="size-3 rounded-full shrink-0"
+                  className="size-3 rounded-sm shrink-0"
                   style={{ backgroundColor: label.color }}
                 />
                 <span className="truncate">{label.name}</span>

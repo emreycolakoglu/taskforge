@@ -8,17 +8,17 @@ interface ColorPickerProps {
 
 export function ColorPicker({ value, onChange }: ColorPickerProps) {
   return (
-    <div className="grid grid-cols-6 gap-2">
+    <div className="grid grid-cols-6 gap-2 p-2">
       {PREDEFINED_COLORS.map((color) => (
         <button
           key={color}
           type="button"
           onClick={() => onChange(color)}
           className={cn(
-            'size-7 rounded-full border-2 transition-colors',
+            'w-7 h-7 rounded-md cursor-pointer border-2 transition-all',
             value === color
-              ? 'border-foreground scale-110'
-              : 'border-transparent hover:border-muted-foreground/50'
+              ? 'border-foreground'
+              : 'border-transparent hover:scale-105'
           )}
           style={{ backgroundColor: color }}
           aria-label={`Select color ${color}`}

@@ -24,7 +24,7 @@ function contrastTextColor(hex: string): string {
   const g = parseInt(hex6.substring(2, 4), 16)
   const b = parseInt(hex6.substring(4, 6), 16)
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  return luminance > 0.55 ? '#111111' : '#ffffff'
+  return luminance > 0.55 ? '#030404' : '#f7f8f8'
 }
 
 // ── Priority icons (14×14 inline SVGs) ──────────────────────────────────────
@@ -86,11 +86,11 @@ export function TaskCard({ task, isDragging, boardId }: TaskCardProps) {
   const priorityIcon = () => {
     switch (task.priority) {
       case 'urgent':
-        return <span title="Urgent" className="text-destructive"><PriorityUrgentIcon /></span>
+        return <span title="Urgent" className="text-[#eb5757]"><PriorityUrgentIcon /></span>
       case 'high':
-        return <span title="High" className="text-orange-600 dark:text-orange-400"><PriorityHighIcon /></span>
+        return <span title="High" className="text-[#eb5757]"><PriorityHighIcon /></span>
       case 'medium':
-        return <span title="Medium" className="text-indigo-600 dark:text-indigo-400"><PriorityMediumIcon /></span>
+        return <span title="Medium" className="text-[#5e6ad2]"><PriorityMediumIcon /></span>
       case 'low':
         return <span title="Low" className="text-muted-foreground"><PriorityLowIcon /></span>
     }
@@ -102,14 +102,14 @@ export function TaskCard({ task, isDragging, boardId }: TaskCardProps) {
   return (
     <div
       className={cn(
-        "group/card rounded-lg border bg-card p-3 cursor-pointer transition-shadow motion-reduce:transition-none",
-        isDragging ? "shadow-lg ring-2 ring-primary" : "shadow-sm hover:shadow-md"
+        "group/card rounded-md border border-border bg-card p-3 space-y-2 cursor-pointer transition-all motion-reduce:transition-none",
+        isDragging ? "shadow-xl rotate-1" : "shadow-sm hover:shadow-md hover:border-foreground/20"
       )}
     >
       {/* Header: task number + label manager (hover) */}
-      <div className="flex items-start justify-between gap-2 mb-0.5">
+      <div className="flex items-start justify-between gap-2">
         {task.taskNumber && (
-          <span className="text-[11px] text-muted-foreground font-normal leading-none">
+          <span className="text-xs text-muted-foreground font-mono leading-none">
             {task.taskNumber}
           </span>
         )}
@@ -121,7 +121,7 @@ export function TaskCard({ task, isDragging, boardId }: TaskCardProps) {
       </div>
 
       {/* Title */}
-      <p className="text-sm font-semibold leading-snug mb-2">
+      <p className="text-sm font-medium text-foreground leading-snug">
         {task.title}
       </p>
 
@@ -134,7 +134,7 @@ export function TaskCard({ task, isDragging, boardId }: TaskCardProps) {
             {visibleLabels.map((tl) => (
               <span
                 key={tl.labelId}
-                className="inline-flex items-center rounded-full px-1.5 text-[10px] font-medium leading-4 whitespace-nowrap"
+                className="inline-flex items-center rounded-sm border border-black/10 px-1.5 text-[10px] font-medium leading-4 whitespace-nowrap"
                 style={{
                   backgroundColor: tl.label.color,
                   color: contrastTextColor(tl.label.color),
@@ -151,7 +151,7 @@ export function TaskCard({ task, isDragging, boardId }: TaskCardProps) {
 
         {task._count && task._count.comments > 0 && (
           <span
-            className="flex items-center gap-0.5 text-[11px]"
+            className="flex items-center gap-0.5 text-xs text-muted-foreground"
             aria-label={`${task._count.comments} comments`}
           >
             <CommentIcon />
@@ -161,7 +161,7 @@ export function TaskCard({ task, isDragging, boardId }: TaskCardProps) {
 
         {task.assignee && (
           <div
-            className="size-5 rounded-full bg-gradient-to-br from-indigo-400 to-purple-600 flex items-center justify-center text-white text-[9px] font-bold shrink-0 ml-auto"
+            className="size-5 rounded-full border border-border bg-secondary text-secondary-foreground flex items-center justify-center text-[9px] font-bold shrink-0 ml-auto"
             title={task.assignee.displayName}
           >
             {task.assignee.displayName.charAt(0).toUpperCase()}

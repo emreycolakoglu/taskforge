@@ -1,7 +1,6 @@
 import { useState, useEffect, type FormEvent } from 'react'
-import { Moon, Sun, Monitor, Copy, LinkIcon, Ban, Plus } from 'lucide-react'
+import { Copy, LinkIcon, Ban, Plus } from 'lucide-react'
 import { toast } from 'sonner'
-import { useTheme } from '@/components/theme-provider'
 import { useAuth } from '@/contexts/auth-context'
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings'
 import { useUsers, useInvites, useCreateInvite, useRevokeInvite } from '@/hooks/use-users'
@@ -14,13 +13,6 @@ import { Label } from '@/components/ui/label'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
-import { cn } from '@/lib/utils'
-
-const themes = [
-  { value: 'light' as const, label: 'Light', icon: Sun },
-  { value: 'dark' as const, label: 'Dark', icon: Moon },
-  { value: 'system' as const, label: 'System', icon: Monitor },
-]
 
 function formatRelativeDate(dateStr: string) {
   const date = new Date(dateStr)
@@ -52,7 +44,6 @@ function CopyButton({ text, label }: { text: string; label: string }) {
 }
 
 function GeneralTab() {
-  const { theme, setTheme } = useTheme()
   const { user } = useAuth()
   const { data: settings, isLoading, isError } = useSettings()
   const updateSettings = useUpdateSettings()
@@ -109,7 +100,7 @@ function GeneralTab() {
             {isAdmin ? (
               <form onSubmit={handleSaveTitle} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
-                  <Label htmlFor="instance-title">Instance Title</Label>
+                  <Label htmlFor="instance-title" className="text-sm font-medium text-muted-foreground">Instance Title</Label>
                   <Input
                     id="instance-title"
                     value={title}
@@ -132,36 +123,6 @@ function GeneralTab() {
           </CardContent>
         </Card>
       )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Appearance</CardTitle>
-          <CardDescription>Customize how TaskForge looks on your device</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-3">
-            <Label>Theme</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {themes.map(({ value, label, icon: Icon }) => (
-                <button
-                  key={value}
-                  type="button"
-                  onClick={() => setTheme(value)}
-                  className={cn(
-                    "flex flex-col items-center gap-2 rounded-lg border-2 p-3 transition-colors hover:bg-accent",
-                    theme === value
-                      ? "border-primary bg-accent"
-                      : "border-transparent bg-muted/50"
-                  )}
-                >
-                  <Icon className="size-5" />
-                  <span className="text-sm font-medium">{label}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
     </div>
   )
 }
@@ -329,9 +290,9 @@ export function SettingsPage() {
   const isAdmin = user?.role === 'admin'
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+    <div className="bg-background p-6 space-y-6 max-w-4xl mx-auto">
+      <div>
+        <h1 className="text-lg font-medium tracking-tight text-foreground">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Manage your preferences
         </p>

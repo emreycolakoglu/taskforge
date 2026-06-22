@@ -30,13 +30,13 @@ export function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Sign In</CardTitle>
-          <CardDescription>Enter your credentials to continue</CardDescription>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <Card className="w-full max-w-sm shadow-xl p-6 space-y-4 rounded-xl">
+        <CardHeader className="text-center space-y-2 p-0">
+          <CardTitle className="text-lg font-medium tracking-tight text-foreground">Sign In</CardTitle>
+          <CardDescription className="text-sm text-muted-foreground">Enter your credentials to continue</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="email">Email</Label>
@@ -63,7 +63,7 @@ export function LoginPage() {
             {error && (
               <p className="text-sm text-destructive">{error}</p>
             )}
-            <Button type="submit" disabled={submitting} className="mt-2">
+            <Button type="submit" disabled={submitting} className="w-full mt-2">
               {submitting ? 'Signing in...' : 'Sign In'}
             </Button>
           </form>

@@ -20,14 +20,14 @@ interface LabelPillProps {
 }
 
 export function LabelPill({ label, className, active, onClick }: LabelPillProps) {
-  const textColor = isLightColor(label.color) ? 'text-gray-900' : 'text-white'
+  const textColor = isLightColor(label.color) ? 'text-[#030404]' : 'text-[#f7f8f8]'
 
   return (
     <button
       type="button"
       onClick={onClick}
       className={cn(
-        'inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium leading-none transition-all',
+        'inline-flex items-center rounded-sm border border-black/10 px-1.5 py-0.5 text-xs font-medium leading-none transition-all',
         textColor,
         active === undefined
           ? ''

@@ -120,9 +120,10 @@ export function KanbanBoard() {
 
   const priorityColor = (p: string) => {
     switch (p) {
-      case 'urgent': return 'text-destructive'
-      case 'high': return 'text-orange-600 dark:text-orange-400'
-      case 'medium': return 'text-indigo-600 dark:text-indigo-400'
+      case 'urgent': return 'text-[#eb5757]'
+      case 'high': return 'text-[#eb5757]'
+      case 'medium': return 'text-[#5e6ad2]'
+      case 'low': return 'text-muted-foreground'
       default: return 'text-muted-foreground'
     }
   }
@@ -136,14 +137,14 @@ export function KanbanBoard() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-3 border-b shrink-0">
+      <header className="flex items-center justify-between px-6 py-4 border-b border-border bg-secondary shrink-0">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" aria-label="Go back" onClick={() => navigate('/')}>
             <ArrowLeft className="size-5" />
           </Button>
           <div>
-            <h1 className="text-lg font-semibold">{board.name}</h1>
-            <p className="text-xs text-muted-foreground">{board.description}</p>
+            <h1 className="text-lg font-medium tracking-tight text-foreground">{board.name}</h1>
+            <p className="text-sm text-muted-foreground">{board.description}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
@@ -170,7 +171,7 @@ export function KanbanBoard() {
 
       {/* Label filter bar */}
       {labels.length > 0 && (
-        <div className="flex items-center gap-2 px-6 py-2 border-b bg-muted/30 shrink-0">
+        <div className="flex items-center gap-2 px-6 py-2 border-b border-border bg-background shrink-0">
           <SlidersHorizontal className="size-3.5 text-muted-foreground shrink-0" />
           <div className="flex flex-wrap gap-1.5 items-center">
             {labels.map((label) => {
@@ -196,10 +197,10 @@ export function KanbanBoard() {
 
       {/* Content */}
       {viewMode === 'list' ? (
-        <div className="p-6 overflow-auto">
+        <div className="p-6 overflow-auto bg-background">
           <table className="w-full">
             <thead>
-              <tr className="border-b">
+              <tr className="border-b border-border bg-secondary/50">
                 <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Task</th>
                 <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">List</th>
                 <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Priority</th>
@@ -213,12 +214,12 @@ export function KanbanBoard() {
                 (l.tasks || []).filter(filterTask).map((t) => (
                   <tr
                     key={t.id}
-                    className="border-b hover:bg-muted/50 cursor-pointer"
+                    className="border-b border-border hover:bg-accent/50 cursor-pointer"
                     onClick={() => navigate(`/board/${id}/task/${t.id}`)}
                   >
-                    <td className="py-2.5 px-3 text-sm font-medium truncate max-w-[200px]">
+                    <td className="py-2.5 px-3 text-sm font-medium text-foreground truncate max-w-[200px]">
                       {t.taskNumber && (
-                        <span className="text-muted-foreground font-normal mr-1">{t.taskNumber}</span>
+                        <span className="text-muted-foreground font-mono font-normal mr-1">{t.taskNumber}</span>
                       )}
                       {t.title}
                     </td>
@@ -247,7 +248,7 @@ export function KanbanBoard() {
         </div>
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea className="flex-1 p-6 bg-background">
             <div className="flex gap-4 h-full min-h-0">
               {filteredLists.map((list) => (
                 <Droppable key={list.id} droppableId={list.id}>
@@ -256,19 +257,19 @@ export function KanbanBoard() {
                       ref={provided.innerRef}
                       {...provided.droppableProps}
                       className={cn(
-                        "flex flex-col w-72 shrink-0 rounded-lg border bg-card",
+                        "flex flex-col w-72 shrink-0 rounded-xl border border-border bg-card/50",
                         snapshot.isDraggingOver && "bg-accent/50"
                       )}
                     >
                       {/* List header */}
-                      <div className="flex items-center justify-between px-3 py-2.5 border-b">
+                      <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
                         <div className="flex items-center gap-2">
                           <div
                             className="size-2.5 rounded-full shrink-0"
                             style={{ backgroundColor: list.color || '#6366f1' }}
                           />
-                          <span className="text-sm font-semibold">{list.name}</span>
-                          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                          <span className="text-sm font-medium text-foreground">{list.name}</span>
+                          <span className="text-xs text-muted-foreground font-mono">
                             {list.tasks?.length || 0}
                           </span>
                         </div>
@@ -276,7 +277,7 @@ export function KanbanBoard() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="size-6"
+                            className="size-6 text-muted-foreground hover:text-foreground"
                             aria-label={`Add task to ${list.name}`}
                             onClick={() => setCreatingInList(list.id)}
                           >
@@ -295,7 +296,7 @@ export function KanbanBoard() {
                       </div>
 
                       {/* Tasks */}
-                      <div className="flex-1 p-2 flex flex-col gap-2 min-h-[60px]">
+                      <div className="flex-1 p-2 space-y-2 flex flex-col min-h-[60px]">
                         {(list.tasks || []).map((task, index) => (
                           <Draggable key={task.id} draggableId={task.id} index={index}>
                             {(provided, snapshot) => (
@@ -315,7 +316,7 @@ export function KanbanBoard() {
 
                       {/* Inline create */}
                       {creatingInList === list.id && (
-                        <div className="p-2 border-t">
+                        <div className="p-2 border-t border-border">
                           <CreateTaskModal
                             listId={list.id}
                             onSubmit={(title) => handleCreateTask(list.id, title)}
@@ -393,7 +394,7 @@ function AddListForm({ boardId }: { boardId: string }) {
 
   if (editing) {
     return (
-      <div className="flex flex-col gap-2 rounded-lg border bg-card p-3">
+      <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3">
         <Input
           autoFocus
           value={name}
@@ -412,7 +413,7 @@ function AddListForm({ boardId }: { boardId: string }) {
   return (
     <Button
       variant="outline"
-      className="w-full border-dashed text-muted-foreground"
+      className="w-full border-dashed border-border text-muted-foreground hover:text-foreground"
       onClick={() => setEditing(true)}
     >
       <Plus data-icon="inline-start" />

@@ -12,6 +12,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import type { Board } from "@/types"
+import { cn } from "@/lib/utils"
 
 interface CreateBoardDialogProps {
   open: boolean
@@ -78,11 +79,10 @@ export function CreateBoardDialog({ open, onOpenChange, onSuccess }: CreateBoard
               }
               maxLength={3}
               placeholder="ABC"
-              className={
-                identifier.length > 0 && !/^[A-Z]{3}$/.test(identifier)
-                  ? "border-destructive"
-                  : ""
-              }
+              className={cn(
+                "font-mono",
+                identifier.length > 0 && !/^[A-Z]{3}$/.test(identifier) && "border-destructive",
+              )}
             />
             <p className="text-xs text-muted-foreground">
               3-letter prefix for task numbers (e.g., ABC → ABC-1)

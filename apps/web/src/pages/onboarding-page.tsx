@@ -56,13 +56,13 @@ export function OnboardingPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome to TaskForge</CardTitle>
-          <CardDescription>Set up your instance to get started</CardDescription>
+    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+      <Card className="w-full max-w-md shadow-xl p-6 space-y-4 rounded-xl">
+        <CardHeader className="text-center space-y-2 p-0">
+          <CardTitle className="text-xl font-medium tracking-tight text-foreground">Welcome to TaskForge</CardTitle>
+          <CardDescription className="text-sm text-muted-foreground">Set up your instance to get started</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="flex flex-col gap-2">
               <Label htmlFor="title">Instance Title</Label>
@@ -122,7 +122,7 @@ export function OnboardingPage() {
             {error && (
               <p className="text-sm text-destructive">{error}</p>
             )}
-            <Button type="submit" disabled={submitting} className="mt-2">
+            <Button type="submit" disabled={submitting} className="w-full mt-2">
               {submitting ? 'Setting up...' : 'Create Admin Account'}
             </Button>
           </form>

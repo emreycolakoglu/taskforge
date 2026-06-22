@@ -6,7 +6,7 @@ import { useLabels, useCreateLabel, useUpdateLabel, useDeleteLabel } from '@/hoo
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label as UILabel } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardTitle, CardDescription } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ColorPicker } from '@/components/color-picker'
 import type { Label } from '@/types'
@@ -35,18 +35,20 @@ export function BoardSettingsPage() {
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <div className="flex items-center gap-3 mb-6">
+    <div>
+      <header className="bg-secondary border-b border-border px-6 py-4 flex items-center gap-3">
         <Button variant="ghost" size="icon" aria-label="Back to board" onClick={() => navigate(`/board/${id}`)}>
           <ArrowLeft className="size-5" />
         </Button>
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">{board.name}</h1>
+          <h1 className="text-lg font-medium tracking-tight text-foreground">{board.name}</h1>
           <p className="text-sm text-muted-foreground">Board settings</p>
         </div>
-      </div>
+      </header>
 
-      <LabelsSection boardId={id!} labels={labels} />
+      <div className="p-6 max-w-2xl space-y-6 bg-background">
+        <LabelsSection boardId={id!} labels={labels} />
+      </div>
     </div>
   )
 }
@@ -59,24 +61,22 @@ function LabelsSection({ boardId, labels }: { boardId: string; labels: Label[] }
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-base">Labels</CardTitle>
-        <CardDescription>Manage labels for this board</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col gap-2">
-          {labels.map((label) => (
-            <LabelRow key={label.id} label={label} boardId={boardId} />
-          ))}
-          {labels.length === 0 && (
-            <p className="text-sm text-muted-foreground py-2">No labels yet</p>
-          )}
-        </div>
-        <div className="mt-4 pt-4 border-t">
-          <AddLabelForm boardId={boardId} onSubmit={handleCreate} />
-        </div>
-      </CardContent>
+    <Card className="p-6 space-y-4">
+      <div>
+        <CardTitle className="text-base text-foreground">Labels</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground mt-1">Manage labels for this board</CardDescription>
+      </div>
+      <div className="flex flex-col">
+        {labels.map((label) => (
+          <LabelRow key={label.id} label={label} boardId={boardId} />
+        ))}
+        {labels.length === 0 && (
+          <p className="text-sm text-muted-foreground py-3">No labels yet</p>
+        )}
+      </div>
+      <div className="pt-4 border-t border-border">
+        <AddLabelForm boardId={boardId} onSubmit={handleCreate} />
+      </div>
     </Card>
   )
 }
@@ -111,16 +111,16 @@ function LabelRow({ label, boardId }: { label: Label; boardId: string }) {
 
   return (
     <>
-      <div className="flex items-center justify-between rounded-lg border p-3">
+      <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
         <div className="flex items-center gap-3">
           <div
-            className="size-4 rounded-full shrink-0"
+            className="w-4 h-4 rounded-sm shrink-0"
             style={{ backgroundColor: label.color }}
           />
-          <span className="text-sm font-medium">{label.name}</span>
+          <span className="text-sm text-foreground">{label.name}</span>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon" className="size-8" aria-label={`Edit ${label.name}`} onClick={() => setEditing(true)}>
+          <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-foreground" aria-label={`Edit ${label.name}`} onClick={() => setEditing(true)}>
             <Pencil className="size-3.5" />
           </Button>
           <Button variant="ghost" size="icon" className="size-8 text-muted-foreground hover:text-destructive" aria-label={`Delete ${label.name}`} onClick={() => setDeleteOpen(true)}>
@@ -164,7 +164,7 @@ function LabelEditForm({
   const [color, setColor] = useState(initialColor)
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border p-3">
+    <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-3">
       <div className="flex flex-col gap-2">
         <UILabel htmlFor={`edit-name-${initialName}`}>Name</UILabel>
         <Input
@@ -222,7 +222,7 @@ function AddLabelForm({ boardId, onSubmit }: { boardId: string; onSubmit: (name:
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border p-3">
+    <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-3">
       <div className="flex flex-col gap-2">
         <UILabel htmlFor="new-label-name">Name</UILabel>
         <Input

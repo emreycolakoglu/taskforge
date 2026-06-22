@@ -1,5 +1,4 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/contexts/auth-context";
 import { SidebarLayout } from "@/components/sidebar-layout";
@@ -18,7 +17,7 @@ import { TaskDetailPage } from "@/pages/task-detail-page";
 
 export function App() {
   return (
-    <ThemeProvider defaultTheme="system" storageKey="taskforge-theme">
+    <>
       <Toaster richColors />
       <BrowserRouter>
         <AuthProvider>
@@ -94,6 +93,6 @@ export function App() {
           </Routes>
         </AuthProvider>
       </BrowserRouter>
-    </ThemeProvider>
+    </>
   );
 }

@@ -18,7 +18,7 @@ export function HomePage() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-full">
+      <div className="flex items-center justify-center h-full bg-background">
         <Loader2 className="size-8 animate-spin text-muted-foreground" />
       </div>
     )
@@ -29,9 +29,9 @@ export function HomePage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-4">
-      <Columns3 className="size-16 text-muted-foreground/30" />
-      <h2 className="text-lg font-semibold">No boards yet</h2>
+    <div className="bg-background flex flex-col items-center justify-center py-20 space-y-4">
+      <Columns3 className="h-12 w-12 text-muted-foreground" />
+      <h2 className="text-lg font-medium text-foreground">No boards yet</h2>
       <p className="text-sm text-muted-foreground">
         Create your first board to get started.
       </p>

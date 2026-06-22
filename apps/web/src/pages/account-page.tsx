@@ -7,6 +7,7 @@ import { useCreateInvite } from '@/hooks/use-users';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 
@@ -79,30 +80,30 @@ export function AccountPage() {
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight">Account</h1>
+    <div className="bg-background p-6 space-y-6 max-w-2xl mx-auto">
+      <div>
+        <h1 className="text-lg font-medium tracking-tight text-foreground">Account</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Manage your profile and settings
         </p>
       </div>
 
       {/* Profile info */}
-      <Card className="mb-6">
+      <Card className="space-y-3">
         <CardHeader>
           <CardTitle className="text-base">Profile</CardTitle>
           <CardDescription>Your account information</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-2 text-sm">
-            <div><span className="text-muted-foreground">Email:</span> {user.email}</div>
-            <div><span className="text-muted-foreground">Role:</span> {user.role}</div>
+            <div><span className="text-muted-foreground">Email:</span> <span className="text-foreground">{user.email}</span></div>
+            <div><span className="text-muted-foreground">Role:</span> <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>{user.role}</Badge></div>
           </div>
         </CardContent>
       </Card>
 
       {/* Change display name */}
-      <Card className="mb-6">
+      <Card className="space-y-3">
         <CardHeader>
           <CardTitle className="text-base">Display Name</CardTitle>
           <CardDescription>Update how your name appears to others</CardDescription>
@@ -124,7 +125,7 @@ export function AccountPage() {
       </Card>
 
       {/* Change password */}
-      <Card className="mb-6">
+      <Card className="space-y-3">
         <CardHeader>
           <CardTitle className="text-base">Change Password</CardTitle>
           <CardDescription>Update your password</CardDescription>
@@ -168,17 +169,17 @@ export function AccountPage() {
 
       {/* Admin actions */}
       {user.role === 'admin' && (
-        <Card className="mb-6">
+        <Card className="space-y-3">
           <CardHeader>
             <CardTitle className="text-base">Admin</CardTitle>
             <CardDescription>Invite new members or create bot tokens</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="flex gap-3">
-              <Button variant="outline" onClick={handleInvite} disabled={createInvite.isPending}>
+              <Button onClick={handleInvite} disabled={createInvite.isPending}>
                 Copy Invite Link
               </Button>
-              <Button variant="outline" onClick={handleBotToken}>
+              <Button onClick={handleBotToken}>
                 Create Bot Token
               </Button>
             </div>

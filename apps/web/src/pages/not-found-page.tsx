@@ -5,10 +5,10 @@ import { Button } from '@/components/ui/button'
 /** 404 page — shown for any undefined route */
 export function NotFoundPage() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-6 text-center">
-      <FileQuestion className="size-16 text-muted-foreground/50" />
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center space-y-4 px-6 text-center">
+      <FileQuestion className="h-12 w-12 text-muted-foreground" />
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Page not found</h1>
+        <h1 className="text-2xl font-medium tracking-tight text-foreground">Page not found</h1>
         <p className="text-sm text-muted-foreground mt-1">
           The page you're looking for doesn't exist or has been moved.
         </p>
