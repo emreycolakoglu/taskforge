@@ -36,11 +36,16 @@ export function KanbanBoard() {
   const labels: Label[] = board?.labels || []
 
   const [creatingInList, setCreatingInList] = useState<string | null>(null)
+  const [creatingSubTask, setCreatingSubTask] = useState<{ parentId: string; listId: string; parentTaskNumber?: string } | null>(null)
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
   const [activeLabelIds, setActiveLabelIds] = useState<string[]>([])
   const [pendingDeleteListId, setPendingDeleteListId] = useState<string | null>(null)
 
   const createTask = useCreateTask()
+
+  // Map of taskId → taskNumber for resolving parent badges on sub-task cards.
+  const tasks = useMemo(() => lists.flatMap((l) => l.tasks || []), [lists])
+  const taskNumberById = useMemo(() => new Map(tasks.map((t) => [t.id, t.taskNumber])), [tasks])
 
   // WebSocket handles cache invalidation via useSocket
   useSocket(id)
@@ -74,11 +79,11 @@ export function KanbanBoard() {
     queryClient.invalidateQueries({ queryKey: ['tasks', draggableId] })
   }, [id, lists, queryClient])
 
-  const handleCreateTask = (listId: string, title: string) => {
+  const handleCreateTask = (listId: string, title: string, parentId?: string) => {
     if (!id) return
     createTask.mutate(
-      { listId, title, boardId: id },
-      { onSuccess: () => setCreatingInList(null) },
+      { listId, title, boardId: id, parentId },
+      { onSuccess: () => { setCreatingInList(null); setCreatingSubTask(null) } },
     )
   }
 
@@ -306,7 +311,30 @@ export function KanbanBoard() {
                                 {...provided.dragHandleProps}
                                 onClick={() => navigate(`/board/${id}/task/${task.id}`)}
                               >
-                                <TaskCard task={task} isDragging={snapshot.isDragging} boardId={id} />
+                                <div className="relative group/sub">
+                                  <TaskCard
+                                    task={task}
+                                    isDragging={snapshot.isDragging}
+                                    boardId={id}
+                                    parentTaskNumber={task.parentId ? taskNumberById.get(task.parentId) : undefined}
+                                  />
+                                  {/* Add sub-task hover action */}
+                                  <button
+                                    className="absolute top-1 right-1 opacity-0 group-hover/sub:opacity-100 transition-opacity size-5 rounded bg-secondary text-muted-foreground hover:text-foreground hover:bg-accent flex items-center justify-center"
+                                    aria-label="Add sub-task"
+                                    title="Add sub-task"
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setCreatingSubTask({
+                                        parentId: task.id,
+                                        listId: task.listId,
+                                        parentTaskNumber: task.taskNumber,
+                                      })
+                                    }}
+                                  >
+                                    <Plus className="size-3" />
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </Draggable>
@@ -368,6 +396,21 @@ export function KanbanBoard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Sub-task creation modal */}
+      {creatingSubTask && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-black/30" onClick={() => setCreatingSubTask(null)}>
+          <div className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <CreateTaskModal
+              listId={creatingSubTask.listId}
+              parentId={creatingSubTask.parentId}
+              parentTaskNumber={creatingSubTask.parentTaskNumber}
+              onSubmit={(title) => handleCreateTask(creatingSubTask.listId, title, creatingSubTask.parentId)}
+              onClose={() => setCreatingSubTask(null)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

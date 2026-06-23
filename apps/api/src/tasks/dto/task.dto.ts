@@ -34,6 +34,10 @@ export class CreateTaskDto {
 
   @IsOptional()
   @IsString()
+  parentId?: string | null;
+
+  @IsOptional()
+  @IsString()
   metadata?: string;
 }
 
@@ -74,6 +78,10 @@ export class UpdateTaskDto {
   @IsArray()
   @IsString({ each: true })
   labelIds?: string[];
+
+  @IsOptional()
+  @IsString()
+  parentId?: string | null;
 
   @IsOptional()
   @IsString()

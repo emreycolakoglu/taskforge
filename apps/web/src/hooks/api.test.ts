@@ -436,4 +436,64 @@ describe('api', () => {
       headers: { 'Content-Type': 'application/json' },
     });
   });
+
+  // ─── Sub-tasks ───────────────────────────────────────────────────────────────
+
+  it('api.tasks.list(boardId, { include: "top" }) → calls /tasks/board/<id>?include=top', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve([]),
+    });
+
+    const { api } = await import('./api');
+    await api.tasks.list('b1', { include: 'top' });
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/board/b1?include=top', expect.any(Object));
+  });
+
+  it('api.tasks.list(boardId, { parentId: "t1" }) → calls /tasks/board/<id>?parentId=t1', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve([]),
+    });
+
+    const { api } = await import('./api');
+    await api.tasks.list('b1', { parentId: 't1' });
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/board/b1?parentId=t1', expect.any(Object));
+  });
+
+  it('api.tasks.create({ listId, title, parentId: "p1" }) → POST body includes parentId: "p1"', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ id: 't2', parentId: 'p1' }),
+    });
+
+    const { api } = await import('./api');
+    const result = await api.tasks.create({ listId: 'l1', title: 'Child', parentId: 'p1' });
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/tasks', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listId: 'l1', title: 'Child', parentId: 'p1' }),
+    });
+    expect(result.parentId).toBe('p1');
+  });
+
+  it('api.tasks.update(id, { parentId: null }) → PUT body includes parentId: null', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ id: 't1', parentId: null }),
+    });
+
+    const { api } = await import('./api');
+    const result = await api.tasks.update('t1', { parentId: null });
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ parentId: null }),
+    });
+    expect(result.parentId).toBeNull();
+  });
 });

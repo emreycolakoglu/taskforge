@@ -38,6 +38,9 @@ export interface Task {
   assignee?: User | null;
   metadata?: string;
   dueDate?: string;
+  parentId?: string | null;
+  parent?: { id: string; number: number; taskNumber?: string; title: string; board?: { identifier: string } } | null;
+  subTasks?: Task[];
   createdAt: string;
   updatedAt: string;
   list?: List;

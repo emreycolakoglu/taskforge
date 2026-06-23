@@ -52,9 +52,22 @@ The API will crash if Prisma client hasn't been generated. The web app needs the
 - **`packages/` directory doesn't exist yet** — the workspace config includes it, but nothing is there.
 - **SQLite DB is gitignored** — `*.db` and `*.db-journal` are in `.gitignore`.
 - **API serves the SPA in production** — `main.ts` uses `useStaticAssets` pointing to `../../web/dist` with SPA fallback.
+- **Frontend must follow `design.md`** — read it before any `apps/web/` change; use the defined tokens, not hardcoded colors or ad-hoc styling.
 - Always use kebap-case filenames
 - Always write unit tests
 - Always write helpful little docs for the future guy
+
+## Design System
+
+**Required reading for all frontend work.** Before writing or modifying any code in `apps/web/`, read [`design.md`](./design.md) and conform to its tokens, component guidance, and do's/don'ts. The design system is the source of truth for colors, typography, spacing, radius, shadows, and component styling — do not improvise alternatives.
+
+The web UI follows the Linear "midnight command deck" design system — dark-only, near-black canvas, one rationed Acid Lime accent, Inter Variable + JetBrains Mono typography, inset-border elevation. Token mappings live in `apps/web/src/index.css` (`:root` + `@theme inline`). Key rules that are easy to violate:
+
+- Acid Lime (`--primary`) is for exactly one primary CTA per screen — never decorative, never for borders/hover/highlights.
+- No gradients on UI surfaces. No bright fills on cards — use Obsidian/Charcoal with border-defined edges.
+- Inter Variable weights cap at 590 — never 700+. Use JetBrains Mono (`font-mono`) for IDs, code, timestamps, keyboard hints.
+- Cards get depth from 1px inset Graphite border + soft drop shadow, not fills.
+- No new accent colors — palette is Lime + Indigo + semantic (Emerald/Crimson/Cyan) only.
 
 ## Architecture
 

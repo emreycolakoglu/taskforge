@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { CreateTaskDto, UpdateTaskDto, MoveTaskDto, ReorderTasksDto } from './dto/task.dto';
@@ -11,6 +11,69 @@ export function withTaskNumber(task: any): any {
   };
 }
 
+/**
+ * Mutates a Prisma `where` clause to apply the include/parentId filter.
+ * parentId filter overrides include.
+ *   - include='top'  → only tasks with no parent
+ *   - include='sub'  → only tasks that have a parent
+ *   - parentId=<id>   → only children of that parent
+ */
+function applyParentFilter(where: any, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }): void {
+  if (!opts) return;
+  if (opts.parentId !== undefined) {
+    where.parentId = opts.parentId;
+  } else if (opts.include === 'top') {
+    where.parentId = null;
+  } else if (opts.include === 'sub') {
+    where.parentId = { not: null };
+  }
+}
+
+/**
+ * Sub-task validation rules (single-level nesting only).
+ *
+ * C1: a task cannot be its own parent
+ * C2: parent must exist
+ * C3: parent must be in the same board
+ * C4: parent must not itself have a parentId (no nesting beyond one level)
+ * C5: a task being assigned a parent must not already have children
+ *
+ * C6 (orphan promotion on parent archive) is handled in remove().
+ */
+async function validateParent(
+  prisma: PrismaService,
+  parentId: string | null,
+  context: { taskId?: string; boardId: string },
+): Promise<void> {
+  // Setting parentId to null is always allowed (un-nest).
+  if (parentId === null) return;
+
+  // C1 — self-parent
+  if (context.taskId && parentId === context.taskId) {
+    throw new BadRequestException('A task cannot be its own parent');
+  }
+
+  const parent = await prisma.task.findUnique({ where: { id: parentId } });
+  // C2 — existence
+  if (!parent) throw new NotFoundException('Parent task not found');
+  // C3 — same board
+  if (parent.boardId !== context.boardId) {
+    throw new BadRequestException('Parent task must be in the same board');
+  }
+  // C4 — single level
+  if (parent.parentId) {
+    throw new BadRequestException('Sub-tasks cannot have sub-tasks (single level only)');
+  }
+
+  // C5 — the task being nested must not already have children
+  if (context.taskId) {
+    const childCount = await prisma.task.count({ where: { parentId: context.taskId } });
+    if (childCount > 0) {
+      throw new BadRequestException('Cannot nest a task that already has sub-tasks');
+    }
+  }
+}
+
 @Injectable()
 export class TasksService {
   constructor(
@@ -18,12 +81,14 @@ export class TasksService {
     private events: EventsService,
   ) {}
 
-  async findByBoard(boardId: string) {
+  async findByBoard(boardId: string, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }) {
+    const where: any = {
+      list: { boardId },
+      status: 'active',
+    };
+    applyParentFilter(where, opts);
     const tasks = await this.prisma.task.findMany({
-      where: {
-        list: { boardId },
-        status: 'active',
-      },
+      where,
       include: {
         list: true,
         board: { select: { identifier: true } },
@@ -36,9 +101,11 @@ export class TasksService {
     return tasks.map(withTaskNumber);
   }
 
-  async findByList(listId: string) {
+  async findByList(listId: string, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }) {
+    const where: any = { listId, status: 'active' };
+    applyParentFilter(where, opts);
     const tasks = await this.prisma.task.findMany({
-      where: { listId, status: 'active' },
+      where,
       include: {
         list: { include: { board: true } },
         board: { select: { identifier: true } },
@@ -103,13 +170,29 @@ export class TasksService {
         labels: { include: { label: true } },
         comments: { orderBy: { createdAt: 'desc' } },
         activity: { orderBy: { createdAt: 'desc' }, take: 20 },
+        subTasks: {
+          where: { status: 'active' },
+          orderBy: { position: 'asc' },
+          include: { board: { select: { identifier: true } } },
+        },
+        parent: { select: { id: true, number: true, title: true, board: { select: { identifier: true } } } },
       },
     });
     if (!task) throw new NotFoundException('Task not found');
-    return withTaskNumber(task);
+    const withSubNumbers = {
+      ...task,
+      subTasks: (task.subTasks ?? []).map(withTaskNumber),
+    };
+    return withTaskNumber(withSubNumbers);
   }
 
   async create(dto: CreateTaskDto, user?: { id: string; displayName: string }) {
+    // Sub-task validation (C2, C3, C4). C1/C5 impossible pre-create.
+    if (dto.parentId) {
+      const list = await this.prisma.list.findUniqueOrThrow({ where: { id: dto.listId } });
+      await validateParent(this.prisma, dto.parentId, { boardId: list.boardId });
+    }
+
     const task = await this.prisma.$transaction(async (tx) => {
       const list = await tx.list.findUniqueOrThrow({
         where: { id: dto.listId },
@@ -142,6 +225,7 @@ export class TasksService {
           assigneeId: dto.assigneeId ?? null,
           dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
           metadata: dto.metadata ?? null,
+          parentId: dto.parentId ?? null,
           labels: dto.labelIds?.length
             ? { create: dto.labelIds.map((labelId: string) => ({ labelId })) }
             : undefined,
@@ -161,7 +245,7 @@ export class TasksService {
         actorId: user?.id ?? null,
         actor: user?.displayName ?? 'system',
         action: 'created',
-        detail: JSON.stringify({ title: task.title }),
+        detail: JSON.stringify({ title: task.title, parentId: dto.parentId ?? null }),
       },
     });
 
@@ -182,6 +266,14 @@ export class TasksService {
     if (dto.metadata !== undefined) changes.metadata = dto.metadata;
     if (dto.listId !== undefined) changes.listId = dto.listId;
     if (dto.position !== undefined) changes.position = dto.position;
+
+    // Sub-task validation (C1-C5). parentId: null is always allowed (un-nest).
+    let parentChanged = false;
+    if (dto.parentId !== undefined) {
+      await validateParent(this.prisma, dto.parentId, { taskId: id, boardId: existing.boardId });
+      changes.parentId = dto.parentId;
+      parentChanged = true;
+    }
 
     // Handle label updates
     if (dto.labelIds !== undefined) {
@@ -213,6 +305,10 @@ export class TasksService {
     }
     if (dto.assigneeId && dto.assigneeId !== existing.assigneeId) detail.push(`assigned to ${dto.assigneeId}`);
     if (dto.status && dto.status !== existing.status) detail.push(`status: ${dto.status}`);
+    if (parentChanged) {
+      if (dto.parentId === null) detail.push('un-nested from parent');
+      else detail.push(`set parent: ${dto.parentId}`);
+    }
 
     if (detail.length > 0) {
       await this.prisma.activity.create({
@@ -286,6 +382,25 @@ export class TasksService {
       },
     });
     const archived = await this.prisma.task.update({ where: { id }, data: { status: 'archived' } });
+
+    // C6 — orphan promotion: clear parentId on children and emit task:updated per child.
+    const orphans = await this.prisma.task.findMany({ where: { parentId: id } });
+    if (orphans.length > 0) {
+      await this.prisma.task.updateMany({ where: { parentId: id }, data: { parentId: null } });
+      for (const child of orphans) {
+        const refreshed = await this.prisma.task.findUnique({
+          where: { id: child.id },
+          include: {
+            assignee: { select: { id: true, email: true, displayName: true, role: true } },
+            labels: { include: { label: true } },
+            list: { include: { board: true } },
+            board: { select: { identifier: true } },
+          },
+        });
+        if (refreshed) this.events.emit('task:updated', withTaskNumber(refreshed), boardId);
+      }
+    }
+
     this.events.emit('task:deleted', { id }, boardId);
     return archived;
   }

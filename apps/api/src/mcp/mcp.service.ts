@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 
@@ -8,6 +8,35 @@ function withTaskNumber(task: any): any {
     ...task,
     taskNumber: identifier ? `${identifier}-${task.number}` : null,
   };
+}
+
+/**
+ * Inline mirror of TasksService.validateParent (sub-task rules C1-C5).
+ * MCP mirrors checks inline rather than delegating to TasksService.
+ */
+async function validateParent(
+  prisma: PrismaService,
+  parentId: string | null,
+  context: { taskId?: string; boardId: string },
+): Promise<void> {
+  if (parentId === null) return;
+  if (context.taskId && parentId === context.taskId) {
+    throw new BadRequestException('A task cannot be its own parent');
+  }
+  const parent = await prisma.task.findUnique({ where: { id: parentId } });
+  if (!parent) throw new NotFoundException('Parent task not found');
+  if (parent.boardId !== context.boardId) {
+    throw new BadRequestException('Parent task must be in the same board');
+  }
+  if (parent.parentId) {
+    throw new BadRequestException('Sub-tasks cannot have sub-tasks (single level only)');
+  }
+  if (context.taskId) {
+    const childCount = await prisma.task.count({ where: { parentId: context.taskId } });
+    if (childCount > 0) {
+      throw new BadRequestException('Cannot nest a task that already has sub-tasks');
+    }
+  }
 }
 
 interface McpRequest {
@@ -167,6 +196,14 @@ export class McpService {
         if (params.assigneeId) where.assigneeId = params.assigneeId;
         if (params.status) where.status = params.status;
         else where.status = 'active';
+        // Sub-task filtering — parentId overrides include.
+        if (params.parentId !== undefined) {
+          where.parentId = params.parentId;
+        } else if (params.include === 'top') {
+          where.parentId = null;
+        } else if (params.include === 'sub') {
+          where.parentId = { not: null };
+        }
 
         const tasks = await this.prisma.task.findMany({
           where,
@@ -190,9 +227,16 @@ export class McpService {
             labels: { include: { label: true } },
             comments: { orderBy: { createdAt: 'desc' } },
             activity: { orderBy: { createdAt: 'desc' }, take: 20 },
+            subTasks: {
+              where: { status: 'active' },
+              orderBy: { position: 'asc' },
+              include: { board: { select: { identifier: true } } },
+            },
+            parent: { select: { id: true, number: true, title: true, board: { select: { identifier: true } } } },
           },
         });
-        return task ? withTaskNumber(task) : null;
+        if (!task) return null;
+        return withTaskNumber({ ...task, subTasks: (task.subTasks ?? []).map(withTaskNumber) });
       }
       case 'search': {
         const taskNumMatch = params.query?.match(/^([A-Z]{1,3})-(\d+)$/i);
@@ -226,6 +270,11 @@ export class McpService {
         return results.map(withTaskNumber);
       }
       case 'create': {
+        // Sub-task validation (C2, C3, C4). C1/C5 impossible pre-create.
+        if (params.parentId) {
+          const list = await this.prisma.list.findUniqueOrThrow({ where: { id: params.listId } });
+          await validateParent(this.prisma, params.parentId, { boardId: list.boardId });
+        }
         const task = await this.prisma.$transaction(async (tx) => {
           const list = await tx.list.findUniqueOrThrow({
             where: { id: params.listId },
@@ -258,6 +307,7 @@ export class McpService {
               dueDate: params.dueDate ? new Date(params.dueDate) : null,
               metadata: params.metadata ? JSON.stringify(params.metadata) : null,
               status: 'active',
+              parentId: params.parentId ?? null,
               labels: params.labelIds?.length
                 ? { create: params.labelIds.map((id: string) => ({ labelId: id })) }
                 : undefined,
@@ -266,7 +316,7 @@ export class McpService {
           });
         });
         await this.prisma.activity.create({
-          data: { taskId: task.id, actorId, actor, action: 'created', detail: JSON.stringify({ title: task.title }) },
+          data: { taskId: task.id, actorId, actor, action: 'created', detail: JSON.stringify({ title: task.title, parentId: params.parentId ?? null }) },
         });
         this.events.emit('task:created', task, task.list?.boardId);
         return withTaskNumber(task);
@@ -284,6 +334,14 @@ export class McpService {
         if (params.dueDate !== undefined) data.dueDate = new Date(params.dueDate);
         if (params.listId !== undefined) data.listId = params.listId;
         if (params.position !== undefined) data.position = params.position;
+
+        // Sub-task validation (C1-C5). parentId: null is always allowed (un-nest).
+        let parentChanged = false;
+        if (params.parentId !== undefined) {
+          await validateParent(this.prisma, params.parentId, { taskId: params.id, boardId: existing.boardId });
+          data.parentId = params.parentId;
+          parentChanged = true;
+        }
 
         if (params.labelIds !== undefined) {
           await this.prisma.taskLabel.deleteMany({ where: { taskId: params.id } });
@@ -308,6 +366,10 @@ export class McpService {
         }
         if (params.assigneeId && params.assigneeId !== existing.assigneeId) changes.push(`assigned to ${params.assigneeId}`);
         if (params.status && params.status !== existing.status) changes.push(`status: ${params.status}`);
+        if (parentChanged) {
+          if (params.parentId === null) changes.push('un-nested from parent');
+          else changes.push(`set parent: ${params.parentId}`);
+        }
 
         if (changes.length > 0) {
           await this.prisma.activity.create({

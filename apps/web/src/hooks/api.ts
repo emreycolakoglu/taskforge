@@ -103,11 +103,23 @@ export const api = {
 
   // Tasks
   tasks: {
-    list: (boardId: string) => request<Task[]>(`/tasks/board/${boardId}`),
-    listByList: (listId: string) => request<Task[]>(`/tasks/list/${listId}`),
+    list: (boardId: string, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }) => {
+      const params = new URLSearchParams();
+      if (opts?.include) params.set('include', opts.include);
+      if (opts?.parentId !== undefined) params.set('parentId', opts.parentId);
+      const qs = params.toString();
+      return request<Task[]>(`/tasks/board/${boardId}${qs ? `?${qs}` : ''}`);
+    },
+    listByList: (listId: string, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }) => {
+      const params = new URLSearchParams();
+      if (opts?.include) params.set('include', opts.include);
+      if (opts?.parentId !== undefined) params.set('parentId', opts.parentId);
+      const qs = params.toString();
+      return request<Task[]>(`/tasks/list/${listId}${qs ? `?${qs}` : ''}`);
+    },
     get: (id: string) => request<Task>(`/tasks/${id}`),
     search: (q: string) => request<Task[]>(`/tasks/search?q=${encodeURIComponent(q)}`),
-    create: (data: { listId: string; title: string; description?: string; priority?: string; assigneeId?: string | null; labelIds?: string[] }) =>
+    create: (data: { listId: string; title: string; description?: string; priority?: string; assigneeId?: string | null; labelIds?: string[]; parentId?: string | null }) =>
       request<Task>('/tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Task>) =>
       request<Task>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),

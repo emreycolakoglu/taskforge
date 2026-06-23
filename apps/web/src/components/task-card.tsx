@@ -78,10 +78,12 @@ interface TaskCardProps {
   task: Task
   isDragging?: boolean
   boardId?: string
+  parentTaskNumber?: string
 }
 
-export function TaskCard({ task, isDragging, boardId }: TaskCardProps) {
+export function TaskCard({ task, isDragging, boardId, parentTaskNumber }: TaskCardProps) {
   const labels = task.taskLabels ?? task.labels ?? []
+  const isSubTask = !!task.parentId
 
   const priorityIcon = () => {
     switch (task.priority) {
@@ -103,18 +105,26 @@ export function TaskCard({ task, isDragging, boardId }: TaskCardProps) {
     <div
       className={cn(
         "group/card rounded-md border border-border bg-card p-3 space-y-2 cursor-pointer transition-all motion-reduce:transition-none",
-        isDragging ? "shadow-xl rotate-1" : "shadow-sm hover:shadow-md hover:border-foreground/20"
+        isDragging ? "shadow-xl rotate-1" : "shadow-sm hover:shadow-md hover:border-foreground/20",
+        isSubTask && "pl-4 border-l-2 border-l-border",
       )}
     >
-      {/* Header: task number + label manager (hover) */}
+      {/* Header: task number + parent badge + label manager (hover) */}
       <div className="flex items-start justify-between gap-2">
-        {task.taskNumber && (
-          <span className="text-xs text-muted-foreground font-mono leading-none">
-            {task.taskNumber}
-          </span>
-        )}
+        <div className="flex items-center gap-1.5 min-w-0">
+          {task.taskNumber && (
+            <span className="text-xs text-muted-foreground font-mono leading-none">
+              {task.taskNumber}
+            </span>
+          )}
+          {parentTaskNumber && (
+            <span className="text-[10px] font-mono text-muted-foreground/70 bg-muted rounded px-1 py-0.5 leading-none whitespace-nowrap">
+              ↳ {parentTaskNumber}
+            </span>
+          )}
+        </div>
         {boardId && (
-          <div className="opacity-0 group-hover/card:opacity-100 transition-opacity">
+          <div className="opacity-0 group-hover/card:opacity-100 transition-opacity shrink-0">
             <LabelManager task={task} boardId={boardId} />
           </div>
         )}

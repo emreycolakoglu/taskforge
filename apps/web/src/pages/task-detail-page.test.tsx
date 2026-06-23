@@ -47,6 +47,7 @@ vi.mock('@/hooks/use-tasks', () => ({
   useTask: () => ({ data: mockTask, isLoading: false, error: null }),
   useUpdateTask: () => ({ mutate: vi.fn() }),
   useTasksByBoard: () => ({ data: [mockTask] }),
+  useCreateTask: () => ({ mutate: vi.fn() }),
 }))
 
 vi.mock('@/hooks/use-boards', () => ({
@@ -144,10 +145,11 @@ describe('TaskDetailPage', () => {
     expect(screen.getByText(/Jul/)).toBeInTheDocument()
   })
 
-  it('shows sub-issues placeholder', () => {
+  it('shows sub-tasks section', () => {
     renderPage()
 
-    expect(screen.getByText('Sub-issues coming soon')).toBeInTheDocument()
+    expect(screen.getByText('Sub-tasks')).toBeInTheDocument()
+    expect(screen.getByText('No sub-tasks')).toBeInTheDocument()
   })
 
   it('renders the label pill for the task', () => {

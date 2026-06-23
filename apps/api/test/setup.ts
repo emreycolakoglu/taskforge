@@ -79,7 +79,7 @@ export async function seedLabel(prisma: PrismaClient, boardId: string) {
  * Also updates the board's nextTaskNum counter.
  */
 export async function seedTask(prisma: PrismaClient, listId: string, overrides: Record<string, any> = {}) {
-  const { assigneeId, boardId: overrideBoardId, number: overrideNumber, ...rest } = overrides;
+  const { assigneeId, boardId: overrideBoardId, number: overrideNumber, parentId, ...rest } = overrides;
   let boardId = overrideBoardId;
   if (!boardId) {
     const list = await prisma.list.findUniqueOrThrow({ where: { id: listId } });
@@ -98,6 +98,7 @@ export async function seedTask(prisma: PrismaClient, listId: string, overrides: 
       priority: rest.priority || 'medium',
       assigneeId: assigneeId ?? null,
       status: rest.status || 'active',
+      parentId: parentId ?? null,
     },
   });
 

@@ -6,9 +6,11 @@ interface CreateTaskModalProps {
   listId: string
   onSubmit: (title: string) => void
   onClose: () => void
+  parentId?: string
+  parentTaskNumber?: string
 }
 
-export function CreateTaskModal({ listId, onSubmit, onClose }: CreateTaskModalProps) {
+export function CreateTaskModal({ listId, onSubmit, onClose, parentId, parentTaskNumber }: CreateTaskModalProps) {
   const [title, setTitle] = useState('')
 
   const handleSubmit = () => {
@@ -18,6 +20,11 @@ export function CreateTaskModal({ listId, onSubmit, onClose }: CreateTaskModalPr
 
   return (
     <div className="bg-card border border-border rounded-md p-3 space-y-2">
+      {parentId && parentTaskNumber && (
+        <p className="text-xs text-muted-foreground">
+          Sub-task of <span className="font-mono">{parentTaskNumber}</span>
+        </p>
+      )}
       <Input
         autoFocus
         value={title}

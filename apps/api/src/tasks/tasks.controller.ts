@@ -13,10 +13,22 @@ export class TasksController {
   constructor(private readonly service: TasksService) {}
 
   @Get('board/:boardId')
-  findByBoard(@Param('boardId') boardId: string) { return this.service.findByBoard(boardId); }
+  findByBoard(
+    @Param('boardId') boardId: string,
+    @Query('include') include?: 'all' | 'top' | 'sub',
+    @Query('parentId') parentId?: string,
+  ) {
+    return this.service.findByBoard(boardId, { include, parentId });
+  }
 
   @Get('list/:listId')
-  findByList(@Param('listId') listId: string) { return this.service.findByList(listId); }
+  findByList(
+    @Param('listId') listId: string,
+    @Query('include') include?: 'all' | 'top' | 'sub',
+    @Query('parentId') parentId?: string,
+  ) {
+    return this.service.findByList(listId, { include, parentId });
+  }
 
   @Get('search')
   search(@Query('q') q: string) { return this.service.search(q); }

@@ -13,8 +13,9 @@ import {
   MessageSquare,
   Activity,
   ListChecks,
+  Plus,
 } from 'lucide-react'
-import { useTask, useUpdateTask, useTasksByBoard } from '@/hooks/use-tasks'
+import { useTask, useUpdateTask, useTasksByBoard, useCreateTask } from '@/hooks/use-tasks'
 import { useBoardFull } from '@/hooks/use-boards'
 import { useComments, useCreateComment } from '@/hooks/use-comments'
 import { useUsers } from '@/hooks/use-users'
@@ -33,6 +34,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { LabelPill } from '@/components/label-pill'
+import { CreateTaskModal } from '@/components/create-task-modal'
 import { cn } from '@/lib/utils'
 import type { Task } from '@/types'
 
@@ -175,8 +177,10 @@ export function TaskDetailPage() {
 
   const updateTask = useUpdateTask()
   const createComment = useCreateComment()
+  const createTask = useCreateTask()
 
   const [commentText, setCommentText] = useState('')
+  const [showSubTaskModal, setShowSubTaskModal] = useState(false)
 
   // ── Navigation: prev/next task ─────────────────────────────────────────────
 
@@ -328,14 +332,41 @@ export function TaskDetailPage() {
 
             <Separator />
 
-            {/* Sub-issues placeholder */}
+            {/* Sub-tasks */}
             <section>
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                Sub-issues
+              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                Sub-tasks
+                {task.subTasks && task.subTasks.length > 0 && (
+                  <span className="text-muted-foreground/70">({task.subTasks.length})</span>
+                )}
               </h3>
-              <p className="text-sm text-muted-foreground italic">
-                Sub-issues coming soon
-              </p>
+              <div className="space-y-1.5">
+                {(task.subTasks ?? []).map((st) => (
+                  <div
+                    key={st.id}
+                    className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 cursor-pointer hover:bg-accent/50"
+                    onClick={() => navigate(`/board/${boardId}/task/${st.id}`)}
+                  >
+                    {st.taskNumber && (
+                      <span className="text-xs text-muted-foreground font-mono shrink-0">{st.taskNumber}</span>
+                    )}
+                    <span className="text-sm text-foreground truncate flex-1">{st.title}</span>
+                    <Badge variant="secondary" className="text-[10px] shrink-0">{st.status}</Badge>
+                  </div>
+                ))}
+                {(!task.subTasks || task.subTasks.length === 0) && (
+                  <p className="text-sm text-muted-foreground italic">No sub-tasks</p>
+                )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-1"
+                  onClick={() => setShowSubTaskModal(true)}
+                >
+                  <Plus className="size-3.5 mr-1" />
+                  Add sub-task
+                </Button>
+              </div>
             </section>
 
             <Separator />
@@ -551,6 +582,47 @@ export function TaskDetailPage() {
             </div>
           </div>
 
+          {/* Parent / sub-task link */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
+              Parent
+            </label>
+            {task.parent ? (
+              <button
+                className="flex items-center gap-1.5 text-sm text-foreground hover:text-ring hover:underline"
+                onClick={() => navigate(`/board/${boardId}/task/${task.parent!.id}`)}
+              >
+                <span className="font-mono text-xs text-muted-foreground">
+                  {task.parent.board?.identifier ? `${task.parent.board.identifier}-${task.parent.number}` : `#${task.parent.number}`}
+                </span>
+                <span className="truncate">{task.parent.title}</span>
+              </button>
+            ) : (
+              <Select
+                value={task.parentId ?? '__none__'}
+                onValueChange={(v) => handleUpdate({ parentId: v === '__none__' ? null : v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="No parent" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Unset</SelectItem>
+                  {boardTasks
+                    .filter((t) =>
+                      t.id !== task.id
+                      && !t.parentId
+                      && !(task.subTasks && task.subTasks.length > 0)
+                    )
+                    .map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.taskNumber} {t.title}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+            )}
+          </div>
+
           <div className="border-t border-border pt-4 space-y-2">
             {/* Timestamps */}
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
@@ -564,6 +636,26 @@ export function TaskDetailPage() {
           </div>
         </div>
       </aside>
+
+      {/* Sub-task creation modal */}
+      {showSubTaskModal && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-black/30" onClick={() => setShowSubTaskModal(false)}>
+          <div className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+            <CreateTaskModal
+              listId={task.listId}
+              parentId={task.id}
+              parentTaskNumber={task.taskNumber}
+              onSubmit={(title) => {
+                createTask.mutate(
+                  { listId: task.listId, title, boardId: boardId!, parentId: task.id },
+                  { onSuccess: () => setShowSubTaskModal(false) },
+                )
+              }}
+              onClose={() => setShowSubTaskModal(false)}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

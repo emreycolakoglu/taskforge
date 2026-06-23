@@ -257,6 +257,45 @@ describe('McpService', () => {
     });
   });
 
+  // ─── Sub-tasks (MCP parity) ────────────────────────────────────────────────
+
+  describe('sub-tasks', () => {
+    it('tasks_create with parentId returns task with parentId set', async () => {
+      const parent = await seedTask(prisma, board.lists[0].id, { title: 'Parent' });
+      const res = await service.handleRequest({
+        method: 'tasks_create',
+        params: { listId: board.lists[0].id, title: 'Child', parentId: parent.id },
+        id: 301,
+      }, user);
+      expect(res.result.parentId).toBe(parent.id);
+    });
+
+    it('tasks_create with invalid parentId (other board) returns JSON-RPC error', async () => {
+      const otherBoard = await seedBoard(prisma);
+      const foreignParent = await seedTask(prisma, otherBoard.lists[0].id, { title: 'Foreign' });
+      const res = await service.handleRequest({
+        method: 'tasks_create',
+        params: { listId: board.lists[0].id, title: 'Child', parentId: foreignParent.id },
+        id: 302,
+      }, user);
+      expect(res.error).toBeDefined();
+      expect(res.error.code).toBe(-32603);
+      expect(res.error.message).toContain('same board');
+    });
+
+    it('tasks_list with include="top" excludes sub-tasks', async () => {
+      const parent = await seedTask(prisma, board.lists[0].id, { title: 'Parent' });
+      await seedTask(prisma, board.lists[0].id, { title: 'Child', parentId: parent.id });
+      const res = await service.handleRequest({
+        method: 'tasks_list',
+        params: { boardId: board.id, include: 'top' },
+        id: 303,
+      }, user);
+      expect(res.result).toHaveLength(1);
+      expect(res.result[0].id).toBe(parent.id);
+    });
+  });
+
   // ─── Comments ───
 
   describe('comments_list', () => {
