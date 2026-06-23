@@ -14,8 +14,12 @@ import {
   Activity,
   ListChecks,
   Plus,
+  X,
+  Link2,
+  Ban,
 } from 'lucide-react'
 import { useTask, useUpdateTask, useTasksByBoard, useCreateTask } from '@/hooks/use-tasks'
+import { useTaskRelations, useCreateRelation, useRemoveRelation } from '@/hooks/use-relations'
 import { useBoardFull } from '@/hooks/use-boards'
 import { useComments, useCreateComment } from '@/hooks/use-comments'
 import { useUsers } from '@/hooks/use-users'
@@ -36,7 +40,7 @@ import {
 import { LabelPill } from '@/components/label-pill'
 import { CreateTaskModal } from '@/components/create-task-modal'
 import { cn } from '@/lib/utils'
-import type { Task } from '@/types'
+import type { Task, RelationType, RelationEntry } from '@/types'
 
 // ── Priority icons ──────────────────────────────────────────────────────────
 
@@ -162,6 +166,105 @@ function EditableDescription({
   )
 }
 
+// ── Relation group ───────────────────────────────────────────────────────────
+//
+// Renders one of the three relation groups (Blocking / Blocked by / Related).
+// Each row is a clickable card navigating to the related task, with a remove (x)
+// button. The "Add" control reuses the shadcn Select with same-board task
+// options, excluding self and tasks already present in this group.
+
+interface RelationGroupProps {
+  title: string
+  icon: React.ReactNode
+  entries: RelationEntry[]
+  taskId: string
+  boardId: string
+  boardTasks: Task[]
+  type: RelationType
+  direction?: 'source' | 'target' // omitted for related_to
+  onAdd: (otherTaskId: string) => void
+  onRemove: (relationId: string) => void
+  onNavigate: (taskId: string) => void
+  emptyText: string
+}
+
+function RelationGroup({
+  title,
+  icon,
+  entries,
+  taskId,
+  boardTasks,
+  type,
+  onAdd,
+  onRemove,
+  onNavigate,
+  emptyText,
+}: RelationGroupProps) {
+  const existingIds = new Set(entries.map((e) => e.task.id))
+
+  const options = boardTasks.filter(
+    (t) => t.id !== taskId && !existingIds.has(t.id),
+  )
+
+  return (
+    <div className="space-y-1.5">
+      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+        {icon}
+        {title}
+        {entries.length > 0 && (
+          <span className="text-muted-foreground/70">({entries.length})</span>
+        )}
+      </label>
+      <div className="space-y-1.5">
+        {entries.map((e) => (
+          <div
+            key={e.relationId}
+            className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 cursor-pointer hover:bg-accent/50"
+            onClick={() => onNavigate(e.task.id)}
+          >
+            <span className="text-xs text-muted-foreground font-mono shrink-0">
+              {e.task.taskNumber}
+            </span>
+            <span className="text-sm text-foreground truncate flex-1">{e.task.title}</span>
+            <Badge variant="secondary" className="text-[10px] shrink-0">{e.task.status}</Badge>
+            <button
+              className="text-muted-foreground hover:text-foreground shrink-0"
+              aria-label="Remove relation"
+              onClick={(ev) => {
+                ev.stopPropagation()
+                onRemove(e.relationId)
+              }}
+            >
+              <X className="size-3.5" />
+            </button>
+          </div>
+        ))}
+        {entries.length === 0 && (
+          <p className="text-sm text-muted-foreground italic">{emptyText}</p>
+        )}
+        <Select
+          value="__none__"
+          onValueChange={(v) => {
+            if (v !== '__none__') onAdd(v)
+          }}
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Add…" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="__none__">Add…</SelectItem>
+            {options.map((t) => (
+              <SelectItem key={t.id} value={t.id}>
+                {t.taskNumber} {t.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  )
+}
+
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export function TaskDetailPage() {
@@ -178,6 +281,9 @@ export function TaskDetailPage() {
   const updateTask = useUpdateTask()
   const createComment = useCreateComment()
   const createTask = useCreateTask()
+  const { data: relations } = useTaskRelations(taskId!)
+  const createRelation = useCreateRelation()
+  const removeRelation = useRemoveRelation()
 
   const [commentText, setCommentText] = useState('')
   const [showSubTaskModal, setShowSubTaskModal] = useState(false)
@@ -622,6 +728,82 @@ export function TaskDetailPage() {
               </Select>
             )}
           </div>
+
+          {/* Relations */}
+          {relations && (
+            <div className="space-y-3">
+              <RelationGroup
+                title="Blocking"
+                icon={<Ban className="size-3.5" />}
+                entries={relations.blocking}
+                taskId={task.id}
+                boardId={boardId!}
+                boardTasks={boardTasks}
+                type="blocks"
+                direction="source"
+                emptyText="Not blocking anything"
+                onAdd={(otherTaskId) =>
+                  createRelation.mutate({
+                    taskId: task.id,
+                    boardId: boardId!,
+                    otherTaskId,
+                    type: 'blocks',
+                    direction: 'source',
+                  })
+                }
+                onRemove={(relationId) =>
+                  removeRelation.mutate({ taskId: task.id, boardId: boardId!, relationId })
+                }
+                onNavigate={(tid) => navigate(`/board/${boardId}/task/${tid}`)}
+              />
+              <RelationGroup
+                title="Blocked by"
+                icon={<Ban className="size-3.5" />}
+                entries={relations.blockedBy}
+                taskId={task.id}
+                boardId={boardId!}
+                boardTasks={boardTasks}
+                type="blocks"
+                direction="target"
+                emptyText="Not blocked"
+                onAdd={(otherTaskId) =>
+                  createRelation.mutate({
+                    taskId: task.id,
+                    boardId: boardId!,
+                    otherTaskId,
+                    type: 'blocks',
+                    direction: 'target',
+                  })
+                }
+                onRemove={(relationId) =>
+                  removeRelation.mutate({ taskId: task.id, boardId: boardId!, relationId })
+                }
+                onNavigate={(tid) => navigate(`/board/${boardId}/task/${tid}`)}
+              />
+              <RelationGroup
+                title="Related"
+                icon={<Link2 className="size-3.5" />}
+                entries={relations.relatedTo}
+                taskId={task.id}
+                boardId={boardId!}
+                boardTasks={boardTasks}
+                type="related_to"
+                emptyText="No related tasks"
+                onAdd={(otherTaskId) =>
+                  createRelation.mutate({
+                    taskId: task.id,
+                    boardId: boardId!,
+                    otherTaskId,
+                    type: 'related_to',
+                  })
+                }
+                onRemove={(relationId) =>
+                  removeRelation.mutate({ taskId: task.id, boardId: boardId!, relationId })
+                }
+                onNavigate={(tid) => navigate(`/board/${boardId}/task/${tid}`)}
+              />
+            </div>
+          )}
 
           <div className="border-t border-border pt-4 space-y-2">
             {/* Timestamps */}

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { RelationsService } from '../relations/relations.service';
 
 function withTaskNumber(task: any): any {
   const identifier = task.board?.identifier ?? task.list?.board?.identifier;
@@ -63,6 +64,7 @@ export class McpService {
   constructor(
     private prisma: PrismaService,
     private events: EventsService,
+    private relations: RelationsService,
   ) {}
 
   async handleRequest(req: McpRequest, user?: AuthUser): Promise<McpResponse> {
@@ -78,6 +80,7 @@ export class McpService {
         case 'comments': result = await this.handleComments(action, req.params, user); break;
         case 'labels': result = await this.handleLabels(action, req.params); break;
         case 'activity': result = await this.handleActivity(action, req.params); break;
+        case 'relations': result = await this.handleRelations(action, req.params, user); break;
         default:
           return { jsonrpc: '2.0', id: req.id, error: { code: -32601, message: `Method not found: ${req.method}` } };
       }
@@ -211,7 +214,7 @@ export class McpService {
             list: true,
             board: { select: { identifier: true } },
             labels: { include: { label: true } },
-            _count: { select: { comments: true } },
+            _count: { select: { comments: true, relationsTo: { where: { type: 'blocks' } } } },
           },
           orderBy: { position: 'asc' },
           take: params.limit || 100,
@@ -233,6 +236,7 @@ export class McpService {
               include: { board: { select: { identifier: true } } },
             },
             parent: { select: { id: true, number: true, title: true, board: { select: { identifier: true } } } },
+            _count: { select: { comments: true, relationsTo: { where: { type: 'blocks' } } } },
           },
         });
         if (!task) return null;
@@ -403,6 +407,10 @@ export class McpService {
           select: { boardId: true },
         });
         await this.prisma.task.update({ where: { id: params.id }, data: { status: 'archived' } });
+        // Relation cleanup on archive (emits relation:deleted per row).
+        // NOTE: sub-task orphan promotion (clearing parentId on children) is not
+        // performed here — parity gap with TasksService.remove, out of scope.
+        await this.relations.cleanupForTask(params.id);
         this.events.emit('task:deleted', { id: params.id }, existingTask?.boardId);
         return { archived: true };
       }
@@ -480,6 +488,24 @@ export class McpService {
       }
       default:
         throw new Error(`Unknown action: activity_${action}`);
+    }
+  }
+
+  // Delegates to RelationsService — graph logic lives there, not inline.
+  private async handleRelations(action: string, params: any, _user?: AuthUser) {
+    switch (action) {
+      case 'list':
+        return this.relations.list(params.taskId);
+      case 'create':
+        return this.relations.create(params.taskId, {
+          otherTaskId: params.otherTaskId,
+          type: params.type,
+          direction: params.direction,
+        });
+      case 'delete':
+        return this.relations.delete(params.relationId);
+      default:
+        throw new Error(`Unknown action: relations_${action}`);
     }
   }
 }

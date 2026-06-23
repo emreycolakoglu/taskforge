@@ -49,6 +49,22 @@ export interface Task {
   comments?: Comment[];
   activity?: Activity[];
   _count?: { comments: number };
+  blockedByCount?: number;
+}
+
+export type RelationType = 'blocks' | 'related_to';
+
+export interface RelationEntry {
+  relationId: string;
+  type: RelationType;
+  task: { id: string; taskNumber: string; title: string; status: string };
+}
+
+export interface TaskRelations {
+  taskId: string;
+  blocking: RelationEntry[];
+  blockedBy: RelationEntry[];
+  relatedTo: RelationEntry[];
 }
 
 export interface TaskLabel {

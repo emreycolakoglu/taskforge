@@ -1,12 +1,15 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { RelationsService } from '../relations/relations.service';
 import { CreateTaskDto, UpdateTaskDto, MoveTaskDto, ReorderTasksDto } from './dto/task.dto';
 
 export function withTaskNumber(task: any): any {
   const identifier = task.board?.identifier ?? task.list?.board?.identifier;
+  const blockedByCount = task._count?.relationsTo ?? 0;
   return {
     ...task,
+    blockedByCount,
     taskNumber: identifier ? `${identifier}-${task.number}` : null,
   };
 }
@@ -79,6 +82,7 @@ export class TasksService {
   constructor(
     private prisma: PrismaService,
     private events: EventsService,
+    private relations: RelationsService,
   ) {}
 
   async findByBoard(boardId: string, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }) {
@@ -94,7 +98,7 @@ export class TasksService {
         board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
-        _count: { select: { comments: true } },
+        _count: { select: { comments: true, relationsTo: { where: { type: 'blocks' } } } },
       },
       orderBy: { position: 'asc' },
     });
@@ -111,7 +115,7 @@ export class TasksService {
         board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
-        _count: { select: { comments: true } },
+        _count: { select: { comments: true, relationsTo: { where: { type: 'blocks' } } } },
       },
       orderBy: { position: 'asc' },
     });
@@ -176,6 +180,7 @@ export class TasksService {
           include: { board: { select: { identifier: true } } },
         },
         parent: { select: { id: true, number: true, title: true, board: { select: { identifier: true } } } },
+        _count: { select: { comments: true, relationsTo: { where: { type: 'blocks' } } } },
       },
     });
     if (!task) throw new NotFoundException('Task not found');
@@ -400,6 +405,10 @@ export class TasksService {
         if (refreshed) this.events.emit('task:updated', withTaskNumber(refreshed), boardId);
       }
     }
+
+    // Relation cleanup: hard-delete relation rows touching this task, emit
+    // relation:deleted per row. (Sub-task orphan promotion handled above.)
+    await this.relations.cleanupForTask(id);
 
     this.events.emit('task:deleted', { id }, boardId);
     return archived;

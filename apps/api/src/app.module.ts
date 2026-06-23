@@ -10,6 +10,7 @@ import { CommentsModule } from './comments/comments.module';
 import { LabelsModule } from './labels/labels.module';
 import { ActivityModule } from './activity/activity.module';
 import { McpModule } from './mcp/mcp.module';
+import { RelationsModule } from './relations/relations.module';
 import { EventsModule } from './events/events.module';
 
 @Module({
@@ -25,6 +26,7 @@ import { EventsModule } from './events/events.module';
     LabelsModule,
     ActivityModule,
     McpModule,
+    RelationsModule,
     EventsModule,
   ],
 })

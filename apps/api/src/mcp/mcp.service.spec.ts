@@ -2,7 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { McpService } from './mcp.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
-import { createTestPrisma, seedBoard, seedTask, seedLabel, seedComment, seedUser } from '../../test/setup';
+import { RelationsService } from '../relations/relations.service';
+import { createTestPrisma, seedBoard, seedTask, seedLabel, seedComment, seedUser, seedRelation } from '../../test/setup';
 
 describe('McpService', () => {
   let service: McpService;
@@ -17,6 +18,7 @@ describe('McpService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         McpService,
+        RelationsService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
       ],
@@ -34,6 +36,7 @@ describe('McpService', () => {
   });
 
   afterEach(async () => {
+    await prisma.taskRelation.deleteMany();
     await prisma.taskLabel.deleteMany();
     await prisma.activity.deleteMany();
     await prisma.comment.deleteMany();
@@ -369,6 +372,119 @@ describe('McpService', () => {
     it('should list activity for a board', async () => {
       const res = await service.handleRequest({ method: 'activity_list', params: { boardId: board.id }, id: 27 }, user);
       expect(Array.isArray(res.result)).toBe(true);
+    });
+  });
+
+  // ─── Relations (MCP parity) ───────────────────────────────────────────────
+
+  describe('relations', () => {
+    it('relations_list returns grouped relations', async () => {
+      const tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
+      const tB = await seedTask(prisma, board.lists[0].id, { title: 'B' });
+      await seedRelation(prisma, tA.id, tB.id, 'blocks'); // A blocks B
+
+      const res = await service.handleRequest({
+        method: 'relations_list',
+        params: { taskId: tA.id },
+        id: 401,
+      }, user);
+      expect(res.result.taskId).toBe(tA.id);
+      expect(res.result.blocking).toHaveLength(1);
+      expect(res.result.blocking[0].task.id).toBe(tB.id);
+      expect(res.result.blockedBy).toEqual([]);
+      expect(res.result.relatedTo).toEqual([]);
+    });
+
+    it('relations_create with direction=source → URL task blocks other', async () => {
+      const tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
+      const tB = await seedTask(prisma, board.lists[0].id, { title: 'B' });
+      const res = await service.handleRequest({
+        method: 'relations_create',
+        params: { taskId: tA.id, otherTaskId: tB.id, type: 'blocks', direction: 'source' },
+        id: 402,
+      }, user);
+      expect(res.result.type).toBe('blocks');
+      expect(res.result.task.id).toBe(tB.id);
+      const row = await prisma.taskRelation.findFirst();
+      expect(row!.fromTaskId).toBe(tA.id);
+      expect(row!.toTaskId).toBe(tB.id);
+    });
+
+    it('relations_create with direction=target → URL task blocked by other', async () => {
+      const tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
+      const tB = await seedTask(prisma, board.lists[0].id, { title: 'B' });
+      const res = await service.handleRequest({
+        method: 'relations_create',
+        params: { taskId: tA.id, otherTaskId: tB.id, type: 'blocks', direction: 'target' },
+        id: 403,
+      }, user);
+      expect(res.result.type).toBe('blocks');
+      const row = await prisma.taskRelation.findFirst();
+      expect(row!.fromTaskId).toBe(tB.id);
+      expect(row!.toTaskId).toBe(tA.id);
+    });
+
+    it('relations_create with type=related_to → canonicalized', async () => {
+      const tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
+      const tB = await seedTask(prisma, board.lists[0].id, { title: 'B' });
+      const res = await service.handleRequest({
+        method: 'relations_create',
+        params: { taskId: tA.id, otherTaskId: tB.id, type: 'related_to' },
+        id: 404,
+      }, user);
+      expect(res.result.type).toBe('related_to');
+      const row = await prisma.taskRelation.findFirst();
+      const [lo, hi] = tA.id < tB.id ? [tA, tB] : [tB, tA];
+      expect(row!.fromTaskId).toBe(lo.id);
+      expect(row!.toTaskId).toBe(hi.id);
+    });
+
+    it('relations_delete removes the relation', async () => {
+      const tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
+      const tB = await seedTask(prisma, board.lists[0].id, { title: 'B' });
+      const created = await service.handleRequest({
+        method: 'relations_create',
+        params: { taskId: tA.id, otherTaskId: tB.id, type: 'blocks', direction: 'source' },
+        id: 405,
+      }, user);
+      const res = await service.handleRequest({
+        method: 'relations_delete',
+        params: { relationId: created.result.relationId },
+        id: 406,
+      }, user);
+      expect(res.result.deleted).toBe(true);
+      const row = await prisma.taskRelation.findFirst();
+      expect(row).toBeNull();
+    });
+
+    it('relations_create cycle rejection via MCP', async () => {
+      const tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
+      const tB = await seedTask(prisma, board.lists[0].id, { title: 'B' });
+      await service.handleRequest({
+        method: 'relations_create',
+        params: { taskId: tA.id, otherTaskId: tB.id, type: 'blocks', direction: 'source' },
+        id: 407,
+      }, user); // A blocks B
+      const res = await service.handleRequest({
+        method: 'relations_create',
+        params: { taskId: tB.id, otherTaskId: tA.id, type: 'blocks', direction: 'source' },
+        id: 408,
+      }, user); // B blocks A → cycle
+      expect(res.error).toBeDefined();
+      expect(res.error.code).toBe(-32603);
+      expect(res.error.message).toContain('cycle');
+    });
+
+    it('relations_create self-reference rejection via MCP', async () => {
+      const tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
+      const res = await service.handleRequest({
+        method: 'relations_create',
+        params: { taskId: tA.id, otherTaskId: tA.id, type: 'blocks' },
+        id: 409,
+      }, user);
+      expect(res.error).toBeDefined();
+      expect(res.error.code).toBe(-32603);
+      expect(res.error.message).toContain('itself');
     });
   });
 

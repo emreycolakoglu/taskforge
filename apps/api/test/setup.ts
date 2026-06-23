@@ -138,6 +138,22 @@ export async function seedComment(prisma: PrismaClient, taskId: string, override
 }
 
 /**
+ * Seed a relation between two tasks. For "related_to", canonicalizes so
+ * fromTaskId < toTaskId lexicographically (matches RelationsService).
+ */
+export async function seedRelation(
+  prisma: PrismaClient,
+  fromTaskId: string,
+  toTaskId: string,
+  type: 'blocks' | 'related_to',
+) {
+  const [a, b] = type === 'related_to' && fromTaskId > toTaskId
+    ? [toTaskId, fromTaskId]
+    : [fromTaskId, toTaskId];
+  return prisma.taskRelation.create({ data: { type, fromTaskId: a, toTaskId: b } });
+}
+
+/**
  * Seed a user. Defaults to member role with a hashed password 'password'.
  */
 export async function seedUser(prisma: PrismaClient, overrides: Record<string, any> = {}) {

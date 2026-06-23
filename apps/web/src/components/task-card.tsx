@@ -72,6 +72,16 @@ function CommentIcon() {
   )
 }
 
+// Blocked indicator — Crimson (#eb5757), per design.md semantic accent.
+function BlockedIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.2" />
+      <path d="M4.5 4.5l5 5M9.5 4.5l-5 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    </svg>
+  )
+}
+
 // ── Main component ───────────────────────────────────────────────────────────
 
 interface TaskCardProps {
@@ -166,6 +176,17 @@ export function TaskCard({ task, isDragging, boardId, parentTaskNumber }: TaskCa
           >
             <CommentIcon />
             {task._count.comments}
+          </span>
+        )}
+
+        {task.blockedByCount != null && task.blockedByCount > 0 && (
+          <span
+            className="flex items-center gap-0.5 text-xs text-[#eb5757]"
+            title={`Blocked by ${task.blockedByCount} task(s)`}
+            aria-label={`Blocked by ${task.blockedByCount} task(s)`}
+          >
+            <BlockedIcon />
+            {task.blockedByCount}
           </span>
         )}
 

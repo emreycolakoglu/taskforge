@@ -108,6 +108,16 @@ export function useSocket(boardId?: string) {
         }
       }
 
+      if (eventName === 'relation:created' || eventName === 'relation:deleted') {
+        const r = eventData as { fromTaskId?: string; toTaskId?: string; boardId?: string };
+        if (r.fromTaskId) queryClient.invalidateQueries({ queryKey: ['relations', r.fromTaskId] });
+        if (r.toTaskId) queryClient.invalidateQueries({ queryKey: ['relations', r.toTaskId] });
+        if (r.boardId) {
+          queryClient.invalidateQueries({ queryKey: ['tasks', 'board', r.boardId] });
+          queryClient.invalidateQueries({ queryKey: ['boards', r.boardId, 'full'] });
+        }
+      }
+
       // Notify custom listeners
       const handlers = listenersRef.current.get(eventName);
       handlers?.forEach((h) => h(eventData));
@@ -128,6 +138,8 @@ export function useSocket(boardId?: string) {
       'list:deleted',
       'list:reordered',
       'board:created',
+      'relation:created',
+      'relation:deleted',
     ];
 
     eventTypes.forEach((eventType) => {

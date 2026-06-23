@@ -2,23 +2,27 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { TasksService } from './tasks.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { RelationsService } from '../relations/relations.service';
 import { createTestPrisma, seedBoard, seedTask, seedLabel, seedUser } from '../../test/setup';
 
 describe('TasksService', () => {
   let service: TasksService;
   let prisma: PrismaService;
   let events: EventsService;
+  let relations: RelationsService;
   let board: any;
   let user: { id: string; displayName: string };
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     events = new EventsService();
+    relations = new RelationsService(prisma, events);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TasksService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
+        { provide: RelationsService, useValue: relations },
       ],
     }).compile();
     service = module.get<TasksService>(TasksService);
@@ -35,6 +39,7 @@ describe('TasksService', () => {
   });
 
   afterEach(async () => {
+    await prisma.taskRelation.deleteMany();
     await prisma.taskLabel.deleteMany();
     await prisma.activity.deleteMany();
     await prisma.comment.deleteMany();

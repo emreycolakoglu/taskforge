@@ -496,4 +496,56 @@ describe('api', () => {
     });
     expect(result.parentId).toBeNull();
   });
+
+  // ─── Relations ───────────────────────────────────────────────────────────────
+
+  it('api.relations.list(taskId) → GET /tasks/<id>/relations', async () => {
+    const rels = { taskId: 't1', blocking: [], blockedBy: [], relatedTo: [] };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(rels),
+    });
+
+    const { api } = await import('./api');
+    const result = await api.relations.list('t1');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/relations', expect.objectContaining({
+      headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+    }));
+    expect(result.taskId).toBe('t1');
+  });
+
+  it('api.relations.create(taskId, {...}) → POST with correct body', async () => {
+    const entry = { relationId: 'r1', type: 'blocks', task: { id: 't2', taskNumber: 'TF-2', title: 'Other', status: 'active' } };
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(entry),
+    });
+
+    const { api } = await import('./api');
+    const result = await api.relations.create('t1', { otherTaskId: 't2', type: 'blocks', direction: 'source' });
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/relations', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ otherTaskId: 't2', type: 'blocks', direction: 'source' }),
+    });
+    expect(result.relationId).toBe('r1');
+  });
+
+  it('api.relations.delete(taskId, relationId) → DELETE correct URL', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ deleted: true }),
+    });
+
+    const { api } = await import('./api');
+    const result = await api.relations.delete('t1', 'r1');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/relations/r1', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(result.deleted).toBe(true);
+  });
 });
