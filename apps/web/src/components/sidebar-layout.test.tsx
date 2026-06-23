@@ -76,10 +76,10 @@ describe('SidebarLayout', () => {
     expect(screen.queryByRole('button', { name: /taskforge/i })).not.toBeInTheDocument()
   })
 
-  it('renders My Tasks in primary nav', () => {
+  it('renders My Issues in primary nav', () => {
     renderSidebar()
 
-    expect(screen.getByText('My Tasks')).toBeInTheDocument()
+    expect(screen.getByText('My Issues')).toBeInTheDocument()
   })
 
   it('does not render a Boards nav link in primary nav', () => {

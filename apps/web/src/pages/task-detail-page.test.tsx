@@ -95,7 +95,8 @@ describe('TaskDetailPage', () => {
   it('renders the list name in the sidebar', () => {
     renderPage()
 
-    expect(screen.getByText('Backlog')).toBeInTheDocument()
+    // List name appears in both the breadcrumb and the sidebar property row.
+    expect(screen.getAllByText('Backlog').length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders activity entries', () => {
@@ -110,13 +111,11 @@ describe('TaskDetailPage', () => {
     expect(screen.getByText('Looks good')).toBeInTheDocument()
   })
 
-  it('renders priority buttons', () => {
+  it('renders priority select showing current priority', () => {
     renderPage()
 
-    expect(screen.getByText('Low')).toBeInTheDocument()
-    expect(screen.getByText('Medium')).toBeInTheDocument()
+    // Priority is now a Select (not 4 buttons); trigger shows the current value.
     expect(screen.getByText('High')).toBeInTheDocument()
-    expect(screen.getByText('Urgent')).toBeInTheDocument()
   })
 
   it('renders the status selector', () => {
@@ -145,11 +144,12 @@ describe('TaskDetailPage', () => {
     expect(screen.getByText(/Jul/)).toBeInTheDocument()
   })
 
-  it('shows sub-tasks section', () => {
+  it('shows sub-issues section', () => {
     renderPage()
 
-    expect(screen.getByText('Sub-tasks')).toBeInTheDocument()
-    expect(screen.getByText('No sub-tasks')).toBeInTheDocument()
+    // "Sub-issues" appears in both the main section heading and the sidebar row.
+    expect(screen.getAllByText('Sub-issues').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getByText('No sub-issues')).toBeInTheDocument()
   })
 
   it('renders the label pill for the task', () => {

@@ -1,0 +1,2 @@
+@layer reset, base, app.base;
+._editorFaintPlaceholder_1kxgg_5 div::placeholder,._editorFaintPlaceholder_1kxgg_5::placeholder{color:var(--color-label-faint)!important}

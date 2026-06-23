@@ -1,6 +1,12 @@
+/**
+ * CreateTaskModal — inline single-line quick-add input.
+ *
+ * Used in the column footer (+ New issue) and the sub-task dialog. Submits on
+ * Enter, cancels on blur/Escape. No Add/Cancel buttons — the fast path.
+ */
+
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
 
 interface CreateTaskModalProps {
   listId: string
@@ -10,7 +16,7 @@ interface CreateTaskModalProps {
   parentTaskNumber?: string
 }
 
-export function CreateTaskModal({ listId, onSubmit, onClose, parentId, parentTaskNumber }: CreateTaskModalProps) {
+export function CreateTaskModal({ onSubmit, onClose, parentId, parentTaskNumber }: CreateTaskModalProps) {
   const [title, setTitle] = useState('')
 
   const handleSubmit = () => {
@@ -19,9 +25,9 @@ export function CreateTaskModal({ listId, onSubmit, onClose, parentId, parentTas
   }
 
   return (
-    <div className="bg-card border border-border rounded-md p-3 space-y-2">
+    <div className="py-1">
       {parentId && parentTaskNumber && (
-        <p className="text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground mb-1 px-1">
           Sub-task of <span className="font-mono">{parentTaskNumber}</span>
         </p>
       )}
@@ -29,14 +35,14 @@ export function CreateTaskModal({ listId, onSubmit, onClose, parentId, parentTas
         autoFocus
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.preventDefault(); handleSubmit() }
+          if (e.key === 'Escape') { e.preventDefault(); onClose() }
+        }}
+        onBlur={onClose}
         placeholder="Task title..."
-        className="bg-input text-foreground text-sm rounded-md px-2 py-1.5 placeholder:text-muted-foreground/70 border border-border focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-7 text-sm"
       />
-      <div className="flex gap-2">
-        <Button size="sm" className="bg-primary text-primary-foreground hover:bg-primary/90 text-sm h-8 px-3 rounded-md" onClick={handleSubmit}>Add</Button>
-        <Button size="sm" variant="ghost" className="text-muted-foreground hover:text-foreground text-sm h-8 px-3 rounded-md" onClick={onClose}>Cancel</Button>
-      </div>
     </div>
   )
 }

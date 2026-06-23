@@ -1,23 +1,19 @@
-import { useState, useCallback, useMemo } from 'react'
+/**
+ * TaskDetailPage — Linear-style task detail view.
+ *
+ * Thin orchestrator: data hooks + layout composition. Two-column layout:
+ * main content (scrolls, max-w-3xl) + right properties sidebar (w-[260px],
+ * scrolls independently). Breadcrumb bar is sticky above both columns.
+ *
+ * design.md compliance: no Lime CTA on the detail page (the screen's primary
+ * action is editing, not creation). All Save/Submit buttons are outline/ghost.
+ * Dark-only, border-defined rows, Inter weight 510 emphasis, JetBrains Mono for
+ * IDs/timestamps.
+ */
+
+import { useCallback, useMemo } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import {
-  ArrowLeft,
-  ChevronLeft,
-  ChevronRight,
-  SignalLow,
-  SignalMedium,
-  SignalHigh,
-  AlertTriangle,
-  Calendar,
-  Clock,
-  MessageSquare,
-  Activity,
-  ListChecks,
-  Plus,
-  X,
-  Link2,
-  Ban,
-} from 'lucide-react'
+import { ArrowLeft } from 'lucide-react'
 import { useTask, useUpdateTask, useTasksByBoard, useCreateTask } from '@/hooks/use-tasks'
 import { useTaskRelations, useCreateRelation, useRemoveRelation } from '@/hooks/use-relations'
 import { useBoardFull } from '@/hooks/use-boards'
@@ -25,247 +21,17 @@ import { useComments, useCreateComment } from '@/hooks/use-comments'
 import { useUsers } from '@/hooks/use-users'
 import { useLabels } from '@/hooks/use-labels'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import { LabelPill } from '@/components/label-pill'
-import { CreateTaskModal } from '@/components/create-task-modal'
-import { cn } from '@/lib/utils'
-import type { Task, RelationType, RelationEntry } from '@/types'
-
-// ── Priority icons ──────────────────────────────────────────────────────────
-
-function PriorityIcon({ priority }: { priority: Task['priority'] }) {
-  switch (priority) {
-    case 'urgent':
-      return <AlertTriangle className="size-4 text-destructive" />
-    case 'high':
-      return <SignalHigh className="size-4 text-[#eb5757]" />
-    case 'medium':
-      return <SignalMedium className="size-4 text-[#5e6ad2]" />
-    case 'low':
-      return <SignalLow className="size-4 text-muted-foreground" />
-  }
-}
-
-// ── Editable title ───────────────────────────────────────────────────────────
-
-function EditableTitle({
-  value,
-  onSave,
-}: {
-  value: string
-  onSave: (v: string) => void
-}) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value)
-
-  const startEdit = () => {
-    setDraft(value)
-    setEditing(true)
-  }
-
-  const commit = () => {
-    const trimmed = draft.trim()
-    if (trimmed && trimmed !== value) {
-      onSave(trimmed)
-    }
-    setEditing(false)
-  }
-
-  const cancel = () => {
-    setDraft(value)
-    setEditing(false)
-  }
-
-  if (editing) {
-    return (
-      <input
-        autoFocus
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onBlur={commit}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter') commit()
-          if (e.key === 'Escape') cancel()
-        }}
-        className="text-2xl font-medium tracking-tight text-foreground bg-input rounded-md border border-border px-2 py-1 -mx-2 outline-none w-full focus-visible:ring-2 focus-visible:ring-ring"
-      />
-    )
-  }
-
-  return (
-    <h1
-      className="text-2xl font-medium tracking-tight text-foreground cursor-text hover:bg-accent/50 rounded px-1 -mx-1"
-      onClick={startEdit}
-    >
-      {value}
-    </h1>
-  )
-}
-
-// ── Editable description ─────────────────────────────────────────────────────
-
-function EditableDescription({
-  value,
-  onSave,
-}: {
-  value: string
-  onSave: (v: string) => void
-}) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value)
-
-  if (!editing) {
-    return (
-      <div
-        className="text-sm text-foreground/90 leading-relaxed cursor-text hover:bg-accent/50 rounded p-2 -mx-2 min-h-[80px]"
-        onClick={() => {
-          setDraft(value)
-          setEditing(true)
-        }}
-      >
-        {value || (
-          <span className="italic text-muted-foreground">Add a description…</span>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <div className="flex flex-col gap-2">
-      <Textarea
-        autoFocus
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        rows={6}
-        placeholder="Add a description…"
-      />
-      <div className="flex gap-2">
-        <Button size="sm" onClick={() => { onSave(draft); setEditing(false) }}>
-          Save
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={() => { setDraft(value); setEditing(false) }}
-        >
-          Cancel
-        </Button>
-      </div>
-    </div>
-  )
-}
-
-// ── Relation group ───────────────────────────────────────────────────────────
-//
-// Renders one of the three relation groups (Blocking / Blocked by / Related).
-// Each row is a clickable card navigating to the related task, with a remove (x)
-// button. The "Add" control reuses the shadcn Select with same-board task
-// options, excluding self and tasks already present in this group.
-
-interface RelationGroupProps {
-  title: string
-  icon: React.ReactNode
-  entries: RelationEntry[]
-  taskId: string
-  boardId: string
-  boardTasks: Task[]
-  type: RelationType
-  direction?: 'source' | 'target' // omitted for related_to
-  onAdd: (otherTaskId: string) => void
-  onRemove: (relationId: string) => void
-  onNavigate: (taskId: string) => void
-  emptyText: string
-}
-
-function RelationGroup({
-  title,
-  icon,
-  entries,
-  taskId,
-  boardTasks,
-  type,
-  onAdd,
-  onRemove,
-  onNavigate,
-  emptyText,
-}: RelationGroupProps) {
-  const existingIds = new Set(entries.map((e) => e.task.id))
-
-  const options = boardTasks.filter(
-    (t) => t.id !== taskId && !existingIds.has(t.id),
-  )
-
-  return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-        {icon}
-        {title}
-        {entries.length > 0 && (
-          <span className="text-muted-foreground/70">({entries.length})</span>
-        )}
-      </label>
-      <div className="space-y-1.5">
-        {entries.map((e) => (
-          <div
-            key={e.relationId}
-            className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 cursor-pointer hover:bg-accent/50"
-            onClick={() => onNavigate(e.task.id)}
-          >
-            <span className="text-xs text-muted-foreground font-mono shrink-0">
-              {e.task.taskNumber}
-            </span>
-            <span className="text-sm text-foreground truncate flex-1">{e.task.title}</span>
-            <Badge variant="secondary" className="text-[10px] shrink-0">{e.task.status}</Badge>
-            <button
-              className="text-muted-foreground hover:text-foreground shrink-0"
-              aria-label="Remove relation"
-              onClick={(ev) => {
-                ev.stopPropagation()
-                onRemove(e.relationId)
-              }}
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
-        ))}
-        {entries.length === 0 && (
-          <p className="text-sm text-muted-foreground italic">{emptyText}</p>
-        )}
-        <Select
-          value="__none__"
-          onValueChange={(v) => {
-            if (v !== '__none__') onAdd(v)
-          }}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Add…" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__none__">Add…</SelectItem>
-            {options.map((t) => (
-              <SelectItem key={t.id} value={t.id}>
-                {t.taskNumber} {t.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    </div>
-  )
-}
-
-// ── Main page ────────────────────────────────────────────────────────────────
+import { Separator } from '@/components/ui/separator'
+import { DetailBreadcrumbBar } from '@/components/detail-breadcrumb-bar'
+import { DetailTitleBlock } from '@/components/detail-title-block'
+import { DetailDescriptionEditor } from '@/components/detail-description-editor'
+import { DetailSubIssues } from '@/components/detail-sub-issues'
+import { DetailRelations } from '@/components/detail-relations'
+import { DetailActivity } from '@/components/detail-activity'
+import { DetailComments } from '@/components/detail-comments'
+import { DetailPropertiesSidebar } from '@/components/detail-properties-sidebar'
+import type { RelationType, Task } from '@/types'
 
 export function TaskDetailPage() {
   const { boardId, taskId } = useParams<{ boardId: string; taskId: string }>()
@@ -275,7 +41,7 @@ export function TaskDetailPage() {
   const { data: board } = useBoardFull(boardId!)
   const { data: comments = [] } = useComments(taskId!)
   const { data: users = [] } = useUsers()
-  const { data: labels = [] } = useLabels(boardId!)
+  const { data: _labels = [] } = useLabels(boardId!)
   const { data: boardTasks = [] } = useTasksByBoard(boardId!)
 
   const updateTask = useUpdateTask()
@@ -284,9 +50,6 @@ export function TaskDetailPage() {
   const { data: relations } = useTaskRelations(taskId!)
   const createRelation = useCreateRelation()
   const removeRelation = useRemoveRelation()
-
-  const [commentText, setCommentText] = useState('')
-  const [showSubTaskModal, setShowSubTaskModal] = useState(false)
 
   // ── Navigation: prev/next task ─────────────────────────────────────────────
 
@@ -300,7 +63,7 @@ export function TaskDetailPage() {
   const nextTask = currentIndex < sortedTasks.length - 1 ? sortedTasks[currentIndex + 1] : null
 
   const navigateToTask = useCallback(
-    (t: { id: string }) => navigate(`/board/${boardId}/task/${t.id}`),
+    (id: string) => navigate(`/board/${boardId}/task/${id}`),
     [boardId, navigate],
   )
 
@@ -314,13 +77,41 @@ export function TaskDetailPage() {
     [task, boardId, updateTask],
   )
 
-  const handleAddComment = useCallback(() => {
-    if (!commentText.trim() || !task) return
-    createComment.mutate(
-      { taskId: task.id, author: 'user', body: commentText.trim() },
-      { onSuccess: () => setCommentText('') },
-    )
-  }, [commentText, task, createComment])
+  const handleAddComment = useCallback(
+    (body: string) => {
+      if (!task) return
+      createComment.mutate({ taskId: task.id, author: 'user', body })
+    },
+    [task, createComment],
+  )
+
+  const handleCreateSubTask = useCallback(
+    (title: string) => {
+      if (!task || !boardId) return
+      createTask.mutate({ listId: task.listId, title, boardId, parentId: task.id })
+    },
+    [task, boardId, createTask],
+  )
+
+  const handleAddRelation = useCallback(
+    (otherTaskId: string, type: RelationType, direction?: 'source' | 'target') => {
+      if (!task || !boardId) return
+      createRelation.mutate({ taskId: task.id, boardId, otherTaskId, type, direction })
+    },
+    [task, boardId, createRelation],
+  )
+
+  const handleRemoveRelation = useCallback(
+    (relationId: string) => {
+      if (!task || !boardId) return
+      removeRelation.mutate({ taskId: task.id, boardId, relationId })
+    },
+    [task, boardId, removeRelation],
+  )
+
+  const handleScrollTo = useCallback((anchor: string) => {
+    document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }, [])
 
   // ── Loading / not-found ────────────────────────────────────────────────────
 
@@ -344,12 +135,10 @@ export function TaskDetailPage() {
     )
   }
 
-  // ── Derived data ────────────────────────────────────────────────────────────
+  // ── Derived data ───────────────────────────────────────────────────────────
 
-  const taskLabels = task.taskLabels ?? task.labels ?? []
+  const boardName = board?.name ?? 'Board'
   const listName = board?.lists?.find((l) => l.id === task.listId)?.name ?? 'Unknown list'
-
-  const priorityOptions: Task['priority'][] = ['low', 'medium', 'high', 'urgent']
 
   const formatTimestamp = (ts: string) => {
     const d = new Date(ts)
@@ -361,483 +150,92 @@ export function TaskDetailPage() {
     })
   }
 
+  const position = {
+    current: currentIndex >= 0 ? currentIndex + 1 : 0,
+    total: sortedTasks.length,
+  }
+
   // ── Render ──────────────────────────────────────────────────────────────────
 
   return (
-    <div className="flex h-full bg-background">
-      {/* ── Main content ──────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header bar */}
-        <header className="bg-secondary border-b border-border px-6 py-3 flex items-center gap-2 shrink-0">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Back to board"
-            onClick={() => navigate(`/board/${boardId}`)}
-          >
-            <ArrowLeft className="size-4" />
-          </Button>
+    <div className="flex h-full flex-col bg-background">
+      <DetailBreadcrumbBar
+        boardName={boardName}
+        listName={listName}
+        taskNumber={task.taskNumber}
+        taskId={task.id}
+        boardId={boardId!}
+        position={position}
+        prevTask={prevTask ?? undefined}
+        nextTask={nextTask ?? undefined}
+        onBack={() => navigate(`/board/${boardId}`)}
+        onNavigateTask={navigateToTask}
+      />
 
-          {task.taskNumber && (
-            <span className="font-mono text-sm text-muted-foreground mr-1">
-              {task.taskNumber}
-            </span>
-          )}
-
-          <div className="flex-1 min-w-0">
-            <EditableTitle
-              value={task.title}
-              onSave={(title) => handleUpdate({ title })}
-            />
-          </div>
-
-          <div className="flex items-center gap-1 shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              disabled={!prevTask}
-              aria-label="Previous task"
-              onClick={() => prevTask && navigateToTask(prevTask)}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              disabled={!nextTask}
-              aria-label="Next task"
-              onClick={() => nextTask && navigateToTask(nextTask)}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-          </div>
-        </header>
-
-        {/* Scrollable body */}
+      <div className="flex flex-1 min-h-0">
+        {/* Main content column */}
         <ScrollArea className="flex-1">
-          <div className="p-6 space-y-6 bg-background max-w-3xl">
-            {/* Labels */}
-            {taskLabels.length > 0 && (
-              <div className="flex flex-wrap gap-1.5">
-                {taskLabels.map((tl) => (
-                  <LabelPill key={tl.labelId} label={tl.label} />
-                ))}
-              </div>
-            )}
+          <div className="px-8 py-6 space-y-8 bg-background max-w-3xl">
+            <DetailTitleBlock
+              task={task}
+              onSaveTitle={(title) => handleUpdate({ title })}
+              onNavigateParent={navigateToTask}
+            />
 
-            {/* Description */}
-            <section>
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                Description
-              </h3>
-              <EditableDescription
-                value={task.description ?? ''}
-                onSave={(description) => handleUpdate({ description })}
-              />
-            </section>
+            <DetailDescriptionEditor
+              value={task.description ?? ''}
+              onSave={(description) => handleUpdate({ description })}
+            />
+
+            <DetailSubIssues
+              task={task}
+              boardId={boardId!}
+              onNavigate={navigateToTask}
+              onCreateSubTask={handleCreateSubTask}
+            />
 
             <Separator />
 
-            {/* Sub-tasks */}
-            <section>
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
-                Sub-tasks
-                {task.subTasks && task.subTasks.length > 0 && (
-                  <span className="text-muted-foreground/70">({task.subTasks.length})</span>
-                )}
-              </h3>
-              <div className="space-y-1.5">
-                {(task.subTasks ?? []).map((st) => (
-                  <div
-                    key={st.id}
-                    className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 cursor-pointer hover:bg-accent/50"
-                    onClick={() => navigate(`/board/${boardId}/task/${st.id}`)}
-                  >
-                    {st.taskNumber && (
-                      <span className="text-xs text-muted-foreground font-mono shrink-0">{st.taskNumber}</span>
-                    )}
-                    <span className="text-sm text-foreground truncate flex-1">{st.title}</span>
-                    <Badge variant="secondary" className="text-[10px] shrink-0">{st.status}</Badge>
-                  </div>
-                ))}
-                {(!task.subTasks || task.subTasks.length === 0) && (
-                  <p className="text-sm text-muted-foreground italic">No sub-tasks</p>
-                )}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-1"
-                  onClick={() => setShowSubTaskModal(true)}
-                >
-                  <Plus className="size-3.5 mr-1" />
-                  Add sub-task
-                </Button>
-              </div>
-            </section>
+            <DetailRelations
+              relations={relations ?? { taskId: task.id, blocking: [], blockedBy: [], relatedTo: [] }}
+              taskId={task.id}
+              boardId={boardId!}
+              boardTasks={boardTasks}
+              onAdd={handleAddRelation}
+              onRemove={handleRemoveRelation}
+              onNavigate={navigateToTask}
+            />
 
             <Separator />
 
-            {/* Activity */}
-            {task.activity && task.activity.length > 0 && (
-              <section>
-                <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                  <Activity className="size-3.5" />
-                  Activity
-                </h3>
-                <div className="space-y-2.5">
-                  {task.activity.map((a) => (
-                    <div key={a.id} className="text-sm text-muted-foreground py-2 border-b border-border last:border-0 flex items-start gap-2">
-                      <div className="size-5 rounded-full bg-muted flex items-center justify-center shrink-0 mt-0.5">
-                        <span className="text-[10px] font-semibold text-muted-foreground">
-                          {a.actor.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                      <div className="min-w-0">
-                        <span className="font-medium text-foreground">{a.actor}</span>{' '}
-                        <span className="text-muted-foreground">{a.action}</span>
-                        {a.detail && (() => {
-                          try {
-                            const d = JSON.parse(a.detail)
-                            const extra = d.changes
-                              ? ` — ${d.changes.join(', ')}`
-                              : d.to
-                              ? ` → ${d.to}`
-                              : d.listName
-                              ? ` → ${d.listName}`
-                              : ''
-                            return <span className="text-muted-foreground">{extra}</span>
-                          } catch {
-                            return null
-                          }
-                        })()}
-                        <span className="font-mono text-xs text-muted-foreground ml-2">
-                          {formatTimestamp(a.createdAt)}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
+            <DetailActivity
+              activity={task.activity ?? []}
+              formatTimestamp={formatTimestamp}
+            />
 
             <Separator />
 
-            {/* Comments */}
-            <section>
-              <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-1.5">
-                <MessageSquare className="size-3.5" />
-                Comments ({comments.length})
-              </h3>
-              <div className="flex gap-2 mb-4">
-                <Input
-                  value={commentText}
-                  onChange={(e) => setCommentText(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && handleAddComment()}
-                  placeholder="Add a comment…"
-                  className="flex-1"
-                />
-                <Button size="sm" onClick={handleAddComment} disabled={!commentText.trim()}>
-                  Send
-                </Button>
-              </div>
-              <div className="space-y-3">
-                {comments.map((c) => (
-                  <div key={c.id} className="bg-card border border-border rounded-md p-3">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-foreground">{c.author}</span>
-                      <span className="text-xs text-muted-foreground font-mono">
-                        {formatTimestamp(c.createdAt)}
-                      </span>
-                    </div>
-                    <p className="text-sm text-foreground/90 mt-1">{c.body}</p>
-                  </div>
-                ))}
-                {comments.length === 0 && (
-                  <p className="text-sm text-muted-foreground">No comments yet.</p>
-                )}
-              </div>
-            </section>
+            <DetailComments
+              comments={comments}
+              onSubmit={handleAddComment}
+              formatTimestamp={formatTimestamp}
+            />
           </div>
         </ScrollArea>
+
+        {/* Right sidebar */}
+        <DetailPropertiesSidebar
+          task={task}
+          board={board}
+          users={users}
+          boardTasks={boardTasks}
+          relations={relations}
+          onUpdate={handleUpdate}
+          onNavigate={navigateToTask}
+          onScrollTo={handleScrollTo}
+          formatTimestamp={formatTimestamp}
+        />
       </div>
-
-      {/* ── Right sidebar ─────────────────────────────────────────────────── */}
-      <aside className="w-[280px] bg-secondary border-l border-border shrink-0 overflow-y-auto">
-        <div className="p-4 space-y-4">
-          {/* Status */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
-              Status
-            </label>
-            <Select
-              value={task.status}
-              onValueChange={(v) => handleUpdate({ status: v as Task['status'] })}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="active">Active</SelectItem>
-                <SelectItem value="done">Done</SelectItem>
-                <SelectItem value="archived">Archived</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Priority */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
-              Priority
-            </label>
-            <div className="flex gap-1">
-              {priorityOptions.map((p) => (
-                <button
-                  key={p}
-                  onClick={() => handleUpdate({ priority: p })}
-                  className={cn(
-                    'flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold transition-colors',
-                    task.priority === p
-                      ? p === 'urgent'
-                        ? 'bg-[#eb5757]/10 text-[#eb5757]'
-                        : p === 'high'
-                        ? 'bg-[#eb5757]/10 text-[#eb5757]'
-                        : p === 'medium'
-                        ? 'bg-[#5e6ad2]/10 text-[#5e6ad2]'
-                        : 'bg-muted text-muted-foreground'
-                      : 'text-muted-foreground hover:bg-accent',
-                  )}
-                >
-                  <PriorityIcon priority={p} />
-                  {p.charAt(0).toUpperCase() + p.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Assignee */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
-              Assignee
-            </label>
-            <Select
-              value={task.assigneeId ?? '__none__'}
-              onValueChange={(v) =>
-                handleUpdate({ assigneeId: v === '__none__' ? null : v })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Unassigned" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Unassigned</SelectItem>
-                {users.map((u) => (
-                  <SelectItem key={u.id} value={u.id}>
-                    {u.displayName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Labels */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
-              Labels
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {taskLabels.map((tl) => (
-                <Badge
-                  key={tl.labelId}
-                  style={{ backgroundColor: tl.label.color }}
-                  className="text-white border-0"
-                >
-                  {tl.label.name}
-                </Badge>
-              ))}
-              {taskLabels.length === 0 && (
-                <span className="text-sm text-muted-foreground">None</span>
-              )}
-            </div>
-          </div>
-
-          {/* Due date */}
-          {task.dueDate && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
-                Due date
-              </label>
-              <div className="flex items-center gap-1.5 font-mono text-sm text-foreground">
-                <Calendar className="size-3.5 text-muted-foreground" />
-                {new Date(task.dueDate).toLocaleDateString(undefined, {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* List */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
-              List
-            </label>
-            <div className="flex items-center gap-1.5 text-sm text-foreground">
-              <ListChecks className="size-3.5 text-muted-foreground" />
-              {listName}
-            </div>
-          </div>
-
-          {/* Parent / sub-task link */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider block">
-              Parent
-            </label>
-            {task.parent ? (
-              <button
-                className="flex items-center gap-1.5 text-sm text-foreground hover:text-ring hover:underline"
-                onClick={() => navigate(`/board/${boardId}/task/${task.parent!.id}`)}
-              >
-                <span className="font-mono text-xs text-muted-foreground">
-                  {task.parent.board?.identifier ? `${task.parent.board.identifier}-${task.parent.number}` : `#${task.parent.number}`}
-                </span>
-                <span className="truncate">{task.parent.title}</span>
-              </button>
-            ) : (
-              <Select
-                value={task.parentId ?? '__none__'}
-                onValueChange={(v) => handleUpdate({ parentId: v === '__none__' ? null : v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="No parent" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="__none__">Unset</SelectItem>
-                  {boardTasks
-                    .filter((t) =>
-                      t.id !== task.id
-                      && !t.parentId
-                      && !(task.subTasks && task.subTasks.length > 0)
-                    )
-                    .map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.taskNumber} {t.title}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-
-          {/* Relations */}
-          {relations && (
-            <div className="space-y-3">
-              <RelationGroup
-                title="Blocking"
-                icon={<Ban className="size-3.5" />}
-                entries={relations.blocking}
-                taskId={task.id}
-                boardId={boardId!}
-                boardTasks={boardTasks}
-                type="blocks"
-                direction="source"
-                emptyText="Not blocking anything"
-                onAdd={(otherTaskId) =>
-                  createRelation.mutate({
-                    taskId: task.id,
-                    boardId: boardId!,
-                    otherTaskId,
-                    type: 'blocks',
-                    direction: 'source',
-                  })
-                }
-                onRemove={(relationId) =>
-                  removeRelation.mutate({ taskId: task.id, boardId: boardId!, relationId })
-                }
-                onNavigate={(tid) => navigate(`/board/${boardId}/task/${tid}`)}
-              />
-              <RelationGroup
-                title="Blocked by"
-                icon={<Ban className="size-3.5" />}
-                entries={relations.blockedBy}
-                taskId={task.id}
-                boardId={boardId!}
-                boardTasks={boardTasks}
-                type="blocks"
-                direction="target"
-                emptyText="Not blocked"
-                onAdd={(otherTaskId) =>
-                  createRelation.mutate({
-                    taskId: task.id,
-                    boardId: boardId!,
-                    otherTaskId,
-                    type: 'blocks',
-                    direction: 'target',
-                  })
-                }
-                onRemove={(relationId) =>
-                  removeRelation.mutate({ taskId: task.id, boardId: boardId!, relationId })
-                }
-                onNavigate={(tid) => navigate(`/board/${boardId}/task/${tid}`)}
-              />
-              <RelationGroup
-                title="Related"
-                icon={<Link2 className="size-3.5" />}
-                entries={relations.relatedTo}
-                taskId={task.id}
-                boardId={boardId!}
-                boardTasks={boardTasks}
-                type="related_to"
-                emptyText="No related tasks"
-                onAdd={(otherTaskId) =>
-                  createRelation.mutate({
-                    taskId: task.id,
-                    boardId: boardId!,
-                    otherTaskId,
-                    type: 'related_to',
-                  })
-                }
-                onRemove={(relationId) =>
-                  removeRelation.mutate({ taskId: task.id, boardId: boardId!, relationId })
-                }
-                onNavigate={(tid) => navigate(`/board/${boardId}/task/${tid}`)}
-              />
-            </div>
-          )}
-
-          <div className="border-t border-border pt-4 space-y-2">
-            {/* Timestamps */}
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-              <Clock className="size-3" />
-              Created {formatTimestamp(task.createdAt)}
-            </div>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground font-mono">
-              <Clock className="size-3" />
-              Updated {formatTimestamp(task.updatedAt)}
-            </div>
-          </div>
-        </div>
-      </aside>
-
-      {/* Sub-task creation modal */}
-      {showSubTaskModal && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 bg-black/30" onClick={() => setShowSubTaskModal(false)}>
-          <div className="w-full max-w-md" onClick={(e) => e.stopPropagation()}>
-            <CreateTaskModal
-              listId={task.listId}
-              parentId={task.id}
-              parentTaskNumber={task.taskNumber}
-              onSubmit={(title) => {
-                createTask.mutate(
-                  { listId: task.listId, title, boardId: boardId!, parentId: task.id },
-                  { onSuccess: () => setShowSubTaskModal(false) },
-                )
-              }}
-              onClose={() => setShowSubTaskModal(false)}
-            />
-          </div>
-        </div>
-      )}
     </div>
   )
 }
