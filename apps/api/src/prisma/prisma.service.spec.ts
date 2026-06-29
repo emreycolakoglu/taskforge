@@ -13,11 +13,10 @@ describe('PrismaService', () => {
     const tmpDir = mkdtempSync(join(tmpdir(), 'taskforge-test-'));
     const dbPath = join(tmpDir, 'test.db');
     dbUrl = `file:${dbPath}`;
-    const schemaPath = join(__dirname, '..', '..', 'prisma', 'schema.prisma');
 
     process.env.DATABASE_URL = dbUrl;
     execSync(
-      `npx prisma db push --skip-generate --accept-data-loss --schema="${schemaPath}"`,
+      `npx prisma migrate deploy`,
       { env: { ...process.env, DATABASE_URL: dbUrl }, stdio: 'pipe', cwd: join(__dirname, '..', '..') },
     );
 
@@ -49,14 +48,4 @@ describe('PrismaService', () => {
     expect(disconnectSpy).toHaveBeenCalled();
   });
 
-  it('should not push schema when tables already exist', async () => {
-    const execSyncSpy = jest.spyOn(require('child_process'), 'execSync');
-    await service.onModuleInit();
-    // Schema already applied in beforeEach, so ensureSchema should be a no-op
-    expect(execSyncSpy).not.toHaveBeenCalledWith(
-      expect.stringContaining('prisma db push'),
-      expect.anything(),
-    );
-    execSyncSpy.mockRestore();
-  });
 });
