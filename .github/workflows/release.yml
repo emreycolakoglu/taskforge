@@ -51,3 +51,48 @@ jobs:
         run: |
           git tag "v${{ steps.bump.outputs.next_version }}"
           git push origin "v${{ steps.bump.outputs.next_version }}"
+
+  docker:
+    needs: bump-version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Derive tag variants
+        id: tags
+        env:
+          NEXT_VERSION: ${{ needs.bump-version.outputs.next_version }}
+        run: |
+          set -euo pipefail
+          MAJOR=$(echo "$NEXT_VERSION" | cut -d. -f1)
+          MINOR=$(echo "$NEXT_VERSION" | cut -d. -f1,2)
+          echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
+          echo "minor=$MINOR" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            emreycolakoglu/taskforge:latest
+            emreycolakoglu/taskforge:${{ needs.bump-version.outputs.next_version }}
+            emreycolakoglu/taskforge:${{ steps.tags.outputs.minor }}
+            emreycolakoglu/taskforge:${{ steps.tags.outputs.major }}
+            emreycolakoglu/taskforge:sha-${{ needs.bump-version.outputs.short_sha }}
