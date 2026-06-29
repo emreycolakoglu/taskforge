@@ -38,6 +38,7 @@ ENV CORS_ORIGIN="*"
 # Copy built API
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
 COPY --from=builder /app/apps/api/prisma ./apps/api/prisma
+COPY --from=builder /app/apps/api/docker-entrypoint.sh ./apps/api/docker-entrypoint.sh
 COPY --from=builder /app/apps/api/package.json ./apps/api/package.json
 
 # Copy built web (SPA)
@@ -59,6 +60,6 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 # Serve API
 WORKDIR /app/apps/api
-CMD ["node", "dist/main.js"]
+CMD ["./docker-entrypoint.sh"]
 
 EXPOSE 3000
