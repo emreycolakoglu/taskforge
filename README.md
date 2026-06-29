@@ -94,10 +94,10 @@ cd taskforge
 # Install dependencies
 pnpm install
 
-# Generate Prisma client and push schema to SQLite
+# Generate Prisma client and apply migrations
 cd apps/api
 pnpm prisma:generate
-pnpm prisma:push
+pnpm prisma:migrate
 cd ../..
 
 # Start development servers (API on :3000, Web on :5173 with proxy)
@@ -499,7 +499,6 @@ pnpm clean            # Clean build artifacts
 
 # Database
 pnpm db:generate      # Generate Prisma client
-pnpm db:push          # Push schema to SQLite
 pnpm db:migrate       # Run Prisma migrations
 
 # Docker
@@ -541,7 +540,7 @@ Humans use the Kanban board. AI agents use MCP to:
 ## FAQ
 
 **Q: Can I use a different database?**
-A: Yes. Change the `provider` in `prisma/schema.prisma` from `sqlite` to `postgresql` or `mysql`, update `DATABASE_URL`, and run `pnpm db:push`. Prisma handles the rest.
+A: Yes. Change the `provider` in `prisma/schema.prisma` from `sqlite` to `postgresql` or `mysql`, update `DATABASE_URL`, and run `pnpm db:migrate`. Prisma handles the rest.
 
 **Q: Is there authentication?**
 A: Not yet. TaskForge is designed for local/trusted-network use. For production, add a NestJS guard (Passport, JWT, etc.) and pass auth tokens via headers.
