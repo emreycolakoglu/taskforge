@@ -28,11 +28,11 @@ Implemented with a small shell step. No third-party version-bump action, to keep
 
 For a release `v1.2.3` on commit `abc1234`:
 
-- `emreycolakoglu/taskforge:latest`
-- `emreycolakoglu/taskforge:1.2.3`
-- `emreycolakoglu/taskforge:1.2`
-- `emreycolakoglu/taskforge:1`
-- `emreycolakoglu/taskforge:sha-abc1234` (traceability; not auto-rolled)
+- `emreyc/taskforge:latest`
+- `emreyc/taskforge:1.2.3`
+- `emreyc/taskforge:1.2`
+- `emreyc/taskforge:1`
+- `emreyc/taskforge:sha-abc1234` (traceability; not auto-rolled)
 
 ## Architecture
 
@@ -87,7 +87,7 @@ Two jobs:
 
 ### Docker Hub
 
-1. Create a **public** repository `emreycolakoglu/taskforge` on Docker Hub (empty is fine; first push will populate it).
+1. Create a **public** repository `emreyc/taskforge` on Docker Hub (empty is fine; first push will populate it).
 2. Create an **access token** at https://hub.docker.com/settings/security — scope: Read/Write/Delete on the repository (or Public Repo Read-only if you prefer narrower; write is required for push).
 
 ### GitHub
@@ -117,7 +117,7 @@ No Dockerfile changes are required for multi-arch: `node:23-alpine` supports bot
 - Merge to main → `ci.yml` reruns, then `release.yml` runs.
 - Check repo Actions tab: `release.yml` should show two green jobs (bump-version, docker).
 - Check Docker Hub repo: five tags appear, `latest` matches the just-pushed commit.
-- `docker pull emreycolakoglu/taskforge:latest && docker run -p 3000:3000 emreycolakoglu/taskforge:latest` → API responds on `http://localhost:3000/api/boards`.
+- `docker pull emreyc/taskforge:latest && docker run -p 3000:3000 emreyc/taskforge:latest` → API responds on `http://localhost:3000/api/boards`.
 - `git tag --list 'v*'` shows the new semver tag on the release commit.
 
 ## Failure modes

@@ -12,7 +12,7 @@
 
 - pnpm version pinned to `10.12.1` (matches `package.json` `packageManager`).
 - Node version `23` (matches `Dockerfile` `FROM node:23-alpine`).
-- Docker Hub namespace: `emreycolakoglu/taskforge`.
+- Docker Hub namespace: `emreyc/taskforge`.
 - Required GitHub secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`.
 - First release tag: `v1.0.0` (no existing tags — verified).
 - Image tags pushed per release `vX.Y.Z` on commit `<sha>`: `:latest`, `:X.Y.Z`, `:X.Y`, `:X`, `:sha-<short>`.
@@ -185,7 +185,7 @@ git commit -m "ci: add release workflow with semver bump job"
 
 **Interfaces:**
 - Consumes: `bump-version.outputs.next_version` (e.g. `1.0.0`) and `bump-version.outputs.short_sha` (first 7 chars of HEAD) from Task 2. Secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` from repo settings (Task 4).
-- Produces: Five Docker Hub image tags under `emreycolakoglu/taskforge`: `:latest`, `:X.Y.Z`, `:X.Y`, `:X`, `:sha-<short>`.
+- Produces: Five Docker Hub image tags under `emreyc/taskforge`: `:latest`, `:X.Y.Z`, `:X.Y`, `:X`, `:sha-<short>`.
 
 - [ ] **Step 1: Append the docker job to release.yml**
 
@@ -231,11 +231,11 @@ Edit `.github/workflows/release.yml` and append this job at the same indentation
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            emreycolakoglu/taskforge:latest
-            emreycolakoglu/taskforge:${{ needs.bump-version.outputs.next_version }}
-            emreycolakoglu/taskforge:${{ steps.tags.outputs.minor }}
-            emreycolakoglu/taskforge:${{ steps.tags.outputs.major }}
-            emreycolakoglu/taskforge:sha-${{ needs.bump-version.outputs.short_sha }}
+            emreyc/taskforge:latest
+            emreyc/taskforge:${{ needs.bump-version.outputs.next_version }}
+            emreyc/taskforge:${{ steps.tags.outputs.minor }}
+            emreyc/taskforge:${{ steps.tags.outputs.major }}
+            emreyc/taskforge:sha-${{ needs.bump-version.outputs.short_sha }}
 ```
 
 The `Derive tag variants` step splits `1.2.3` into `1` (major) and `1.2` (minor) so the five tag lines cover `latest`, full semver, minor, major, and sha.
@@ -343,15 +343,15 @@ Expected: `v1.0.0` appears, pointing at the release commit.
 
 - [ ] **Step 5: Verify images on Docker Hub**
 
-1. Go to https://hub.docker.com/r/emreycolakoglu/taskforge/tags.
+1. Go to https://hub.docker.com/r/emreyc/taskforge/tags.
 2. Confirm five tags: `latest`, `1.0.0`, `1.0`, `1`, `sha-<short-sha>`.
 3. Each tag should show two OS/ARCH entries: `linux/amd64` and `linux/arm64`.
 
 - [ ] **Step 6: Pull and run the image locally**
 
 ```bash
-docker pull emreycolakoglu/taskforge:latest
-docker run --rm -p 3000:3000 emreycolakoglu/taskforge:latest
+docker pull emreyc/taskforge:latest
+docker run --rm -p 3000:3000 emreyc/taskforge:latest
 ```
 
 In another terminal:
