@@ -7,7 +7,6 @@
     "lint": "turbo run lint",
     "clean": "turbo run clean",
     "db:generate": "pnpm --filter @taskforge/api prisma:generate",
-    "db:push": "pnpm --filter @taskforge/api prisma:push",
     "db:migrate": "pnpm --filter @taskforge/api prisma:migrate",
     "docker:build": "docker build -t taskforge .",
     "docker:run": "docker run -p 3000:3000 -p 3001:3001 taskforge"

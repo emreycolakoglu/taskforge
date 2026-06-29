@@ -19,7 +19,7 @@ Run commands for a single package from root: `pnpm --filter @taskforge/api <cmd>
 
 ```bash
 pnpm install
-cd apps/api && pnpm prisma:generate && pnpm prisma:push
+cd apps/api && pnpm prisma:generate && pnpm prisma:migrate
 pnpm dev          # API on :3000, Web on :5173 (proxies /api and /ws to :3000)
 ```
 
@@ -37,8 +37,7 @@ The API will crash if Prisma client hasn't been generated. The web app needs the
 | Web tests (Vitest) | `pnpm --filter @taskforge/web test`                                     |
 | Single web test    | `cd apps/web && npx vitest run src/hooks/api.test.ts`                   |
 | Prisma generate    | `pnpm db:generate`                                                      |
-| Prisma push schema | `pnpm db:push`                                                          |
-| Prisma migrate     | `pnpm db:migrate`                                                       |
+| Prisma migrate     | `pnpm db:migrate` (use `-- --name <desc>` to create new migrations)     |
 | Docker build       | `pnpm docker:build`                                                     |
 
 ## Gotchas
