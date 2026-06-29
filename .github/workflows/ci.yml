@@ -1,0 +1,42 @@
+name: ci
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 23
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @taskforge/api exec prisma generate
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test API
+        run: pnpm --filter @taskforge/api test
+
+      - name: Test Web
+        run: pnpm --filter @taskforge/web test
+
+      - name: Verify Docker build
+        run: docker build -t taskforge:ci .
