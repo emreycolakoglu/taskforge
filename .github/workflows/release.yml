@@ -91,8 +91,8 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            emreycolakoglu/taskforge:latest
-            emreycolakoglu/taskforge:${{ needs.bump-version.outputs.next_version }}
-            emreycolakoglu/taskforge:${{ steps.tags.outputs.minor }}
-            emreycolakoglu/taskforge:${{ steps.tags.outputs.major }}
-            emreycolakoglu/taskforge:sha-${{ needs.bump-version.outputs.short_sha }}
+            emreyc/taskforge:latest
+            emreyc/taskforge:${{ needs.bump-version.outputs.next_version }}
+            emreyc/taskforge:${{ steps.tags.outputs.minor }}
+            emreyc/taskforge:${{ steps.tags.outputs.major }}
+            emreyc/taskforge:sha-${{ needs.bump-version.outputs.short_sha }}
