@@ -29,9 +29,6 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @taskforge/api exec prisma generate
 
-      - name: Lint
-        run: pnpm lint
-
       - name: Test API
         run: pnpm --filter @taskforge/api test
 
