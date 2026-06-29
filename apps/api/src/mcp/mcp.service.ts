@@ -53,7 +53,7 @@ export interface McpResponse {
   error?: { code: number; message: string };
 }
 
-interface AuthUser {
+export interface AuthUser {
   id: string;
   displayName: string;
   role: string;

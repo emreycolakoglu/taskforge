@@ -3,12 +3,12 @@ services:
   taskforge:
     build: .
     ports:
-      - "3000:3000"
+      - "4321:4321"
     volumes:
       - taskforge-data:/data
     environment:
       - NODE_ENV=production
-      - PORT=3000
+      - PORT=4321
       - DATABASE_URL=file:/data/taskforge.db
       - CORS_ORIGIN=*
 

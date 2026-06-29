@@ -1,0 +1,14 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "formatter": true,
+  "lsp": true,
+  "mcp": {
+    "taskforge": {
+      "type": "remote",
+      "url": "http://localhost:4321/api/mcp",
+      "headers": {
+        "Authorization": "Bearer 0b698709-1e13-43d7-a06d-beb8782b93d5"
+      }
+    }
+  }
+}
