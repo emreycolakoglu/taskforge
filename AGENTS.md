@@ -38,7 +38,18 @@ The API will crash if Prisma client hasn't been generated. The web app needs the
 | Single web test    | `cd apps/web && npx vitest run src/hooks/api.test.ts`                   |
 | Prisma generate    | `pnpm db:generate`                                                      |
 | Prisma migrate     | `pnpm db:migrate` (use `-- --name <desc>` to create new migrations)     |
-| Docker build       | `pnpm docker:build`                                                     |
+| Docker build       | `pnpm docker:build`                                                      |
+
+## CI/CD
+
+GitHub Actions workflows in `.github/workflows/`:
+
+- **`ci.yml`** — runs on PRs and pushes to `main`: installs deps, generates Prisma client, runs API + web tests, verifies Docker build compiles (no push).
+- **`release.yml`** — triggered by `ci` succeeding on `main` via `workflow_run`: bumps a semver tag (`vX.Y.Z`), builds multi-arch (amd64 + arm64) images, pushes to Docker Hub under `emreyc/taskforge` with tags `:latest`, `:X.Y.Z`, `:X.Y`, `:X`, `:sha-<short>`.
+
+Required secrets: `DOCKERHUB_USERNAME`, `DOCKERHUB_TOKEN`.
+
+Schema migrations run automatically on container startup via `apps/api/docker-entrypoint.sh` (runs `prisma migrate deploy` then `exec`s into node). To ship a schema change: run `pnpm --filter @taskforge/api prisma:migrate -- --name <desc>` locally, commit the new migration file, push to main.
 
 ## Gotchas
 
@@ -46,11 +57,12 @@ The API will crash if Prisma client hasn't been generated. The web app needs the
 - **API is CommonJS, Web is ESM** — module resolution differs. Don't copy import patterns between apps.
 - **PrismaModule is `@Global()`** — no need to import it into feature modules.
 - **No authentication** — the app is designed for local/trusted-network use only.
-- **No ESLint config file** — lint scripts rely on NestJS CLI defaults for the API. No custom rules exist.
-- **No CI, no pre-commit hooks** — nothing runs automatically on push.
+- **No ESLint config file** — lint scripts reference `eslint` but it's not installed in either app. `pnpm lint` will fail. CI does not run lint.
+- **CI gates releases** — `release.yml` triggers via `workflow_run` on `ci` success. A broken main push won't publish to Docker Hub.
 - **`packages/` directory doesn't exist yet** — the workspace config includes it, but nothing is there.
 - **SQLite DB is gitignored** — `*.db` and `*.db-journal` are in `.gitignore`.
 - **API serves the SPA in production** — `main.ts` uses `useStaticAssets` pointing to `../../web/dist` with SPA fallback.
+- **Migrations run on container startup** — `docker-entrypoint.sh` runs `prisma migrate deploy` before starting the app. The old `ensureSchema` method in `PrismaService` was removed; schema management is now the entrypoint's job, not the app's.
 - **Frontend must follow `design.md`** — read it before any `apps/web/` change; use the defined tokens, not hardcoded colors or ad-hoc styling.
 - Always use kebap-case filenames
 - Always write unit tests
@@ -80,7 +92,7 @@ The web UI follows the Linear "midnight command deck" design system — dark-onl
 
 ## Testing
 
-- **API tests** create a real SQLite DB in a temp directory per run (`createTestPrisma()`), push schema via `execSync`. Tests are integration-level, not mocked unit tests.
+- **API tests** create a real SQLite DB in a temp directory per run (`createTestPrisma()` in `apps/api/test/setup.ts`), apply schema via `prisma db push`. Tests are integration-level, not mocked unit tests. The test helper still uses `db push` (not `migrate deploy`) because it creates a fresh throwaway DB each time — `db push` is faster for that use case.
 - Each test file cleans all tables in `afterEach` (deleteMany in reverse dependency order).
 - Seed helpers: `seedBoard()`, `seedLabel()`, `seedTask()`, `seedComment()`.
 - **Web tests** mock `global.fetch` — they test the API client module, not real HTTP.
