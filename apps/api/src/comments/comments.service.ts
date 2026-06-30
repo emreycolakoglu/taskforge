@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateCommentDto } from './dto/comment.dto';
 
 @Injectable()
@@ -8,6 +9,7 @@ export class CommentsService {
   constructor(
     private prisma: PrismaService,
     private events: EventsService,
+    private notifications: NotificationsService,
   ) {}
 
   async findByTask(taskId: string) {
@@ -27,7 +29,7 @@ export class CommentsService {
       },
     });
 
-    await this.prisma.activity.create({
+    const activity = await this.prisma.activity.create({
       data: {
         taskId: dto.taskId,
         actorId: user?.id ?? dto.authorId ?? null,
@@ -36,6 +38,7 @@ export class CommentsService {
         detail: JSON.stringify({ commentId: comment.id }),
       },
     });
+    await this.notifications.dispatchFromActivity(activity);
 
     const task = await this.prisma.task.findUnique({
       where: { id: dto.taskId },

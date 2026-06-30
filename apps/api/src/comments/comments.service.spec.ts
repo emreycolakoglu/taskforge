@@ -2,7 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { CommentsService } from './comments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
-import { createTestPrisma, seedBoard, seedTask, seedComment, seedUser } from '../../test/setup';
+import { NotificationsService } from '../notifications/notifications.service';
+import { createTestPrisma, seedBoard, seedTask, seedComment, seedUser, seedSubscription } from '../../test/setup';
 
 describe('CommentsService', () => {
   let service: CommentsService;
@@ -20,6 +21,7 @@ describe('CommentsService', () => {
         CommentsService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
+        { provide: NotificationsService, useValue: new NotificationsService(prisma, events) },
       ],
     }).compile();
     service = module.get<CommentsService>(CommentsService);
@@ -37,6 +39,8 @@ describe('CommentsService', () => {
   });
 
   afterEach(async () => {
+    await prisma.notification.deleteMany();
+    await prisma.taskSubscription.deleteMany();
     await prisma.taskLabel.deleteMany();
     await prisma.activity.deleteMany();
     await prisma.comment.deleteMany();
@@ -89,6 +93,25 @@ describe('CommentsService', () => {
       await service.remove(comment.id);
       const comments = await service.findByTask(task.id);
       expect(comments).toHaveLength(0);
+    });
+  });
+
+  describe('notifications integration', () => {
+    it('comment by actor notifies a non-actor subscriber', async () => {
+      const subscriber = await seedUser(prisma, { displayName: 'Subscriber' });
+      await seedSubscription(prisma, task.id, subscriber.id);
+      await service.create({ taskId: task.id, body: 'Hello' }, user);
+      const notifs = await prisma.notification.findMany({ where: { userId: subscriber.id } });
+      expect(notifs).toHaveLength(1);
+      expect(notifs[0].action).toBe('commented');
+      expect(notifs[0].summary).toContain(user.displayName);
+    });
+
+    it('actor commenting on a task they subscribe to does NOT notify themselves', async () => {
+      await seedSubscription(prisma, task.id, user.id);
+      await service.create({ taskId: task.id, body: 'Self comment' }, user);
+      const notifs = await prisma.notification.findMany({ where: { userId: user.id } });
+      expect(notifs).toHaveLength(0);
     });
   });
 });

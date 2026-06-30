@@ -3,6 +3,8 @@ import { TasksService } from './tasks.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { RelationsService } from '../relations/relations.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { createTestPrisma, seedBoard, seedTask, seedLabel, seedUser } from '../../test/setup';
 
 describe('TasksService', () => {
@@ -23,6 +25,8 @@ describe('TasksService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
         { provide: RelationsService, useValue: relations },
+        { provide: SubscriptionsService, useValue: new SubscriptionsService(prisma) },
+        { provide: NotificationsService, useValue: new NotificationsService(prisma, events) },
       ],
     }).compile();
     service = module.get<TasksService>(TasksService);
@@ -39,6 +43,8 @@ describe('TasksService', () => {
   });
 
   afterEach(async () => {
+    await prisma.notification.deleteMany();
+    await prisma.taskSubscription.deleteMany();
     await prisma.taskRelation.deleteMany();
     await prisma.taskLabel.deleteMany();
     await prisma.activity.deleteMany();
@@ -435,6 +441,66 @@ describe('TasksService', () => {
       await service.move(child.id, { listId: board.lists[2].id }, user);
       const refreshedParent = await prisma.task.findUnique({ where: { id: parent.id } });
       expect(refreshedParent!.listId).toBe(board.lists[0].id);
+    });
+  });
+
+  describe('subscriptions + notifications integration', () => {
+    it('creating a task subscribes the creator', async () => {
+      const task = await service.create({ listId: board.lists[0].id, title: 'New task' }, user);
+      const sub = await prisma.taskSubscription.findUnique({
+        where: { taskId_userId: { taskId: task.id, userId: user.id } },
+      });
+      expect(sub).not.toBeNull();
+    });
+
+    it('creating a task without a user does NOT subscribe anyone', async () => {
+      const task = await service.create({ listId: board.lists[0].id, title: 'System task' });
+      const subs = await prisma.taskSubscription.findMany({ where: { taskId: task.id } });
+      expect(subs).toHaveLength(0);
+    });
+
+    it('comment by actor notifies a non-actor subscriber via CommentsService', async () => {
+      // covered in comments.service.spec.ts
+    });
+
+    it('updating status notifies subscribers, excludes actor', async () => {
+      const task = await service.create({ listId: board.lists[0].id, title: 'New task' }, user);
+      const other = await seedUser(prisma, { displayName: 'Other' });
+      await prisma.taskSubscription.create({ data: { taskId: task.id, userId: other.id } });
+      await service.update(task.id, { status: 'done' }, user);
+      const notifs = await prisma.notification.findMany({ where: { userId: other.id } });
+      expect(notifs).toHaveLength(1);
+      expect(notifs[0].action).toBe('updated');
+      const actorNotifs = await prisma.notification.findMany({ where: { userId: user.id } });
+      expect(actorNotifs).toHaveLength(0);
+    });
+
+    it('updating title only does NOT notify subscribers', async () => {
+      const task = await service.create({ listId: board.lists[0].id, title: 'New task' }, user);
+      const other = await seedUser(prisma, { displayName: 'Other' });
+      await prisma.taskSubscription.create({ data: { taskId: task.id, userId: other.id } });
+      await service.update(task.id, { title: 'Renamed' }, user);
+      const notifs = await prisma.notification.findMany({ where: { userId: other.id } });
+      expect(notifs).toHaveLength(0);
+    });
+
+    it('archiving a task notifies subscribers', async () => {
+      const task = await service.create({ listId: board.lists[0].id, title: 'New task' }, user);
+      const other = await seedUser(prisma, { displayName: 'Other' });
+      await prisma.taskSubscription.create({ data: { taskId: task.id, userId: other.id } });
+      await service.remove(task.id, user);
+      const notifs = await prisma.notification.findMany({ where: { userId: other.id } });
+      expect(notifs).toHaveLength(1);
+      expect(notifs[0].action).toBe('archived');
+    });
+
+    it('moving a task does NOT notify subscribers', async () => {
+      const task = await service.create({ listId: board.lists[0].id, title: 'New task' }, user);
+      const other = await seedUser(prisma, { displayName: 'Other' });
+      await prisma.taskSubscription.create({ data: { taskId: task.id, userId: other.id } });
+      await service.move(task.id, { listId: board.lists[2].id }, user);
+      const notifs = await prisma.notification.findMany({ where: { userId: other.id } });
+      expect(notifs).toHaveLength(0);
     });
   });
 });
