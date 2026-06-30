@@ -2,13 +2,14 @@
  * CreateTaskDialog — full create-issue dialog (Linear-style).
  *
  * Opened from the board header "New Issue" CTA. Fields: title (autofocus, Enter
- * submits), list (Select), priority (Select). The submit button is the Acid Lime
+ * submits), description (Textarea), list (Select), priority (Select), assignee
+ * (Select with avatar initial, reuses the DetailAssigneeSelect visual). The submit button is the Acid Lime
  * primary CTA — the modal is a focused conversion moment (design.md: a modal is
  * arguably a second screen, so Lime is permitted here).
  */
 
 import { useState, useEffect } from 'react'
-import type { List, Task } from '@/types'
+import type { List, Task, User } from '@/types'
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -25,13 +27,15 @@ import {
   SelectItem,
   SelectValue,
 } from '@/components/ui/select'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 
 interface CreateTaskDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   lists: List[]
+  users: User[]
   defaultListId?: string
-  onSubmit: (data: { title: string; listId: string; priority: Task['priority'] }) => void
+  onSubmit: (data: { title: string; description?: string; listId: string; priority: Task['priority']; assigneeId?: string | null }) => void
 }
 
 const PRIORITIES: { value: Task['priority']; label: string }[] = [
@@ -45,26 +49,39 @@ export function CreateTaskDialog({
   open,
   onOpenChange,
   lists,
+  users,
   defaultListId,
   onSubmit,
 }: CreateTaskDialogProps) {
   const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
   const [listId, setListId] = useState(defaultListId ?? lists[0]?.id ?? '')
   const [priority, setPriority] = useState<Task['priority']>('medium')
+  const [assigneeId, setAssigneeId] = useState<string | null>(null)
 
   useEffect(() => {
     if (open) {
       setTitle('')
+      setDescription('')
       setListId(defaultListId ?? lists[0]?.id ?? '')
       setPriority('medium')
+      setAssigneeId(null)
     }
   }, [open, defaultListId, lists])
 
   const handleSubmit = () => {
     if (!title.trim() || !listId) return
-    onSubmit({ title: title.trim(), listId, priority })
+    onSubmit({
+      title: title.trim(),
+      description: description.trim() ? description.trim() : undefined,
+      listId,
+      priority,
+      assigneeId,
+    })
     onOpenChange(false)
   }
+
+  const selectedUser = users.find((u) => u.id === assigneeId) ?? null
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -79,6 +96,12 @@ export function CreateTaskDialog({
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit() } }}
             placeholder="Issue title..."
+          />
+          <Textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Add description..."
+            rows={3}
           />
           <div className="flex gap-2">
             <Select value={listId} onValueChange={setListId}>
@@ -102,6 +125,36 @@ export function CreateTaskDialog({
               </SelectContent>
             </Select>
           </div>
+          <Select
+            value={assigneeId ?? '__none__'}
+            onValueChange={(v) => setAssigneeId(v === '__none__' ? null : v)}
+          >
+            <SelectTrigger className="flex-1">
+              <Avatar className="size-5 border-0">
+                <AvatarFallback className="text-[9px] font-semibold bg-muted text-muted-foreground">
+                  {selectedUser
+                    ? selectedUser.displayName.charAt(0).toUpperCase()
+                    : '+'}
+                </AvatarFallback>
+              </Avatar>
+              <SelectValue placeholder="Assignee" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">Unassigned</SelectItem>
+              {users.map((u) => (
+                <SelectItem key={u.id} value={u.id}>
+                  <span className="flex items-center gap-1.5">
+                    <Avatar className="size-5 border-0">
+                      <AvatarFallback className="text-[9px] font-semibold bg-muted text-muted-foreground">
+                        {u.displayName.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    {u.displayName}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>

@@ -1,47 +1,82 @@
-import { useState } from "react"
-import { Link, useLocation, useNavigate } from "react-router-dom"
+import { useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
-  ListChecks, Settings, PanelLeftClose, PanelLeft, User, LogOut,
-  ChevronRight, Loader2, Plus, Columns3, Inbox, Activity, Layers,
-  Flag, FolderKanban, LayoutGrid, MoreHorizontal, Star,
-} from "lucide-react"
-import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "@/components/ui/tooltip"
+  ListChecks,
+  Settings,
+  PanelLeftClose,
+  PanelLeft,
+  User,
+  LogOut,
+  ChevronRight,
+  Loader2,
+  Plus,
+  Columns3,
+  Inbox,
+  Activity,
+  Layers,
+  Flag,
+  FolderKanban,
+  LayoutGrid,
+  MoreHorizontal,
+  Star,
+} from "lucide-react";
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible"
-import { cn } from "@/lib/utils"
-import { useAuth } from "@/contexts/auth-context"
-import { useBoards } from "@/hooks/use-boards"
-import { CreateBoardDialog } from "@/components/create-board-dialog"
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+  TooltipProvider,
+} from "@/components/ui/tooltip";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from "@/components/ui/collapsible";
+import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/auth-context";
+import { useBoards } from "@/hooks/use-boards";
+import { CreateBoardDialog } from "@/components/create-board-dialog";
 
 interface SidebarLayoutProps {
-  children: React.ReactNode
+  children: React.ReactNode;
 }
 
 // Primary nav vocabulary mirrors Linear. Only "My Issues" routes today; the
 // rest are placeholder links rendered as muted, non-interactive affordances
 // with a "Coming soon" tooltip. No backend features are implied.
 const PRIMARY_NAV = [
-  { label: "Inbox", icon: Inbox, to: "/tasks" as string | null, enabled: false },
+  {
+    label: "Inbox",
+    icon: Inbox,
+    to: "/tasks" as string | null,
+    enabled: false,
+  },
   { label: "My Issues", icon: ListChecks, to: "/tasks", enabled: true },
-  { label: "Pulse", icon: Activity, to: null, enabled: false },
-  { label: "Workspace", icon: Layers, to: null, enabled: false },
-  { label: "Initiatives", icon: Flag, to: null, enabled: false },
-  { label: "Projects", icon: FolderKanban, to: null, enabled: false },
-  { label: "Views", icon: LayoutGrid, to: null, enabled: false },
-  { label: "More", icon: MoreHorizontal, to: null, enabled: false },
-]
+  // { label: "Pulse", icon: Activity, to: null, enabled: false },
+  // { label: "Workspace", icon: Layers, to: null, enabled: false },
+  // { label: "Initiatives", icon: Flag, to: null, enabled: false },
+  // { label: "Projects", icon: FolderKanban, to: null, enabled: false },
+  // { label: "Views", icon: LayoutGrid, to: null, enabled: false },
+  // { label: "More", icon: MoreHorizontal, to: null, enabled: false },
+];
 
 export function SidebarLayout({ children }: SidebarLayoutProps) {
-  const [collapsed, setCollapsed] = useState(false)
-  const [createDialogOpen, setCreateDialogOpen] = useState(false)
-  const location = useLocation()
-  const navigate = useNavigate()
-  const { user, logout } = useAuth()
-  const { data: boards, isLoading: boardsLoading } = useBoards()
+  const [collapsed, setCollapsed] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const { data: boards, isLoading: boardsLoading } = useBoards();
 
-  const avatarLetter = user?.displayName ? user.displayName.charAt(0).toUpperCase() : "T"
+  const avatarLetter = user?.displayName
+    ? user.displayName.charAt(0).toUpperCase()
+    : "T";
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -49,7 +84,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         <aside
           className={cn(
             "flex flex-col border-r bg-sidebar-background text-sidebar-foreground transition-all motion-reduce:transition-none duration-200",
-            collapsed ? "w-14" : "w-64"
+            collapsed ? "w-14" : "w-64",
           )}
         >
           {/* Workspace header — plain label (Linear: avatar tile + name + chevron) */}
@@ -58,14 +93,16 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
               <div
                 className={cn(
                   "flex h-11 mt-2 items-center gap-2 px-3 transition-colors w-full",
-                  collapsed && "justify-center px-0"
+                  collapsed && "justify-center px-0",
                 )}
               >
                 <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">
                   {avatarLetter}
                 </span>
                 {!collapsed && (
-                  <span className="flex-1 text-sm font-medium text-foreground">TaskForge</span>
+                  <span className="flex-1 text-sm font-medium text-foreground">
+                    TaskForge
+                  </span>
                 )}
               </div>
             </TooltipTrigger>
@@ -77,7 +114,10 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           {/* Primary navigation */}
           <nav className="flex flex-col gap-0.5 px-2 pt-2">
             {PRIMARY_NAV.map((item) => {
-              const isActive = item.enabled && item.to !== null && location.pathname === item.to
+              const isActive =
+                item.enabled &&
+                item.to !== null &&
+                location.pathname === item.to;
               const content = (
                 <span
                   className={cn(
@@ -87,14 +127,14 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                       : item.enabled
                         ? "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
                         : "text-muted-foreground/60 cursor-default",
-                    collapsed && "justify-center px-2"
+                    collapsed && "justify-center px-2",
                   )}
                   aria-current={isActive ? "page" : undefined}
                 >
                   <item.icon className="size-4 shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
                 </span>
-              )
+              );
 
               if (!item.enabled) {
                 return (
@@ -105,52 +145,58 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                     {!collapsed ? (
                       <TooltipContent side="right">Coming soon</TooltipContent>
                     ) : (
-                      <TooltipContent side="right">{item.label} — Coming soon</TooltipContent>
+                      <TooltipContent side="right">
+                        {item.label} — Coming soon
+                      </TooltipContent>
                     )}
                   </Tooltip>
-                )
+                );
               }
 
               return (
                 <Tooltip key={item.label}>
                   <TooltipTrigger asChild>
-                    <Link to={item.to!} aria-label={item.label}>{content}</Link>
+                    <Link to={item.to!} aria-label={item.label}>
+                      {content}
+                    </Link>
                   </TooltipTrigger>
                   {collapsed && (
                     <TooltipContent side="right">{item.label}</TooltipContent>
                   )}
                 </Tooltip>
-              )
+              );
             })}
           </nav>
 
           {/* Favorites — collapsible section (Linear-style saved views placeholder) */}
-          {!collapsed && (
-            <div className="mt-4 px-2">
-              <Collapsible defaultOpen>
-                <CollapsibleTrigger className="flex w-full items-center gap-1 px-3 pt-2 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
-                  <ChevronRight className="size-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
-                  Favorites
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="flex flex-col gap-0.5">
-                    <Link
-                      to="/tasks"
-                      className={cn(
-                        "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
-                        location.pathname === "/tasks"
-                          ? "bg-sidebar-accent text-foreground"
-                          : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-                      )}
-                    >
-                      <Star className="size-3.5 shrink-0" />
-                      Assigned to me
-                    </Link>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            </div>
-          )}
+          {
+            // !collapsed && (
+            //   <div className="mt-4 px-2">
+            //     <Collapsible defaultOpen>
+            //       <CollapsibleTrigger className="flex w-full items-center gap-1 px-3 pt-2 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
+            //         <ChevronRight className="size-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
+            //         Favorites
+            //       </CollapsibleTrigger>
+            //       <CollapsibleContent>
+            //         <div className="flex flex-col gap-0.5">
+            //           <Link
+            //             to="/tasks"
+            //             className={cn(
+            //               "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
+            //               location.pathname === "/tasks"
+            //                 ? "bg-sidebar-accent text-foreground"
+            //                 : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
+            //             )}
+            //           >
+            //             <Star className="size-3.5 shrink-0" />
+            //             Assigned to me
+            //           </Link>
+            //         </div>
+            //       </CollapsibleContent>
+            //     </Collapsible>
+            //   </div>
+            // )
+          }
 
           {/* Boards section — collapsible */}
           {!collapsed ? (
@@ -177,7 +223,8 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                   ) : (
                     <div className="flex flex-col gap-0.5">
                       {boards?.map((board) => {
-                        const isActive = location.pathname === `/board/${board.id}`
+                        const isActive =
+                          location.pathname === `/board/${board.id}`;
                         return (
                           <Link
                             key={board.id}
@@ -196,7 +243,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                             <Columns3 className="size-4 shrink-0" />
                             <span>{board.name}</span>
                           </Link>
-                        )
+                        );
                       })}
                     </div>
                   )}
@@ -235,9 +282,13 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                     location.pathname.startsWith("/settings")
                       ? "bg-sidebar-accent text-foreground"
                       : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-                    collapsed && "justify-center px-2"
+                    collapsed && "justify-center px-2",
                   )}
-                  aria-current={location.pathname.startsWith("/settings") ? "page" : undefined}
+                  aria-current={
+                    location.pathname.startsWith("/settings")
+                      ? "page"
+                      : undefined
+                  }
                 >
                   <Settings className="size-4 shrink-0" />
                   {!collapsed && <span>Settings</span>}
@@ -257,20 +308,24 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                         className={cn(
                           "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
                           "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-                          collapsed && "justify-center px-2"
+                          collapsed && "justify-center px-2",
                         )}
                       >
                         <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-secondary-foreground text-[11px] font-semibold">
                           {avatarLetter}
                         </span>
                         {!collapsed && (
-                          <span className="truncate text-sm text-foreground">{user.displayName}</span>
+                          <span className="truncate text-sm text-foreground">
+                            {user.displayName}
+                          </span>
                         )}
                       </button>
                     </DropdownMenuTrigger>
                   </TooltipTrigger>
                   {collapsed && (
-                    <TooltipContent side="right">{user.displayName}</TooltipContent>
+                    <TooltipContent side="right">
+                      {user.displayName}
+                    </TooltipContent>
                   )}
                 </Tooltip>
                 <DropdownMenuContent side="right" align="start">
@@ -295,7 +350,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                   className={cn(
                     "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
                     "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-                    collapsed && "justify-center px-2"
+                    collapsed && "justify-center px-2",
                   )}
                   aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
                   onClick={() => setCollapsed(!collapsed)}
@@ -318,7 +373,10 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         </aside>
 
         {/* Main content — flex column so board header is sticky and body scrolls */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-background" id="main-content">
+        <main
+          className="flex-1 flex flex-col overflow-hidden bg-background"
+          id="main-content"
+        >
           {children}
         </main>
 
@@ -329,5 +387,5 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         />
       </div>
     </TooltipProvider>
-  )
+  );
 }

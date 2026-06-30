@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { api } from '@/hooks/api'
 import { useBoardFull } from '@/hooks/use-boards'
 import { useCreateTask } from '@/hooks/use-tasks'
+import { useUsers } from '@/hooks/use-users'
 import { useSocket } from '@/hooks/use-socket'
 import { useBoardViewState } from '@/hooks/use-board-view-state'
 import { Task, Label } from '@/types'
@@ -47,6 +48,7 @@ export function KanbanBoard() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
   const createTask = useCreateTask()
+  const { data: users = [] } = useUsers()
 
   // Map of taskId → taskNumber for resolving parent badges on sub-task cards.
   const tasks = useMemo(() => lists.flatMap((l) => l.tasks || []), [lists])
@@ -92,7 +94,7 @@ export function KanbanBoard() {
     )
   }
 
-  const handleCreateTaskDialog = (data: { title: string; listId: string; priority: string }) => {
+  const handleCreateTaskDialog = (data: { title: string; description?: string; listId: string; priority: string; assigneeId?: string | null }) => {
     if (!id) return
     createTask.mutate({ ...data, boardId: id })
   }
@@ -318,6 +320,7 @@ export function KanbanBoard() {
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         lists={lists}
+        users={users}
         onSubmit={handleCreateTaskDialog}
       />
 
