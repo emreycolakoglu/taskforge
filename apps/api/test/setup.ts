@@ -168,3 +168,25 @@ export async function seedUser(prisma: PrismaClient, overrides: Record<string, a
     },
   });
 }
+
+/**
+ * Seed a task subscription.
+ */
+export async function seedSubscription(prisma: PrismaClient, taskId: string, userId: string) {
+  return prisma.taskSubscription.create({
+    data: { taskId, userId },
+  });
+}
+
+/**
+ * Seed a notification. Requires an activity row to exist for the task.
+ */
+export async function seedNotification(
+  prisma: PrismaClient,
+  { userId, taskId, activityId, action = 'commented', summary = 'test summary' }:
+  { userId: string; taskId: string; activityId: string; action?: string; summary?: string },
+) {
+  return prisma.notification.create({
+    data: { userId, taskId, activityId, action, summary },
+  });
+}
