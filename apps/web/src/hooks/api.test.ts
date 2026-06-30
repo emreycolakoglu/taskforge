@@ -533,6 +533,22 @@ describe('api', () => {
     expect(result.relationId).toBe('r1');
   });
 
+  it('api.relations.delete(taskId, relationId) → DELETE correct URL', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ deleted: true }),
+    });
+
+    const { api } = await import('./api');
+    const result = await api.relations.delete('t1', 'r1');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/relations/r1', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(result.deleted).toBe(true);
+  });
+
   // ─── Subscriptions + Notifications ──────────────────────────────────────────
 
   it('api.subscriptions.get → GET /tasks/<id>/subscription', async () => {
