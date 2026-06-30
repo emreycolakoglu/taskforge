@@ -3,6 +3,8 @@ import { McpService } from './mcp.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { RelationsService } from '../relations/relations.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { createTestPrisma, seedBoard, seedTask, seedLabel, seedComment, seedUser, seedRelation } from '../../test/setup';
 
 describe('McpService', () => {
@@ -21,6 +23,8 @@ describe('McpService', () => {
         RelationsService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
+        { provide: SubscriptionsService, useValue: new SubscriptionsService(prisma) },
+        { provide: NotificationsService, useValue: new NotificationsService(prisma, events) },
       ],
     }).compile();
     service = module.get<McpService>(McpService);
@@ -36,6 +40,8 @@ describe('McpService', () => {
   });
 
   afterEach(async () => {
+    await prisma.notification.deleteMany();
+    await prisma.taskSubscription.deleteMany();
     await prisma.taskRelation.deleteMany();
     await prisma.taskLabel.deleteMany();
     await prisma.activity.deleteMany();
@@ -501,6 +507,107 @@ describe('McpService', () => {
       const res = await service.handleRequest({ method: 'boards_get', params: {}, id: 100 }, user);
       expect(res.error).toBeDefined();
       expect(res.error.code).toBe(-32603);
+    });
+  });
+
+  // ─── Subscriptions + Inbox (MCP) ──────────────────────────────────────────
+
+  describe('subscriptions + inbox', () => {
+    it('task_subscribe → subscribes the authed user', async () => {
+      const task = await seedTask(prisma, board.lists[0].id);
+      const res = await service.handleRequest({
+        method: 'task_subscribe',
+        params: { taskId: task.id },
+        id: 501,
+      }, user);
+      expect(res.result).toEqual({ subscribed: true });
+      const row = await prisma.taskSubscription.findUnique({
+        where: { taskId_userId: { taskId: task.id, userId: user.id } },
+      });
+      expect(row).not.toBeNull();
+    });
+
+    it('task_unsubscribe → removes the subscription', async () => {
+      const task = await seedTask(prisma, board.lists[0].id);
+      await prisma.taskSubscription.create({ data: { taskId: task.id, userId: user.id } });
+      const res = await service.handleRequest({
+        method: 'task_unsubscribe',
+        params: { taskId: task.id },
+        id: 502,
+      }, user);
+      expect(res.result).toEqual({ subscribed: false });
+      const row = await prisma.taskSubscription.findUnique({
+        where: { taskId_userId: { taskId: task.id, userId: user.id } },
+      });
+      expect(row).toBeNull();
+    });
+
+    it('inbox_list → returns the authed user\'s notifications', async () => {
+      const task = await seedTask(prisma, board.lists[0].id);
+      const activity = await prisma.activity.create({
+        data: { taskId: task.id, actorId: null, actor: 'someone', action: 'commented', detail: '{}' },
+      });
+      await prisma.notification.create({
+        data: { userId: user.id, taskId: task.id, activityId: activity.id, action: 'commented', summary: 'someone commented' },
+      });
+      const res = await service.handleRequest({ method: 'inbox_list', params: {}, id: 503 }, user);
+      expect(res.result).toHaveLength(1);
+      expect(res.result[0].summary).toBe('someone commented');
+    });
+
+    it('inbox_list filter=unread → only unread', async () => {
+      const task = await seedTask(prisma, board.lists[0].id);
+      const activity = await prisma.activity.create({
+        data: { taskId: task.id, actorId: null, actor: 'someone', action: 'commented', detail: '{}' },
+      });
+      await prisma.notification.create({
+        data: { userId: user.id, taskId: task.id, activityId: activity.id, action: 'commented', summary: 'one' },
+      });
+      await prisma.notification.create({
+        data: { userId: user.id, taskId: task.id, activityId: activity.id, action: 'commented', summary: 'two', readAt: new Date() },
+      });
+      const res = await service.handleRequest({ method: 'inbox_list', params: { filter: 'unread' }, id: 504 }, user);
+      expect(res.result).toHaveLength(1);
+      expect(res.result[0].summary).toBe('one');
+    });
+
+    it('notifications_mark_read with id → marks that one read', async () => {
+      const task = await seedTask(prisma, board.lists[0].id);
+      const activity = await prisma.activity.create({
+        data: { taskId: task.id, actorId: null, actor: 'someone', action: 'commented', detail: '{}' },
+      });
+      const notif = await prisma.notification.create({
+        data: { userId: user.id, taskId: task.id, activityId: activity.id, action: 'commented', summary: 'x' },
+      });
+      const res = await service.handleRequest({
+        method: 'notifications_mark_read',
+        params: { id: notif.id },
+        id: 505,
+      }, user);
+      expect(res.result).toEqual({ updated: 1 });
+      const refreshed = await prisma.notification.findUnique({ where: { id: notif.id } });
+      expect(refreshed!.readAt).not.toBeNull();
+    });
+
+    it('notifications_mark_read with no id → marks all read', async () => {
+      const task = await seedTask(prisma, board.lists[0].id);
+      const activity = await prisma.activity.create({
+        data: { taskId: task.id, actorId: null, actor: 'someone', action: 'commented', detail: '{}' },
+      });
+      await prisma.notification.create({
+        data: { userId: user.id, taskId: task.id, activityId: activity.id, action: 'commented', summary: 'a' },
+      });
+      await prisma.notification.create({
+        data: { userId: user.id, taskId: task.id, activityId: activity.id, action: 'commented', summary: 'b' },
+      });
+      const res = await service.handleRequest({
+        method: 'notifications_mark_read',
+        params: {},
+        id: 506,
+      }, user);
+      expect(res.result.updated).toBe(2);
+      const unread = await prisma.notification.count({ where: { userId: user.id, readAt: null } });
+      expect(unread).toBe(0);
     });
   });
 

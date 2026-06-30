@@ -2,6 +2,8 @@ import { McpServerFactory } from './mcp-server.factory';
 import { McpService } from './mcp.service';
 import { EventsService } from '../events/events.service';
 import { RelationsService } from '../relations/relations.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { TOOL_NAMES } from './tool-definitions';
@@ -16,7 +18,9 @@ describe('McpServerFactory', () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     const events = new EventsService();
     const relations = new RelationsService(prisma as any, events);
-    const mcpService = new McpService(prisma as any, events, relations);
+    const subscriptions = new SubscriptionsService(prisma as any);
+    const notifications = new NotificationsService(prisma as any, events);
+    const mcpService = new McpService(prisma as any, events, relations, subscriptions, notifications);
     factory = new McpServerFactory(mcpService);
   });
 
@@ -25,6 +29,8 @@ describe('McpServerFactory', () => {
   });
 
   afterEach(async () => {
+    await prisma.notification.deleteMany();
+    await prisma.taskSubscription.deleteMany();
     await prisma.taskRelation.deleteMany();
     await prisma.taskLabel.deleteMany();
     await prisma.activity.deleteMany();
@@ -38,7 +44,7 @@ describe('McpServerFactory', () => {
     await prisma.user.deleteMany();
   });
 
-  it('registers all 24 taskforge tools', async () => {
+  it('registers all taskforge tools', async () => {
     user = await seedUser(prisma as any);
     const server = factory.create(user);
 

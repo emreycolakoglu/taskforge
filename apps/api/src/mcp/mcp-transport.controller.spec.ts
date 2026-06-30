@@ -2,8 +2,11 @@ import { createServer, IncomingMessage, ServerResponse, Server } from 'http';
 import { McpTransportController } from './mcp-transport.controller';
 import { McpServerFactory } from './mcp-server.factory';
 import { McpService } from './mcp.service';
+import { TOOL_NAMES } from './tool-definitions';
 import { EventsService } from '../events/events.service';
 import { RelationsService } from '../relations/relations.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { createTestPrisma, seedUser, seedBoard } from '../../test/setup';
 
@@ -123,7 +126,9 @@ describe('McpTransportController', () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     const events = new EventsService();
     const relations = new RelationsService(prisma as any, events);
-    const mcpService = new McpService(prisma as any, events, relations);
+    const subscriptions = new SubscriptionsService(prisma as any);
+    const notifications = new NotificationsService(prisma as any, events);
+    const mcpService = new McpService(prisma as any, events, relations, subscriptions, notifications);
     const factory = new McpServerFactory(mcpService);
     controller = new McpTransportController(factory);
     process.env.MCP_REQUIRE_ORIGIN = '0';
@@ -139,6 +144,8 @@ describe('McpTransportController', () => {
   });
 
   afterEach(async () => {
+    await prisma.notification.deleteMany();
+    await prisma.taskSubscription.deleteMany();
     await prisma.taskRelation.deleteMany();
     await prisma.taskLabel.deleteMany();
     await prisma.activity.deleteMany();
@@ -198,7 +205,7 @@ describe('McpTransportController', () => {
     const sid = init.sessionId!;
     const r = await post({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }, sid);
     expect(r.status).toBe(200);
-    expect(r.json.result.tools).toHaveLength(24);
+    expect(r.json.result.tools).toHaveLength(TOOL_NAMES.length);
     expect(r.json.result.tools.map((t: any) => t.name)).toContain('boards_create');
   });
 

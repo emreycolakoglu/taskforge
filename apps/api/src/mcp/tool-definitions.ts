@@ -237,6 +237,35 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     description: 'Delete a task relation by id.',
     inputSchema: { relationId: idField('Relation') },
   },
+
+  // subscriptions
+  {
+    name: 'task_subscribe',
+    title: 'Subscribe to task',
+    description: 'Subscribe the authenticated user to a task. Idempotent.',
+    inputSchema: { taskId: idField('Task') },
+  },
+  {
+    name: 'task_unsubscribe',
+    title: 'Unsubscribe from task',
+    description: 'Remove the authenticated user\'s subscription to a task.',
+    inputSchema: { taskId: idField('Task') },
+  },
+  {
+    name: 'inbox_list',
+    title: 'List inbox notifications',
+    description: 'List the authenticated user\'s inbox notifications, newest first.',
+    inputSchema: {
+      filter: z.enum(['unread', 'all']).optional(),
+      limit: z.number().optional(),
+    },
+  },
+  {
+    name: 'notifications_mark_read',
+    title: 'Mark notification(s) read',
+    description: 'Mark a single notification read by id, or all of the user\'s notifications read when id is omitted.',
+    inputSchema: { id: optionalId('Notification') },
+  },
 ];
 
 export const TOOL_NAMES = TOOL_DEFINITIONS.map(t => t.name);
