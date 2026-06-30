@@ -50,6 +50,16 @@ describe('EventsService', () => {
     service.emit('second', {});
   });
 
+  it('should carry userRoom through to observers', (done) => {
+    const subscription = service.observe().subscribe(({ event, userRoom }) => {
+      expect(event).toBe('notification:created');
+      expect(userRoom).toBe('user-42');
+      subscription.unsubscribe();
+      done();
+    });
+    service.emit('notification:created', { id: 'n1' }, undefined, { userRoom: 'user-42' });
+  });
+
   it('should support multiple subscribers', () => {
     const received1: any[] = [];
     const received2: any[] = [];
