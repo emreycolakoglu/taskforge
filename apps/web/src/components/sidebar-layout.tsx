@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { useBoards } from "@/hooks/use-boards";
 import { useUnreadCount } from "@/hooks/use-notifications";
+import { useSocket } from "@/hooks/use-socket";
 import { CreateBoardDialog } from "@/components/create-board-dialog";
 
 interface SidebarLayoutProps {
@@ -75,6 +76,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   const { user, logout } = useAuth();
   const { data: boards, isLoading: boardsLoading } = useBoards();
   const { data: unreadData } = useUnreadCount();
+  useSocket();
   const unreadCount = unreadData?.count ?? 0;
 
   const avatarLetter = user?.displayName
