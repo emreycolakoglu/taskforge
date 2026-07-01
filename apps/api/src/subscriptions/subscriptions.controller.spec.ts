@@ -25,7 +25,7 @@ describe('SubscriptionsController', () => {
 
   beforeEach(async () => {
     board = await seedBoard(prisma);
-    task = await seedTask(prisma, board.lists[0].id);
+    task = await seedTask(prisma, board.statuses[0].id);
     user = await seedUser(prisma);
     req = { user: { id: user.id, displayName: user.displayName } };
   });
@@ -34,7 +34,7 @@ describe('SubscriptionsController', () => {
     await prisma.taskSubscription.deleteMany();
     await prisma.activity.deleteMany();
     await prisma.task.deleteMany();
-    await prisma.list.deleteMany();
+    await prisma.status.deleteMany();
     await prisma.board.deleteMany();
     await prisma.user.deleteMany();
   });

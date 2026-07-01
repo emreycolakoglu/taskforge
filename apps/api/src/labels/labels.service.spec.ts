@@ -32,7 +32,7 @@ describe('LabelsService', () => {
     await prisma.comment.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
-    await prisma.list.deleteMany();
+    await prisma.status.deleteMany();
     await prisma.member.deleteMany();
     await prisma.board.deleteMany();
   });

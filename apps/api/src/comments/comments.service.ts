@@ -42,10 +42,10 @@ export class CommentsService {
 
     const task = await this.prisma.task.findUnique({
       where: { id: dto.taskId },
-      include: { list: { select: { boardId: true } } },
+      include: { status: { select: { boardId: true } } },
     });
 
-    this.events.emit('comment:created', comment, task?.list?.boardId);
+    this.events.emit('comment:created', comment, task?.status?.boardId);
     return comment;
   }
 
@@ -55,10 +55,10 @@ export class CommentsService {
 
     const task = await this.prisma.task.findUnique({
       where: { id: comment.taskId },
-      include: { list: { select: { boardId: true } } },
+      include: { status: { select: { boardId: true } } },
     });
 
     await this.prisma.comment.delete({ where: { id } });
-    this.events.emit('comment:deleted', { id }, task?.list?.boardId);
+    this.events.emit('comment:deleted', { id }, task?.status?.boardId);
   }
 }
