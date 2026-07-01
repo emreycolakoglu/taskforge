@@ -48,7 +48,7 @@ describe('McpService', () => {
     await prisma.comment.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
-    await prisma.list.deleteMany();
+    await prisma.status.deleteMany();
     await prisma.member.deleteMany();
     await prisma.board.deleteMany();
     await prisma.session.deleteMany();
@@ -68,17 +68,17 @@ describe('McpService', () => {
   });
 
   describe('boards_get', () => {
-    it('should get a board with lists and tasks', async () => {
-      await seedTask(prisma, board.lists[0].id);
+    it('should get a board with statuses and tasks', async () => {
+      await seedTask(prisma, board.statuses[0].id);
       const res = await service.handleRequest({ method: 'boards_get', params: { id: board.id }, id: 2 }, user);
       expect(res.result.id).toBe(board.id);
-      expect(res.result.lists).toBeDefined();
+      expect(res.result.statuses).toBeDefined();
       expect(res.result.labels).toBeDefined();
     });
   });
 
   describe('boards_create', () => {
-    it('should create a board with default lists', async () => {
+    it('should create a board with default statuses', async () => {
       const res = await service.handleRequest({
         method: 'boards_create',
         params: { name: 'MCP Board', slug: 'mcp-board', identifier: 'MCP', description: 'Created via MCP' },
@@ -86,7 +86,7 @@ describe('McpService', () => {
       }, user);
       expect(res.result.name).toBe('MCP Board');
       expect(res.result.identifier).toBe('MCP');
-      expect(res.result.lists).toHaveLength(5);
+      expect(res.result.statuses).toHaveLength(5);
     });
   });
 
@@ -97,31 +97,31 @@ describe('McpService', () => {
     });
   });
 
-  // ─── Lists ───
+  // ─── Statuses ───
 
-  describe('lists_list', () => {
-    it('should list lists for a board', async () => {
-      const res = await service.handleRequest({ method: 'lists_list', params: { boardId: board.id }, id: 5 }, user);
+  describe('statuses_list', () => {
+    it('should list statuses for a board', async () => {
+      const res = await service.handleRequest({ method: 'statuses_list', params: { boardId: board.id }, id: 5 }, user);
       expect(res.result).toHaveLength(5);
     });
   });
 
-  describe('lists_create', () => {
-    it('should create a list', async () => {
+  describe('statuses_create', () => {
+    it('should create a status', async () => {
       const res = await service.handleRequest({
-        method: 'lists_create',
-        params: { boardId: board.id, name: 'MCP List' },
+        method: 'statuses_create',
+        params: { boardId: board.id, name: 'MCP Status' },
         id: 6,
       }, user);
-      expect(res.result.name).toBe('MCP List');
+      expect(res.result.name).toBe('MCP Status');
     });
   });
 
-  describe('lists_update', () => {
-    it('should update a list', async () => {
+  describe('statuses_update', () => {
+    it('should update a status', async () => {
       const res = await service.handleRequest({
-        method: 'lists_update',
-        params: { id: board.lists[0].id, name: 'Updated', color: '#ff0000' },
+        method: 'statuses_update',
+        params: { id: board.statuses[0].id, name: 'Updated', color: '#ff0000' },
         id: 7,
       }, user);
       expect(res.result.name).toBe('Updated');
@@ -129,14 +129,55 @@ describe('McpService', () => {
     });
   });
 
-  describe('lists_delete', () => {
-    it('should delete a list', async () => {
+  describe('statuses_delete', () => {
+    it('should delete a status', async () => {
       const res = await service.handleRequest({
-        method: 'lists_delete',
-        params: { id: board.lists[0].id },
+        method: 'statuses_delete',
+        params: { id: board.statuses[0].id },
         id: 8,
       }, user);
       expect(res.result.deleted).toBe(true);
+    });
+  });
+
+  describe('statuses_toggle_done', () => {
+    it('should set a status as the Done column', async () => {
+      const res = await service.handleRequest({
+        method: 'statuses_toggle_done',
+        params: { id: board.statuses[1].id },
+        id: 601,
+      }, user);
+      expect(res.result.isDone).toBe(true);
+      const prev = await prisma.status.findUnique({ where: { id: board.statuses[4].id } });
+      expect(prev?.isDone).toBe(false);
+    });
+  });
+
+  describe('statuses_unset_done', () => {
+    it('should clear the board Done column', async () => {
+      await service.handleRequest({
+        method: 'statuses_toggle_done',
+        params: { id: board.statuses[1].id },
+        id: 602,
+      }, user);
+      const res = await service.handleRequest({
+        method: 'statuses_unset_done',
+        params: { boardId: board.id },
+        id: 603,
+      }, user);
+      expect(res.result.unset).toBe(true);
+      const done = await prisma.status.findUnique({ where: { id: board.statuses[1].id } });
+      expect(done?.isDone).toBe(false);
+    });
+
+    it('should be a no-op when no Done status exists', async () => {
+      await prisma.status.update({ where: { id: board.statuses[4].id }, data: { isDone: false } });
+      const res = await service.handleRequest({
+        method: 'statuses_unset_done',
+        params: { boardId: board.id },
+        id: 604,
+      }, user);
+      expect(res.result.unset).toBe(true);
     });
   });
 
@@ -144,30 +185,30 @@ describe('McpService', () => {
 
   describe('tasks_list', () => {
     it('should list tasks with filters', async () => {
-      await seedTask(prisma, board.lists[0].id, { title: 'Task 1' });
-      await seedTask(prisma, board.lists[0].id, { title: 'Task 2' });
+      await seedTask(prisma, board.statuses[0].id, { title: 'Task 1' });
+      await seedTask(prisma, board.statuses[0].id, { title: 'Task 2' });
 
       const all = await service.handleRequest({ method: 'tasks_list', params: { boardId: board.id }, id: 9 }, user);
       expect(all.result).toHaveLength(2);
 
-      const filtered = await service.handleRequest({ method: 'tasks_list', params: { boardId: board.id, status: 'active' }, id: 10 }, user);
-      expect(filtered.result).toHaveLength(2);
+      const byStatus = await service.handleRequest({ method: 'tasks_list', params: { boardId: board.id, statusId: board.statuses[0].id }, id: 10 }, user);
+      expect(byStatus.result).toHaveLength(2);
     });
   });
 
   describe('tasks_get', () => {
     it('should get a task with relations', async () => {
-      const task = await seedTask(prisma, board.lists[0].id);
+      const task = await seedTask(prisma, board.statuses[0].id);
       const res = await service.handleRequest({ method: 'tasks_get', params: { id: task.id }, id: 11 }, user);
       expect(res.result.id).toBe(task.id);
-      expect(res.result.list).toBeDefined();
+      expect(res.result.status).toBeDefined();
     });
   });
 
   describe('tasks_search', () => {
     it('should search tasks by title and description', async () => {
-      await seedTask(prisma, board.lists[0].id, { title: 'Critical bug fix' });
-      await seedTask(prisma, board.lists[0].id, { title: 'Add feature' });
+      await seedTask(prisma, board.statuses[0].id, { title: 'Critical bug fix' });
+      await seedTask(prisma, board.statuses[0].id, { title: 'Add feature' });
 
       const res = await service.handleRequest({ method: 'tasks_search', params: { query: 'bug' }, id: 12 }, user);
       expect(res.result).toHaveLength(1);
@@ -176,7 +217,7 @@ describe('McpService', () => {
     });
 
     it('should search tasks by task number format', async () => {
-      await seedTask(prisma, board.lists[0].id, { title: 'Find by number' });
+      await seedTask(prisma, board.statuses[0].id, { title: 'Find by number' });
       const res = await service.handleRequest({ method: 'tasks_search', params: { query: `${board.identifier}-1` }, id: 128 }, user);
       expect(res.result).toHaveLength(1);
       expect(res.result[0].taskNumber).toBe(`${board.identifier}-1`);
@@ -188,7 +229,7 @@ describe('McpService', () => {
       const label = await seedLabel(prisma, board.id);
       const res = await service.handleRequest({
         method: 'tasks_create',
-        params: { listId: board.lists[0].id, title: 'MCP task', labelIds: [label.id] },
+        params: { statusId: board.statuses[0].id, title: 'MCP task', labelIds: [label.id] },
         id: 13,
       }, user);
       expect(res.result.title).toBe('MCP task');
@@ -200,7 +241,7 @@ describe('McpService', () => {
     it('should default assigneeId to authenticated user when not provided', async () => {
       const res = await service.handleRequest({
         method: 'tasks_create',
-        params: { listId: board.lists[0].id, title: 'Auto-assigned task' },
+        params: { statusId: board.statuses[0].id, title: 'Auto-assigned task' },
         id: 14,
       }, user);
       expect(res.result.assigneeId).toBe(user.id);
@@ -210,7 +251,7 @@ describe('McpService', () => {
       const otherUser = await seedUser(prisma, { email: 'other@example.com', displayName: 'Other' });
       const res = await service.handleRequest({
         method: 'tasks_create',
-        params: { listId: board.lists[0].id, title: 'Explicit assignee', assigneeId: otherUser.id },
+        params: { statusId: board.statuses[0].id, title: 'Explicit assignee', assigneeId: otherUser.id },
         id: 15,
       }, user);
       expect(res.result.assigneeId).toBe(otherUser.id);
@@ -219,7 +260,7 @@ describe('McpService', () => {
     it('should record activity with authenticated user as actor', async () => {
       await service.handleRequest({
         method: 'tasks_create',
-        params: { listId: board.lists[0].id, title: 'Task with actor' },
+        params: { statusId: board.statuses[0].id, title: 'Task with actor' },
         id: 16,
       }, user);
       const activity = await prisma.activity.findFirst({ where: { action: 'created' } });
@@ -230,7 +271,7 @@ describe('McpService', () => {
 
   describe('tasks_update', () => {
     it('should update a task', async () => {
-      const task = await seedTask(prisma, board.lists[0].id);
+      const task = await seedTask(prisma, board.statuses[0].id);
       const res = await service.handleRequest({
         method: 'tasks_update',
         params: { id: task.id, title: 'Updated', priority: 'urgent' },
@@ -247,22 +288,44 @@ describe('McpService', () => {
   });
 
   describe('tasks_move', () => {
-    it('should move a task to another list', async () => {
-      const task = await seedTask(prisma, board.lists[0].id);
+    it('should move a task to another status', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
       const res = await service.handleRequest({
         method: 'tasks_move',
-        params: { id: task.id, listId: board.lists[2].id },
+        params: { id: task.id, statusId: board.statuses[2].id },
         id: 19,
       }, user);
-      expect(res.result.listId).toBe(board.lists[2].id);
+      expect(res.result.statusId).toBe(board.statuses[2].id);
+    });
+
+    it('should stamp doneAt when moving to a Done status', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const res = await service.handleRequest({
+        method: 'tasks_move',
+        params: { id: task.id, statusId: board.statuses[4].id },
+        id: 701,
+      }, user);
+      expect(res.result.doneAt).not.toBeNull();
+    });
+
+    it('should clear doneAt when moving out of a Done status', async () => {
+      const task = await seedTask(prisma, board.statuses[4].id, { doneAt: new Date() });
+      const res = await service.handleRequest({
+        method: 'tasks_move',
+        params: { id: task.id, statusId: board.statuses[0].id },
+        id: 702,
+      }, user);
+      expect(res.result.doneAt).toBeNull();
     });
   });
 
   describe('tasks_delete', () => {
-    it('should archive a task', async () => {
-      const task = await seedTask(prisma, board.lists[0].id);
+    it('should hard-delete a task', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
       const res = await service.handleRequest({ method: 'tasks_delete', params: { id: task.id }, id: 20 }, user);
-      expect(res.result.archived).toBe(true);
+      expect(res.result.deleted).toBe(true);
+      const gone = await prisma.task.findUnique({ where: { id: task.id } });
+      expect(gone).toBeNull();
     });
   });
 
@@ -270,10 +333,10 @@ describe('McpService', () => {
 
   describe('sub-tasks', () => {
     it('tasks_create with parentId returns task with parentId set', async () => {
-      const parent = await seedTask(prisma, board.lists[0].id, { title: 'Parent' });
+      const parent = await seedTask(prisma, board.statuses[0].id, { title: 'Parent' });
       const res = await service.handleRequest({
         method: 'tasks_create',
-        params: { listId: board.lists[0].id, title: 'Child', parentId: parent.id },
+        params: { statusId: board.statuses[0].id, title: 'Child', parentId: parent.id },
         id: 301,
       }, user);
       expect(res.result.parentId).toBe(parent.id);
@@ -281,10 +344,10 @@ describe('McpService', () => {
 
     it('tasks_create with invalid parentId (other board) returns JSON-RPC error', async () => {
       const otherBoard = await seedBoard(prisma);
-      const foreignParent = await seedTask(prisma, otherBoard.lists[0].id, { title: 'Foreign' });
+      const foreignParent = await seedTask(prisma, otherBoard.statuses[0].id, { title: 'Foreign' });
       const res = await service.handleRequest({
         method: 'tasks_create',
-        params: { listId: board.lists[0].id, title: 'Child', parentId: foreignParent.id },
+        params: { statusId: board.statuses[0].id, title: 'Child', parentId: foreignParent.id },
         id: 302,
       }, user);
       expect(res.error).toBeDefined();
@@ -293,8 +356,8 @@ describe('McpService', () => {
     });
 
     it('tasks_list with include="top" excludes sub-tasks', async () => {
-      const parent = await seedTask(prisma, board.lists[0].id, { title: 'Parent' });
-      await seedTask(prisma, board.lists[0].id, { title: 'Child', parentId: parent.id });
+      const parent = await seedTask(prisma, board.statuses[0].id, { title: 'Parent' });
+      await seedTask(prisma, board.statuses[0].id, { title: 'Child', parentId: parent.id });
       const res = await service.handleRequest({
         method: 'tasks_list',
         params: { boardId: board.id, include: 'top' },
@@ -309,7 +372,7 @@ describe('McpService', () => {
 
   describe('comments_list', () => {
     it('should list comments on a task', async () => {
-      const task = await seedTask(prisma, board.lists[0].id);
+      const task = await seedTask(prisma, board.statuses[0].id);
       await seedComment(prisma, task.id);
       const res = await service.handleRequest({ method: 'comments_list', params: { taskId: task.id }, id: 21 }, user);
       expect(res.result).toHaveLength(1);
@@ -318,7 +381,7 @@ describe('McpService', () => {
 
   describe('comments_create', () => {
     it('should create a comment with authenticated user as author', async () => {
-      const task = await seedTask(prisma, board.lists[0].id);
+      const task = await seedTask(prisma, board.statuses[0].id);
       const res = await service.handleRequest({
         method: 'comments_create',
         params: { taskId: task.id, body: 'MCP comment' },
@@ -363,7 +426,7 @@ describe('McpService', () => {
 
   describe('activity_list', () => {
     it('should list activity for a task', async () => {
-      const task = await seedTask(prisma, board.lists[0].id, { title: 'Activity test' });
+      const task = await seedTask(prisma, board.statuses[0].id, { title: 'Activity test' });
       // Seed some activity for this task
       await prisma.activity.createMany({
         data: [
@@ -385,8 +448,8 @@ describe('McpService', () => {
 
   describe('relations', () => {
     it('relations_list returns grouped relations', async () => {
-      const tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
-      const tB = await seedTask(prisma, board.lists[0].id, { title: 'B' });
+      const tA = await seedTask(prisma, board.statuses[0].id, { title: 'A' });
+      const tB = await seedTask(prisma, board.statuses[0].id, { title: 'B' });
       await seedRelation(prisma, tA.id, tB.id, 'blocks'); // A blocks B
 
       const res = await service.handleRequest({
@@ -402,8 +465,8 @@ describe('McpService', () => {
     });
 
     it('relations_create with direction=source → URL task blocks other', async () => {
-      const tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
-      const tB = await seedTask(prisma, board.lists[0].id, { title: 'B' });
+      const tA = await seedTask(prisma, board.statuses[0].id, { title: 'A' });
+      const tB = await seedTask(prisma, board.statuses[0].id, { title: 'B' });
       const res = await service.handleRequest({
         method: 'relations_create',
         params: { taskId: tA.id, otherTaskId: tB.id, type: 'blocks', direction: 'source' },
@@ -417,8 +480,8 @@ describe('McpService', () => {
     });
 
     it('relations_create with direction=target → URL task blocked by other', async () => {
-      const tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
-      const tB = await seedTask(prisma, board.lists[0].id, { title: 'B' });
+      const tA = await seedTask(prisma, board.statuses[0].id, { title: 'A' });
+      const tB = await seedTask(prisma, board.statuses[0].id, { title: 'B' });
       const res = await service.handleRequest({
         method: 'relations_create',
         params: { taskId: tA.id, otherTaskId: tB.id, type: 'blocks', direction: 'target' },
@@ -431,8 +494,8 @@ describe('McpService', () => {
     });
 
     it('relations_create with type=related_to → canonicalized', async () => {
-      const tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
-      const tB = await seedTask(prisma, board.lists[0].id, { title: 'B' });
+      const tA = await seedTask(prisma, board.statuses[0].id, { title: 'A' });
+      const tB = await seedTask(prisma, board.statuses[0].id, { title: 'B' });
       const res = await service.handleRequest({
         method: 'relations_create',
         params: { taskId: tA.id, otherTaskId: tB.id, type: 'related_to' },
@@ -446,8 +509,8 @@ describe('McpService', () => {
     });
 
     it('relations_delete removes the relation', async () => {
-      const tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
-      const tB = await seedTask(prisma, board.lists[0].id, { title: 'B' });
+      const tA = await seedTask(prisma, board.statuses[0].id, { title: 'A' });
+      const tB = await seedTask(prisma, board.statuses[0].id, { title: 'B' });
       const created = await service.handleRequest({
         method: 'relations_create',
         params: { taskId: tA.id, otherTaskId: tB.id, type: 'blocks', direction: 'source' },
@@ -464,8 +527,8 @@ describe('McpService', () => {
     });
 
     it('relations_create cycle rejection via MCP', async () => {
-      const tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
-      const tB = await seedTask(prisma, board.lists[0].id, { title: 'B' });
+      const tA = await seedTask(prisma, board.statuses[0].id, { title: 'A' });
+      const tB = await seedTask(prisma, board.statuses[0].id, { title: 'B' });
       await service.handleRequest({
         method: 'relations_create',
         params: { taskId: tA.id, otherTaskId: tB.id, type: 'blocks', direction: 'source' },
@@ -482,7 +545,7 @@ describe('McpService', () => {
     });
 
     it('relations_create self-reference rejection via MCP', async () => {
-      const tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
+      const tA = await seedTask(prisma, board.statuses[0].id, { title: 'A' });
       const res = await service.handleRequest({
         method: 'relations_create',
         params: { taskId: tA.id, otherTaskId: tA.id, type: 'blocks' },
@@ -514,7 +577,7 @@ describe('McpService', () => {
 
   describe('subscriptions + inbox', () => {
     it('task_subscribe → subscribes the authed user', async () => {
-      const task = await seedTask(prisma, board.lists[0].id);
+      const task = await seedTask(prisma, board.statuses[0].id);
       const res = await service.handleRequest({
         method: 'task_subscribe',
         params: { taskId: task.id },
@@ -528,7 +591,7 @@ describe('McpService', () => {
     });
 
     it('task_unsubscribe → removes the subscription', async () => {
-      const task = await seedTask(prisma, board.lists[0].id);
+      const task = await seedTask(prisma, board.statuses[0].id);
       await prisma.taskSubscription.create({ data: { taskId: task.id, userId: user.id } });
       const res = await service.handleRequest({
         method: 'task_unsubscribe',
@@ -543,7 +606,7 @@ describe('McpService', () => {
     });
 
     it('inbox_list → returns the authed user\'s notifications', async () => {
-      const task = await seedTask(prisma, board.lists[0].id);
+      const task = await seedTask(prisma, board.statuses[0].id);
       const activity = await prisma.activity.create({
         data: { taskId: task.id, actorId: null, actor: 'someone', action: 'commented', detail: '{}' },
       });
@@ -556,7 +619,7 @@ describe('McpService', () => {
     });
 
     it('inbox_list filter=unread → only unread', async () => {
-      const task = await seedTask(prisma, board.lists[0].id);
+      const task = await seedTask(prisma, board.statuses[0].id);
       const activity = await prisma.activity.create({
         data: { taskId: task.id, actorId: null, actor: 'someone', action: 'commented', detail: '{}' },
       });
@@ -572,7 +635,7 @@ describe('McpService', () => {
     });
 
     it('notifications_mark_read with id → marks that one read', async () => {
-      const task = await seedTask(prisma, board.lists[0].id);
+      const task = await seedTask(prisma, board.statuses[0].id);
       const activity = await prisma.activity.create({
         data: { taskId: task.id, actorId: null, actor: 'someone', action: 'commented', detail: '{}' },
       });
@@ -590,7 +653,7 @@ describe('McpService', () => {
     });
 
     it('notifications_mark_read with no id → marks all read', async () => {
-      const task = await seedTask(prisma, board.lists[0].id);
+      const task = await seedTask(prisma, board.statuses[0].id);
       const activity = await prisma.activity.create({
         data: { taskId: task.id, actorId: null, actor: 'someone', action: 'commented', detail: '{}' },
       });
@@ -611,7 +674,7 @@ describe('McpService', () => {
     });
 
     it('task_subscribe without user → JSON-RPC error', async () => {
-      const task = await seedTask(prisma, board.lists[0].id);
+      const task = await seedTask(prisma, board.statuses[0].id);
       const res = await service.handleRequest({
         method: 'task_subscribe',
         params: { taskId: task.id },
@@ -634,10 +697,10 @@ describe('McpService', () => {
 
   describe('without authenticated user', () => {
     it('should fall back to agent actor when no user provided', async () => {
-      const task = await seedTask(prisma, board.lists[0].id);
+      const task = await seedTask(prisma, board.statuses[0].id);
       await service.handleRequest({
         method: 'tasks_create',
-        params: { listId: board.lists[0].id, title: 'No user task' },
+        params: { statusId: board.statuses[0].id, title: 'No user task' },
         id: 200,
       });
       const activity = await prisma.activity.findFirst({ where: { action: 'created' } });
@@ -648,7 +711,7 @@ describe('McpService', () => {
     it('should use null assigneeId when no user provided', async () => {
       const res = await service.handleRequest({
         method: 'tasks_create',
-        params: { listId: board.lists[0].id, title: 'Unassigned task' },
+        params: { statusId: board.statuses[0].id, title: 'Unassigned task' },
         id: 201,
       });
       expect(res.result.assigneeId).toBeNull();
