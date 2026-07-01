@@ -20,15 +20,6 @@ export class NotificationsService {
 
   private isNotifying(activity: ActivityInput): boolean {
     if (activity.action === 'commented') return true;
-    if (activity.action === 'archived') return true;
-    if (activity.action === 'updated') {
-      try {
-        const parsed = JSON.parse(activity.detail ?? '{}') as { changes?: string[] };
-        return (parsed.changes ?? []).some((c) => c.startsWith('status:'));
-      } catch {
-        return false;
-      }
-    }
     return false;
   }
 
@@ -72,19 +63,6 @@ export class NotificationsService {
   private buildSummary(actor: string, action: string, taskNumber: string, title: string, detail: string | null): string {
     if (action === 'commented') {
       return `${actor} commented on ${taskNumber} "${title}"`;
-    }
-    if (action === 'archived') {
-      return `${actor} archived ${taskNumber} "${title}"`;
-    }
-    if (action === 'updated') {
-      try {
-        const parsed = JSON.parse(detail ?? '{}') as { changes?: string[] };
-        const statusLine = (parsed.changes ?? []).find((c) => c.startsWith('status:'));
-        const newStatus = statusLine?.replace('status:', '').trim();
-        return `${actor} changed status of ${taskNumber} to ${newStatus}`;
-      } catch {
-        return `${actor} updated ${taskNumber} "${title}"`;
-      }
     }
     return `${actor} ${action} ${taskNumber} "${title}"`;
   }
