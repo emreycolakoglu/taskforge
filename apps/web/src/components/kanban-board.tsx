@@ -36,22 +36,22 @@ export function KanbanBoard() {
   const queryClient = useQueryClient()
 
   const { data: board } = useBoardFull(id!)
-  const lists = board?.lists || []
+  const statuses = board?.statuses || []
   const labels: Label[] = board?.labels || []
 
   const { viewMode, setViewMode, filters, toggleLabelFilter, removeFilter, clearFilters } =
     useBoardViewState(id ?? '')
 
-  const [creatingInList, setCreatingInList] = useState<string | null>(null)
-  const [creatingSubTask, setCreatingSubTask] = useState<{ parentId: string; listId: string; parentTaskNumber?: string } | null>(null)
-  const [pendingDeleteListId, setPendingDeleteListId] = useState<string | null>(null)
+  const [creatingInStatus, setCreatingInStatus] = useState<string | null>(null)
+  const [creatingSubTask, setCreatingSubTask] = useState<{ parentId: string; statusId: string; parentTaskNumber?: string } | null>(null)
+  const [pendingDeleteStatusId, setPendingDeleteStatusId] = useState<string | null>(null)
   const [createDialogOpen, setCreateDialogOpen] = useState(false)
 
   const createTask = useCreateTask()
   const { data: users = [] } = useUsers()
 
   // Map of taskId → taskNumber for resolving parent badges on sub-task cards.
-  const tasks = useMemo(() => lists.flatMap((l) => l.tasks || []), [lists])
+  const tasks = useMemo(() => statuses.flatMap((s) => s.tasks || []), [statuses])
   const taskNumberById = useMemo(() => new Map(tasks.map((t) => [t.id, t.taskNumber])), [tasks])
 
   // WebSocket handles cache invalidation via useSocket
@@ -63,20 +63,20 @@ export function KanbanBoard() {
 
     try {
       if (source.droppableId === destination.droppableId) {
-        const list = lists.find((l) => l.id === source.droppableId)
-        if (!list?.tasks) return
-        const reordered = [...list.tasks]
+        const status = statuses.find((s) => s.id === source.droppableId)
+        if (!status?.tasks) return
+        const reordered = [...status.tasks]
         const [moved] = reordered.splice(source.index, 1)
         reordered.splice(destination.index, 0, moved)
         const items = reordered.map((t, i) => ({ id: t.id, position: i }))
         await api.tasks.reorder(items)
       } else {
-        const targetList = lists.find((l) => l.id === destination.droppableId)
-        const targetTasks = targetList?.tasks || []
+        const targetStatus = statuses.find((s) => s.id === destination.droppableId)
+        const targetTasks = targetStatus?.tasks || []
         const position = destination.index < targetTasks.length
           ? targetTasks[destination.index].position
           : (targetTasks.length > 0 ? targetTasks[targetTasks.length - 1].position + 1 : 0)
-        await api.tasks.move(draggableId, { listId: destination.droppableId, position })
+        await api.tasks.move(draggableId, { statusId: destination.droppableId, position })
       }
     } catch (error) {
       toast.error("Failed to move task", { description: error instanceof Error ? error.message : 'Unknown error' })
@@ -84,29 +84,29 @@ export function KanbanBoard() {
     queryClient.invalidateQueries({ queryKey: ['boards', id, 'full'] })
     queryClient.invalidateQueries({ queryKey: ['tasks', 'board', id] })
     queryClient.invalidateQueries({ queryKey: ['tasks', draggableId] })
-  }, [id, lists, queryClient])
+  }, [id, statuses, queryClient])
 
-  const handleCreateTask = (listId: string, title: string, parentId?: string) => {
+  const handleCreateTask = (statusId: string, title: string, parentId?: string) => {
     if (!id) return
     createTask.mutate(
-      { listId, title, boardId: id, parentId },
-      { onSuccess: () => { setCreatingInList(null); setCreatingSubTask(null) } },
+      { statusId, title, boardId: id, parentId },
+      { onSuccess: () => { setCreatingInStatus(null); setCreatingSubTask(null) } },
     )
   }
 
-  const handleCreateTaskDialog = (data: { title: string; description?: string; listId: string; priority: string; assigneeId?: string | null }) => {
+  const handleCreateTaskDialog = (data: { title: string; description?: string; statusId: string; priority: string; assigneeId?: string | null }) => {
     if (!id) return
     createTask.mutate({ ...data, boardId: id })
   }
 
-  async function handleDeleteList(listId: string) {
+  async function handleDeleteStatus(statusId: string) {
     try {
-      await api.lists.delete(listId)
-      toast.success("List deleted")
+      await api.statuses.delete(statusId)
+      toast.success("Status deleted")
       queryClient.invalidateQueries({ queryKey: ['boards', id!, 'full'] })
       queryClient.invalidateQueries({ queryKey: ['boards'] })
     } catch (error) {
-      toast.error("Failed to delete list", { description: error instanceof Error ? error.message : 'Unknown error' })
+      toast.error("Failed to delete status", { description: error instanceof Error ? error.message : 'Unknown error' })
       queryClient.invalidateQueries({ queryKey: ['boards', id!, 'full'] })
     }
   }
@@ -118,12 +118,12 @@ export function KanbanBoard() {
     return filters.labelIds.every((lid) => taskLabelIds.includes(lid))
   }, [filters.labelIds])
 
-  const filteredLists = useMemo(() => {
-    return lists.map((list) => ({
-      ...list,
-      tasks: (list.tasks || []).filter(filterTask),
+  const filteredStatuses = useMemo(() => {
+    return statuses.map((status) => ({
+      ...status,
+      tasks: (status.tasks || []).filter(filterTask),
     }))
-  }, [lists, filterTask])
+  }, [statuses, filterTask])
 
   const priorityColor = (p: string) => {
     switch (p) {
@@ -135,8 +135,8 @@ export function KanbanBoard() {
     }
   }
 
-  const pendingDeleteList = pendingDeleteListId
-    ? lists.find((l) => l.id === pendingDeleteListId)
+  const pendingDeleteStatus = pendingDeleteStatusId
+    ? statuses.find((s) => s.id === pendingDeleteStatusId)
     : null
 
   const hasActiveFilters = filters.labelIds.length > 0
@@ -172,7 +172,7 @@ export function KanbanBoard() {
             <thead>
               <tr className="border-b border-border bg-secondary/50">
                 <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Task</th>
-                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">List</th>
+                <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Status</th>
                 <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Priority</th>
                 <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Labels</th>
                 <th className="text-left text-xs font-medium text-muted-foreground uppercase tracking-wider py-2 px-3">Assignee</th>
@@ -180,8 +180,8 @@ export function KanbanBoard() {
               </tr>
             </thead>
             <tbody>
-              {lists.flatMap((l) =>
-                (l.tasks || []).filter(filterTask).map((t) => (
+              {statuses.flatMap((s) =>
+                (s.tasks || []).filter(filterTask).map((t) => (
                   <tr
                     key={t.id}
                     className="border-b border-border hover:bg-accent/50 cursor-pointer"
@@ -193,7 +193,7 @@ export function KanbanBoard() {
                       )}
                       {t.title}
                     </td>
-                    <td className="py-2.5 px-3 text-sm text-muted-foreground">{l.name}</td>
+                    <td className="py-2.5 px-3 text-sm text-muted-foreground">{s.name}</td>
                     <td className="py-2.5 px-3 text-sm">
                       <span className={cn("font-semibold text-xs", priorityColor(t.priority))}>
                         {t.priority}
@@ -220,16 +220,16 @@ export function KanbanBoard() {
         <DragDropContext onDragEnd={handleDragEnd}>
           <div className="flex-1 overflow-x-auto bg-background">
             <div className="flex gap-4 h-full min-h-0 px-4 py-3">
-              {filteredLists.map((list) => (
-                <Droppable key={list.id} droppableId={list.id}>
+              {filteredStatuses.map((status) => (
+                <Droppable key={status.id} droppableId={status.id}>
                   {(provided, snapshot) => (
                     <BoardColumn
-                      list={list}
-                      taskCount={list.tasks?.length || 0}
-                      isAdding={creatingInList === list.id}
-                      onAddTask={() => setCreatingInList(list.id)}
-                      onDeleteList={() => setPendingDeleteListId(list.id)}
-                      onEditList={() => navigate(`/board/${id}/settings`)}
+                      status={status}
+                      taskCount={status.tasks?.length || 0}
+                      isAdding={creatingInStatus === status.id}
+                      onAddTask={() => setCreatingInStatus(status.id)}
+                      onDeleteStatus={() => setPendingDeleteStatusId(status.id)}
+                      onEditStatus={() => navigate(`/board/${id}/settings`)}
                       droppableProvided={{
                         innerRef: provided.innerRef,
                         droppableProps: provided.droppableProps as unknown as Record<string, unknown>,
@@ -237,7 +237,7 @@ export function KanbanBoard() {
                       }}
                       isDraggingOver={snapshot.isDraggingOver}
                     >
-                      {(list.tasks || []).map((task, index) => (
+                      {(status.tasks || []).map((task, index) => (
                         <Draggable key={task.id} draggableId={task.id} index={index}>
                           {(dragProvided, dragSnapshot) => (
                             <div
@@ -253,7 +253,7 @@ export function KanbanBoard() {
                                 parentTaskNumber={task.parentId ? taskNumberById.get(task.parentId) : undefined}
                                 onAddSubTask={() => setCreatingSubTask({
                                   parentId: task.id,
-                                  listId: task.listId,
+                                  statusId: task.statusId,
                                   parentTaskNumber: task.taskNumber,
                                 })}
                               />
@@ -263,11 +263,11 @@ export function KanbanBoard() {
                       ))}
 
                       {/* Inline quick-add inside the column footer slot */}
-                      {creatingInList === list.id && (
+                      {creatingInStatus === status.id && (
                         <CreateTaskModal
-                          listId={list.id}
-                          onSubmit={(title) => handleCreateTask(list.id, title)}
-                          onClose={() => setCreatingInList(null)}
+                          statusId={status.id}
+                          onSubmit={(title) => handleCreateTask(status.id, title)}
+                          onClose={() => setCreatingInStatus(null)}
                         />
                       )}
                     </BoardColumn>
@@ -275,37 +275,37 @@ export function KanbanBoard() {
                 </Droppable>
               ))}
 
-              {/* Add list */}
+              {/* Add status */}
               <div className="w-[348px] shrink-0">
-                <AddListForm boardId={board.id} />
+                <AddStatusForm boardId={board.id} />
               </div>
             </div>
           </div>
         </DragDropContext>
       )}
 
-      {/* Delete list confirmation dialog */}
+      {/* Delete status confirmation dialog */}
       <Dialog
-        open={pendingDeleteListId !== null}
-        onOpenChange={(open) => { if (!open) setPendingDeleteListId(null) }}
+        open={pendingDeleteStatusId !== null}
+        onOpenChange={(open) => { if (!open) setPendingDeleteStatusId(null) }}
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete list</DialogTitle>
+            <DialogTitle>Delete status</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete &ldquo;{pendingDeleteList?.name}&rdquo;? All tasks in this list will also be deleted. This action cannot be undone.
+              Are you sure you want to delete &ldquo;{pendingDeleteStatus?.name}&rdquo;? All tasks in this status will also be deleted. This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPendingDeleteListId(null)}>
+            <Button variant="outline" onClick={() => setPendingDeleteStatusId(null)}>
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={() => {
-                if (pendingDeleteListId) {
-                  handleDeleteList(pendingDeleteListId)
-                  setPendingDeleteListId(null)
+                if (pendingDeleteStatusId) {
+                  handleDeleteStatus(pendingDeleteStatusId)
+                  setPendingDeleteStatusId(null)
                 }
               }}
             >
@@ -319,7 +319,7 @@ export function KanbanBoard() {
       <CreateTaskDialog
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
-        lists={lists}
+        statuses={statuses}
         users={users}
         onSubmit={handleCreateTaskDialog}
       />
@@ -341,12 +341,12 @@ export function KanbanBoard() {
             </DialogTitle>
           </DialogHeader>
           <CreateTaskModal
-            listId={creatingSubTask?.listId ?? ''}
+            statusId={creatingSubTask?.statusId ?? ''}
             parentId={creatingSubTask?.parentId}
             parentTaskNumber={creatingSubTask?.parentTaskNumber}
             onSubmit={(title) => {
               if (creatingSubTask) {
-                handleCreateTask(creatingSubTask.listId, title, creatingSubTask.parentId)
+                handleCreateTask(creatingSubTask.statusId, title, creatingSubTask.parentId)
               }
             }}
             onClose={() => setCreatingSubTask(null)}
@@ -357,7 +357,7 @@ export function KanbanBoard() {
   )
 }
 
-function AddListForm({ boardId }: { boardId: string }) {
+function AddStatusForm({ boardId }: { boardId: string }) {
   const [editing, setEditing] = useState(false)
   const [name, setName] = useState('')
   const queryClient = useQueryClient()
@@ -365,14 +365,14 @@ function AddListForm({ boardId }: { boardId: string }) {
   const handleSubmit = async () => {
     if (!name.trim()) return
     try {
-      await api.lists.create({ boardId, name: name.trim() })
-      toast.success("List created")
+      await api.statuses.create({ boardId, name: name.trim() })
+      toast.success("Status created")
       setName('')
       setEditing(false)
       queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] })
       queryClient.invalidateQueries({ queryKey: ['boards'] })
     } catch (error) {
-      toast.error("Failed to create list", { description: error instanceof Error ? error.message : 'Unknown error' })
+      toast.error("Failed to create status", { description: error instanceof Error ? error.message : 'Unknown error' })
       queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] })
     }
   }
@@ -385,7 +385,7 @@ function AddListForm({ boardId }: { boardId: string }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-          placeholder="List name..."
+          placeholder="Status name..."
         />
         <div className="flex gap-2">
           <Button size="sm" onClick={handleSubmit}>Add</Button>
@@ -402,7 +402,7 @@ function AddListForm({ boardId }: { boardId: string }) {
       onClick={() => setEditing(true)}
     >
       <Plus data-icon="inline-start" />
-      Add List
+      Add Status
     </Button>
   )
 }

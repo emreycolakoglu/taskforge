@@ -3,7 +3,7 @@
  *
  * Splits the old header into a breadcrumb row (identifier + nav actions) and
  * lets the title live in the main column below. Left: back chevron → breadcrumb
- * text (Board › List › TF-730). Right: prev/next + position indicator (mono) +
+ * text (Board › Status › TF-730). Right: prev/next + position indicator (mono) +
  * actions DropdownMenu (⋯) with Copy ID / Copy URL (client-side only).
  *
  * design.md: h-11, bg-secondary, border-b — matches board-header-bar pattern.

@@ -2,14 +2,14 @@
  * CreateTaskDialog — full create-issue dialog (Linear-style).
  *
  * Opened from the board header "New Issue" CTA. Fields: title (autofocus, Enter
- * submits), description (Textarea), list (Select), priority (Select), assignee
+ * submits), description (Textarea), status (Select), priority (Select), assignee
  * (Select with avatar initial, reuses the DetailAssigneeSelect visual). The submit button is the Acid Lime
  * primary CTA — the modal is a focused conversion moment (design.md: a modal is
  * arguably a second screen, so Lime is permitted here).
  */
 
 import { useState, useEffect } from 'react'
-import type { List, Task, User } from '@/types'
+import type { Status, Task, User } from '@/types'
 import {
   Dialog,
   DialogContent,
@@ -32,10 +32,10 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 interface CreateTaskDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  lists: List[]
+  statuses: Status[]
   users: User[]
-  defaultListId?: string
-  onSubmit: (data: { title: string; description?: string; listId: string; priority: Task['priority']; assigneeId?: string | null }) => void
+  defaultStatusId?: string
+  onSubmit: (data: { title: string; description?: string; statusId: string; priority: Task['priority']; assigneeId?: string | null }) => void
 }
 
 const PRIORITIES: { value: Task['priority']; label: string }[] = [
@@ -48,14 +48,14 @@ const PRIORITIES: { value: Task['priority']; label: string }[] = [
 export function CreateTaskDialog({
   open,
   onOpenChange,
-  lists,
+  statuses,
   users,
-  defaultListId,
+  defaultStatusId,
   onSubmit,
 }: CreateTaskDialogProps) {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
-  const [listId, setListId] = useState(defaultListId ?? lists[0]?.id ?? '')
+  const [statusId, setStatusId] = useState(defaultStatusId ?? statuses[0]?.id ?? '')
   const [priority, setPriority] = useState<Task['priority']>('medium')
   const [assigneeId, setAssigneeId] = useState<string | null>(null)
 
@@ -63,18 +63,18 @@ export function CreateTaskDialog({
     if (open) {
       setTitle('')
       setDescription('')
-      setListId(defaultListId ?? lists[0]?.id ?? '')
+      setStatusId(defaultStatusId ?? statuses[0]?.id ?? '')
       setPriority('medium')
       setAssigneeId(null)
     }
-  }, [open, defaultListId, lists])
+  }, [open, defaultStatusId, statuses])
 
   const handleSubmit = () => {
-    if (!title.trim() || !listId) return
+    if (!title.trim() || !statusId) return
     onSubmit({
       title: title.trim(),
       description: description.trim() ? description.trim() : undefined,
-      listId,
+      statusId,
       priority,
       assigneeId,
     })
@@ -104,13 +104,13 @@ export function CreateTaskDialog({
             rows={3}
           />
           <div className="flex gap-2">
-            <Select value={listId} onValueChange={setListId}>
+            <Select value={statusId} onValueChange={setStatusId}>
               <SelectTrigger className="flex-1">
-                <SelectValue placeholder="List" />
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                {lists.map((l) => (
-                  <SelectItem key={l.id} value={l.id}>{l.name}</SelectItem>
+                {statuses.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
