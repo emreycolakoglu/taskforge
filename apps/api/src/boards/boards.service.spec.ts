@@ -30,7 +30,7 @@ describe('BoardsService', () => {
     await prisma.comment.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
-    await prisma.list.deleteMany();
+    await prisma.status.deleteMany();
     await prisma.member.deleteMany();
     await prisma.board.deleteMany();
   });
@@ -47,7 +47,7 @@ describe('BoardsService', () => {
       const boards = await service.findAll();
       expect(boards).toHaveLength(2);
       expect(boards[0]).toHaveProperty('_count');
-      expect(boards[0]._count).toHaveProperty('lists');
+      expect(boards[0]._count).toHaveProperty('statuses');
       expect(boards[0]._count).toHaveProperty('members');
     });
   });
@@ -57,11 +57,11 @@ describe('BoardsService', () => {
       await expect(service.findOne('nonexistent')).rejects.toThrow('Board not found');
     });
 
-    it('should return board with lists, labels, and members', async () => {
+    it('should return board with statuses, labels, and members', async () => {
       const seeded = await seedBoard(prisma);
       const board = await service.findOne(seeded.id);
       expect(board.id).toBe(seeded.id);
-      expect(board.lists).toHaveLength(5);
+      expect(board.statuses).toHaveLength(5);
       expect(board.labels).toEqual([]);
       expect(board.members).toEqual([]);
     });
@@ -71,26 +71,26 @@ describe('BoardsService', () => {
     it('should return board with nested tasks', async () => {
       const seeded = await seedBoard(prisma);
       const board = await service.findFull(seeded.id);
-      expect(board.lists).toHaveLength(5);
-      for (const list of board.lists) {
-        expect(list).toHaveProperty('tasks');
-        expect(Array.isArray(list.tasks)).toBe(true);
+      expect(board.statuses).toHaveLength(5);
+      for (const status of board.statuses) {
+        expect(status).toHaveProperty('tasks');
+        expect(Array.isArray(status.tasks)).toBe(true);
       }
     });
 
     it('should include assignee, _count (comments), labels, and taskNumber on tasks', async () => {
       const seeded = await seedBoard(prisma);
-      const list = seeded.lists[0];
+      const status = seeded.statuses[0];
       const label = await seedLabel(prisma, seeded.id);
       const user = await seedUser(prisma);
-      const task = await seedTask(prisma, list.id, { assigneeId: user.id });
+      const task = await seedTask(prisma, status.id, { assigneeId: user.id });
       // Attach label to task
       await prisma.taskLabel.create({ data: { taskId: task.id, labelId: label.id } });
       // Add a comment
       await seedComment(prisma, task.id);
 
       const board = await service.findFull(seeded.id);
-      const tasks = board.lists.flatMap((l: any) => l.tasks);
+      const tasks = board.statuses.flatMap((s: any) => s.tasks);
       const found = tasks.find((t: any) => t.id === task.id);
 
       expect(found).toBeDefined();
@@ -103,11 +103,11 @@ describe('BoardsService', () => {
 
     it('should return null assignee when no assignee is set', async () => {
       const seeded = await seedBoard(prisma);
-      const list = seeded.lists[0];
-      const task = await seedTask(prisma, list.id);
+      const status = seeded.statuses[0];
+      const task = await seedTask(prisma, status.id);
 
       const board = await service.findFull(seeded.id);
-      const found = board.lists.flatMap((l: any) => l.tasks).find((t: any) => t.id === task.id);
+      const found = board.statuses.flatMap((s: any) => s.tasks).find((t: any) => t.id === task.id);
 
       expect(found).toBeDefined();
       expect(found.assignee).toBeNull();
@@ -117,14 +117,15 @@ describe('BoardsService', () => {
   });
 
   describe('create', () => {
-    it('should create a board with 5 default lists', async () => {
+    it('should create a board with 5 default statuses, Done isDone=true', async () => {
       const board = await service.create({ name: 'New Board', slug: 'new-board', identifier: 'NEW' });
       expect(board.name).toBe('New Board');
       expect(board.slug).toBe('new-board');
       expect(board.identifier).toBe('NEW');
-      expect(board.lists).toHaveLength(5);
-      const listNames = board.lists.map((l) => l.name);
-      expect(listNames).toEqual(['Backlog', 'To Do', 'In Progress', 'Review', 'Done']);
+      expect(board.statuses).toHaveLength(5);
+      const statuses = board.statuses;
+      expect(statuses.map((s: any) => s.name)).toEqual(['Backlog', 'To Do', 'In Progress', 'Review', 'Done']);
+      expect(statuses.find((s: any) => s.name === 'Done').isDone).toBe(true);
     });
 
     it('should create a board with 5 default labels', async () => {
@@ -174,11 +175,11 @@ describe('BoardsService', () => {
       await expect(service.findOne(seeded.id)).rejects.toThrow('Board not found');
     });
 
-    it('should cascade delete lists', async () => {
+    it('should cascade delete statuses', async () => {
       const seeded = await seedBoard(prisma);
       await service.remove(seeded.id);
-      const lists = await prisma.list.findMany({ where: { boardId: seeded.id } });
-      expect(lists).toHaveLength(0);
+      const statuses = await prisma.status.findMany({ where: { boardId: seeded.id } });
+      expect(statuses).toHaveLength(0);
     });
   });
 });
