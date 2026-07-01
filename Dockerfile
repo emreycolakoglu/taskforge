@@ -48,8 +48,12 @@ COPY --from=builder /app/apps/web/dist ./apps/web/dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/apps/api/node_modules ./apps/api/node_modules
 
-# Create data directory for SQLite
+# Create data directory for SQLite and declare it as a volume so the
+# SQLite database survives container recreation when no -v flag is given.
+# For named-volume persistence across redeploys, mount a volume at /data
+# (see docker-compose.yml).
 RUN mkdir -p /data
+VOLUME ["/data"]
 
 # Prisma generate in production
 RUN cd apps/api && pnpm prisma:generate

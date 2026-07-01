@@ -543,11 +543,23 @@ The Dockerfile uses multi-stage builds:
 
 ### Volumes
 
+> **Data loss warning:** The SQLite database lives at `/data/taskforge.db` inside the container. Without a persistent volume mounted at `/data`, **every redeploy recreates the container and wipes the database**. This is true for `docker run`, `docker compose up`, Coolify, and any container orchestrator.
+
 Mount a volume at `/data` to persist the SQLite database:
 
 ```yaml
 volumes:
   - taskforge-data:/data
+```
+
+The Dockerfile declares `VOLUME ["/data"]` so anonymous Docker storage is created automatically on `docker run` without `-v` — but anonymous volumes are per-container and do **not** survive `docker rm` or image redeploys. For real persistence, use a **named volume** or a **bind mount**:
+
+```bash
+# Named volume (recommended)
+docker run -d --name taskforge -p 3000:3000 -v taskforge-data:/data emreyc/taskforge:latest
+
+# Bind mount (for backups / host access)
+docker run -d --name taskforge -p 3000:3000 -v /opt/taskforge-data:/data emreyc/taskforge:latest
 ```
 
 ### Health Check

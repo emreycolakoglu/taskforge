@@ -25,6 +25,16 @@ pnpm dev          # API on :3000, Web on :5173 (proxies /api and /ws to :3000)
 
 The API will crash if Prisma client hasn't been generated. The web app needs the API running for data.
 
+## Workflow
+
+**Never merge to `main` directly after creating a feature.** Always open a pull request using the `gh` CLI tool so CI can run and the change can be reviewed before it lands on `main`. Example:
+
+```bash
+gh pr create --title "feat: <short description>" --body "<what and why>"
+```
+
+Do not push to or merge into `main` directly. Let CI (`ci.yml`) pass on the PR before merging.
+
 ## Commands
 
 | What               | Command                                                                 |
@@ -61,6 +71,7 @@ Schema migrations run automatically on container startup via `apps/api/docker-en
 - **CI gates releases** — `release.yml` triggers via `workflow_run` on `ci` success. A broken main push won't publish to Docker Hub.
 - **`packages/` directory doesn't exist yet** — the workspace config includes it, but nothing is there.
 - **SQLite DB is gitignored** — `*.db` and `*.db-journal` are in `.gitignore`.
+- **SQLite persistence requires a named volume** — the DB lives at `/data/taskforge.db` inside the container. Without a named volume mounted at `/data` (or a bind mount), redeploying wipes the DB. The Dockerfile declares `VOLUME ["/data"]` for anonymous-volume safety, but real persistence needs an explicit named volume. See `docker-compose.yml` for the pattern.
 - **API serves the SPA in production** — `main.ts` uses `useStaticAssets` pointing to `../../web/dist` with SPA fallback.
 - **Migrations run on container startup** — `docker-entrypoint.sh` runs `prisma migrate deploy` before starting the app. The old `ensureSchema` method in `PrismaService` was removed; schema management is now the entrypoint's job, not the app's.
 - **Frontend must follow `design.md`** — read it before any `apps/web/` change; use the defined tokens, not hardcoded colors or ad-hoc styling.
