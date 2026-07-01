@@ -2,6 +2,8 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { RelationsService } from '../relations/relations.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { NotificationsService } from '../notifications/notifications.service';
 
 function withTaskNumber(task: any): any {
   const identifier = task.board?.identifier ?? task.list?.board?.identifier;
@@ -65,11 +67,14 @@ export class McpService {
     private prisma: PrismaService,
     private events: EventsService,
     private relations: RelationsService,
+    private subscriptions: SubscriptionsService,
+    private notifications: NotificationsService,
   ) {}
 
   async handleRequest(req: McpRequest, user?: AuthUser): Promise<McpResponse> {
     try {
-      const [resource, action] = req.method.split('_');
+      const [resource, ...actionParts] = req.method.split('_');
+      const action = actionParts.join('_');
 
       let result: any;
 
@@ -77,10 +82,13 @@ export class McpService {
         case 'boards': result = await this.handleBoards(action, req.params, user); break;
         case 'lists': result = await this.handleLists(action, req.params, user); break;
         case 'tasks': result = await this.handleTasks(action, req.params, user); break;
+        case 'task': result = await this.handleTasks(action, req.params, user); break;
         case 'comments': result = await this.handleComments(action, req.params, user); break;
         case 'labels': result = await this.handleLabels(action, req.params); break;
         case 'activity': result = await this.handleActivity(action, req.params); break;
         case 'relations': result = await this.handleRelations(action, req.params, user); break;
+        case 'inbox': result = await this.handleInbox(action, req.params, user); break;
+        case 'notifications': result = await this.handleNotifications(action, req.params, user); break;
         default:
           return { jsonrpc: '2.0', id: req.id, error: { code: -32601, message: `Method not found: ${req.method}` } };
       }
@@ -414,6 +422,16 @@ export class McpService {
         this.events.emit('task:deleted', { id: params.id }, existingTask?.boardId);
         return { archived: true };
       }
+      case 'subscribe': {
+        if (!user) throw new Error('Authentication required');
+        await this.subscriptions.subscribe(params.taskId, user.id);
+        return { subscribed: true };
+      }
+      case 'unsubscribe': {
+        if (!user) throw new Error('Authentication required');
+        await this.subscriptions.unsubscribe(params.taskId, user.id);
+        return { subscribed: false };
+      }
       default:
         throw new Error(`Unknown action: tasks_${action}`);
     }
@@ -506,6 +524,32 @@ export class McpService {
         return this.relations.delete(params.relationId);
       default:
         throw new Error(`Unknown action: relations_${action}`);
+    }
+  }
+
+  private async handleInbox(action: string, params: any, user?: AuthUser) {
+    switch (action) {
+      case 'list': {
+        if (!user) throw new Error('Authentication required');
+        return this.notifications.listForUser(user.id, params.filter ?? 'all', params.limit);
+      }
+      default:
+        throw new Error(`Unknown action: inbox_${action}`);
+    }
+  }
+
+  private async handleNotifications(action: string, params: any, user?: AuthUser) {
+    switch (action) {
+      case 'mark_read': {
+        if (!user) throw new Error('Authentication required');
+        if (params.id) {
+          await this.notifications.markRead(params.id, user.id);
+          return { updated: 1 };
+        }
+        return this.notifications.markAllRead(user.id);
+      }
+      default:
+        throw new Error(`Unknown action: notifications_${action}`);
     }
   }
 }

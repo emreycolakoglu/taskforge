@@ -23,6 +23,8 @@ model User {
   comments       Comment[]     @relation("CommentAuthor")
   activities     Activity[]    @relation("ActivityActor")
   members        Member[]
+  subscriptions  TaskSubscription[]
+  notifications  Notification[]
 
   @@map("users")
 }
@@ -127,6 +129,8 @@ model Task {
   activity       Activity[]
   relationsFrom  TaskRelation[] @relation("TaskRelationsFrom")
   relationsTo    TaskRelation[] @relation("TaskRelationsTo")
+  subscriptions  TaskSubscription[]
+  notifications  Notification[]
 
   @@unique([boardId, number])
   @@index([boardId])
@@ -200,6 +204,7 @@ model Activity {
 
   task     Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
   actorRel User? @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+  notification Notification[]
 
   @@index([actorId])
 }
@@ -215,4 +220,38 @@ model Member {
 
   @@unique([boardId, userId])
   @@index([userId])
+}
+
+model TaskSubscription {
+  id        String   @id @default(cuid())
+  taskId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId])
+  @@index([taskId])
+  @@map("task_subscriptions")
+}
+
+model Notification {
+  id         String    @id @default(cuid())
+  userId     String
+  taskId     String
+  activityId String
+  action     String
+  summary    String
+  readAt     DateTime?
+  createdAt  DateTime  @default(now())
+
+  user     User     @relation(fields: [userId],     references: [id], onDelete: Cascade)
+  task     Task     @relation(fields: [taskId],     references: [id], onDelete: Cascade)
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
+  @@map("notifications")
 }

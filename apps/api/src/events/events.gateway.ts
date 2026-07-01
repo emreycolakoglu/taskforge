@@ -25,8 +25,10 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
   ) {}
 
   afterInit() {
-    this.events.observe().subscribe(({ event, data, boardId }) => {
-      if (boardId) {
+    this.events.observe().subscribe(({ event, data, boardId, userRoom }) => {
+      if (userRoom) {
+        this.server.to(`user:${userRoom}`).emit(event, data);
+      } else if (boardId) {
         this.server.to(`board:${boardId}`).emit(event, data);
       } else {
         this.server.emit(event, data);
@@ -79,6 +81,8 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
       if (data.boardId) {
         client.join(`board:${data.boardId}`);
       }
+
+      client.join(`user:${user.id}`);
 
       client.emit('auth_success', { user });
     } catch {

@@ -548,4 +548,68 @@ describe('api', () => {
     });
     expect(result.deleted).toBe(true);
   });
+
+  // ─── Subscriptions + Notifications ──────────────────────────────────────────
+
+  it('api.subscriptions.get → GET /tasks/<id>/subscription', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ subscribed: true }) });
+    const { api } = await import('./api');
+    const result = await api.subscriptions.get('t1');
+    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/subscription', expect.any(Object));
+    expect(result).toEqual({ subscribed: true });
+  });
+
+  it('api.subscriptions.create → POST /tasks/<id>/subscription', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ subscribed: true }) });
+    const { api } = await import('./api');
+    const result = await api.subscriptions.create('t1');
+    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/subscription', expect.objectContaining({ method: 'POST' }));
+    expect(result.subscribed).toBe(true);
+  });
+
+  it('api.subscriptions.delete → DELETE /tasks/<id>/subscription', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ subscribed: false }) });
+    const { api } = await import('./api');
+    const result = await api.subscriptions.delete('t1');
+    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/subscription', expect.objectContaining({ method: 'DELETE' }));
+    expect(result.subscribed).toBe(false);
+  });
+
+  it('api.notifications.list → GET /notifications', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([]) });
+    const { api } = await import('./api');
+    await api.notifications.list();
+    expect(mockFetch).toHaveBeenCalledWith('/api/notifications', expect.any(Object));
+  });
+
+  it('api.notifications.list(filter) → GET /notifications?filter=unread', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve([]) });
+    const { api } = await import('./api');
+    await api.notifications.list('unread');
+    expect(mockFetch).toHaveBeenCalledWith('/api/notifications?filter=unread', expect.any(Object));
+  });
+
+  it('api.notifications.unreadCount → GET /notifications/unread-count', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ count: 3 }) });
+    const { api } = await import('./api');
+    const result = await api.notifications.unreadCount();
+    expect(mockFetch).toHaveBeenCalledWith('/api/notifications/unread-count', expect.any(Object));
+    expect(result.count).toBe(3);
+  });
+
+  it('api.notifications.markRead → POST /notifications/<id>/read', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ read: true }) });
+    const { api } = await import('./api');
+    const result = await api.notifications.markRead('n1');
+    expect(mockFetch).toHaveBeenCalledWith('/api/notifications/n1/read', expect.objectContaining({ method: 'POST' }));
+    expect(result.read).toBe(true);
+  });
+
+  it('api.notifications.markAllRead → POST /notifications/read-all', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ updated: 5 }) });
+    const { api } = await import('./api');
+    const result = await api.notifications.markAllRead();
+    expect(mockFetch).toHaveBeenCalledWith('/api/notifications/read-all', expect.objectContaining({ method: 'POST' }));
+    expect(result.updated).toBe(5);
+  });
 });

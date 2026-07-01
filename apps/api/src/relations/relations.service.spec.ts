@@ -4,6 +4,8 @@ import { RelationsService } from './relations.service';
 import { TasksService } from '../tasks/tasks.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { createTestPrisma, seedBoard, seedTask, seedRelation } from '../../test/setup';
 
 describe('RelationsService', () => {
@@ -23,6 +25,8 @@ describe('RelationsService', () => {
         TasksService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
+        { provide: SubscriptionsService, useValue: new SubscriptionsService(prisma) },
+        { provide: NotificationsService, useValue: new NotificationsService(prisma, events) },
       ],
     }).compile();
     service = module.get<RelationsService>(RelationsService);
@@ -42,6 +46,8 @@ describe('RelationsService', () => {
 
   afterEach(async () => {
     // reverse dependency order: relations before tasks
+    await prisma.notification.deleteMany();
+    await prisma.taskSubscription.deleteMany();
     await prisma.taskRelation.deleteMany();
     await prisma.activity.deleteMany();
     await prisma.comment.deleteMany();

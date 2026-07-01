@@ -2,6 +2,8 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { RelationsService } from '../relations/relations.service';
+import { SubscriptionsService } from '../subscriptions/subscriptions.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { CreateTaskDto, UpdateTaskDto, MoveTaskDto, ReorderTasksDto } from './dto/task.dto';
 
 export function withTaskNumber(task: any): any {
@@ -83,6 +85,8 @@ export class TasksService {
     private prisma: PrismaService,
     private events: EventsService,
     private relations: RelationsService,
+    private subscriptions: SubscriptionsService,
+    private notifications: NotificationsService,
   ) {}
 
   async findByBoard(boardId: string, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }) {
@@ -254,6 +258,10 @@ export class TasksService {
       },
     });
 
+    if (user) {
+      await this.subscriptions.subscribe(task.id, user.id);
+    }
+
     this.events.emit('task:created', task, task.list.boardId);
     return withTaskNumber(task);
   }
@@ -316,7 +324,7 @@ export class TasksService {
     }
 
     if (detail.length > 0) {
-      await this.prisma.activity.create({
+      const activity = await this.prisma.activity.create({
         data: {
           taskId: id,
           actorId: user?.id ?? null,
@@ -325,6 +333,7 @@ export class TasksService {
           detail: JSON.stringify({ changes: detail }),
         },
       });
+      await this.notifications.dispatchFromActivity(activity);
     }
 
     this.events.emit('task:updated', task, task.list.boardId);
@@ -353,7 +362,7 @@ export class TasksService {
     });
 
     const newList = await this.prisma.list.findUnique({ where: { id: dto.listId } });
-    await this.prisma.activity.create({
+    const activity = await this.prisma.activity.create({
       data: {
         taskId: id,
         actorId: user?.id ?? null,
@@ -362,6 +371,7 @@ export class TasksService {
         detail: JSON.stringify({ from: existing.listId, to: dto.listId, listName: newList?.name }),
       },
     });
+    await this.notifications.dispatchFromActivity(activity);
 
     this.events.emit('task:moved', task, task.list.boardId);
     return withTaskNumber(task);
@@ -377,7 +387,7 @@ export class TasksService {
   async remove(id: string, user?: { id: string; displayName: string }) {
     const task = await this.findOne(id);
     const boardId = task.list.boardId;
-    await this.prisma.activity.create({
+    const activity = await this.prisma.activity.create({
       data: {
         taskId: id,
         actorId: user?.id ?? null,
@@ -386,6 +396,7 @@ export class TasksService {
         detail: JSON.stringify({ reason: 'manual archive' }),
       },
     });
+    await this.notifications.dispatchFromActivity(activity);
     const archived = await this.prisma.task.update({ where: { id }, data: { status: 'archived' } });
 
     // C6 — orphan promotion: clear parentId on children and emit task:updated per child.

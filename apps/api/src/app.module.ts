@@ -12,6 +12,8 @@ import { ActivityModule } from './activity/activity.module';
 import { McpModule } from './mcp/mcp.module';
 import { RelationsModule } from './relations/relations.module';
 import { EventsModule } from './events/events.module';
+import { SubscriptionsModule } from './subscriptions/subscriptions.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { EventsModule } from './events/events.module';
     McpModule,
     RelationsModule,
     EventsModule,
+    SubscriptionsModule,
+    NotificationsModule,
   ],
 })
 export class AppModule {}

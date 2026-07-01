@@ -163,6 +163,22 @@ export interface Settings {
   updatedAt: string | null;
 }
 
+export interface Notification {
+  id: string;
+  userId: string;
+  taskId: string;
+  activityId: string;
+  action: string;
+  summary: string;
+  readAt: string | null;
+  createdAt: string;
+  task?: { id: string; title: string; number: number; board: { identifier: string } };
+}
+
+export interface TaskSubscriptionState {
+  subscribed: boolean;
+}
+
 export const API_BASE = '/api';
 
 export const PREDEFINED_COLORS = [

@@ -1,4 +1,4 @@
-import { API_BASE, Board, List, Task, TaskLabel, Comment, Label, User, AuthStatus, OnboardRequest, AuthResponse, InviteTokenResponse, Invite, Settings, RelationType, RelationEntry, TaskRelations } from '../types';
+import { API_BASE, Board, List, Task, TaskLabel, Comment, Label, User, AuthStatus, OnboardRequest, AuthResponse, InviteTokenResponse, Invite, Settings, RelationType, RelationEntry, TaskRelations, Notification, TaskSubscriptionState } from '../types';
 
 const TOKEN_KEY = 'taskforge_token';
 
@@ -159,6 +159,22 @@ export const api = {
       request<RelationEntry>(`/tasks/${taskId}/relations`, { method: 'POST', body: JSON.stringify(data) }),
     delete: (taskId: string, relationId: string) =>
       request<{ deleted: boolean }>(`/tasks/${taskId}/relations/${relationId}`, { method: 'DELETE' }),
+  },
+
+  // Subscriptions
+  subscriptions: {
+    get: (taskId: string) => request<TaskSubscriptionState>(`/tasks/${taskId}/subscription`),
+    create: (taskId: string) => request<TaskSubscriptionState>(`/tasks/${taskId}/subscription`, { method: 'POST' }),
+    delete: (taskId: string) => request<TaskSubscriptionState>(`/tasks/${taskId}/subscription`, { method: 'DELETE' }),
+  },
+
+  // Notifications
+  notifications: {
+    list: (filter?: 'unread' | 'all') =>
+      request<Notification[]>(`/notifications${filter ? `?filter=${filter}` : ''}`),
+    unreadCount: () => request<{ count: number }>('/notifications/unread-count'),
+    markRead: (id: string) => request<{ read: boolean }>(`/notifications/${id}/read`, { method: 'POST' }),
+    markAllRead: () => request<{ updated: number }>('/notifications/read-all', { method: 'POST' }),
   },
 
   // MCP
