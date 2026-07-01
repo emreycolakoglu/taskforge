@@ -144,5 +144,11 @@ describe('StatusesService', () => {
       const tasks = await prisma.task.findMany({ where: { statusId: doneStatus.id } });
       expect(tasks.every((t) => t.doneAt === null)).toBe(true);
     });
+
+    it('is a no-op when no done status exists', async () => {
+      await service.unsetDone(board.id);
+      const result = await service.unsetDone(board.id);
+      expect(result).toEqual({ unset: true });
+    });
   });
 });

@@ -84,11 +84,13 @@ export class StatusesService {
 
   async unsetDone(boardId: string, _user?: { id: string; displayName: string }) {
     const done = await this.prisma.status.findFirst({ where: { boardId, isDone: true } });
-    if (!done) return;
+    if (!done) return { unset: true };
     await this.prisma.$transaction(async (tx) => {
       await tx.status.update({ where: { id: done.id }, data: { isDone: false } });
       await tx.task.updateMany({ where: { statusId: done.id }, data: { doneAt: null } });
     });
-    this.events.emit('status:doneToggled', { id: done.id, isDone: false }, boardId);
+    const refreshed = await this.findOne(done.id);
+    this.events.emit('status:doneToggled', refreshed, boardId);
+    return { unset: true };
   }
 }
