@@ -18,6 +18,7 @@ import { DetailStatusSelect } from './detail-status-select'
 import { DetailPrioritySelect } from './detail-priority-select'
 import { DetailAssigneeSelect } from './detail-assignee-select'
 import { DetailAddParentPopover } from './detail-add-parent-popover'
+import { SubscribeButton } from './subscribe-button'
 import type { Board, Task, User, TaskRelations } from '@/types'
 
 interface DetailPropertiesSidebarProps {
@@ -57,6 +58,9 @@ export function DetailPropertiesSidebar({
     <aside className="w-[260px] shrink-0 border-l border-border bg-secondary">
       <ScrollArea className="h-full">
         <div className="p-4 space-y-1">
+          <DetailPropertyRow label="Subscribed">
+            <SubscribeButton taskId={task.id} />
+          </DetailPropertyRow>
           {/* Group 1 — Status & ownership */}
           <DetailPropertyRow label="Status">
             <DetailStatusSelect
