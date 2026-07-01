@@ -64,7 +64,7 @@ export function useUpdateTask() {
 export function useMoveTask() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data, boardId }: { id: string; data: { listId: string; position?: number }; boardId: string }) =>
+    mutationFn: ({ id, data, boardId }: { id: string; data: { statusId: string; position?: number }; boardId: string }) =>
       api.tasks.move(id, data),
     onSuccess: (_data, variables) => {
       toast.success("Task moved");

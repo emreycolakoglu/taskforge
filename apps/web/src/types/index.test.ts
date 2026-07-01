@@ -9,10 +9,10 @@ describe('Types', () => {
       slug: 'test',
       identifier: 'TST',
       createdAt: '2026-01-01T00:00:00Z',
-      lists: [],
+      statuses: [],
       labels: [],
       members: [],
-      _count: { lists: 0, tasks: 0 },
+      _count: { statuses: 0, tasks: 0 },
     };
     expect(board.id).toBe('b1');
     expect(board.name).toBe('Test');
@@ -22,14 +22,13 @@ describe('Types', () => {
   it('should have correct type structure for Task', () => {
     const task: Task = {
       id: 't1',
-      listId: 'l1',
+      statusId: 's1',
       boardId: 'b1',
       number: 1,
       taskNumber: 'TST-1',
       title: 'Test task',
       position: 0,
       priority: 'high',
-      status: 'active',
       createdAt: '2026-01-01T00:00:00Z',
       updatedAt: '2026-01-01T00:00:00Z',
       labels: [],
@@ -45,11 +44,6 @@ describe('Types', () => {
   it('should accept all priority levels', () => {
     const priorities: Task['priority'][] = ['low', 'medium', 'high', 'urgent'];
     expect(priorities).toHaveLength(4);
-  });
-
-  it('should accept all task statuses', () => {
-    const statuses: Task['status'][] = ['active', 'archived', 'done'];
-    expect(statuses).toHaveLength(3);
   });
 
   it('should have correct API_BASE constant', () => {
