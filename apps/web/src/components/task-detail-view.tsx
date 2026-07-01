@@ -71,7 +71,7 @@ export function TaskDetailView({ taskId, boardId, onNavigateTask }: TaskDetailVi
   const handleCreateSubTask = useCallback(
     (title: string) => {
       if (!task || !boardId) return
-      createTask.mutate({ listId: task.listId, title, boardId, parentId: task.id })
+      createTask.mutate({ statusId: task.statusId, title, boardId, parentId: task.id })
     },
     [task, boardId, createTask],
   )

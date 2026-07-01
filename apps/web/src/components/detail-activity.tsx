@@ -31,9 +31,11 @@ function ActivityRow({ a, formatTimestamp }: { a: ActivityType; formatTimestamp:
         ? ` — ${d.changes.join(', ')}`
         : d.to
           ? ` → ${d.to}`
-          : d.listName
-            ? ` → ${d.listName}`
-            : ''
+          : d.statusName
+            ? ` → ${d.statusName}`
+            : d.listName
+              ? ` → ${d.listName}`
+              : ''
     } catch {
       extra = ''
     }

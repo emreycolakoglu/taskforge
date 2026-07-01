@@ -43,7 +43,7 @@ export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateS
               <span className="text-xs text-muted-foreground font-mono shrink-0">{st.taskNumber}</span>
             )}
             <span className="text-sm text-foreground truncate flex-1">{st.title}</span>
-            <Badge variant="secondary" className="text-[10px] shrink-0">{st.status}</Badge>
+            <Badge variant="secondary" className="text-[10px] shrink-0">{st.status?.name ?? '—'}</Badge>
           </div>
         ))}
         {subTasks.length === 0 && !adding && (
@@ -51,7 +51,7 @@ export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateS
         )}
         {adding ? (
           <CreateTaskModal
-            listId={task.listId}
+            statusId={task.statusId}
             parentId={task.id}
             parentTaskNumber={task.taskNumber}
             onSubmit={(title) => {

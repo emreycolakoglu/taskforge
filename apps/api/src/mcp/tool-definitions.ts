@@ -17,19 +17,19 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'boards_list',
     title: 'List boards',
-    description: 'List all boards with list and member counts.',
+    description: 'List all boards with status and member counts.',
     inputSchema: {},
   },
   {
     name: 'boards_get',
     title: 'Get board',
-    description: 'Get a single board with its lists, tasks, and labels.',
+    description: 'Get a single board with its statuses, tasks, and labels.',
     inputSchema: { id: idField('Board') },
   },
   {
     name: 'boards_create',
     title: 'Create board',
-    description: 'Create a board with the given slug/identifier and five default lists.',
+    description: 'Create a board with the given slug/identifier and five default statuses.',
     inputSchema: {
       name: z.string(),
       slug: z.string(),
@@ -40,21 +40,21 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'boards_delete',
     title: 'Delete board',
-    description: 'Delete a board and all of its lists, tasks, and labels.',
+    description: 'Delete a board and all of its statuses, tasks, and labels.',
     inputSchema: { id: idField('Board') },
   },
 
-  // lists
+  // statuses
   {
-    name: 'lists_list',
-    title: 'List lists',
-    description: 'List lists for a board, ordered by position.',
+    name: 'statuses_list',
+    title: 'List statuses',
+    description: 'List statuses for a board, ordered by position.',
     inputSchema: { boardId: idField('Board') },
   },
   {
-    name: 'lists_create',
-    title: 'Create list',
-    description: 'Create a list in a board. position defaults to end of board.',
+    name: 'statuses_create',
+    title: 'Create status',
+    description: 'Create a status in a board. position defaults to end of board.',
     inputSchema: {
       boardId: idField('Board'),
       name: z.string(),
@@ -64,33 +64,44 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     },
   },
   {
-    name: 'lists_update',
-    title: 'Update list',
-    description: 'Update a list name, color, or WIP limit.',
+    name: 'statuses_update',
+    title: 'Update status',
+    description: 'Update a status name, color, or WIP limit.',
     inputSchema: {
-      id: idField('List'),
+      id: idField('Status'),
       name: z.string().optional(),
       color: z.string().optional(),
       wipLimit: z.number().optional(),
     },
   },
   {
-    name: 'lists_delete',
-    title: 'Delete list',
-    description: 'Delete a list and its tasks.',
-    inputSchema: { id: idField('List') },
+    name: 'statuses_delete',
+    title: 'Delete status',
+    description: 'Delete a status and its tasks.',
+    inputSchema: { id: idField('Status') },
+  },
+  {
+    name: 'statuses_toggle_done',
+    title: 'Toggle Done status',
+    description: 'Set a status as the board\'s Done column. Stamps doneAt on its tasks and clears doneAt on the previous Done status\'s tasks.',
+    inputSchema: { id: idField('Status') },
+  },
+  {
+    name: 'statuses_unset_done',
+    title: 'Unset Done status',
+    description: 'Clear the board\'s Done column. Clears isDone and doneAt on the current Done status and its tasks.',
+    inputSchema: { boardId: idField('Board') },
   },
 
   // tasks
   {
     name: 'tasks_list',
     title: 'List tasks',
-    description: 'List tasks with optional filters. Defaults to active status.',
+    description: 'List tasks with optional filters.',
     inputSchema: {
       boardId: optionalId('Board'),
-      listId: optionalId('List'),
+      statusId: optionalId('Status'),
       assigneeId: optionalId('Assignee'),
-      status: z.enum(['active', 'archived', 'done']).optional(),
       parentId: z.string().nullable().optional().describe('Filter by parent task id; null for top-level tasks only'),
       include: z.enum(['top', 'sub']).optional().describe('"top" = top-level only, "sub" = sub-tasks only'),
       limit: z.number().optional(),
@@ -99,7 +110,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'tasks_get',
     title: 'Get task',
-    description: 'Get a single task with list, board, labels, comments, activity, and sub-tasks.',
+    description: 'Get a single task with status, board, labels, comments, activity, and sub-tasks.',
     inputSchema: { id: idField('Task') },
   },
   {
@@ -111,9 +122,9 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'tasks_create',
     title: 'Create task',
-    description: 'Create a task in a list. assigneeId defaults to the authenticated user.',
+    description: 'Create a task in a status. assigneeId defaults to the authenticated user.',
     inputSchema: {
-      listId: idField('List'),
+      statusId: idField('Status'),
       title: z.string(),
       description: z.string().optional(),
       priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
@@ -134,10 +145,9 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       title: z.string().optional(),
       description: z.string().optional(),
       priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
-      status: z.enum(['active', 'archived', 'done']).optional(),
       assigneeId: z.string().optional(),
       dueDate: z.string().optional(),
-      listId: z.string().optional(),
+      statusId: z.string().optional(),
       position: z.number().optional(),
       parentId: z.string().nullable().optional(),
       labelIds: z.array(z.string()).optional(),
@@ -146,17 +156,17 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'tasks_move',
     title: 'Move task',
-    description: 'Move a task to a different list. position defaults to end of list.',
+    description: 'Move a task to a different status. position defaults to end of status.',
     inputSchema: {
       id: idField('Task'),
-      listId: idField('Target list'),
+      statusId: idField('Target status'),
       position: z.number().optional(),
     },
   },
   {
     name: 'tasks_delete',
-    title: 'Archive task',
-    description: 'Archive a task (soft delete). Cleans up its relations.',
+    title: 'Delete task',
+    description: 'Hard-delete a task. Cleans up its relations.',
     inputSchema: { id: idField('Task') },
   },
 

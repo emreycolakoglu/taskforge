@@ -5,27 +5,28 @@ export interface Board {
   identifier: string;
   description?: string;
   createdAt: string;
-  lists?: List[];
+  statuses?: Status[];
   labels?: Label[];
   members?: Member[];
-  _count?: { lists: number; tasks: number };
+  _count?: { statuses: number; tasks: number };
   nextTaskNum?: number;
 }
 
-export interface List {
+export interface Status {
   id: string;
   boardId: string;
   name: string;
   position: number;
   color?: string;
   wipLimit?: number;
+  isDone?: boolean;
   tasks?: Task[];
   _count?: { tasks: number };
 }
 
 export interface Task {
   id: string;
-  listId: string;
+  statusId: string;
   boardId: string;
   number: number;
   taskNumber: string;
@@ -33,7 +34,7 @@ export interface Task {
   description?: string;
   position: number;
   priority: 'low' | 'medium' | 'high' | 'urgent';
-  status: 'active' | 'archived' | 'done';
+  doneAt?: string | null;
   assigneeId?: string | null;
   assignee?: User | null;
   metadata?: string;
@@ -43,7 +44,7 @@ export interface Task {
   subTasks?: Task[];
   createdAt: string;
   updatedAt: string;
-  list?: List;
+  status?: Status;
   labels?: TaskLabel[];
   taskLabels?: TaskLabel[];
   comments?: Comment[];
@@ -57,7 +58,7 @@ export type RelationType = 'blocks' | 'related_to';
 export interface RelationEntry {
   relationId: string;
   type: RelationType;
-  task: { id: string; taskNumber: string; title: string; status: string };
+  task: { id: string; taskNumber: string; title: string };
 }
 
 export interface TaskRelations {

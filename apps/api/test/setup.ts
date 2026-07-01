@@ -34,7 +34,7 @@ export function createTestPrisma(): PrismaClient {
 }
 
 /**
- * Seed a board with default lists and return the created board + lists.
+ * Seed a board with default statuses and return the created board + statuses.
  */
 export async function seedBoard(prisma: PrismaClient) {
   const id = randomUUID().slice(0, 8);
@@ -50,17 +50,17 @@ export async function seedBoard(prisma: PrismaClient) {
       slug: `test-board-${id}`,
       identifier,
       description: 'A board for testing',
-      lists: {
+      statuses: {
         create: [
           { name: 'Backlog', position: 0, color: '#94a3b8' },
           { name: 'To Do', position: 1, color: '#6366f1' },
           { name: 'In Progress', position: 2, color: '#f59e0b' },
           { name: 'Review', position: 3, color: '#8b5cf6' },
-          { name: 'Done', position: 4, color: '#22c55e' },
+          { name: 'Done', position: 4, color: '#22c55e', isDone: true },
         ],
       },
     },
-    include: { lists: true },
+    include: { statuses: true },
   });
   return board;
 }
@@ -75,21 +75,21 @@ export async function seedLabel(prisma: PrismaClient, boardId: string) {
 }
 
 /**
- * Seed a task in a list. Derives boardId from the list and auto-increments number.
+ * Seed a task in a status. Derives boardId from the status and auto-increments number.
  * Also updates the board's nextTaskNum counter.
  */
-export async function seedTask(prisma: PrismaClient, listId: string, overrides: Record<string, any> = {}) {
+export async function seedTask(prisma: PrismaClient, statusId: string, overrides: Record<string, any> = {}) {
   const { assigneeId, boardId: overrideBoardId, number: overrideNumber, parentId, ...rest } = overrides;
   let boardId = overrideBoardId;
   if (!boardId) {
-    const list = await prisma.list.findUniqueOrThrow({ where: { id: listId } });
-    boardId = list.boardId;
+    const status = await prisma.status.findUniqueOrThrow({ where: { id: statusId } });
+    boardId = status.boardId;
   }
   const number = overrideNumber != null ? overrideNumber : await getNextTaskNumber(prisma, boardId);
 
   const task = await prisma.task.create({
     data: {
-      listId,
+      statusId,
       boardId,
       number,
       title: rest.title || 'Test task',
@@ -97,7 +97,7 @@ export async function seedTask(prisma: PrismaClient, listId: string, overrides: 
       position: rest.position ?? 0,
       priority: rest.priority || 'medium',
       assigneeId: assigneeId ?? null,
-      status: rest.status || 'active',
+      doneAt: rest.doneAt ?? null,
       parentId: parentId ?? null,
     },
   });

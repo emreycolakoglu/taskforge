@@ -2,7 +2,7 @@ import { IsString, IsOptional, IsNumber, IsArray, IsDateString } from 'class-val
 
 export class CreateTaskDto {
   @IsString()
-  listId: string;
+  statusId: string;
 
   @IsString()
   title: string;
@@ -52,7 +52,7 @@ export class UpdateTaskDto {
 
   @IsOptional()
   @IsString()
-  listId?: string;
+  statusId?: string;
 
   @IsOptional()
   @IsNumber()
@@ -61,10 +61,6 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsString()
   priority?: string;
-
-  @IsOptional()
-  @IsString()
-  status?: string;
 
   @IsOptional()
   @IsString()
@@ -90,7 +86,7 @@ export class UpdateTaskDto {
 
 export class MoveTaskDto {
   @IsString()
-  listId: string;
+  statusId: string;
 
   @IsOptional()
   @IsNumber()

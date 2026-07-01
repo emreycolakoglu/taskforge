@@ -30,7 +30,7 @@ describe('NotificationsService', () => {
 
   beforeEach(async () => {
     board = await seedBoard(prisma);
-    task = await seedTask(prisma, board.lists[0].id, { title: 'Fix login' });
+    task = await seedTask(prisma, board.statuses[0].id, { title: 'Fix login' });
     actor = await seedUser(prisma, { displayName: 'Actor' });
     subscriber = await seedUser(prisma, { displayName: 'Subscriber' });
     await seedSubscription(prisma, task.id, subscriber.id);
@@ -43,7 +43,7 @@ describe('NotificationsService', () => {
     await prisma.comment.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
-    await prisma.list.deleteMany();
+    await prisma.status.deleteMany();
     await prisma.member.deleteMany();
     await prisma.board.deleteMany();
     await prisma.user.deleteMany();
@@ -68,25 +68,11 @@ describe('NotificationsService', () => {
       expect(actorNotifs).toHaveLength(0);
     });
 
-    it('updated with status: change notifies', async () => {
-      const activity = await makeActivity('updated', { changes: ['status: done'] }, actor.id, actor.displayName);
-      await service.dispatchFromActivity(activity);
-      const notifs = await prisma.notification.findMany({ where: { userId: subscriber.id } });
-      expect(notifs).toHaveLength(1);
-    });
-
     it('updated with only title change does NOT notify', async () => {
       const activity = await makeActivity('updated', { changes: ['title updated'] }, actor.id, actor.displayName);
       await service.dispatchFromActivity(activity);
       const notifs = await prisma.notification.findMany({ where: { userId: subscriber.id } });
       expect(notifs).toHaveLength(0);
-    });
-
-    it('archived notifies', async () => {
-      const activity = await makeActivity('archived', { reason: 'manual archive' }, actor.id, actor.displayName);
-      await service.dispatchFromActivity(activity);
-      const notifs = await prisma.notification.findMany({ where: { userId: subscriber.id } });
-      expect(notifs).toHaveLength(1);
     });
 
     it('created does NOT notify', async () => {
@@ -161,7 +147,7 @@ describe('NotificationsService', () => {
     it('marks all of the user\'s notifications read', async () => {
       const a1 = await makeActivity('commented', { commentId: 'c1' }, actor.id, actor.displayName);
       await service.dispatchFromActivity(a1);
-      const a2 = await makeActivity('archived', {}, actor.id, actor.displayName);
+      const a2 = await makeActivity('commented', { commentId: 'c2' }, actor.id, actor.displayName);
       await service.dispatchFromActivity(a2);
       const result = await service.markAllRead(subscriber.id);
       expect(result.updated).toBe(2);
@@ -184,7 +170,7 @@ describe('NotificationsService', () => {
     it('counts only readAt IS NULL for the user', async () => {
       const a1 = await makeActivity('commented', { commentId: 'c1' }, actor.id, actor.displayName);
       await service.dispatchFromActivity(a1);
-      const a2 = await makeActivity('archived', {}, actor.id, actor.displayName);
+      const a2 = await makeActivity('commented', { commentId: 'c2' }, actor.id, actor.displayName);
       await service.dispatchFromActivity(a2);
       const notifs = await prisma.notification.findMany({ where: { userId: subscriber.id } });
       await prisma.notification.update({ where: { id: notifs[0].id }, data: { readAt: new Date() } });

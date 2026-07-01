@@ -9,7 +9,7 @@
 
 import type { ReactNode } from 'react'
 import { MoreHorizontal, Plus } from 'lucide-react'
-import type { List } from '@/types'
+import type { Status } from '@/types'
 import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
@@ -21,12 +21,12 @@ import {
 import { cn } from '@/lib/utils'
 
 interface BoardColumnProps {
-  list: List
+  status: Status
   taskCount: number
   isAdding: boolean
   onAddTask: () => void
-  onDeleteList: () => void
-  onEditList: () => void
+  onDeleteStatus: () => void
+  onEditStatus: () => void
   /** Droppable ref + props from the parent Droppable (DnD lives in kanban-board.tsx). */
   droppableProvided?: {
     innerRef: (el: HTMLElement | null) => void
@@ -38,12 +38,12 @@ interface BoardColumnProps {
 }
 
 export function BoardColumn({
-  list,
+  status,
   taskCount,
   isAdding,
   onAddTask,
-  onDeleteList,
-  onEditList,
+  onDeleteStatus,
+  onEditStatus,
   droppableProvided,
   isDraggingOver,
   children,
@@ -59,9 +59,9 @@ export function BoardColumn({
       <div className="h-[50px] shrink-0 px-3 flex items-center gap-2 border-b border-border">
         <span
           className="size-3.5 rounded-full shrink-0"
-          style={{ backgroundColor: list.color || '#62666d' }}
+          style={{ backgroundColor: status.color || '#62666d' }}
         />
-        <span className="text-sm font-medium text-foreground">{list.name}</span>
+        <span className="text-sm font-medium text-foreground">{status.name}</span>
         <span className="text-xs font-mono text-muted-foreground">{taskCount}</span>
         <div className="ml-auto">
           <DropdownMenu>
@@ -70,7 +70,7 @@ export function BoardColumn({
                 variant="ghost"
                 size="icon"
                 className="size-6 text-muted-foreground hover:text-foreground"
-                aria-label={`Open ${list.name} menu`}
+                aria-label={`Open ${status.name} menu`}
               >
                 <MoreHorizontal className="size-4" />
               </Button>
@@ -80,12 +80,12 @@ export function BoardColumn({
                 <Plus className="size-4 mr-2" />
                 Add task
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onEditList}>
-                Edit list
+              <DropdownMenuItem onClick={onEditStatus}>
+                Edit status
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onDeleteList}>
-                Delete list
+              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onDeleteStatus}>
+                Delete status
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

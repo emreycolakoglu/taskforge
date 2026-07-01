@@ -29,7 +29,7 @@ describe('AuthService', () => {
     await prisma.comment.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
-    await prisma.list.deleteMany();
+    await prisma.status.deleteMany();
     await prisma.board.deleteMany();
     await prisma.user.deleteMany();
     await prisma.settings.deleteMany();
@@ -53,11 +53,11 @@ describe('AuthService', () => {
   describe('onboard', () => {
     it('should create first admin user, settings, and session', async () => {
       const board = await seedBoard(prisma);
-      const list = board.lists[0];
+      const status = board.statuses[0];
 
       // Create a task to verify it remains unassigned (no auto-claim)
       await prisma.task.create({
-        data: { listId: list.id, boardId: board.id, number: 1, title: 'Unassigned task', position: 0 },
+        data: { statusId: status.id, boardId: board.id, number: 1, title: 'Unassigned task', position: 0 },
       });
 
       const result = await service.onboard({

@@ -1,20 +1,25 @@
 import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Plus, Pencil, Trash2, X, Check } from 'lucide-react'
-import { useBoard } from '@/hooks/use-boards'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { useBoardFull } from '@/hooks/use-boards'
 import { useLabels, useCreateLabel, useUpdateLabel, useDeleteLabel } from '@/hooks/use-labels'
+import { api } from '@/hooks/api'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label as UILabel } from '@/components/ui/label'
 import { Card, CardTitle, CardDescription } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ColorPicker } from '@/components/color-picker'
-import type { Label } from '@/types'
+import type { Label, Status } from '@/types'
 
 export function BoardSettingsPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { data: board, isLoading: boardLoading } = useBoard(id!)
+  const { data: board, isLoading: boardLoading } = useBoardFull(id!)
   const { data: labels = [], isLoading: labelsLoading } = useLabels(id!)
 
   if (boardLoading || labelsLoading) {
@@ -47,9 +52,74 @@ export function BoardSettingsPage() {
       </header>
 
       <div className="p-6 max-w-2xl space-y-6 bg-background">
+        <StatusesSection boardId={id!} statuses={board.statuses ?? []} />
         <LabelsSection boardId={id!} labels={labels} />
       </div>
     </div>
+  )
+}
+
+function StatusesSection({ boardId, statuses }: { boardId: string; statuses: Status[] }) {
+  const queryClient = useQueryClient()
+  const [togglingId, setTogglingId] = useState<string | null>(null)
+
+  const handleToggleDone = async (status: Status) => {
+    setTogglingId(status.id)
+    try {
+      if (status.isDone) {
+        await api.statuses.unsetDone(boardId)
+      } else {
+        await api.statuses.toggleDone(status.id)
+      }
+      toast.success('Done status updated')
+      queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] })
+    } catch (err) {
+      toast.error('Failed to update done status', { description: err instanceof Error ? err.message : undefined })
+    } finally {
+      setTogglingId(null)
+    }
+  }
+
+  return (
+    <Card className="p-6 space-y-4">
+      <div>
+        <CardTitle className="text-base text-foreground">Statuses</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground mt-1">
+          Manage statuses for this board. Mark one status as Done to auto-stamp completed tasks.
+        </CardDescription>
+      </div>
+      <div className="flex flex-col">
+        {statuses.map((status) => (
+          <div
+            key={status.id}
+            className="flex items-center justify-between py-3 border-b border-border last:border-0"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-foreground">{status.name}</span>
+              {status.isDone && (
+                <Badge variant="secondary" className="text-xs text-muted-foreground bg-muted rounded-sm px-1.5 py-0.5 border-0">
+                  Done
+                </Badge>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <UILabel htmlFor={`done-${status.id}`} className="text-xs text-muted-foreground">
+                Done
+              </UILabel>
+              <Switch
+                id={`done-${status.id}`}
+                checked={!!status.isDone}
+                disabled={togglingId === status.id}
+                onCheckedChange={() => handleToggleDone(status)}
+              />
+            </div>
+          </div>
+        ))}
+        {statuses.length === 0 && (
+          <p className="text-sm text-muted-foreground py-3">No statuses yet</p>
+        )}
+      </div>
+    </Card>
   )
 }
 

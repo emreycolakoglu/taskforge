@@ -29,7 +29,7 @@ describe('NotificationsController', () => {
 
   beforeEach(async () => {
     board = await seedBoard(prisma);
-    task = await seedTask(prisma, board.lists[0].id, { title: 'Task' });
+    task = await seedTask(prisma, board.statuses[0].id, { title: 'Task' });
     user = await seedUser(prisma, { displayName: 'User' });
     other = await seedUser(prisma, { displayName: 'Other' });
     req = { user: { id: user.id, displayName: user.displayName } };
@@ -47,7 +47,7 @@ describe('NotificationsController', () => {
     await prisma.taskSubscription.deleteMany();
     await prisma.activity.deleteMany();
     await prisma.task.deleteMany();
-    await prisma.list.deleteMany();
+    await prisma.status.deleteMany();
     await prisma.board.deleteMany();
     await prisma.user.deleteMany();
   });

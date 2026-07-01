@@ -1,6 +1,6 @@
 import { IsString, IsOptional, IsNumber, IsArray } from 'class-validator';
 
-export class CreateListDto {
+export class CreateStatusDto {
   @IsString()
   boardId: string;
 
@@ -20,7 +20,7 @@ export class CreateListDto {
   wipLimit?: number;
 }
 
-export class UpdateListDto {
+export class UpdateStatusDto {
   @IsOptional()
   @IsString()
   name?: string;
@@ -38,7 +38,7 @@ export class UpdateListDto {
   wipLimit?: number;
 }
 
-export class ReorderListsDto {
+export class ReorderStatusesDto {
   @IsArray()
   items: { id: string; position: number }[];
 }

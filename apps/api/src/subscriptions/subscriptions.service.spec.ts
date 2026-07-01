@@ -22,7 +22,7 @@ describe('SubscriptionsService', () => {
 
   beforeEach(async () => {
     board = await seedBoard(prisma);
-    task = await seedTask(prisma, board.lists[0].id);
+    task = await seedTask(prisma, board.statuses[0].id);
     user = await seedUser(prisma);
   });
 
@@ -33,7 +33,7 @@ describe('SubscriptionsService', () => {
     await prisma.comment.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
-    await prisma.list.deleteMany();
+    await prisma.status.deleteMany();
     await prisma.member.deleteMany();
     await prisma.board.deleteMany();
     await prisma.user.deleteMany();

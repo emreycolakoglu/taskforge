@@ -1,4 +1,4 @@
-import { API_BASE, Board, List, Task, TaskLabel, Comment, Label, User, AuthStatus, OnboardRequest, AuthResponse, InviteTokenResponse, Invite, Settings, RelationType, RelationEntry, TaskRelations, Notification, TaskSubscriptionState } from '../types';
+import { API_BASE, Board, Status, Task, TaskLabel, Comment, Label, User, AuthStatus, OnboardRequest, AuthResponse, InviteTokenResponse, Invite, Settings, RelationType, RelationEntry, TaskRelations, Notification, TaskSubscriptionState } from '../types';
 
 const TOKEN_KEY = 'taskforge_token';
 
@@ -89,16 +89,20 @@ export const api = {
     delete: (id: string) => request<void>(`/boards/${id}`, { method: 'DELETE' }),
   },
 
-  // Lists
-  lists: {
-    list: (boardId: string) => request<List[]>(`/lists/board/${boardId}`),
+  // Statuses
+  statuses: {
+    list: (boardId: string) => request<Status[]>(`/statuses/board/${boardId}`),
     create: (data: { boardId: string; name: string; position?: number; color?: string; wipLimit?: number }) =>
-      request<List>('/lists', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: Partial<List>) =>
-      request<List>(`/lists/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      request<Status>('/statuses', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: Partial<Status>) =>
+      request<Status>(`/statuses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     reorder: (items: { id: string; position: number }[]) =>
-      request<List[]>('/lists/reorder', { method: 'PUT', body: JSON.stringify({ items }) }),
-    delete: (id: string) => request<void>(`/lists/${id}`, { method: 'DELETE' }),
+      request<Status[]>('/statuses/reorder', { method: 'PUT', body: JSON.stringify({ items }) }),
+    delete: (id: string) => request<void>(`/statuses/${id}`, { method: 'DELETE' }),
+    toggleDone: (id: string) =>
+      request<Status>(`/statuses/${id}/toggle-done`, { method: 'POST' }),
+    unsetDone: (boardId: string) =>
+      request<{ unset: boolean }>(`/statuses/board/${boardId}/unset-done`, { method: 'POST' }),
   },
 
   // Tasks
@@ -110,20 +114,20 @@ export const api = {
       const qs = params.toString();
       return request<Task[]>(`/tasks/board/${boardId}${qs ? `?${qs}` : ''}`);
     },
-    listByList: (listId: string, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }) => {
+    listByStatus: (statusId: string, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }) => {
       const params = new URLSearchParams();
       if (opts?.include) params.set('include', opts.include);
       if (opts?.parentId !== undefined) params.set('parentId', opts.parentId);
       const qs = params.toString();
-      return request<Task[]>(`/tasks/list/${listId}${qs ? `?${qs}` : ''}`);
+      return request<Task[]>(`/tasks/status/${statusId}${qs ? `?${qs}` : ''}`);
     },
     get: (id: string) => request<Task>(`/tasks/${id}`),
     search: (q: string) => request<Task[]>(`/tasks/search?q=${encodeURIComponent(q)}`),
-    create: (data: { listId: string; title: string; description?: string; priority?: string; assigneeId?: string | null; labelIds?: string[]; parentId?: string | null }) =>
+    create: (data: { statusId: string; title: string; description?: string; priority?: string; assigneeId?: string | null; labelIds?: string[]; parentId?: string | null }) =>
       request<Task>('/tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Task>) =>
       request<Task>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-    move: (id: string, data: { listId: string; position?: number }) =>
+    move: (id: string, data: { statusId: string; position?: number }) =>
       request<Task>(`/tasks/${id}/move`, { method: 'PUT', body: JSON.stringify(data) }),
     reorder: (items: { id: string; position: number }[]) =>
       request<Task[]>('/tasks/reorder', { method: 'PUT', body: JSON.stringify({ items }) }),

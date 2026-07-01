@@ -8,7 +8,6 @@
  */
 
 import { Ban, Link2, X } from 'lucide-react'
-import { Badge } from '@/components/ui/badge'
 import { DetailAddRelationPopover } from './detail-add-relation-popover'
 import type { RelationEntry, RelationType, Task } from '@/types'
 
@@ -58,7 +57,6 @@ function RelationGroup({
               {e.task.taskNumber}
             </span>
             <span className="text-sm text-foreground truncate flex-1">{e.task.title}</span>
-            <Badge variant="secondary" className="text-[10px] shrink-0">{e.task.status}</Badge>
             <button
               className="text-muted-foreground hover:text-foreground shrink-0"
               aria-label="Remove relation"

@@ -9,7 +9,7 @@ import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 
 interface CreateTaskModalProps {
-  listId: string
+  statusId: string
   onSubmit: (title: string) => void
   onClose: () => void
   parentId?: string

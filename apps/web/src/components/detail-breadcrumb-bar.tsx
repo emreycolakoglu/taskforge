@@ -3,7 +3,7 @@
  *
  * Splits the old header into a breadcrumb row (identifier + nav actions) and
  * lets the title live in the main column below. Left: back chevron → breadcrumb
- * text (Board › List › TF-730). Right: prev/next + position indicator (mono) +
+ * text (Board › Status › TF-730). Right: prev/next + position indicator (mono) +
  * actions DropdownMenu (⋯) with Copy ID / Copy URL (client-side only).
  *
  * design.md: h-11, bg-secondary, border-b — matches board-header-bar pattern.
@@ -22,7 +22,7 @@ import { toast } from 'sonner'
 
 interface DetailBreadcrumbBarProps {
   boardName: string
-  listName: string
+  statusName: string
   taskNumber: string
   taskId: string
   boardId: string
@@ -35,7 +35,7 @@ interface DetailBreadcrumbBarProps {
 
 export function DetailBreadcrumbBar({
   boardName,
-  listName,
+  statusName,
   taskNumber,
   taskId,
   position,
@@ -74,7 +74,7 @@ export function DetailBreadcrumbBar({
         <nav className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
           <span className="truncate">{boardName}</span>
           <span className="text-muted-foreground/50">›</span>
-          <span className="truncate">{listName}</span>
+          <span className="truncate">{statusName}</span>
           <span className="text-muted-foreground/50">›</span>
           <span className="font-mono text-foreground shrink-0">{taskNumber}</span>
         </nav>

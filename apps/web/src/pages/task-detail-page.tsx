@@ -68,7 +68,7 @@ export function TaskDetailPage() {
   // ── Derived data ───────────────────────────────────────────────────────────
 
   const boardName = board?.name ?? 'Board'
-  const listName = board?.lists?.find((l) => l.id === task.listId)?.name ?? 'Unknown list'
+  const statusName = board?.statuses?.find((s) => s.id === task.statusId)?.name ?? 'Unknown status'
 
   const position = {
     current: currentIndex >= 0 ? currentIndex + 1 : 0,
@@ -81,7 +81,7 @@ export function TaskDetailPage() {
     <div className="flex h-full flex-col bg-background">
       <DetailBreadcrumbBar
         boardName={boardName}
-        listName={listName}
+        statusName={statusName}
         taskNumber={task.taskNumber}
         taskId={task.id}
         boardId={boardId!}

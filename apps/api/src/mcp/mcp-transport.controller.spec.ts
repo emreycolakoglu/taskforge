@@ -152,7 +152,7 @@ describe('McpTransportController', () => {
     await prisma.comment.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
-    await prisma.list.deleteMany();
+    await prisma.status.deleteMany();
     await prisma.member.deleteMany();
     await prisma.board.deleteMany();
     await prisma.session.deleteMany();
@@ -251,7 +251,7 @@ describe('McpTransportController', () => {
       jsonrpc: '2.0',
       id: 2,
       method: 'tools/call',
-      params: { name: 'tasks_create', arguments: { listId: board.lists[0].id, title: 'Transport test task' } },
+      params: { name: 'tasks_create', arguments: { statusId: board.statuses[0].id, title: 'Transport test task' } },
     }, sid);
 
     const activity = await prisma.activity.findFirst({ where: { action: 'created' } });

@@ -39,9 +39,9 @@ describe('RelationsService', () => {
 
   beforeEach(async () => {
     board = await seedBoard(prisma);
-    tA = await seedTask(prisma, board.lists[0].id, { title: 'A' });
-    tB = await seedTask(prisma, board.lists[0].id, { title: 'B' });
-    tC = await seedTask(prisma, board.lists[0].id, { title: 'C' });
+    tA = await seedTask(prisma, board.statuses[0].id, { title: 'A' });
+    tB = await seedTask(prisma, board.statuses[0].id, { title: 'B' });
+    tC = await seedTask(prisma, board.statuses[0].id, { title: 'C' });
   });
 
   afterEach(async () => {
@@ -53,7 +53,7 @@ describe('RelationsService', () => {
     await prisma.comment.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
-    await prisma.list.deleteMany();
+    await prisma.status.deleteMany();
     await prisma.member.deleteMany();
     await prisma.board.deleteMany();
   });
@@ -109,7 +109,7 @@ describe('RelationsService', () => {
 
   it('7. create across boards → BadRequestException', async () => {
     const otherBoard = await seedBoard(prisma);
-    const foreign = await seedTask(prisma, otherBoard.lists[0].id, { title: 'Foreign' });
+    const foreign = await seedTask(prisma, otherBoard.statuses[0].id, { title: 'Foreign' });
     await expect(service.create(tA.id, { otherTaskId: foreign.id, type: 'blocks' }))
       .rejects.toBeInstanceOf(BadRequestException);
   });
@@ -154,7 +154,7 @@ describe('RelationsService', () => {
   // ─── list ────────────────────────────────────────────────────────────────
 
   it('13. list → correctly groups blocking / blockedBy / relatedTo; other task fields present', async () => {
-    const tD = await seedTask(prisma, board.lists[0].id, { title: 'D' });
+    const tD = await seedTask(prisma, board.statuses[0].id, { title: 'D' });
     // A blocks B
     await service.create(tA.id, { otherTaskId: tB.id, type: 'blocks', direction: 'source' });
     // C blocks A
@@ -172,7 +172,6 @@ describe('RelationsService', () => {
     // taskNumber present
     expect(res.blocking[0].task.taskNumber).toBe(`${board.identifier}-${tB.number}`);
     expect(res.blocking[0].task.title).toBe('B');
-    expect(res.blocking[0].task.status).toBe('active');
   });
 
   it('14. list with no relations → all three groups empty arrays', async () => {

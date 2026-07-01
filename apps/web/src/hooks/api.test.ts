@@ -77,18 +77,18 @@ describe('api', () => {
   it('should make PUT request to move task', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({ id: 't1', listId: 'l2' }),
+      json: () => Promise.resolve({ id: 't1', statusId: 's2' }),
     });
 
     const { api } = await import('./api');
-    const result = await api.tasks.move('t1', { listId: 'l2' });
+    const result = await api.tasks.move('t1', { statusId: 's2' });
 
     expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/move', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ listId: 'l2' }),
+      body: JSON.stringify({ statusId: 's2' }),
     });
-    expect(result.listId).toBe('l2');
+    expect(result.statusId).toBe('s2');
   });
 
   it('should make DELETE request to remove board', async () => {
@@ -463,19 +463,19 @@ describe('api', () => {
     expect(mockFetch).toHaveBeenCalledWith('/api/tasks/board/b1?parentId=t1', expect.any(Object));
   });
 
-  it('api.tasks.create({ listId, title, parentId: "p1" }) → POST body includes parentId: "p1"', async () => {
+  it('api.tasks.create({ statusId, title, parentId: "p1" }) → POST body includes parentId: "p1"', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ id: 't2', parentId: 'p1' }),
     });
 
     const { api } = await import('./api');
-    const result = await api.tasks.create({ listId: 'l1', title: 'Child', parentId: 'p1' });
+    const result = await api.tasks.create({ statusId: 's1', title: 'Child', parentId: 'p1' });
 
     expect(mockFetch).toHaveBeenCalledWith('/api/tasks', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ listId: 'l1', title: 'Child', parentId: 'p1' }),
+      body: JSON.stringify({ statusId: 's1', title: 'Child', parentId: 'p1' }),
     });
     expect(result.parentId).toBe('p1');
   });
@@ -516,7 +516,7 @@ describe('api', () => {
   });
 
   it('api.relations.create(taskId, {...}) → POST with correct body', async () => {
-    const entry = { relationId: 'r1', type: 'blocks', task: { id: 't2', taskNumber: 'TF-2', title: 'Other', status: 'active' } };
+    const entry = { relationId: 'r1', type: 'blocks', task: { id: 't2', taskNumber: 'TF-2', title: 'Other' } };
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(entry),

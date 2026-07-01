@@ -7,7 +7,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateTaskDto, UpdateTaskDto, MoveTaskDto, ReorderTasksDto } from './dto/task.dto';
 
 export function withTaskNumber(task: any): any {
-  const identifier = task.board?.identifier ?? task.list?.board?.identifier;
+  const identifier = task.board?.identifier ?? task.status?.board?.identifier;
   const blockedByCount = task._count?.relationsTo ?? 0;
   return {
     ...task,
@@ -91,14 +91,13 @@ export class TasksService {
 
   async findByBoard(boardId: string, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }) {
     const where: any = {
-      list: { boardId },
-      status: 'active',
+      status: { boardId },
     };
     applyParentFilter(where, opts);
     const tasks = await this.prisma.task.findMany({
       where,
       include: {
-        list: true,
+        status: true,
         board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
@@ -109,13 +108,13 @@ export class TasksService {
     return tasks.map(withTaskNumber);
   }
 
-  async findByList(listId: string, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }) {
-    const where: any = { listId, status: 'active' };
+  async findByStatus(statusId: string, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }) {
+    const where: any = { statusId };
     applyParentFilter(where, opts);
     const tasks = await this.prisma.task.findMany({
       where,
       include: {
-        list: { include: { board: true } },
+        status: { include: { board: true } },
         board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
@@ -134,10 +133,9 @@ export class TasksService {
         where: {
           board: { identifier: { equals: prefix.toUpperCase() } },
           number: parseInt(numStr, 10),
-          status: 'active',
         },
         include: {
-          list: { include: { board: true } },
+          status: { include: { board: true } },
           board: { select: { identifier: true } },
           assignee: { select: { id: true, email: true, displayName: true, role: true } },
           labels: { include: { label: true } },
@@ -154,10 +152,9 @@ export class TasksService {
           { title: { contains: query } },
           { description: { contains: query } },
         ],
-        status: 'active',
       },
       include: {
-        list: { include: { board: true } },
+        status: { include: { board: true } },
         board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
@@ -172,14 +169,13 @@ export class TasksService {
     const task = await this.prisma.task.findUnique({
       where: { id },
       include: {
-        list: { include: { board: true } },
+        status: { include: { board: true } },
         board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
         comments: { orderBy: { createdAt: 'desc' } },
         activity: { orderBy: { createdAt: 'desc' }, take: 20 },
         subTasks: {
-          where: { status: 'active' },
           orderBy: { position: 'asc' },
           include: { board: { select: { identifier: true } } },
         },
@@ -198,16 +194,16 @@ export class TasksService {
   async create(dto: CreateTaskDto, user?: { id: string; displayName: string }) {
     // Sub-task validation (C2, C3, C4). C1/C5 impossible pre-create.
     if (dto.parentId) {
-      const list = await this.prisma.list.findUniqueOrThrow({ where: { id: dto.listId } });
-      await validateParent(this.prisma, dto.parentId, { boardId: list.boardId });
+      const status = await this.prisma.status.findUniqueOrThrow({ where: { id: dto.statusId } });
+      await validateParent(this.prisma, dto.parentId, { boardId: status.boardId });
     }
 
     const task = await this.prisma.$transaction(async (tx) => {
-      const list = await tx.list.findUniqueOrThrow({
-        where: { id: dto.listId },
+      const status = await tx.status.findUniqueOrThrow({
+        where: { id: dto.statusId },
       });
       const board = await tx.board.findUniqueOrThrow({
-        where: { id: list.boardId },
+        where: { id: status.boardId },
       });
 
       const taskNumber = board.nextTaskNum;
@@ -217,20 +213,19 @@ export class TasksService {
       });
 
       const maxPos = await tx.task.aggregate({
-        where: { listId: dto.listId },
+        where: { statusId: dto.statusId },
         _max: { position: true },
       });
 
       return tx.task.create({
         data: {
-          listId: dto.listId,
-          boardId: list.boardId,
+          statusId: dto.statusId,
+          boardId: status.boardId,
           number: taskNumber,
           title: dto.title,
           description: dto.description ?? null,
           position: dto.position ?? (maxPos._max.position ?? -1) + 1,
           priority: dto.priority ?? 'medium',
-          status: 'active',
           assigneeId: dto.assigneeId ?? null,
           dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
           metadata: dto.metadata ?? null,
@@ -242,7 +237,7 @@ export class TasksService {
         include: {
           assignee: { select: { id: true, email: true, displayName: true, role: true } },
           labels: { include: { label: true } },
-          list: { include: { board: true } },
+          status: { include: { board: true } },
           board: { select: { identifier: true } },
         },
       });
@@ -262,7 +257,7 @@ export class TasksService {
       await this.subscriptions.subscribe(task.id, user.id);
     }
 
-    this.events.emit('task:created', task, task.list.boardId);
+    this.events.emit('task:created', task, task.status.boardId);
     return withTaskNumber(task);
   }
 
@@ -273,11 +268,10 @@ export class TasksService {
     if (dto.title !== undefined) changes.title = dto.title;
     if (dto.description !== undefined) changes.description = dto.description;
     if (dto.priority !== undefined) changes.priority = dto.priority;
-    if (dto.status !== undefined) changes.status = dto.status;
     if (dto.assigneeId !== undefined) changes.assigneeId = dto.assigneeId;
     if (dto.dueDate !== undefined) changes.dueDate = new Date(dto.dueDate);
     if (dto.metadata !== undefined) changes.metadata = dto.metadata;
-    if (dto.listId !== undefined) changes.listId = dto.listId;
+    if (dto.statusId !== undefined) changes.statusId = dto.statusId;
     if (dto.position !== undefined) changes.position = dto.position;
 
     // Sub-task validation (C1-C5). parentId: null is always allowed (un-nest).
@@ -304,7 +298,7 @@ export class TasksService {
       include: {
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
-        list: { include: { board: true } },
+        status: { include: { board: true } },
         board: { select: { identifier: true } },
       },
     });
@@ -312,12 +306,11 @@ export class TasksService {
     // Log activity
     const detail: string[] = [];
     if (dto.title && dto.title !== existing.title) detail.push(`title: "${existing.title}" → "${dto.title}"`);
-    if (dto.listId && dto.listId !== existing.listId) {
-      const newList = await this.prisma.list.findUnique({ where: { id: dto.listId } });
-      detail.push(`moved to "${newList?.name}"`);
+    if (dto.statusId && dto.statusId !== existing.statusId) {
+      const newStatus = await this.prisma.status.findUnique({ where: { id: dto.statusId } });
+      detail.push(`moved to "${newStatus?.name}"`);
     }
     if (dto.assigneeId && dto.assigneeId !== existing.assigneeId) detail.push(`assigned to ${dto.assigneeId}`);
-    if (dto.status && dto.status !== existing.status) detail.push(`status: ${dto.status}`);
     if (parentChanged) {
       if (dto.parentId === null) detail.push('un-nested from parent');
       else detail.push(`set parent: ${dto.parentId}`);
@@ -336,44 +329,52 @@ export class TasksService {
       await this.notifications.dispatchFromActivity(activity);
     }
 
-    this.events.emit('task:updated', task, task.list.boardId);
+    this.events.emit('task:updated', task, task.status.boardId);
     return withTaskNumber(task);
   }
 
   async move(id: string, dto: MoveTaskDto, user?: { id: string; displayName: string }) {
     const existing = await this.findOne(id);
     const maxPos = await this.prisma.task.aggregate({
-      where: { listId: dto.listId },
+      where: { statusId: dto.statusId },
       _max: { position: true },
     });
 
+    const targetStatus = await this.prisma.status.findUniqueOrThrow({ where: { id: dto.statusId } });
+    const sourceStatus = await this.prisma.status.findUnique({ where: { id: existing.statusId } });
+    const now = new Date();
+    const doneAt = targetStatus.isDone ? now : (sourceStatus?.isDone ? null : undefined);
+
+    const data: any = {
+      statusId: dto.statusId,
+      position: dto.position ?? (maxPos._max.position ?? -1) + 1,
+    };
+    if (doneAt !== undefined) data.doneAt = doneAt;
+
     const task = await this.prisma.task.update({
       where: { id },
-      data: {
-        listId: dto.listId,
-        position: dto.position ?? (maxPos._max.position ?? -1) + 1,
-      },
+      data,
       include: {
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
-        list: { include: { board: true } },
+        status: { include: { board: true } },
         board: { select: { identifier: true } },
       },
     });
 
-    const newList = await this.prisma.list.findUnique({ where: { id: dto.listId } });
+    const newStatus = await this.prisma.status.findUnique({ where: { id: dto.statusId } });
     const activity = await this.prisma.activity.create({
       data: {
         taskId: id,
         actorId: user?.id ?? null,
         actor: user?.displayName ?? 'system',
         action: 'moved',
-        detail: JSON.stringify({ from: existing.listId, to: dto.listId, listName: newList?.name }),
+        detail: JSON.stringify({ from: existing.statusId, to: dto.statusId, statusName: newStatus?.name }),
       },
     });
     await this.notifications.dispatchFromActivity(activity);
 
-    this.events.emit('task:moved', task, task.list.boardId);
+    this.events.emit('task:moved', task, task.status.boardId);
     return withTaskNumber(task);
   }
 
@@ -386,20 +387,9 @@ export class TasksService {
 
   async remove(id: string, user?: { id: string; displayName: string }) {
     const task = await this.findOne(id);
-    const boardId = task.list.boardId;
-    const activity = await this.prisma.activity.create({
-      data: {
-        taskId: id,
-        actorId: user?.id ?? null,
-        actor: user?.displayName ?? 'system',
-        action: 'archived',
-        detail: JSON.stringify({ reason: 'manual archive' }),
-      },
-    });
-    await this.notifications.dispatchFromActivity(activity);
-    const archived = await this.prisma.task.update({ where: { id }, data: { status: 'archived' } });
+    const boardId = task.status.boardId;
 
-    // C6 — orphan promotion: clear parentId on children and emit task:updated per child.
+    // C6 — orphan promotion: clear parentId on children before deleting.
     const orphans = await this.prisma.task.findMany({ where: { parentId: id } });
     if (orphans.length > 0) {
       await this.prisma.task.updateMany({ where: { parentId: id }, data: { parentId: null } });
@@ -409,7 +399,7 @@ export class TasksService {
           include: {
             assignee: { select: { id: true, email: true, displayName: true, role: true } },
             labels: { include: { label: true } },
-            list: { include: { board: true } },
+            status: { include: { board: true } },
             board: { select: { identifier: true } },
           },
         });
@@ -421,14 +411,15 @@ export class TasksService {
     // relation:deleted per row. (Sub-task orphan promotion handled above.)
     await this.relations.cleanupForTask(id);
 
+    await this.prisma.task.delete({ where: { id } });
+
     this.events.emit('task:deleted', { id }, boardId);
-    return archived;
   }
 
   async attachLabel(taskId: string, labelId: string) {
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
-      include: { list: { select: { boardId: true } } },
+      include: { status: { select: { boardId: true } } },
     });
     if (!task) throw new NotFoundException('Task not found');
 
@@ -441,18 +432,18 @@ export class TasksService {
       where: { id: taskId },
       include: {
         labels: { include: { label: true } },
-        list: { select: { boardId: true } },
+        status: { select: { boardId: true } },
       },
     });
 
-    this.events.emit('task.label.attached', updatedTask, task.list.boardId);
+    this.events.emit('task.label.attached', updatedTask, task.status.boardId);
     return taskLabel;
   }
 
   async detachLabel(taskId: string, labelId: string) {
     const task = await this.prisma.task.findUnique({
       where: { id: taskId },
-      include: { list: { select: { boardId: true } } },
+      include: { status: { select: { boardId: true } } },
     });
     if (!task) throw new NotFoundException('Task not found');
 
@@ -464,10 +455,10 @@ export class TasksService {
       where: { id: taskId },
       include: {
         labels: { include: { label: true } },
-        list: { select: { boardId: true } },
+        status: { select: { boardId: true } },
       },
     });
 
-    this.events.emit('task.label.detached', updatedTask, task.list.boardId);
+    this.events.emit('task.label.detached', updatedTask, task.status.boardId);
   }
 }

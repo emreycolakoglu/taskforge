@@ -15,7 +15,7 @@ export class ActivityService {
 
   async findByBoard(boardId: string) {
     return this.prisma.activity.findMany({
-      where: { task: { list: { boardId } } },
+      where: { task: { status: { boardId } } },
       orderBy: { createdAt: 'desc' },
       take: 100,
       include: { task: { select: { id: true, title: true } } },

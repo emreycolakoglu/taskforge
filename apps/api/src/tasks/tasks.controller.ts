@@ -21,13 +21,13 @@ export class TasksController {
     return this.service.findByBoard(boardId, { include, parentId });
   }
 
-  @Get('list/:listId')
-  findByList(
-    @Param('listId') listId: string,
+  @Get('status/:statusId')
+  findByStatus(
+    @Param('statusId') statusId: string,
     @Query('include') include?: 'all' | 'top' | 'sub',
     @Query('parentId') parentId?: string,
   ) {
-    return this.service.findByList(listId, { include, parentId });
+    return this.service.findByStatus(statusId, { include, parentId });
   }
 
   @Get('search')

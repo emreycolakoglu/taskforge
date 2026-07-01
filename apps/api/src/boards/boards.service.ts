@@ -23,7 +23,7 @@ export class BoardsService {
 
   async findAll() {
     return this.prisma.board.findMany({
-      include: { _count: { select: { lists: true, members: true } } },
+      include: { _count: { select: { statuses: true, members: true } } },
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -32,7 +32,7 @@ export class BoardsService {
     const board = await this.prisma.board.findUnique({
       where: { id },
       include: {
-        lists: { orderBy: { position: 'asc' }, include: { _count: { select: { tasks: true } } } },
+        statuses: { orderBy: { position: 'asc' }, include: { _count: { select: { tasks: true } } } },
         labels: true,
         members: true,
       },
@@ -45,11 +45,10 @@ export class BoardsService {
     const board = await this.prisma.board.findUnique({
       where: { id },
       include: {
-        lists: {
+        statuses: {
           orderBy: { position: 'asc' },
           include: {
             tasks: {
-              where: { status: 'active' },
               orderBy: { position: 'asc' },
               include: {
                 assignee: { select: { id: true, email: true, displayName: true, role: true } },
@@ -67,8 +66,8 @@ export class BoardsService {
     if (!board) throw new NotFoundException('Board not found');
 
     // Apply taskNumber transform to each task
-    for (const list of board.lists) {
-      list.tasks = list.tasks.map(withTaskNumber);
+    for (const status of board.statuses) {
+      status.tasks = status.tasks.map(withTaskNumber);
     }
 
     return board;
@@ -81,17 +80,17 @@ export class BoardsService {
         slug: dto.slug,
         identifier: dto.identifier.toUpperCase(),
         description: dto.description,
-        lists: {
+        statuses: {
           create: [
             { name: 'Backlog', position: 0, color: '#94a3b8' },
             { name: 'To Do', position: 1, color: '#6366f1' },
             { name: 'In Progress', position: 2, color: '#f59e0b' },
             { name: 'Review', position: 3, color: '#8b5cf6' },
-            { name: 'Done', position: 4, color: '#22c55e' },
+            { name: 'Done', position: 4, color: '#22c55e', isDone: true },
           ],
         },
       },
-      include: { lists: true },
+      include: { statuses: true },
     });
 
     // Seed default labels for the new board

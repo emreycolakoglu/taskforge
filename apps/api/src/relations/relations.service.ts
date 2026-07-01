@@ -7,7 +7,7 @@ import { CreateRelationDto } from './dto/relation.dto';
 export interface RelationEntry {
   relationId: string;
   type: 'blocks' | 'related_to';
-  task: { id: string; taskNumber: string; title: string; status: string };
+  task: { id: string; taskNumber: string; title: string };
 }
 
 export interface TaskRelationsResponse {
@@ -45,19 +45,18 @@ export class RelationsService {
     const rows = await this.prisma.taskRelation.findMany({
       where: { OR: [{ fromTaskId: taskId }, { toTaskId: taskId }] },
       include: {
-        fromTask: { select: { id: true, number: true, title: true, status: true, board: { select: { identifier: true } } } },
-        toTask: { select: { id: true, number: true, title: true, status: true, board: { select: { identifier: true } } } },
+        fromTask: { select: { id: true, number: true, title: true, board: { select: { identifier: true } } } },
+        toTask: { select: { id: true, number: true, title: true, board: { select: { identifier: true } } } },
       },
     });
 
-    const entry = (relId: string, type: 'blocks' | 'related_to', t: { id: string; number: number; title: string; status: string; board: { identifier: string } | null }): RelationEntry => ({
+    const entry = (relId: string, type: 'blocks' | 'related_to', t: { id: string; number: number; title: string; board: { identifier: string } | null }): RelationEntry => ({
       relationId: relId,
       type,
       task: {
         id: t.id,
         taskNumber: t.board?.identifier ? `${t.board.identifier}-${t.number}` : String(t.number),
         title: t.title,
-        status: t.status,
       },
     });
 
@@ -90,14 +89,14 @@ export class RelationsService {
     // 2. Other task exists
     const other = await this.prisma.task.findUnique({
       where: { id: dto.otherTaskId },
-      select: { id: true, number: true, title: true, status: true, boardId: true, board: { select: { identifier: true } } },
+      select: { id: true, number: true, title: true, boardId: true, board: { select: { identifier: true } } },
     });
     if (!other) throw new NotFoundException('Related task not found');
 
     // 3. Same board
     const urlTask = await this.prisma.task.findUnique({
       where: { id: taskId },
-      select: { id: true, number: true, title: true, status: true, boardId: true, board: { select: { identifier: true } } },
+      select: { id: true, number: true, title: true, boardId: true, board: { select: { identifier: true } } },
     });
     if (!urlTask) throw new NotFoundException('Task not found');
     if (urlTask.boardId !== other.boardId) {
@@ -162,7 +161,7 @@ export class RelationsService {
     return {
       relationId: row.id,
       type: dto.type,
-      task: { id: other.id, taskNumber: otherTaskNumber, title: other.title, status: other.status },
+      task: { id: other.id, taskNumber: otherTaskNumber, title: other.title },
     };
   }
 

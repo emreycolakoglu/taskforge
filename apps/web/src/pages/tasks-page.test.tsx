@@ -21,14 +21,13 @@ vi.mock('@/hooks/use-tasks', () => ({
       data: [
         {
           id: 't1',
-          listId: 'l1',
+          statusId: 's1',
           title: 'Fix login bug',
           position: 0,
           priority: 'high',
-          status: 'active',
           createdAt: '2026-01-01',
           updatedAt: '2026-01-01',
-          list: { id: 'l1', boardId: 'b1', name: 'Backlog', position: 0 },
+          status: { id: 's1', boardId: 'b1', name: 'Backlog', position: 0 },
         },
       ],
       isFetched: true,

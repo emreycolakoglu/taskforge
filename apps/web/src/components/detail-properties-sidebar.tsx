@@ -14,7 +14,6 @@ import { Separator } from '@/components/ui/separator'
 import { LabelPill } from './label-pill'
 import { LabelManager } from './label-manager'
 import { DetailPropertyRow } from './detail-property-row'
-import { DetailStatusSelect } from './detail-status-select'
 import { DetailPrioritySelect } from './detail-priority-select'
 import { DetailAssigneeSelect } from './detail-assignee-select'
 import { DetailAddParentPopover } from './detail-add-parent-popover'
@@ -45,7 +44,7 @@ export function DetailPropertiesSidebar({
   formatTimestamp,
 }: DetailPropertiesSidebarProps) {
   const taskLabels = task.taskLabels ?? task.labels ?? []
-  const listName = board?.lists?.find((l) => l.id === task.listId)?.name ?? 'Unknown list'
+  const statusName = board?.statuses?.find((s) => s.id === task.statusId)?.name ?? 'Unknown status'
   const subTaskIds = new Set((task.subTasks ?? []).map((st) => st.id))
 
   const parentNumber = task.parent?.board?.identifier
@@ -62,12 +61,6 @@ export function DetailPropertiesSidebar({
             <SubscribeButton taskId={task.id} />
           </DetailPropertyRow>
           {/* Group 1 — Status & ownership */}
-          <DetailPropertyRow label="Status">
-            <DetailStatusSelect
-              value={task.status}
-              onChange={(status) => onUpdate({ status })}
-            />
-          </DetailPropertyRow>
           <DetailPropertyRow label="Priority">
             <DetailPrioritySelect
               value={task.priority}
@@ -93,10 +86,10 @@ export function DetailPropertiesSidebar({
           <Separator />
 
           {/* Group 2 — Organization */}
-          <DetailPropertyRow label="List">
+          <DetailPropertyRow label="Status">
             <span className="flex items-center gap-1.5 text-sm text-foreground">
               <ListChecks className="size-3.5 text-muted-foreground" />
-              {listName}
+              {statusName}
             </span>
           </DetailPropertyRow>
           <DetailPropertyRow label="Parent">

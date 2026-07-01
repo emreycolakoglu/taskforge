@@ -36,14 +36,14 @@ export function LabelManager({ task, boardId }: LabelManagerProps) {
     queryClient.setQueryData(queryKey, (old: unknown) => {
       if (!old || typeof old !== 'object' || old === null) return old
       const board = old as Record<string, unknown>
-      const lists = board.lists as Array<Record<string, unknown>> | undefined
-      if (!lists) return old
+      const statuses = board.statuses as Array<Record<string, unknown>> | undefined
+      if (!statuses) return old
 
       return {
         ...board,
-        lists: lists.map((list) => ({
-          ...list,
-          tasks: (list.tasks as Array<Record<string, unknown>>).map((t) => {
+        statuses: statuses.map((status) => ({
+          ...status,
+          tasks: (status.tasks as Array<Record<string, unknown>>).map((t) => {
             if (t.id !== task.id) return t
             const existingLabels = (t.taskLabels ?? t.labels ?? []) as TaskLabel[]
             if (isAttached) {

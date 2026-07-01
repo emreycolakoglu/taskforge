@@ -63,7 +63,7 @@ export function useSocket(boardId?: string) {
         eventName === 'task:deleted' ||
         eventName === 'task:moved'
       ) {
-        const task = eventData as { id?: string; listId?: string; boardId?: string };
+        const task = eventData as { id?: string; statusId?: string; boardId?: string };
         if (task.id) {
           queryClient.invalidateQueries({ queryKey: ['tasks', task.id] });
         }
