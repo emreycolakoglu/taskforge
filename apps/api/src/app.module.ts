@@ -4,7 +4,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { SettingsModule } from './settings/settings.module';
 import { BoardsModule } from './boards/boards.module';
-import { ListsModule } from './lists/lists.module';
+import { StatusesModule } from './statuses/statuses.module';
 import { TasksModule } from './tasks/tasks.module';
 import { CommentsModule } from './comments/comments.module';
 import { LabelsModule } from './labels/labels.module';
@@ -22,7 +22,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     AuthModule,
     SettingsModule,
     BoardsModule,
-    ListsModule,
+    StatusesModule,
     TasksModule,
     CommentsModule,
     LabelsModule,
