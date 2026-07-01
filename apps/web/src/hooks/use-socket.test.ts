@@ -205,4 +205,21 @@ describe('useSocket', () => {
     // But should NOT have called .disconnect()
     expect(mockSocket.disconnect).not.toHaveBeenCalled();
   });
+
+  it('should invalidate notifications queries on notification:created event', () => {
+    mockGetToken.mockReturnValue('tok');
+    renderHook(() => useSocket());
+
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const notifHandler = calls.find((c) => c[0] === 'notification:created')?.[1] as ((data: unknown) => void) | undefined;
+    expect(notifHandler).toBeDefined();
+
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => {
+      notifHandler!({ id: 'n1' });
+    });
+
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications'] });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications', 'unread-count'] });
+  });
 });

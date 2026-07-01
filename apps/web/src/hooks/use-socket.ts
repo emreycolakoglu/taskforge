@@ -118,6 +118,11 @@ export function useSocket(boardId?: string) {
         }
       }
 
+      if (eventName === 'notification:created') {
+        queryClient.invalidateQueries({ queryKey: ['notifications'] });
+        queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
+      }
+
       // Notify custom listeners
       const handlers = listenersRef.current.get(eventName);
       handlers?.forEach((h) => h(eventData));
@@ -140,6 +145,7 @@ export function useSocket(boardId?: string) {
       'board:created',
       'relation:created',
       'relation:deleted',
+      'notification:created',
     ];
 
     eventTypes.forEach((eventType) => {
