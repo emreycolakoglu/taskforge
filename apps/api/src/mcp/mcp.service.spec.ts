@@ -609,6 +609,25 @@ describe('McpService', () => {
       const unread = await prisma.notification.count({ where: { userId: user.id, readAt: null } });
       expect(unread).toBe(0);
     });
+
+    it('task_subscribe without user → JSON-RPC error', async () => {
+      const task = await seedTask(prisma, board.lists[0].id);
+      const res = await service.handleRequest({
+        method: 'task_subscribe',
+        params: { taskId: task.id },
+        id: 507,
+      });
+      expect(res.error).toBeDefined();
+      expect(res.error.code).toBe(-32603);
+      expect(res.error.message).toContain('Authentication required');
+    });
+
+    it('inbox_list without user → JSON-RPC error', async () => {
+      const res = await service.handleRequest({ method: 'inbox_list', params: {}, id: 508 });
+      expect(res.error).toBeDefined();
+      expect(res.error.code).toBe(-32603);
+      expect(res.error.message).toContain('Authentication required');
+    });
   });
 
   // ─── Without user (fallback to agent) ───
