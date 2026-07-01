@@ -41,6 +41,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/auth-context";
 import { useBoards } from "@/hooks/use-boards";
+import { useUnreadCount } from "@/hooks/use-notifications";
 import { CreateBoardDialog } from "@/components/create-board-dialog";
 
 interface SidebarLayoutProps {
@@ -54,8 +55,8 @@ const PRIMARY_NAV = [
   {
     label: "Inbox",
     icon: Inbox,
-    to: "/tasks" as string | null,
-    enabled: false,
+    to: "/inbox" as string | null,
+    enabled: true,
   },
   { label: "My Issues", icon: ListChecks, to: "/tasks", enabled: true },
   // { label: "Pulse", icon: Activity, to: null, enabled: false },
@@ -73,6 +74,8 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { data: boards, isLoading: boardsLoading } = useBoards();
+  const { data: unreadData } = useUnreadCount();
+  const unreadCount = unreadData?.count ?? 0;
 
   const avatarLetter = user?.displayName
     ? user.displayName.charAt(0).toUpperCase()
@@ -131,8 +134,22 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                   )}
                   aria-current={isActive ? "page" : undefined}
                 >
-                  <item.icon className="size-4 shrink-0" />
-                  {!collapsed && <span>{item.label}</span>}
+                  <div className="relative">
+                    <item.icon className="size-4 shrink-0" />
+                    {item.label === "Inbox" && unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 size-1.5 rounded-full bg-primary" />
+                    )}
+                  </div>
+                  {!collapsed && (
+                    <span className="flex items-center gap-2 flex-1">
+                      <span>{item.label}</span>
+                      {item.label === "Inbox" && unreadCount > 0 && (
+                        <span className="ml-auto rounded-full bg-primary text-primary-foreground text-[10px] font-medium px-1.5 py-0.5 min-w-[16px] text-center">
+                          {unreadCount}
+                        </span>
+                      )}
+                    </span>
+                  )}
                 </span>
               );
 
