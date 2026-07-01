@@ -105,6 +105,14 @@ Board
 - **Node.js** >= 20
 - **pnpm** >= 10 (install with `corepack enable && corepack prepare pnpm@10.12.1 --activate`)
 
+### Docker (fastest)
+
+```bash
+docker run -d --name taskforge -p 3000:3000 -v taskforge-data:/data emreyc/taskforge:latest
+```
+
+Open **http://localhost:3000** and follow the onboarding prompt to create the admin account. The SQLite database is persisted in the `taskforge-data` volume at `/data/taskforge.db`.
+
 ### Local Development
 
 ```bash
@@ -127,7 +135,7 @@ pnpm dev
 
 The API runs on `http://localhost:3000` and the Vite dev server on `http://localhost:5173` (proxied to the API). On first visit the SPA redirects to `/onboarding` to create the admin account.
 
-### Docker (Production)
+### Docker (Production, from source)
 
 ```bash
 # Build and run (exposes :4321 by default via docker-compose)

@@ -56,6 +56,36 @@ jobs:
           git tag "v${{ steps.bump.outputs.next_version }}"
           git push origin "v${{ steps.bump.outputs.next_version }}"
 
+      - name: Generate changelog
+        id: changelog
+        run: |
+          set -euo pipefail
+          PREV_TAG=$(git describe --tags --abbrev=0 "v${{ steps.bump.outputs.next_version }}"^ 2>/dev/null || echo "")
+          if [ -z "$PREV_TAG" ]; then
+            RANGE="HEAD"
+          else
+            RANGE="${PREV_TAG}..HEAD"
+          fi
+          {
+            echo "body<<EOF"
+            echo "## What's new"
+            echo
+            git log --pretty=format:"- %s (%h)" "$RANGE" | grep -v -iE "^(chore|test): bump|^[a-f0-9]+ - (Merge pull request|Merge branch)" || true
+            echo
+            echo
+            echo "**Full changelog**: https://github.com/${{ github.repository }}/compare/${PREV_TAG:-$(git rev-list --max-parents=0 HEAD | head -1)}...v${{ steps.bump.outputs.next_version }}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "v${{ steps.bump.outputs.next_version }}" \
+            --title "v${{ steps.bump.outputs.next_version }}" \
+            --notes "${{ steps.changelog.outputs.body }}" \
+            --target main
+
   docker:
     needs: bump-version
     runs-on: ubuntu-latest
