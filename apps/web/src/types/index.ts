@@ -172,7 +172,7 @@ export interface Notification {
   summary: string;
   readAt: string | null;
   createdAt: string;
-  task?: { id: string; title: string; board: { identifier: string } };
+  task?: { id: string; title: string; number: number; board: { identifier: string } };
 }
 
 export interface TaskSubscriptionState {

@@ -14,6 +14,7 @@ import { SignupPage } from "@/pages/signup-page";
 import { KanbanBoard } from "@/components/kanban-board";
 import { BoardSettingsPage } from "@/pages/board-settings-page";
 import { TaskDetailPage } from "@/pages/task-detail-page";
+import { InboxPage } from "@/pages/inbox-page";
 
 export function App() {
   return (
@@ -78,6 +79,23 @@ export function App() {
               element={
                 <SidebarLayout>
                   <AccountPage />
+                </SidebarLayout>
+              }
+            />
+
+            <Route
+              path="/inbox"
+              element={
+                <SidebarLayout>
+                  <InboxPage />
+                </SidebarLayout>
+              }
+            />
+            <Route
+              path="/inbox/:notificationId"
+              element={
+                <SidebarLayout>
+                  <InboxPage />
                 </SidebarLayout>
               }
             />

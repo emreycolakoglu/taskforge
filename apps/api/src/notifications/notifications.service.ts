@@ -96,7 +96,7 @@ export class NotificationsService {
       where,
       orderBy: { createdAt: 'desc' },
       take: limit,
-      include: { task: { select: { id: true, title: true, board: { select: { identifier: true } } } } },
+      include: { task: { select: { id: true, title: true, number: true, board: { select: { identifier: true } } } } },
     });
   }
 
