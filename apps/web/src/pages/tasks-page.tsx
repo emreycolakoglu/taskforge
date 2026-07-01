@@ -51,7 +51,7 @@ export function TasksPage() {
       {results.length > 0 && (
         <div className="space-y-1">
           {results.map((task) => {
-            const board = task.boardId ? boards[task.boardId] : (task.list?.boardId ? boards[task.list.boardId] : undefined)
+            const board = task.boardId ? boards[task.boardId] : (task.status?.boardId ? boards[task.status.boardId] : undefined)
             return (
               <button
                 key={task.id}
@@ -70,9 +70,9 @@ export function TasksPage() {
                 <span className={cn('text-xs font-semibold shrink-0', priorityColor(task.priority))}>
                   {task.priority}
                 </span>
-                {task.list && (
+                {task.status && (
                   <Badge variant="secondary" className="text-xs text-muted-foreground bg-muted rounded-sm px-1.5 py-0.5 border-0">
-                    {task.list.name}
+                    {task.status.name}
                   </Badge>
                 )}
                 {board && (

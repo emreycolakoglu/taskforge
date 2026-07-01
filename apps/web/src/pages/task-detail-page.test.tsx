@@ -6,7 +6,7 @@ import { TaskDetailPage } from './task-detail-page'
 
 const mockTask = {
   id: 'task-1',
-  listId: 'list-1',
+  statusId: 'status-1',
   boardId: 'board-1',
   number: 1,
   taskNumber: 'TF-1',
@@ -14,7 +14,6 @@ const mockTask = {
   description: 'Login page is broken',
   position: 0,
   priority: 'high' as const,
-  status: 'active' as const,
   assigneeId: 'user-1',
   assignee: { id: 'user-1', email: 'alice@example.com', displayName: 'Alice', role: 'admin' as const, createdAt: '2026-01-01', updatedAt: '2026-01-01' },
   dueDate: '2026-07-01',
@@ -35,8 +34,8 @@ const mockBoard = {
   identifier: 'TF',
   description: 'First sprint',
   createdAt: '2026-01-01',
-  lists: [
-    { id: 'list-1', boardId: 'board-1', name: 'Backlog', position: 0, tasks: [mockTask] },
+  statuses: [
+    { id: 'status-1', boardId: 'board-1', name: 'Backlog', position: 0, tasks: [mockTask] },
   ],
   labels: [
     { id: 'label-1', boardId: 'board-1', name: 'Bug', color: '#EF4444', createdAt: '2026-01-01', updatedAt: '2026-01-01' },
@@ -92,10 +91,10 @@ describe('TaskDetailPage', () => {
     expect(screen.getByText('Login page is broken')).toBeInTheDocument()
   })
 
-  it('renders the list name in the sidebar', () => {
+  it('renders the status name in the sidebar', () => {
     renderPage()
 
-    // List name appears in both the breadcrumb and the sidebar property row.
+    // Status name appears in both the breadcrumb and the sidebar property row.
     expect(screen.getAllByText('Backlog').length).toBeGreaterThanOrEqual(1)
   })
 
@@ -116,12 +115,6 @@ describe('TaskDetailPage', () => {
 
     // Priority is now a Select (not 4 buttons); trigger shows the current value.
     expect(screen.getByText('High')).toBeInTheDocument()
-  })
-
-  it('renders the status selector', () => {
-    renderPage()
-
-    expect(screen.getByText('Active')).toBeInTheDocument()
   })
 
   it('renders assignee selector showing current assignee', () => {

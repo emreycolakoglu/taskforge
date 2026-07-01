@@ -22,7 +22,7 @@ import { toast } from 'sonner'
 
 interface DetailBreadcrumbBarProps {
   boardName: string
-  listName: string
+  statusName: string
   taskNumber: string
   taskId: string
   boardId: string
@@ -35,7 +35,7 @@ interface DetailBreadcrumbBarProps {
 
 export function DetailBreadcrumbBar({
   boardName,
-  listName,
+  statusName,
   taskNumber,
   taskId,
   position,
@@ -74,7 +74,7 @@ export function DetailBreadcrumbBar({
         <nav className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
           <span className="truncate">{boardName}</span>
           <span className="text-muted-foreground/50">›</span>
-          <span className="truncate">{listName}</span>
+          <span className="truncate">{statusName}</span>
           <span className="text-muted-foreground/50">›</span>
           <span className="font-mono text-foreground shrink-0">{taskNumber}</span>
         </nav>
