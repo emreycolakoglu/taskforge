@@ -53,6 +53,7 @@ export function KanbanBoard() {
   // Map of taskId → taskNumber for resolving parent badges on sub-task cards.
   const tasks = useMemo(() => statuses.flatMap((s) => s.tasks || []), [statuses])
   const taskNumberById = useMemo(() => new Map(tasks.map((t) => [t.id, t.taskNumber])), [tasks])
+  const taskTitleById = useMemo(() => new Map(tasks.map((t) => [t.id, t.title])), [tasks])
 
   // WebSocket handles cache invalidation via useSocket
   useSocket(id)
@@ -251,6 +252,7 @@ export function KanbanBoard() {
                                 isDragging={dragSnapshot.isDragging}
                                 boardId={id}
                                 parentTaskNumber={task.parentId ? taskNumberById.get(task.parentId) : undefined}
+                                parentTaskName={task.parentId ? taskTitleById.get(task.parentId) : undefined}
                                 onAddSubTask={() => setCreatingSubTask({
                                   parentId: task.id,
                                   statusId: task.statusId,

@@ -1,14 +1,17 @@
 /**
- * TaskCard — Linear-inspired compact single-row issue card.
+ * TaskCard — Linear-inspired compact issue card.
  *
- * Layout (two lines max):
+ * Layout:
  *   ┌──────────────────────────────────────────────────────────┐
- *   │ [priority-icon] TF-730  Task title here…        [avatar] │
+ *   │ [priority-icon] TF-730  Parent task name…       [avatar] │
+ *   │ Task title here that can wrap onto a                      │
+ *   │ second line before being truncated…                      │
  *   │ ↳ TF-729  [label] [label] +2   💬3  ⊘2            [tag+] │
  *   └──────────────────────────────────────────────────────────┘
  *
- * Row 1: priority icon → task number (mono) → title (truncate, weight 400) → assignee avatar.
- * Row 2 (only if metadata exists): parent ref → label pills → comments → blocked → label manager (+).
+ * Row 1: priority icon → task number (mono) → parent task name (if any, truncate) → assignee avatar.
+ * Title row: task title, clamped to two lines (weight 400).
+ * Row 3 (only if metadata exists): parent ref → label pills → comments → blocked → label manager (+).
  *
  * design.md compliance: no Lime anywhere on the card. Border-defined edges
  * (Graphite inset border), no bright fills. Priority uses Crimson/Indigo —
@@ -59,10 +62,11 @@ interface TaskCardProps {
   isDragging?: boolean
   boardId?: string
   parentTaskNumber?: string
+  parentTaskName?: string
   onAddSubTask?: () => void
 }
 
-export function TaskCard({ task, isDragging, boardId, parentTaskNumber, onAddSubTask }: TaskCardProps) {
+export function TaskCard({ task, isDragging, boardId, parentTaskNumber, parentTaskName, onAddSubTask }: TaskCardProps) {
   const labels = task.taskLabels ?? task.labels ?? []
   const isSubTask = !!task.parentId
 
@@ -85,13 +89,17 @@ export function TaskCard({ task, isDragging, boardId, parentTaskNumber, onAddSub
         isSubTask && 'pl-4 border-l-2 border-l-border',
       )}
     >
-      {/* Row 1 — priority icon + task number + title + assignee */}
+      {/* Row 1 — priority icon + task number + parent task name + assignee */}
       <div className="flex items-center gap-2 min-w-0">
         {priorityIcon()}
         {task.taskNumber && (
           <span className="text-xs font-mono text-muted-foreground shrink-0">{task.taskNumber}</span>
         )}
-        <span className="text-sm text-foreground truncate flex-1">{task.title}</span>
+        {parentTaskName && (
+          <span className="text-xs text-muted-foreground truncate flex-1" title={parentTaskName}>
+            {parentTaskName}
+          </span>
+        )}
         {task.assignee && (
           <Avatar className="size-5 ml-auto shrink-0">
             <AvatarFallback
@@ -104,7 +112,10 @@ export function TaskCard({ task, isDragging, boardId, parentTaskNumber, onAddSub
         )}
       </div>
 
-      {/* Row 2 — only if metadata exists */}
+      {/* Title row — clamped to two lines */}
+      <span className="text-sm text-foreground line-clamp-2">{task.title}</span>
+
+      {/* Row 3 — only if metadata exists */}
       {hasRow2 && (
         <div className="flex items-center gap-1.5 text-muted-foreground text-xs min-w-0">
           {parentTaskNumber && (
