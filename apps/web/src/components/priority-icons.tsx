@@ -8,22 +8,22 @@
  * design.md's semantic-accent rule. No tinted background fills — icons only
  * carry stroke color.
  *
- * Icons (coherent up→down set):
- *   urgent  — Siren         (loud, alarming, highest weight)
- *   high    — ArrowUpToLine (strong up, line cap adds weight)
- *   medium  — Equal         (balanced, neutral)
- *   low     — ArrowDownToLine
+ * Icons (alert + directional chevrons, coherent high→low):
+ *   urgent  — OctagonAlert (alert octagon, breaks the set to signal danger)
+ *   high    — ChevronUp    (points up)
+ *   medium  — Minus        (neutral, level)
+ *   low     — ChevronDown  (points down)
  */
 
-import { ArrowDownToLine, ArrowUpToLine, Equal, Siren } from 'lucide-react'
+import { ChevronDown, ChevronUp, Minus, OctagonAlert } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { Task } from '@/types'
 
 const PRIORITY_ICONS: Record<Task['priority'], LucideIcon> = {
-  urgent: Siren,
-  high: ArrowUpToLine,
-  medium: Equal,
-  low: ArrowDownToLine,
+  urgent: OctagonAlert,
+  high: ChevronUp,
+  medium: Minus,
+  low: ChevronDown,
 }
 
 const PRIORITY_COLORS: Record<Task['priority'], string> = {
