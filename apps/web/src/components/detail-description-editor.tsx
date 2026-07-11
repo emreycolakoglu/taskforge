@@ -1,15 +1,21 @@
 /**
- * DetailDescriptionEditor — inline editable description region.
+ * DetailDescriptionEditor — always-live markdown description on the task detail.
  *
- * No "Description" heading (Linear doesn't have one). Display mode is a plain
- * editable region with a placeholder. Edit mode is a Textarea + Save/Cancel
- * action row. No Lime CTA — Save is outline (design.md: detail page has no
- * primary creation action).
+ * No "Description" heading (Linear doesn't have one). The editor is always
+ * mounted and editable; there is no Save/Cancel row. Edits autosave: debounced
+ * ~1s after typing stops, and flushed immediately on blur so nothing is lost.
+ * A save is skipped when the serialized markdown matches the server value, so
+ * focus-in/out without edits does not spawn a mutation.
+ *
+ * The MarkdownEditor's remote-update guard keeps live WebSocket refetches from
+ * clobbering the caret mid-edit (last-write-wins on the field).
  */
 
-import { useState } from 'react'
-import { Textarea } from '@/components/ui/textarea'
-import { Button } from '@/components/ui/button'
+import { useEffect, useRef } from 'react'
+import { MarkdownEditor } from '@/components/markdown'
+import { createAutosaver, type Autosaver } from '@/lib/autosave'
+
+const AUTOSAVE_DELAY_MS = 1000
 
 interface DetailDescriptionEditorProps {
   value: string
@@ -17,46 +23,32 @@ interface DetailDescriptionEditorProps {
 }
 
 export function DetailDescriptionEditor({ value, onSave }: DetailDescriptionEditorProps) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState(value)
+  const onSaveRef = useRef(onSave)
+  const valueRef = useRef(value)
+  onSaveRef.current = onSave
+  valueRef.current = value
 
-  if (!editing) {
-    return (
-      <div
-        className="text-sm text-foreground/90 leading-relaxed min-h-[60px] cursor-text hover:bg-accent/30 rounded-md -mx-2 px-2 py-1"
-        onClick={() => {
-          setDraft(value)
-          setEditing(true)
-        }}
-      >
-        {value || (
-          <span className="italic text-muted-foreground">Add a description…</span>
-        )}
-      </div>
+  const saverRef = useRef<Autosaver<string> | null>(null)
+  if (saverRef.current === null) {
+    saverRef.current = createAutosaver<string>(
+      (markdown) => {
+        if (markdown !== valueRef.current) onSaveRef.current(markdown)
+      },
+      { delayMs: AUTOSAVE_DELAY_MS },
     )
   }
 
+  // Flush any pending edit if the view unmounts (navigation away mid-edit).
+  useEffect(() => () => saverRef.current?.flush(), [])
+
   return (
-    <div className="flex flex-col gap-2">
-      <Textarea
-        autoFocus
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        rows={8}
-        placeholder="Add a description…"
-      />
-      <div className="flex gap-2 mt-2">
-        <Button size="sm" variant="outline" onClick={() => { onSave(draft); setEditing(false) }}>
-          Save
-        </Button>
-        <Button
-          size="sm"
-          variant="ghost"
-          onClick={() => { setDraft(value); setEditing(false) }}
-        >
-          Cancel
-        </Button>
-      </div>
-    </div>
+    <MarkdownEditor
+      value={value}
+      onChange={(markdown) => saverRef.current?.schedule(markdown)}
+      onBlur={(markdown) => {
+        saverRef.current?.schedule(markdown)
+        saverRef.current?.flush()
+      }}
+    />
   )
 }

@@ -18,7 +18,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { Textarea } from '@/components/ui/textarea'
+import { MarkdownEditor } from '@/components/markdown'
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -97,12 +97,13 @@ export function CreateTaskDialog({
             onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit() } }}
             placeholder="Issue title..."
           />
-          <Textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="Add description..."
-            rows={3}
-          />
+          <div className="min-h-20 max-h-56 overflow-y-auto w-full rounded-md border border-border bg-input px-3 py-2 text-sm shadow-subtle-2 transition-colors duration-150 focus-within:ring-2 focus-within:ring-ring">
+            <MarkdownEditor
+              value={description}
+              onChange={setDescription}
+              placeholder="Add description..."
+            />
+          </div>
           <div className="flex gap-2">
             <Select value={statusId} onValueChange={setStatusId}>
               <SelectTrigger className="flex-1">
