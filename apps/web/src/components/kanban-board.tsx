@@ -10,7 +10,8 @@ import { useCreateTask } from '@/hooks/use-tasks'
 import { useUsers } from '@/hooks/use-users'
 import { useSocket } from '@/hooks/use-socket'
 import { useBoardViewState } from '@/hooks/use-board-view-state'
-import { Task, Label } from '@/types'
+import { Task, Label, Board } from '@/types'
+import { planTaskMove } from '@/lib/kanban-dnd'
 import { TaskCard } from './task-card'
 import { BoardColumn } from './board-column'
 import { BoardHeaderBar } from './board-header-bar'
@@ -58,34 +59,49 @@ export function KanbanBoard() {
   // WebSocket handles cache invalidation via useSocket
   useSocket(id)
 
+  /** Filter tasks: show only tasks that have ALL active labels. */
+  const filterTask = useCallback((task: Task) => {
+    if (filters.labelIds.length === 0) return true
+    const taskLabelIds = (task.taskLabels ?? task.labels ?? []).map((tl) => tl.labelId)
+    return filters.labelIds.every((lid) => taskLabelIds.includes(lid))
+  }, [filters.labelIds])
+
+  const filteredStatuses = useMemo(() => {
+    return statuses.map((status) => ({
+      ...status,
+      tasks: (status.tasks || []).filter(filterTask),
+    }))
+  }, [statuses, filterTask])
+
   const handleDragEnd = useCallback(async (result: DropResult) => {
-    if (!result.destination || !id) return
-    const { draggableId, source, destination } = result
+    if (!id) return
+    const plan = planTaskMove(statuses, filteredStatuses, result)
+    if (!plan) return
+
+    // Optimistically render the move immediately: without this the card snaps
+    // back to its origin and only jumps to the new column once the API call
+    // resolves and the query refetches. We snapshot the board first so we can
+    // roll back if the request fails.
+    const queryKey = ['boards', id, 'full']
+    const previousBoard = queryClient.getQueryData<Board>(queryKey)
+    if (previousBoard) {
+      queryClient.setQueryData<Board>(queryKey, { ...previousBoard, statuses: plan.statuses })
+    }
 
     try {
-      if (source.droppableId === destination.droppableId) {
-        const status = statuses.find((s) => s.id === source.droppableId)
-        if (!status?.tasks) return
-        const reordered = [...status.tasks]
-        const [moved] = reordered.splice(source.index, 1)
-        reordered.splice(destination.index, 0, moved)
-        const items = reordered.map((t, i) => ({ id: t.id, position: i }))
-        await api.tasks.reorder(items)
+      if (plan.kind === 'reorder') {
+        await api.tasks.reorder(plan.items)
       } else {
-        const targetStatus = statuses.find((s) => s.id === destination.droppableId)
-        const targetTasks = targetStatus?.tasks || []
-        const position = destination.index < targetTasks.length
-          ? targetTasks[destination.index].position
-          : (targetTasks.length > 0 ? targetTasks[targetTasks.length - 1].position + 1 : 0)
-        await api.tasks.move(draggableId, { statusId: destination.droppableId, position })
+        await api.tasks.move(plan.taskId, { statusId: plan.statusId, position: plan.position })
       }
+      queryClient.invalidateQueries({ queryKey: ['boards', id, 'full'] })
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'board', id] })
+      queryClient.invalidateQueries({ queryKey: ['tasks', result.draggableId] })
     } catch (error) {
+      if (previousBoard) queryClient.setQueryData(queryKey, previousBoard)
       toast.error("Failed to move task", { description: error instanceof Error ? error.message : 'Unknown error' })
     }
-    queryClient.invalidateQueries({ queryKey: ['boards', id, 'full'] })
-    queryClient.invalidateQueries({ queryKey: ['tasks', 'board', id] })
-    queryClient.invalidateQueries({ queryKey: ['tasks', draggableId] })
-  }, [id, statuses, queryClient])
+  }, [id, statuses, filteredStatuses, queryClient])
 
   const handleCreateTask = (statusId: string, title: string, parentId?: string) => {
     if (!id) return
@@ -111,20 +127,6 @@ export function KanbanBoard() {
       queryClient.invalidateQueries({ queryKey: ['boards', id!, 'full'] })
     }
   }
-
-  /** Filter tasks: show only tasks that have ALL active labels. */
-  const filterTask = useCallback((task: Task) => {
-    if (filters.labelIds.length === 0) return true
-    const taskLabelIds = (task.taskLabels ?? task.labels ?? []).map((tl) => tl.labelId)
-    return filters.labelIds.every((lid) => taskLabelIds.includes(lid))
-  }, [filters.labelIds])
-
-  const filteredStatuses = useMemo(() => {
-    return statuses.map((status) => ({
-      ...status,
-      tasks: (status.tasks || []).filter(filterTask),
-    }))
-  }, [statuses, filterTask])
 
   const priorityColor = (p: string) => {
     switch (p) {
