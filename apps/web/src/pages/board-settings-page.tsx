@@ -40,8 +40,8 @@ export function BoardSettingsPage() {
   }
 
   return (
-    <div>
-      <header className="bg-secondary border-b border-border px-6 py-4 flex items-center gap-3">
+    <div className="flex flex-col h-full">
+      <header className="shrink-0 bg-secondary border-b border-border px-6 py-4 flex items-center gap-3">
         <Button variant="ghost" size="icon" aria-label="Back to board" onClick={() => navigate(`/board/${id}`)}>
           <ArrowLeft className="size-5" />
         </Button>
@@ -51,9 +51,11 @@ export function BoardSettingsPage() {
         </div>
       </header>
 
-      <div className="p-6 max-w-2xl space-y-6 bg-background">
-        <StatusesSection boardId={id!} statuses={board.statuses ?? []} />
-        <LabelsSection boardId={id!} labels={labels} />
+      <div className="flex-1 overflow-y-auto bg-background p-6">
+        <div className="max-w-2xl space-y-6">
+          <StatusesSection boardId={id!} statuses={board.statuses ?? []} />
+          <LabelsSection boardId={id!} labels={labels} />
+        </div>
       </div>
     </div>
   )

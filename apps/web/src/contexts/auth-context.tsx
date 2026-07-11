@@ -44,6 +44,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     async function init() {
+      // Signup runs on a public invite route (/signup/:token). An invited user
+      // has no session yet, so the "onboarded but no token" path below must not
+      // bounce them to /login before they can accept the invite.
+      const onSignupRoute = window.location.pathname.startsWith('/signup/');
+
       try {
         const status = await api.auth.status();
         if (cancelled) return;
@@ -58,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const storedToken = getToken();
         if (!storedToken) {
           setIsLoading(false);
-          navigate('/login', { replace: true });
+          if (!onSignupRoute) navigate('/login', { replace: true });
           return;
         }
 
@@ -71,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (cancelled) return;
           clearToken();
           setTokenState(null);
-          navigate('/login', { replace: true });
+          if (!onSignupRoute) navigate('/login', { replace: true });
         }
       } catch {
         if (cancelled) return;
