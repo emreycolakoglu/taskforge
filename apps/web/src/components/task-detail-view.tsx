@@ -17,11 +17,9 @@ import { useComments, useCreateComment } from '@/hooks/use-comments'
 import { useUsers } from '@/hooks/use-users'
 import { useLabels } from '@/hooks/use-labels'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { DetailTitleBlock } from '@/components/detail-title-block'
 import { DetailDescriptionEditor } from '@/components/detail-description-editor'
 import { DetailSubIssues } from '@/components/detail-sub-issues'
-import { DetailRelations } from '@/components/detail-relations'
 import { DetailActivity } from '@/components/detail-activity'
 import { DetailComments } from '@/components/detail-comments'
 import { DetailPropertiesSidebar } from '@/components/detail-properties-sidebar'
@@ -133,26 +131,10 @@ export function TaskDetailView({ taskId, boardId, onNavigateTask }: TaskDetailVi
             onCreateSubTask={handleCreateSubTask}
           />
 
-          <Separator />
-
-          <DetailRelations
-            relations={relations ?? { taskId: task.id, blocking: [], blockedBy: [], relatedTo: [] }}
-            taskId={task.id}
-            boardId={boardId}
-            boardTasks={boardTasks}
-            onAdd={handleAddRelation}
-            onRemove={handleRemoveRelation}
-            onNavigate={navigateToTask}
-          />
-
-          <Separator />
-
           <DetailActivity
             activity={task.activity ?? []}
             formatTimestamp={formatTimestamp}
           />
-
-          <Separator />
 
           <DetailComments
             comments={comments}
@@ -170,6 +152,8 @@ export function TaskDetailView({ taskId, boardId, onNavigateTask }: TaskDetailVi
         boardTasks={boardTasks}
         relations={relations}
         onUpdate={handleUpdate}
+        onAddRelation={handleAddRelation}
+        onRemoveRelation={handleRemoveRelation}
         onNavigate={navigateToTask}
         onScrollTo={handleScrollTo}
         formatTimestamp={formatTimestamp}

@@ -3,7 +3,9 @@
  *
  * Flat list of property rows, no card chrome, hairline dividers between groups.
  * Each row is label (muted, sentence case per conflict register #9) → control.
- * Groups: Status & ownership, Organization, Relations summary, Dates.
+ * Groups: Status & ownership, Organization, Relations, Dates.
+ * Relations live here (not the main column), matching the Linear reference —
+ * the group is fully interactive (add via popover, remove, navigate).
  *
  * design.md: w-[260px], bg-secondary, border-l, independent ScrollArea.
  */
@@ -17,8 +19,9 @@ import { DetailPropertyRow } from './detail-property-row'
 import { DetailPrioritySelect } from './detail-priority-select'
 import { DetailAssigneeSelect } from './detail-assignee-select'
 import { DetailAddParentPopover } from './detail-add-parent-popover'
+import { DetailRelations } from './detail-relations'
 import { SubscribeButton } from './subscribe-button'
-import type { Board, Task, User, TaskRelations } from '@/types'
+import type { Board, Task, User, TaskRelations, RelationType } from '@/types'
 
 interface DetailPropertiesSidebarProps {
   task: Task
@@ -27,6 +30,8 @@ interface DetailPropertiesSidebarProps {
   boardTasks: Task[]
   relations: TaskRelations | undefined
   onUpdate: (data: Partial<Task>) => void
+  onAddRelation: (otherTaskId: string, type: RelationType, direction?: 'source' | 'target') => void
+  onRemoveRelation: (relationId: string) => void
   onNavigate: (id: string) => void
   onScrollTo: (anchor: string) => void
   formatTimestamp: (ts: string) => string
@@ -39,6 +44,8 @@ export function DetailPropertiesSidebar({
   boardTasks,
   relations,
   onUpdate,
+  onAddRelation,
+  onRemoveRelation,
   onNavigate,
   onScrollTo,
   formatTimestamp,
@@ -121,31 +128,16 @@ export function DetailPropertiesSidebar({
 
           <Separator />
 
-          {/* Group 3 — Relations summary */}
-          <DetailPropertyRow
-            label="Blocking"
-            onClick={() => onScrollTo('relations')}
-          >
-            <span className="text-sm text-muted-foreground">
-              {relations?.blocking.length ? relations.blocking.length : 'None'}
-            </span>
-          </DetailPropertyRow>
-          <DetailPropertyRow
-            label="Blocked by"
-            onClick={() => onScrollTo('relations')}
-          >
-            <span className="text-sm text-muted-foreground">
-              {relations?.blockedBy.length ? relations.blockedBy.length : 'None'}
-            </span>
-          </DetailPropertyRow>
-          <DetailPropertyRow
-            label="Related"
-            onClick={() => onScrollTo('relations')}
-          >
-            <span className="text-sm text-muted-foreground">
-              {relations?.relatedTo.length ? relations.relatedTo.length : 'None'}
-            </span>
-          </DetailPropertyRow>
+          {/* Group 3 — Relations */}
+          <DetailRelations
+            relations={relations ?? { blocking: [], blockedBy: [], relatedTo: [] }}
+            taskId={task.id}
+            boardId={task.boardId}
+            boardTasks={boardTasks}
+            onAdd={onAddRelation}
+            onRemove={onRemoveRelation}
+            onNavigate={onNavigate}
+          />
 
           <Separator />
 
