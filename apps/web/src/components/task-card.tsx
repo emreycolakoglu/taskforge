@@ -22,7 +22,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { Task } from "@/types";
-import { Plus } from "lucide-react";
+import { CircleSmallIcon, Plus } from "lucide-react";
 import type { ReactNode } from "react";
 import { LabelManager } from "./label-manager";
 import { PriorityIcon } from "./priority-icons";
@@ -165,13 +165,15 @@ export function TaskCard({
               {visibleLabels.map((tl) => (
                 <Badge
                   key={tl.labelId}
-                  className="border px-1 py-0 text-[10px] leading-4 whitespace-nowrap"
                   variant={"outline"}
                   style={{
-                    borderColor: tl.label.color,
                     color: contrastTextColor(tl.label.color),
                   }}
                 >
+                  <CircleSmallIcon
+                    data-icon="inline-start"
+                    style={{ color: tl.label.color, fill: tl.label.color }}
+                  />
                   {tl.label.name}
                 </Badge>
               ))}

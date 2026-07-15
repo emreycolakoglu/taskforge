@@ -8,46 +8,68 @@
  * the row stays monochrome.
  */
 
+import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from '@/components/ui/select'
-import { PriorityIcon } from './priority-icons'
-import type { Task } from '@/types'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { Task } from "@/types";
+import type { ReactElement } from "react";
+import {
+  SignalHighIcon,
+  SignalLowIcon,
+  SignalMediumIcon,
+  SignalZero,
+} from "lucide-react";
 
-const PRIORITY_LABELS: Record<Task['priority'], string> = {
-  low: 'Low',
-  medium: 'Medium',
-  high: 'High',
-  urgent: 'Urgent',
-}
+const PRIORITY_LABELS: Record<Task["priority"], string> = {
+  low: "Low",
+  medium: "Medium",
+  high: "High",
+  urgent: "Urgent",
+};
+
+const PRIORITY_ICONS: Record<Task["priority"], ReactElement> = {
+  low: <SignalZero data-icon="inline-start" />,
+  medium: <SignalLowIcon data-icon="inline-start" />,
+  high: <SignalMediumIcon data-icon="inline-start" />,
+  urgent: <SignalHighIcon data-icon="inline-start" />,
+};
 
 interface DetailPrioritySelectProps {
-  value: Task['priority']
-  onChange: (value: Task['priority']) => void
+  value: Task["priority"];
+  onChange: (value: Task["priority"]) => void;
 }
 
-export function DetailPrioritySelect({ value, onChange }: DetailPrioritySelectProps) {
-  const options: Task['priority'][] = ['low', 'medium', 'high', 'urgent']
+export function DetailPrioritySelect({
+  value,
+  onChange,
+}: DetailPrioritySelectProps) {
+  const options: Task["priority"][] = ["low", "medium", "high", "urgent"];
 
   return (
-    <Select value={value} onValueChange={(v) => onChange(v as Task['priority'])}>
-      <SelectTrigger className="h-8 w-[140px] gap-1.5">
-        <PriorityIcon priority={value} />
-        <span className="text-sm">{PRIORITY_LABELS[value]}</span>
-      </SelectTrigger>
-      <SelectContent>
-        {options.map((p) => (
-          <SelectItem key={p} value={p}>
-            <span className="flex items-center gap-1.5">
-              <PriorityIcon priority={p} />
-              {PRIORITY_LABELS[p]}
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
+    <div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant={"ghost"} size={"sm"}>
+            {PRIORITY_ICONS[value]}
+            {PRIORITY_LABELS[value]}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuGroup>
+            {options.map((p) => (
+              <DropdownMenuItem key={p} onClick={() => onChange(p)}>
+                {PRIORITY_ICONS[p]}
+                {PRIORITY_LABELS[p]}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 }

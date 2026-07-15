@@ -10,38 +10,48 @@
  * action is editing, not creation). All Save/Submit buttons are outline/ghost.
  */
 
-import { useCallback, useMemo } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft } from 'lucide-react'
-import { useTask, useTasksByBoard } from '@/hooks/use-tasks'
-import { useBoardFull } from '@/hooks/use-boards'
-import { Button } from '@/components/ui/button'
-import { DetailBreadcrumbBar } from '@/components/detail-breadcrumb-bar'
-import { TaskDetailView } from '@/components/task-detail-view'
+import { useCallback, useMemo } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
+import { useTask, useTasksByBoard } from "@/hooks/use-tasks";
+import { useBoardFull } from "@/hooks/use-boards";
+import { Button } from "@/components/ui/button";
+import { DetailBreadcrumbBar } from "@/components/detail-breadcrumb-bar";
+import { TaskDetailView } from "@/components/task-detail-view";
 
 export function TaskDetailPage() {
-  const { boardId, taskId } = useParams<{ boardId: string; taskId: string }>()
-  const navigate = useNavigate()
+  const { boardId, taskId } = useParams<{ boardId: string; taskId: string }>();
+  const navigate = useNavigate();
 
-  const { data: task, isLoading: taskLoading, error: taskError } = useTask(taskId!)
-  const { data: board } = useBoardFull(boardId!)
-  const { data: boardTasks = [] } = useTasksByBoard(boardId!)
+  const {
+    data: task,
+    isLoading: taskLoading,
+    error: taskError,
+  } = useTask(taskId!);
+  const { data: board } = useBoardFull(boardId!);
+  const { data: boardTasks = [] } = useTasksByBoard(boardId!);
 
   // ── Navigation: prev/next task ─────────────────────────────────────────────
 
   const sortedTasks = useMemo(
-    () => [...boardTasks].sort((a, b) => (a.taskNumber ?? '').localeCompare(b.taskNumber ?? '')),
+    () =>
+      [...boardTasks].sort((a, b) =>
+        (a.taskNumber ?? "").localeCompare(b.taskNumber ?? ""),
+      ),
     [boardTasks],
-  )
+  );
 
-  const currentIndex = sortedTasks.findIndex((t) => t.id === taskId)
-  const prevTask = currentIndex > 0 ? sortedTasks[currentIndex - 1] : null
-  const nextTask = currentIndex < sortedTasks.length - 1 ? sortedTasks[currentIndex + 1] : null
+  const currentIndex = sortedTasks.findIndex((t) => t.id === taskId);
+  const prevTask = currentIndex > 0 ? sortedTasks[currentIndex - 1] : null;
+  const nextTask =
+    currentIndex < sortedTasks.length - 1
+      ? sortedTasks[currentIndex + 1]
+      : null;
 
   const navigateToTask = useCallback(
     (id: string) => navigate(`/board/${boardId}/task/${id}`),
     [boardId, navigate],
-  )
+  );
 
   // ── Loading / not-found ────────────────────────────────────────────────────
 
@@ -50,7 +60,7 @@ export function TaskDetailPage() {
       <div className="flex items-center justify-center h-full bg-background">
         <div className="text-muted-foreground">Loading task…</div>
       </div>
-    )
+    );
   }
 
   if (taskError || !task) {
@@ -62,18 +72,20 @@ export function TaskDetailPage() {
           Back to board
         </Button>
       </div>
-    )
+    );
   }
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
-  const boardName = board?.name ?? 'Board'
-  const statusName = board?.statuses?.find((s) => s.id === task.statusId)?.name ?? 'Unknown status'
+  const boardName = board?.name ?? "Board";
+  const statusName =
+    board?.statuses?.find((s) => s.id === task.statusId)?.name ??
+    "Unknown status";
 
   const position = {
     current: currentIndex >= 0 ? currentIndex + 1 : 0,
     total: sortedTasks.length,
-  }
+  };
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
@@ -92,7 +104,11 @@ export function TaskDetailPage() {
         onNavigateTask={navigateToTask}
       />
 
-      <TaskDetailView taskId={taskId!} boardId={boardId!} onNavigateTask={navigateToTask} />
+      <TaskDetailView
+        taskId={taskId!}
+        boardId={boardId!}
+        onNavigateTask={navigateToTask}
+      />
     </div>
-  )
+  );
 }

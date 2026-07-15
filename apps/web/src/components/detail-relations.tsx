@@ -7,93 +7,24 @@
  * scale and feels heavy for "add a relation".
  */
 
-import { Ban, Link2, X } from 'lucide-react'
-import { DetailAddRelationPopover } from './detail-add-relation-popover'
-import type { RelationEntry, RelationType, Task } from '@/types'
-
-interface RelationGroupProps {
-  title: string
-  icon: React.ReactNode
-  entries: RelationEntry[]
-  taskId: string
-  boardTasks: Task[]
-  emptyText: string
-  onAdd: (otherTaskId: string) => void
-  onRemove: (relationId: string) => void
-  onNavigate: (taskId: string) => void
-}
-
-function RelationGroup({
-  title,
-  icon,
-  entries,
-  taskId,
-  boardTasks,
-  emptyText,
-  onAdd,
-  onRemove,
-  onNavigate,
-}: RelationGroupProps) {
-  const existingIds = new Set(entries.map((e) => e.task.id))
-  const excludeIds = new Set([taskId, ...existingIds])
-
-  return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-        {icon}
-        {title}
-        {entries.length > 0 && (
-          <span className="text-muted-foreground/70">({entries.length})</span>
-        )}
-      </label>
-      <div className="space-y-1.5">
-        {entries.map((e) => (
-          <div
-            key={e.relationId}
-            className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 cursor-pointer hover:bg-accent/30"
-            onClick={() => onNavigate(e.task.id)}
-          >
-            <span className="text-xs text-muted-foreground font-mono shrink-0">
-              {e.task.taskNumber}
-            </span>
-            <span className="text-sm text-foreground truncate flex-1">{e.task.title}</span>
-            <button
-              className="text-muted-foreground hover:text-foreground shrink-0"
-              aria-label="Remove relation"
-              onClick={(ev) => {
-                ev.stopPropagation()
-                onRemove(e.relationId)
-              }}
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
-        ))}
-        {entries.length === 0 && (
-          <p className="text-sm text-muted-foreground italic">{emptyText}</p>
-        )}
-        <DetailAddRelationPopover
-          boardTasks={boardTasks}
-          excludeIds={excludeIds}
-          onAdd={onAdd}
-        />
-      </div>
-    </div>
-  )
-}
+import { Button } from "@/components/ui/button";
+import type { RelationEntry, RelationType, Task } from "@/types";
+import { XIcon } from "lucide-react";
+import { DetailAddRelationPopover } from "./detail-add-relation-popover";
 
 interface DetailRelationsProps {
-  relations: {
-    blocking: RelationEntry[]
-    blockedBy: RelationEntry[]
-    relatedTo: RelationEntry[]
-  }
-  taskId: string
-  boardId: string
-  boardTasks: Task[]
-  onAdd: (otherTaskId: string, type: RelationType, direction?: 'source' | 'target') => void
-  onRemove: (relationId: string) => void
-  onNavigate: (id: string) => void
+  relations?: RelationEntry[];
+  taskId: string;
+  boardId: string;
+  boardTasks: Task[];
+  onAdd: (
+    otherTaskId: string,
+    type: RelationType,
+    direction?: "source" | "target",
+  ) => void;
+  onRemove: (relationId: string) => void;
+  onNavigate: (id: string) => void;
+  listType: "related_to" | "blocks-source" | "blocks-target";
 }
 
 export function DetailRelations({
@@ -104,42 +35,50 @@ export function DetailRelations({
   onAdd,
   onRemove,
   onNavigate,
+  listType,
 }: DetailRelationsProps) {
+  const existingIds = new Set(relations?.map((e) => e.task.id));
+  const excludeIds = new Set([taskId, ...existingIds]);
+
   return (
-    <section id="relations" className="space-y-4">
-      <RelationGroup
-        title="Blocking"
-        icon={<Ban className="size-3.5" />}
-        entries={relations.blocking}
-        taskId={taskId}
-        boardTasks={boardTasks}
-        emptyText="Not blocking anything"
-        onAdd={(otherTaskId) => onAdd(otherTaskId, 'blocks', 'source')}
-        onRemove={onRemove}
-        onNavigate={onNavigate}
-      />
-      <RelationGroup
-        title="Blocked by"
-        icon={<Ban className="size-3.5" />}
-        entries={relations.blockedBy}
-        taskId={taskId}
-        boardTasks={boardTasks}
-        emptyText="Not blocked"
-        onAdd={(otherTaskId) => onAdd(otherTaskId, 'blocks', 'target')}
-        onRemove={onRemove}
-        onNavigate={onNavigate}
-      />
-      <RelationGroup
-        title="Related"
-        icon={<Link2 className="size-3.5" />}
-        entries={relations.relatedTo}
-        taskId={taskId}
-        boardTasks={boardTasks}
-        emptyText="No related tasks"
-        onAdd={(otherTaskId) => onAdd(otherTaskId, 'related_to')}
-        onRemove={onRemove}
-        onNavigate={onNavigate}
-      />
+    <section id="relations" className="space-y-1 w-full max-w-full">
+      {relations?.map((r) => (
+        <div key={r.relationId} className="w-full flex gap-1 items-center">
+          <Button
+            variant={"ghost"}
+            size="sm"
+            className="flex w-full shrink rounded-xl text-left h-6 line-clamp-1 text-ellipsis"
+            onClick={() => onNavigate(r.task.id)}
+          >
+            {r.task.title}
+          </Button>
+          <Button
+            variant={"ghost"}
+            size="icon"
+            onClick={() => onRemove(r.relationId)}
+            className="shrink-0 rounded-2xl p-0 h-6"
+          >
+            <XIcon />
+          </Button>
+        </div>
+      ))}
+      <div className="relative">
+        <DetailAddRelationPopover
+          boardTasks={boardTasks}
+          excludeIds={excludeIds}
+          onAdd={(id) =>
+            onAdd(
+              id,
+              listType == "related_to" ? "related_to" : "blocks",
+              listType == "related_to"
+                ? undefined
+                : listType == "blocks-source"
+                  ? "source"
+                  : "target",
+            )
+          }
+        />
+      </div>
     </section>
-  )
+  );
 }

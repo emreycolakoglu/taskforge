@@ -5,56 +5,72 @@
  * placeholder when unassigned. Options show avatar + name.
  */
 
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-} from '@/components/ui/select'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
-import type { User } from '@/types'
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import type { User } from "@/types";
+import { UserIcon } from "lucide-react";
 
 interface DetailAssigneeSelectProps {
-  value: string | null
-  users: User[]
-  onChange: (id: string | null) => void
+  value: string | null;
+  users: User[];
+  onChange: (id: string | null) => void;
 }
 
-export function DetailAssigneeSelect({ value, users, onChange }: DetailAssigneeSelectProps) {
-  const selectedUser = users.find((u) => u.id === value) ?? null
+export function DetailAssigneeSelect({
+  value,
+  users,
+  onChange,
+}: DetailAssigneeSelectProps) {
+  const selectedUser = users.find((u) => u.id === value) ?? null;
 
   return (
-    <Select
-      value={value ?? '__none__'}
-      onValueChange={(v) => onChange(v === '__none__' ? null : v)}
-    >
-      <SelectTrigger className="h-8 w-[140px] gap-1.5">
-        <Avatar className="size-5 border-0">
-          <AvatarFallback className="text-[9px] font-semibold bg-muted text-muted-foreground">
-            {selectedUser
-              ? selectedUser.displayName.charAt(0).toUpperCase()
-              : '+'}
-          </AvatarFallback>
-        </Avatar>
-        <span className="text-sm truncate">
-          {selectedUser ? selectedUser.displayName : 'Unassigned'}
-        </span>
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="__none__">Unassigned</SelectItem>
-        {users.map((u) => (
-          <SelectItem key={u.id} value={u.id}>
-            <span className="flex items-center gap-1.5">
-              <Avatar className="size-5 border-0">
+    <div>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant={"ghost"} size={"sm"}>
+            <Avatar className="size-4 border-0">
+              <AvatarFallback className="text-[9px] font-semibold bg-muted text-muted-foreground">
+                {selectedUser ? (
+                  selectedUser.displayName.charAt(0).toUpperCase()
+                ) : (
+                  <UserIcon data-icon="inline-start" />
+                )}
+              </AvatarFallback>
+            </Avatar>
+
+            {selectedUser ? selectedUser.displayName : "Select assignee"}
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuGroup>
+            <DropdownMenuItem onClick={() => onChange(null)}>
+              <Avatar className="size-4 border-0">
                 <AvatarFallback className="text-[9px] font-semibold bg-muted text-muted-foreground">
-                  {u.displayName.charAt(0).toUpperCase()}
+                  <UserIcon data-icon="inline-start" />
                 </AvatarFallback>
               </Avatar>
-              {u.displayName}
-            </span>
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
-  )
+              Unassigned
+            </DropdownMenuItem>
+            {users.map((u) => (
+              <DropdownMenuItem key={u.id} onClick={() => onChange(u.id)}>
+                <Avatar className="size-4 border-0">
+                  <AvatarFallback className="text-[9px] font-semibold bg-muted text-muted-foreground">
+                    {u.displayName.charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                {u.displayName}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
 }
