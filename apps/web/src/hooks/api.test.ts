@@ -437,6 +437,33 @@ describe('api', () => {
     });
   });
 
+  it('should make DELETE request to delete a user', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ success: true }),
+    });
+
+    const { api } = await import('./api');
+    await api.auth.deleteUser('u1');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/auth/users/u1', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    });
+  });
+
+  it('should resolve (not throw) when detach returns an empty 200 body', async () => {
+    // NestJS void handlers return 200 with an empty body; res.json() throws on it.
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: () => Promise.reject(new SyntaxError('Unexpected end of JSON input')),
+    });
+
+    const { api } = await import('./api');
+    await expect(api.labels.detach('t1', 'lb1')).resolves.toBeUndefined();
+  });
+
   // ─── Sub-tasks ───────────────────────────────────────────────────────────────
 
   it('api.tasks.list(boardId, { include: "top" }) → calls /tasks/board/<id>?include=top', async () => {

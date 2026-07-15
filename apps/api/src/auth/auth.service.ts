@@ -212,6 +212,33 @@ export class AuthService {
     return userResponse;
   }
 
+  /**
+   * Permanently delete a user. Relations cascade or null out per the schema
+   * (sessions/members/subscriptions/notifications cascade; authored comments,
+   * activity, and task assignments are set to null). Guards prevent an admin
+   * from deleting their own account or removing the last remaining admin, which
+   * would otherwise lock everyone out of admin-only features.
+   */
+  async deleteUser(userId: string, requestingUserId: string): Promise<void> {
+    if (userId === requestingUserId) {
+      throw new BadRequestException('You cannot delete your own account');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.role === 'admin') {
+      const adminCount = await this.prisma.user.count({ where: { role: 'admin' } });
+      if (adminCount <= 1) {
+        throw new BadRequestException('Cannot delete the last admin');
+      }
+    }
+
+    await this.prisma.user.delete({ where: { id: userId } });
+  }
+
   async findAllUsers() {
     return this.prisma.user.findMany({
       select: { id: true, email: true, displayName: true, role: true, createdAt: true, updatedAt: true },

@@ -80,7 +80,7 @@ export function AccountPage() {
   };
 
   return (
-    <div className="bg-background p-6 space-y-6 max-w-2xl mx-auto">
+    <div className="h-full overflow-y-auto bg-background p-6 space-y-6">
       <div>
         <h1 className="text-lg font-medium tracking-tight text-foreground">Account</h1>
         <p className="text-sm text-muted-foreground mt-1">

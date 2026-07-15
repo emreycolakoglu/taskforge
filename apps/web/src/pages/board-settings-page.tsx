@@ -24,7 +24,7 @@ export function BoardSettingsPage() {
 
   if (boardLoading || labelsLoading) {
     return (
-      <div className="p-6 max-w-2xl mx-auto">
+      <div className="p-6">
         <div className="h-6 w-40 animate-pulse rounded bg-muted mb-2" />
         <div className="h-4 w-60 animate-pulse rounded bg-muted" />
       </div>
@@ -33,7 +33,7 @@ export function BoardSettingsPage() {
 
   if (!board) {
     return (
-      <div className="p-6 max-w-2xl mx-auto">
+      <div className="p-6">
         <p className="text-destructive">Board not found.</p>
       </div>
     )
@@ -52,7 +52,7 @@ export function BoardSettingsPage() {
       </header>
 
       <div className="flex-1 overflow-y-auto bg-background p-6">
-        <div className="max-w-2xl space-y-6">
+        <div className="space-y-6">
           <StatusesSection boardId={id!} statuses={board.statuses ?? []} />
           <LabelsSection boardId={id!} labels={labels} />
         </div>

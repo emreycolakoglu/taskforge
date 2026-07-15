@@ -92,4 +92,12 @@ export class AuthController {
     return { success: true };
   }
 
+  @Delete('users/:id')
+  @Admin()
+  async deleteUser(@Param('id') id: string, @Req() req: Request) {
+    const user = (req as any).user;
+    await this.authService.deleteUser(id, user.id);
+    return { success: true };
+  }
+
 }

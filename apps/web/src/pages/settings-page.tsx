@@ -1,15 +1,19 @@
 import { useState, useEffect, type FormEvent } from 'react'
-import { Copy, LinkIcon, Ban, Plus } from 'lucide-react'
+import { Copy, LinkIcon, Ban, Plus, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
+import type { User } from '@/types'
 import { useAuth } from '@/contexts/auth-context'
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings'
-import { useUsers, useInvites, useCreateInvite, useRevokeInvite } from '@/hooks/use-users'
+import { useUsers, useInvites, useCreateInvite, useRevokeInvite, useDeleteUser } from '@/hooks/use-users'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table'
@@ -130,6 +134,13 @@ function GeneralTab() {
 function UsersTab() {
   const { user: currentUser } = useAuth()
   const { data: users, isLoading } = useUsers()
+  const deleteUser = useDeleteUser()
+  const [pendingDelete, setPendingDelete] = useState<User | null>(null)
+
+  const handleConfirmDelete = () => {
+    if (!pendingDelete) return
+    deleteUser.mutate(pendingDelete.id, { onSettled: () => setPendingDelete(null) })
+  }
 
   if (isLoading) {
     return <div className="py-8 text-center text-muted-foreground">Loading users...</div>
@@ -140,35 +151,77 @@ function UsersTab() {
   }
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Display Name</TableHead>
-          <TableHead>Email</TableHead>
-          <TableHead>Role</TableHead>
-          <TableHead>Joined</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {users.map((u) => (
-          <TableRow key={u.id}>
-            <TableCell className="font-medium">
-              {u.displayName}
-              {u.id === currentUser?.id && (
-                <span className="ml-1.5 text-xs text-muted-foreground">(you)</span>
-              )}
-            </TableCell>
-            <TableCell>{u.email}</TableCell>
-            <TableCell>
-              <Badge variant={u.role === 'admin' ? 'default' : 'secondary'}>
-                {u.role}
-              </Badge>
-            </TableCell>
-            <TableCell>{formatRelativeDate(u.createdAt)}</TableCell>
+    <>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Display Name</TableHead>
+            <TableHead>Email</TableHead>
+            <TableHead>Role</TableHead>
+            <TableHead>Joined</TableHead>
+            <TableHead className="text-right">Actions</TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {users.map((u) => {
+            const isSelf = u.id === currentUser?.id
+            return (
+              <TableRow key={u.id}>
+                <TableCell className="font-medium">
+                  {u.displayName}
+                  {isSelf && (
+                    <span className="ml-1.5 text-xs text-muted-foreground">(you)</span>
+                  )}
+                </TableCell>
+                <TableCell>{u.email}</TableCell>
+                <TableCell>
+                  <Badge variant={u.role === 'admin' ? 'default' : 'secondary'}>
+                    {u.role}
+                  </Badge>
+                </TableCell>
+                <TableCell>{formatRelativeDate(u.createdAt)}</TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPendingDelete(u)}
+                    disabled={isSelf}
+                    title={isSelf ? 'You cannot delete your own account' : 'Delete user'}
+                    aria-label={`Delete ${u.displayName}`}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
+
+      <Dialog
+        open={pendingDelete !== null}
+        onOpenChange={(open) => { if (!open) setPendingDelete(null) }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete user</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &ldquo;{pendingDelete?.displayName}&rdquo;? Their
+              board memberships and sessions are removed, and their comments and activity are kept
+              but unattributed. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDelete(null)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDelete} disabled={deleteUser.isPending}>
+              {deleteUser.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -290,7 +343,7 @@ export function SettingsPage() {
   const isAdmin = user?.role === 'admin'
 
   return (
-    <div className="bg-background p-6 space-y-6 max-w-4xl mx-auto">
+    <div className="h-full overflow-y-auto bg-background p-6 space-y-6">
       <div>
         <h1 className="text-lg font-medium tracking-tight text-foreground">Settings</h1>
         <p className="text-sm text-muted-foreground mt-1">

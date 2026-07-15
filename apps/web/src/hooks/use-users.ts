@@ -9,6 +9,20 @@ export function useUsers() {
   });
 }
 
+export function useDeleteUser() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => api.auth.deleteUser(id),
+    onSuccess: () => {
+      toast.success("User deleted");
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+    onError: (error) => {
+      toast.error("Failed to delete user", { description: error.message });
+    },
+  });
+}
+
 export function useInvites() {
   return useQuery({
     queryKey: ['invites'],

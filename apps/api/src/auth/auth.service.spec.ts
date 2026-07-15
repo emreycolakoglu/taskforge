@@ -533,6 +533,86 @@ describe('AuthService', () => {
     });
   });
 
+  describe('deleteUser', () => {
+    it('should delete a user and cascade their sessions and memberships', async () => {
+      const board = await seedBoard(prisma);
+      const admin = await prisma.user.create({
+        data: { email: 'del-admin@example.com', passwordHash: 'hash', displayName: 'Del Admin', role: 'admin' },
+      });
+      const target = await prisma.user.create({
+        data: { email: 'target@example.com', passwordHash: 'hash', displayName: 'Target', role: 'member' },
+      });
+      await prisma.session.create({
+        data: { token: 'target-session', userId: target.id, expiresAt: new Date(Date.now() + 1000) },
+      });
+      await prisma.member.create({ data: { boardId: board.id, userId: target.id, role: 'member' } });
+
+      await service.deleteUser(target.id, admin.id);
+
+      expect(await prisma.user.findUnique({ where: { id: target.id } })).toBeNull();
+      expect(await prisma.session.findUnique({ where: { token: 'target-session' } })).toBeNull();
+      expect(await prisma.member.findFirst({ where: { userId: target.id } })).toBeNull();
+    });
+
+    it('should null out authored comments and task assignment rather than delete them', async () => {
+      const board = await seedBoard(prisma);
+      const admin = await prisma.user.create({
+        data: { email: 'del-admin2@example.com', passwordHash: 'hash', displayName: 'Del Admin 2', role: 'admin' },
+      });
+      const target = await prisma.user.create({
+        data: { email: 'target2@example.com', passwordHash: 'hash', displayName: 'Target 2', role: 'member' },
+      });
+      const task = await prisma.task.create({
+        data: { statusId: board.statuses[0].id, boardId: board.id, number: 1, title: 'Task', position: 0, assigneeId: target.id },
+      });
+      const comment = await prisma.comment.create({
+        data: { taskId: task.id, authorId: target.id, author: 'Target 2', body: 'hello' },
+      });
+
+      await service.deleteUser(target.id, admin.id);
+
+      const keptTask = await prisma.task.findUnique({ where: { id: task.id } });
+      const keptComment = await prisma.comment.findUnique({ where: { id: comment.id } });
+      expect(keptTask!.assigneeId).toBeNull();
+      expect(keptComment!.authorId).toBeNull();
+    });
+
+    it('should throw BadRequestException when deleting your own account', async () => {
+      const admin = await prisma.user.create({
+        data: { email: 'self@example.com', passwordHash: 'hash', displayName: 'Self', role: 'admin' },
+      });
+      await expect(service.deleteUser(admin.id, admin.id)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should throw NotFoundException for a nonexistent user', async () => {
+      const admin = await prisma.user.create({
+        data: { email: 'nf-admin@example.com', passwordHash: 'hash', displayName: 'NF Admin', role: 'admin' },
+      });
+      await expect(service.deleteUser('nonexistent-id', admin.id)).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw BadRequestException when deleting the last admin', async () => {
+      const admin = await prisma.user.create({
+        data: { email: 'only-admin@example.com', passwordHash: 'hash', displayName: 'Only Admin', role: 'admin' },
+      });
+      const requester = await prisma.user.create({
+        data: { email: 'member-req@example.com', passwordHash: 'hash', displayName: 'Member Req', role: 'member' },
+      });
+      await expect(service.deleteUser(admin.id, requester.id)).rejects.toThrow(BadRequestException);
+    });
+
+    it('should allow deleting an admin when another admin remains', async () => {
+      const admin1 = await prisma.user.create({
+        data: { email: 'admin1@example.com', passwordHash: 'hash', displayName: 'Admin One', role: 'admin' },
+      });
+      const admin2 = await prisma.user.create({
+        data: { email: 'admin2@example.com', passwordHash: 'hash', displayName: 'Admin Two', role: 'admin' },
+      });
+      await service.deleteUser(admin2.id, admin1.id);
+      expect(await prisma.user.findUnique({ where: { id: admin2.id } })).toBeNull();
+    });
+  });
+
   describe('findAllInvites', () => {
     it('should return all invites with creator info', async () => {
       const admin = await prisma.user.create({

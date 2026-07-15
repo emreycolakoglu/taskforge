@@ -39,7 +39,16 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   }
 
   if (!res.ok) throw new Error(await res.text());
-  return res.json();
+
+  // Some endpoints (e.g. detaching a label) return 204 / an empty 200 body.
+  // res.json() throws "Unexpected end of JSON input" on an empty body, so treat
+  // an unparseable/empty response as "no content" rather than an error.
+  if (res.status === 204) return undefined as T;
+  try {
+    return await res.json();
+  } catch {
+    return undefined as T;
+  }
 }
 
 export const api = {
@@ -62,6 +71,8 @@ export const api = {
       request<InviteTokenResponse>('/auth/bot-token', { method: 'POST' }),
     users: () =>
       request<User[]>('/auth/users'),
+    deleteUser: (id: string) =>
+      request<{ success: boolean }>(`/auth/users/${id}`, { method: 'DELETE' }),
     invites: () =>
       request<Invite[]>('/auth/invites'),
     revokeInvite: (id: string) =>
