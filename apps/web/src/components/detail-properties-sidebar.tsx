@@ -12,10 +12,12 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import type { Board, RelationType, Task, TaskRelations, User } from "@/types";
+import { Calendar } from "lucide-react";
 import { DetailAssigneeSelect } from "./detail-assignee-select";
 import { DetailGroup } from "./detail-group";
 import { DetailGroupTitle } from "./detail-group-title";
 import { DetailPrioritySelect } from "./detail-priority-select";
+import { DetailPropertyRow } from "./detail-property-row";
 import { DetailStatusSelect } from "./detail-status-select";
 import { LabelManager } from "./label-manager";
 import { LabelPill } from "./label-pill";
