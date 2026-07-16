@@ -15,7 +15,8 @@ function isLightColor(hex: string): boolean {
 }
 
 interface LabelPillProps {
-  label: Label;
+  /** Only name + color are read, so the public task payload can render here too. */
+  label: Pick<Label, "name" | "color">;
   className?: string;
   active?: boolean;
   onClick?: () => void;

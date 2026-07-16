@@ -85,6 +85,7 @@ vi.mock("@/hooks/use-tasks", () => ({
   useUpdateTask: () => ({ mutate: vi.fn() }),
   useTasksByBoard: () => ({ data: [mockTask] }),
   useCreateTask: () => ({ mutate: vi.fn() }),
+  useSetTaskPublic: () => ({ mutateAsync: vi.fn() }),
 }));
 
 vi.mock("@/hooks/use-boards", () => ({

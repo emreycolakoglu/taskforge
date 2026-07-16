@@ -378,6 +378,60 @@ export class TasksService {
     return withTaskNumber(task);
   }
 
+  /**
+   * Publish / unpublish a task — the toggle behind the public share link.
+   *
+   * Deliberately NOT part of update(): that method's activity diff uses truthy
+   * checks (`if (dto.title && ...)`), so a `false` would be applied but never
+   * logged — meaning un-publishing, the one action that must reliably kill
+   * access, would vanish from the history. Keeping it separate also keeps
+   * `isPublic` out of UpdateTaskDto, so MCP's generic tasks_update can't flip a
+   * task public as a side effect of a field write.
+   *
+   * Idempotent: re-publishing an already-public task is a no-op and writes no
+   * activity row, so the log reads as a history of actual state changes.
+   */
+  async setPublic(id: string, isPublic: boolean, user?: { id: string; displayName: string }) {
+    const existing = await this.prisma.task.findUnique({
+      where: { id },
+      select: { isPublic: true },
+    });
+    if (!existing) throw new NotFoundException('Task not found');
+
+    const taskInclude = {
+      assignee: { select: { id: true, email: true, displayName: true, role: true } },
+      labels: { include: { label: true } },
+      status: { include: { board: true } },
+      board: { select: { identifier: true } },
+    };
+
+    if (existing.isPublic === isPublic) {
+      const unchanged = await this.prisma.task.findUniqueOrThrow({
+        where: { id },
+        include: taskInclude,
+      });
+      return withTaskNumber(unchanged);
+    }
+
+    const task = await this.prisma.task.update({
+      where: { id },
+      data: { isPublic },
+      include: taskInclude,
+    });
+
+    await this.prisma.activity.create({
+      data: {
+        taskId: id,
+        actorId: user?.id ?? null,
+        actor: user?.displayName ?? 'system',
+        action: isPublic ? 'published' : 'unpublished',
+      },
+    });
+
+    this.events.emit('task:updated', task, task.status.boardId);
+    return withTaskNumber(task);
+  }
+
   async reorder(dto: ReorderTasksDto) {
     const updates = dto.items.map((item) =>
       this.prisma.task.update({ where: { id: item.id }, data: { position: item.position } }),

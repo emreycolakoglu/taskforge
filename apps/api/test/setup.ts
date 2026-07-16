@@ -99,6 +99,7 @@ export async function seedTask(prisma: PrismaClient, statusId: string, overrides
       assigneeId: assigneeId ?? null,
       doneAt: rest.doneAt ?? null,
       parentId: parentId ?? null,
+      isPublic: rest.isPublic ?? false,
     },
   });
 

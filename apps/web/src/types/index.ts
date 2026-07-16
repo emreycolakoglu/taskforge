@@ -42,6 +42,7 @@ export interface Task {
   parentId?: string | null;
   parent?: { id: string; number: number; taskNumber?: string; title: string; board?: { identifier: string } } | null;
   subTasks?: Task[];
+  isPublic?: boolean;
   createdAt: string;
   updatedAt: string;
   status?: Status;
@@ -178,6 +179,27 @@ export interface Notification {
 
 export interface TaskSubscriptionState {
   subscribed: boolean;
+}
+
+/**
+ * The curated task shape served to unauthenticated visitors by
+ * GET /api/public/tasks/:identifier/:number.
+ *
+ * Intentionally NOT `Partial<Task>` — it is a different, narrower thing. No ids,
+ * no board, no activity, no sub-tasks, no parent, and the assignee is a bare
+ * display name rather than a User. Keep it that way; see PublicService.
+ */
+export interface PublicTask {
+  taskNumber: string;
+  title: string;
+  description: string | null;
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  status: { name: string; color: string };
+  assignee: string | null;
+  labels: { name: string; color: string }[];
+  comments: { author: string; body: string; createdAt: string }[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export const API_BASE = '/api';

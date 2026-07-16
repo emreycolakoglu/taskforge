@@ -497,4 +497,79 @@ describe('TasksService', () => {
       expect(notifs).toHaveLength(0);
     });
   });
+
+  describe('setPublic', () => {
+    it('publishes a task', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+
+      const result = await service.setPublic(task.id, true, user);
+
+      expect(result.isPublic).toBe(true);
+      const stored = await prisma.task.findUnique({ where: { id: task.id } });
+      expect(stored.isPublic).toBe(true);
+    });
+
+    it('unpublishes a task', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id, { isPublic: true });
+
+      const result = await service.setPublic(task.id, false, user);
+
+      expect(result.isPublic).toBe(false);
+      const stored = await prisma.task.findUnique({ where: { id: task.id } });
+      expect(stored.isPublic).toBe(false);
+    });
+
+    it('logs a published activity row', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+
+      await service.setPublic(task.id, true, user);
+
+      const activity = await prisma.activity.findMany({ where: { taskId: task.id } });
+      expect(activity).toHaveLength(1);
+      expect(activity[0]).toMatchObject({ action: 'published', actor: user.displayName, actorId: user.id });
+    });
+
+    it('logs an unpublished activity row — the un-share must be auditable', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id, { isPublic: true });
+
+      await service.setPublic(task.id, false, user);
+
+      const activity = await prisma.activity.findMany({ where: { taskId: task.id } });
+      expect(activity).toHaveLength(1);
+      expect(activity[0]).toMatchObject({ action: 'unpublished' });
+    });
+
+    it('records "system" as the actor when there is no user', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+
+      await service.setPublic(task.id, true);
+
+      const activity = await prisma.activity.findFirst({ where: { taskId: task.id } });
+      expect(activity).toMatchObject({ actor: 'system', actorId: null });
+    });
+
+    it('is idempotent and writes no activity when state is unchanged', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id, { isPublic: true });
+
+      const result = await service.setPublic(task.id, true, user);
+
+      expect(result.isPublic).toBe(true);
+      const activity = await prisma.activity.findMany({ where: { taskId: task.id } });
+      expect(activity).toHaveLength(0);
+    });
+
+    it('emits task:updated on a real change', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const spy = jest.spyOn(events, 'emit');
+
+      await service.setPublic(task.id, true, user);
+
+      expect(spy).toHaveBeenCalledWith('task:updated', expect.objectContaining({ isPublic: true }), board.id);
+      spy.mockRestore();
+    });
+
+    it('throws NotFound for an unknown task', async () => {
+      await expect(service.setPublic('does-not-exist', true, user)).rejects.toThrow('Task not found');
+    });
+  });
 });
