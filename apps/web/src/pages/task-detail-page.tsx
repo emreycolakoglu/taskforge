@@ -13,7 +13,7 @@
 import { useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
-import { useTask, useTasksByBoard } from "@/hooks/use-tasks";
+import { useTask, useTasksByBoard, useSetTaskPublic } from "@/hooks/use-tasks";
 import { useBoardFull } from "@/hooks/use-boards";
 import { Button } from "@/components/ui/button";
 import { DetailBreadcrumbBar } from "@/components/detail-breadcrumb-bar";
@@ -30,6 +30,14 @@ export function TaskDetailPage() {
   } = useTask(taskId!);
   const { data: board } = useBoardFull(boardId!);
   const { data: boardTasks = [] } = useTasksByBoard(boardId!);
+  const setPublic = useSetTaskPublic();
+
+  const handleSetPublic = useCallback(
+    async (isPublic: boolean) => {
+      await setPublic.mutateAsync({ id: taskId!, isPublic, boardId: boardId! });
+    },
+    [setPublic, taskId, boardId],
+  );
 
   // ── Navigation: prev/next task ─────────────────────────────────────────────
 
@@ -97,11 +105,13 @@ export function TaskDetailPage() {
         taskNumber={task.taskNumber}
         taskId={task.id}
         boardId={boardId!}
+        isPublic={task.isPublic ?? false}
         position={position}
         prevTask={prevTask ?? undefined}
         nextTask={nextTask ?? undefined}
         onBack={() => navigate(`/board/${boardId}`)}
         onNavigateTask={navigateToTask}
+        onSetPublic={handleSetPublic}
       />
 
       <TaskDetailView

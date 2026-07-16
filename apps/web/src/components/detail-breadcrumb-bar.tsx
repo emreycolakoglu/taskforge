@@ -3,22 +3,38 @@
  *
  * Splits the old header into a breadcrumb row (identifier + nav actions) and
  * lets the title live in the main column below. Left: back chevron → breadcrumb
- * text (Board › Status › TF-730). Right: prev/next + position indicator (mono) +
- * actions DropdownMenu (⋯) with Copy ID / Copy URL (client-side only).
+ * text (Board › Status › TF-730) + a Public badge when the task is shared.
+ * Right: prev/next + position indicator (mono) + actions DropdownMenu (⋯) with
+ * Copy ID / Copy URL (client-side only) and the public-sharing toggle.
+ *
+ * The Public badge is not decoration: publishing is one click in an overflow
+ * menu, so the badge is the only thing that makes "which tasks are currently
+ * public?" answerable by looking at the page.
  *
  * design.md: h-11, bg-secondary, border-b — matches board-header-bar pattern.
- * No title here. No Lime.
+ * No title here. No Lime — including on the badge, which is Indigo (accent),
+ * since Lime is reserved for a single primary CTA per screen.
  */
 
-import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Copy, Link2 } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Copy, Link2, Globe, GlobeLock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { toast } from 'sonner'
+
+/** The public URL for a task, derived from its number (e.g. TF-123 → /public/TF/123). */
+function publicUrlFor(taskNumber: string): string | null {
+  const match = taskNumber.match(/^(.+)-(\d+)$/)
+  if (!match) return null
+  const [, identifier, number] = match
+  return `${window.location.origin}/public/${identifier}/${number}`
+}
 
 interface DetailBreadcrumbBarProps {
   boardName: string
@@ -26,24 +42,29 @@ interface DetailBreadcrumbBarProps {
   taskNumber: string
   taskId: string
   boardId: string
+  isPublic: boolean
   position: { current: number; total: number }
   prevTask?: { id: string }
   nextTask?: { id: string }
   onBack: () => void
   onNavigateTask: (id: string) => void
+  onSetPublic: (isPublic: boolean) => Promise<void>
 }
 
 export function DetailBreadcrumbBar({
   boardName,
   statusName,
   taskNumber,
-  taskId,
+  isPublic,
   position,
   prevTask,
   nextTask,
   onBack,
   onNavigateTask,
+  onSetPublic,
 }: DetailBreadcrumbBarProps) {
+  const publicUrl = publicUrlFor(taskNumber)
+
   const copyId = () => {
     navigator.clipboard.writeText(taskNumber).then(
       () => toast.success('Task ID copied'),
@@ -54,6 +75,33 @@ export function DetailBreadcrumbBar({
   const copyUrl = () => {
     navigator.clipboard.writeText(window.location.href).then(
       () => toast.success('Task URL copied'),
+      () => toast.error('Failed to copy'),
+    )
+  }
+
+  // Publish and copy in one gesture — the point of the button is to walk away
+  // with a link. If the clipboard write fails the task is still published, so
+  // the toast falls back to showing the URL rather than claiming a copy.
+  const makePublic = async () => {
+    await onSetPublic(true)
+    if (!publicUrl) return
+    navigator.clipboard.writeText(publicUrl).then(
+      () => toast.success('Task published', { description: 'Public link copied to clipboard' }),
+      () => toast.success('Task published', { description: publicUrl }),
+    )
+  }
+
+  const makePrivate = async () => {
+    await onSetPublic(false)
+    toast.success('Task is no longer public', {
+      description: 'The public link now shows a not-found page.',
+    })
+  }
+
+  const copyPublicUrl = () => {
+    if (!publicUrl) return
+    navigator.clipboard.writeText(publicUrl).then(
+      () => toast.success('Public link copied'),
       () => toast.error('Failed to copy'),
     )
   }
@@ -78,6 +126,16 @@ export function DetailBreadcrumbBar({
           <span className="text-muted-foreground/50">›</span>
           <span className="font-mono text-foreground shrink-0">{taskNumber}</span>
         </nav>
+        {isPublic && (
+          <Badge
+            variant="outline"
+            className="shrink-0 gap-1 border-indigo/40 text-indigo"
+            title="Anyone with the link can view this task"
+          >
+            <Globe className="size-3" />
+            Public
+          </Badge>
+        )}
       </div>
 
       {/* Right — prev/next + position + actions */}
@@ -125,6 +183,24 @@ export function DetailBreadcrumbBar({
               <Link2 className="size-4" />
               Copy URL
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {isPublic ? (
+              <>
+                <DropdownMenuItem onClick={copyPublicUrl}>
+                  <Globe className="size-4" />
+                  Copy public link
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={makePrivate}>
+                  <GlobeLock className="size-4" />
+                  Make private
+                </DropdownMenuItem>
+              </>
+            ) : (
+              <DropdownMenuItem onClick={makePublic}>
+                <Globe className="size-4" />
+                Make public
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>

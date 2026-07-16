@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, Query, Req, ForbiddenException } from '@nestjs/common';
 import { Request } from 'express';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto, MoveTaskDto, ReorderTasksDto } from './dto/task.dto';
@@ -6,6 +6,20 @@ import { CreateTaskDto, UpdateTaskDto, MoveTaskDto, ReorderTasksDto } from './dt
 interface AuthedUser {
   id: string;
   displayName: string;
+}
+
+/**
+ * Publishing puts content on the public internet, so it requires a human who
+ * logged in — not a bot token. Bot sessions live for 365 days and are handed to
+ * AI agents; AuthGuard accepts them like any other session, so without this an
+ * agent could publish a task over REST. MCP has no tasks_publish for the same
+ * reason.
+ */
+function assertNotBot(req: Request): void {
+  const session = (req as any).session as { bot?: boolean } | undefined;
+  if (session?.bot) {
+    throw new ForbiddenException('Bot sessions cannot change task visibility');
+  }
 }
 
 @Controller('api/tasks')
@@ -52,6 +66,20 @@ export class TasksController {
   move(@Param('id') id: string, @Body() dto: MoveTaskDto, @Req() req: Request) {
     const user = (req as any).user as AuthedUser | undefined;
     return this.service.move(id, dto, user);
+  }
+
+  @Put(':id/publish')
+  publish(@Param('id') id: string, @Req() req: Request) {
+    assertNotBot(req);
+    const user = (req as any).user as AuthedUser | undefined;
+    return this.service.setPublic(id, true, user);
+  }
+
+  @Delete(':id/publish')
+  unpublish(@Param('id') id: string, @Req() req: Request) {
+    assertNotBot(req);
+    const user = (req as any).user as AuthedUser | undefined;
+    return this.service.setPublic(id, false, user);
   }
 
   @Put('reorder')

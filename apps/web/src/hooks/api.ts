@@ -143,6 +143,10 @@ export const api = {
     reorder: (items: { id: string; position: number }[]) =>
       request<Task[]>('/tasks/reorder', { method: 'PUT', body: JSON.stringify({ items }) }),
     delete: (id: string) => request<void>(`/tasks/${id}`, { method: 'DELETE' }),
+    // Visibility is its own endpoint rather than a field on update() — see
+    // TasksService.setPublic for why.
+    publish: (id: string) => request<Task>(`/tasks/${id}/publish`, { method: 'PUT' }),
+    unpublish: (id: string) => request<Task>(`/tasks/${id}/publish`, { method: 'DELETE' }),
   },
 
   // Comments

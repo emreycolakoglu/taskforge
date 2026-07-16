@@ -61,6 +61,28 @@ export function useUpdateTask() {
   });
 }
 
+/**
+ * Publish / unpublish a task.
+ *
+ * No success toast here on purpose: the caller owns it, because publishing also
+ * copies the public URL to the clipboard and the toast should confirm that in
+ * one message rather than firing two.
+ */
+export function useSetTaskPublic() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, isPublic }: { id: string; isPublic: boolean; boardId: string }) =>
+      isPublic ? api.tasks.publish(id) : api.tasks.unpublish(id),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['tasks', variables.id] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', 'board', variables.boardId] });
+    },
+    onError: (error) => {
+      toast.error("Failed to change task visibility", { description: error.message });
+    },
+  });
+}
+
 export function useMoveTask() {
   const queryClient = useQueryClient();
   return useMutation({

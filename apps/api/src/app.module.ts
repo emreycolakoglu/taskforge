@@ -14,6 +14,7 @@ import { RelationsModule } from './relations/relations.module';
 import { EventsModule } from './events/events.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { PublicModule } from './public/public.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { NotificationsModule } from './notifications/notifications.module';
     EventsModule,
     SubscriptionsModule,
     NotificationsModule,
+    PublicModule,
   ],
 })
 export class AppModule {}

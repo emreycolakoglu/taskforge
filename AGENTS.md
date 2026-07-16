@@ -66,8 +66,11 @@ Schema migrations run automatically on container startup via `apps/api/docker-en
 - **API `strict: false`** — the NestJS app deliberately does not use TypeScript strict mode (decorator metadata requires it). Do not add `strict: true` to `apps/api/tsconfig.json`.
 - **API is CommonJS, Web is ESM** — module resolution differs. Don't copy import patterns between apps.
 - **PrismaModule is `@Global()`** — no need to import it into feature modules.
-- **No authentication** — the app is designed for local/trusted-network use only.
+- **Authentication is global and on by default** — `AuthModule` binds `AuthGuard` as an `APP_GUARD`, so *every* route requires an `Authorization: Bearer <token>` matching a live `Session` row unless it carries `@Public()`. Tokens are opaque `crypto.randomUUID()` session tokens (not JWTs); passwords are bcrypt cost 12. `@Admin()` gates admin-only routes on `user.role`. The public surface is small and deliberate: `auth/status`, `auth/onboard`, `auth/login`, `auth/signup/:token`, two settings routes, and `public/tasks/:identifier/:number`.
+- **There is no per-board authorization** — the `Member` model exists with `admin`/`member`/`viewer` roles but **nothing reads it**. Any authenticated user can read and write any board, task, comment, or label. Auth here is authentication-only. Don't assume board scoping exists; if you need it, it has to be built.
 - **No ESLint config file** — lint scripts reference `eslint` but it's not installed in either app. `pnpm lint` will fail. CI does not run lint.
+- **The web build does NOT typecheck** — `@taskforge/web`'s `build` script is bare `vite build`, which only transpiles. A passing build proves nothing about types. Run `cd apps/web && npx tsc --noEmit` explicitly. Note it currently reports **3 pre-existing errors** (in `kanban-board.tsx`, `ui/dropdown-menu.tsx`, `use-labels.ts`) — check the count hasn't grown rather than expecting zero.
+- **Board identifiers must be exactly 3 uppercase letters** — enforced by a `Matches` rule in `CreateBoardDto`. `TF` is rejected; `TFG` is fine.
 - **CI gates releases** — `release.yml` triggers via `workflow_run` on `ci` success. A broken main push won't publish to Docker Hub.
 - **`packages/` directory doesn't exist yet** — the workspace config includes it, but nothing is there.
 - **SQLite DB is gitignored** — `*.db` and `*.db-journal` are in `.gitignore`.
@@ -93,18 +96,27 @@ The web UI follows the Linear "midnight command deck" design system — dark-onl
 
 ## Architecture
 
-**API** (`apps/api/src/`): Each domain (`boards`, `lists`, `tasks`, `comments`, `labels`, `activity`, `mcp`, `events`, `prisma`) is a NestJS module with `controller.ts`, `service.ts`, `module.ts`, `service.spec.ts`, and `dto/` subfolder.
+**API** (`apps/api/src/`): Each domain (`auth`, `boards`, `statuses`, `tasks`, `comments`, `labels`, `relations`, `activity`, `subscriptions`, `notifications`, `settings`, `public`, `mcp`, `events`, `prisma`) is a NestJS module with `controller.ts`, `service.ts`, `module.ts`, `service.spec.ts`, and `dto/` subfolder.
 
 **MCP service** routes via `resource_action` pattern parsed from the JSON-RPC method field (e.g., `boards_list`, `tasks_create`).
 
-**Events**: `EventsService` (EventEmitter2) broadcasts changes via WebSocket gateway. Both REST controllers and MCP service call `events.emit()`.
+**Events**: `EventsService` (an RxJS `Subject`, not EventEmitter2) broadcasts changes via the WebSocket gateway. Both REST controllers and MCP service call `events.emit()`. Scoping is opt-in by the emitter: `emit(event, data, boardId?)` without a `boardId` broadcasts to **every** connected socket.
 
-**Web** (`apps/web/src/`): Path alias `@/` → `src/`. Components in `components/`, UI primitives in `components/ui/` (shadcn, `radix-nova` style). Two routes: `/` (HomePage) and `/board/:id` (KanbanBoard).
+**Web** (`apps/web/src/`): Path alias `@/` → `src/`. Components in `components/`, UI primitives in `components/ui/` (shadcn, `radix-nova` style). Routes are declared inline in `app.tsx`: `/`, `/board/:id`, `/board/:id/settings`, `/board/:boardId/task/:taskId`, `/tasks`, `/settings`, `/account`, `/inbox`, plus the unauthenticated `/login`, `/signup/:token`, `/onboarding` and `/public/:identifier/:number`.
+
+## Public task sharing
+
+A task can be published to a read-only page reachable without a session. The model is **publication, not a secret link**: the URL is the task's real identity (`/public/TFG/123`), so it is enumerable on purpose, and un-publishing means the page 404s from that moment on — it does not rotate the address.
+
+- **Toggle**: `PUT`/`DELETE /api/tasks/:id/publish` → `TasksService.setPublic`. Deliberately *not* a field on `UpdateTaskDto`, because `update()`'s activity diff uses truthy checks (`if (dto.title && …)`) and would silently fail to log `isPublic: false` — and because a DTO field would let MCP's generic `tasks_update` publish a task as a side effect. Writes `published`/`unpublished` Activity rows. Rejects bot sessions (`session.bot`).
+- **Read**: `GET /api/public/tasks/:identifier/:number` → `PublicService`, marked `@Public()`. Hand-built `select` — **never** `include` — so `assignee.email`, `role` and the nested board can't ride along. Returns 404 for both "no such task" and "not published", so the two are indistinguishable.
+- **Payload is curated**: taskNumber, title, description, status, priority, labels, comments, assignee display name. Activity, sub-tasks, parent and relations are omitted **by design** — publishing one task must not disclose the titles of tasks nobody published.
+- **Frontend**: `pages/public-task-page.tsx`, mounted in `app.tsx` *above* `AuthProvider` (not exempted from inside it) so no redirect, `/auth/status` call, or `SidebarLayout` can touch it. It fetches through `hooks/public-api.ts`, never `hooks/api.ts` — the shared client clears the token and redirects to `/login` on any 401, which would log a signed-in colleague out just for opening a public link.
+- **Not indexed**: `index.html` carries `<meta name="robots" content="noindex, nofollow">` and `public/robots.txt` disallows everything. Enumeration takes intent; a search hit takes none.
 
 ## Testing
 
 - **API tests** create a real SQLite DB in a temp directory per run (`createTestPrisma()` in `apps/api/test/setup.ts`), apply schema via `prisma db push`. Tests are integration-level, not mocked unit tests. The test helper still uses `db push` (not `migrate deploy`) because it creates a fresh throwaway DB each time — `db push` is faster for that use case.
 - Each test file cleans all tables in `afterEach` (deleteMany in reverse dependency order).
-- Seed helpers: `seedBoard()`, `seedLabel()`, `seedTask()`, `seedComment()`.
-- **Web tests** mock `global.fetch` — they test the API client module, not real HTTP.
-- No component tests (`.test.tsx`) exist yet.
+- Seed helpers: `seedBoard()`, `seedLabel()`, `seedTask()`, `seedComment()`, `seedRelation()`, `seedUser()`, `seedSubscription()`, `seedNotification()`.
+- **Web tests** (Vitest) mock `global.fetch` for API-client tests, and mock the `use-*` hook modules for component tests. Component tests (`.test.tsx`) exist — e.g. `pages/task-detail-page.test.tsx`, `components/detail-breadcrumb-bar.test.tsx`. When you add a hook to a module a component test mocks, add it to that `vi.mock` factory too or the suite fails with "No _ export is defined on the mock".

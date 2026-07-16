@@ -3,6 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!--
+    Applies to the whole SPA, which is correct: every route except /public/*
+    redirects to /login anyway, and public task pages are meant to be reachable
+    by anyone holding the link — not surfaced in search results. Flip this only
+    if you deliberately want published tasks indexed.
+  -->
+  <meta name="robots" content="noindex, nofollow" />
   <title>TaskForge</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 </head>
