@@ -12,6 +12,22 @@
   <meta name="robots" content="noindex, nofollow" />
   <title>TaskForge</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <!--
+    PWA install support. The <link rel="manifest"> and the service-worker registration are
+    injected at build time by vite-plugin-pwa (see vite.config.ts) — the tags below are the
+    ones it does not handle:
+
+    - theme-color paints the OS title/status bar before the manifest is parsed, so the
+      window does not flash white on cold start. Matches Onyx, the app canvas.
+    - iOS ignores the manifest's icons array entirely and only reads apple-touch-icon, so
+      without this line an iOS home-screen icon is a blurry screenshot of the page.
+    - The status bar blends into the dark canvas rather than sitting in a white strip.
+
+    No apple-mobile-web-app-title: iOS falls back to <title>, which is already "TaskForge".
+  -->
+  <meta name="theme-color" content="#08090a" />
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 </head>
 <body>
   <div id="root"></div>
