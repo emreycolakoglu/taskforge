@@ -1,0 +1,13 @@
+<!--
+  Source art for the "maskable" purpose PWA icon. Rasterized by scripts/generate-icons.mjs.
+
+  Maskable icons are cropped to a platform-chosen shape (circle, squircle, teardrop...),
+  so the background is full-bleed with no corner radius of its own — the launcher supplies
+  the rounding. Everything that must survive the crop lives inside the safe zone: the
+  centred circle of 80% diameter, i.e. radius 204.8 around (256, 256). The glyph's furthest
+  point is ~180 from centre including stroke caps, so it clears the crop on every platform.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <rect width="512" height="512" fill="#6366f1"/>
+  <path d="M128 160h256M128 256h192M128 352h224" stroke="white" stroke-width="40" stroke-linecap="round"/>
+</svg>

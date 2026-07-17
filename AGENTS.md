@@ -49,6 +49,7 @@ Do not push to or merge into `main` directly. Let CI (`ci.yml`) pass on the PR b
 | Prisma generate    | `pnpm db:generate`                                                      |
 | Prisma migrate     | `pnpm db:migrate` (use `-- --name <desc>` to create new migrations)     |
 | Docker build       | `pnpm docker:build`                                                      |
+| Regenerate PWA icons | `pnpm --filter @taskforge/web icons`                                  |
 
 ## CI/CD
 
@@ -113,6 +114,20 @@ A task can be published to a read-only page reachable without a session. The mod
 - **Payload is curated**: taskNumber, title, description, status, priority, labels, comments, assignee display name. Activity, sub-tasks, parent and relations are omitted **by design** — publishing one task must not disclose the titles of tasks nobody published.
 - **Frontend**: `pages/public-task-page.tsx`, mounted in `app.tsx` *above* `AuthProvider` (not exempted from inside it) so no redirect, `/auth/status` call, or `SidebarLayout` can touch it. It fetches through `hooks/public-api.ts`, never `hooks/api.ts` — the shared client clears the token and redirects to `/login` on any 401, which would log a signed-in colleague out just for opening a public link.
 - **Not indexed**: `index.html` carries `<meta name="robots" content="noindex, nofollow">` and `public/robots.txt` disallows everything. Enumeration takes intent; a search hit takes none.
+
+## Installable PWA
+
+The web app is installable — "Install app" on desktop/Android, "Add to Home Screen" on iOS. Wired with `vite-plugin-pwa` (`generateSW` mode) in `apps/web/vite.config.ts`; the manifest itself lives in `apps/web/src/pwa/manifest.ts`.
+
+- **Manifest lives in `src/`, not next to the vite config**, so `tsc` and vitest can both see it. `src/pwa/manifest.test.ts` asserts Chrome's installability rules and that every icon `src` resolves to a real file — renaming the art without re-running the icon script breaks installation *silently* (the app still builds and loads, it just stops offering "Install").
+- **Icons are generated, not hand-drawn.** Source art is `apps/web/assets/pwa/*.svg`; `pnpm --filter @taskforge/web icons` rasterizes it to `apps/web/public/icons/*.png` via puppeteer (already a devDep). The PNGs are committed — re-run only when the SVG changes, and never hand-edit the PNGs. PNG rather than SVG because iOS home-screen icons and Android launcher tiles require raster.
+- **`app-icon.svg` vs `app-icon-maskable.svg`** — the maskable one is full-bleed with no corner radius, because the launcher crops it to its own shape and supplies the rounding; its glyph stays inside the 80%-diameter safe zone. `apple-touch-icon.png` renders from the *maskable* art too: iOS composites transparency against black, so the rounded-corner art would get black slivers around the squircle.
+- **The service worker precaches the app shell only. Do not add `runtimeCaching` for `/api`.** Every route is behind a session token and boards are shared between users, so caching responses would park another user's task data in Cache Storage, where logout does not reach it.
+- **`navigateFallbackDenylist` covers `/api` and `/ws`** — without it the SW answers XHRs and the socket handshake with the HTML shell, which surfaces as JSON parse errors rather than anything that names the service worker.
+- **`registerType: 'autoUpdate'`** — the app lives in a pinned tab, so waiting for every tab to close would mean stale assets for days.
+- **The PWA only exists in production builds.** `vite dev` does not emit a manifest or SW, so install won't be offered on :5173. To test: `pnpm --filter @taskforge/web build && pnpm --filter @taskforge/web preview`. In production, NestJS's `useStaticAssets` serves `/manifest.webmanifest`, `/sw.js` and `/icons/*` before the SPA fallback, and static files bypass the global `AuthGuard`.
+- **Install needs a secure context** — HTTPS, or localhost. Deploying the container behind plain HTTP means no install prompt, regardless of the manifest.
+- `noindex` and `robots.txt Disallow: /` do **not** affect installability.
 
 ## Testing
 
