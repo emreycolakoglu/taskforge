@@ -1,14 +1,14 @@
 /**
- * CreateTaskModal — inline single-line quick-add input.
+ * QuickAddInput — inline single-line quick-add input (NOT a modal/dialog).
  *
- * Used in the column footer (+ New issue) and the sub-task dialog. Submits on
+ * Used in the column footer (+ New issue) and the sub-task list. Submits on
  * Enter, cancels on blur/Escape. No Add/Cancel buttons — the fast path.
  */
 
 import { useState } from 'react'
 import { Input } from '@/components/ui/input'
 
-interface CreateTaskModalProps {
+interface QuickAddInputProps {
   statusId: string
   onSubmit: (title: string) => void
   onClose: () => void
@@ -16,7 +16,7 @@ interface CreateTaskModalProps {
   parentTaskNumber?: string
 }
 
-export function CreateTaskModal({ onSubmit, onClose, parentId, parentTaskNumber }: CreateTaskModalProps) {
+export function QuickAddInput({ onSubmit, onClose, parentId, parentTaskNumber }: QuickAddInputProps) {
   const [title, setTitle] = useState('')
 
   const handleSubmit = () => {
