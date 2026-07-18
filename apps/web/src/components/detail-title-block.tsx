@@ -9,6 +9,7 @@
 
 import { useState } from "react";
 import { PriorityIcon } from "./priority-icons";
+import { Input } from "@/components/ui/input";
 import type { Task } from "@/types";
 
 interface DetailTitleBlockProps {
@@ -54,7 +55,7 @@ export function DetailTitleBlock({
       <div className="flex items-center gap-2">
         <PriorityIcon priority={task.priority} size={20} />
         {editing ? (
-          <input
+          <Input
             autoFocus
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
@@ -63,7 +64,7 @@ export function DetailTitleBlock({
               if (e.key === "Enter") commit();
               if (e.key === "Escape") cancel();
             }}
-            className="flex-1 bg-input rounded-md border border-border px-2 py-1 -mx-2 outline-none text-[24px] font-medium tracking-tight text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex-1 h-auto -mx-2 px-2 py-1 text-[24px] font-medium tracking-tight"
           />
         ) : (
           <h1

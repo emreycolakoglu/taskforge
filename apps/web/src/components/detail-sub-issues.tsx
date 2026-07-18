@@ -2,7 +2,7 @@
  * DetailSubIssues — inline sub-task list with add affordance.
  *
  * Heading + count badge, rows reuse task-card.tsx row styling (border-defined,
- * bg-card, hover:bg-accent/30). "Add sub-issue" renders CreateTaskModal inline
+ * bg-card, hover:bg-accent/30). "Add sub-issue" renders QuickAddInput inline
  * in place of the add button when active (no full-screen modal overlay).
  */
 
@@ -10,7 +10,7 @@ import { useState } from 'react'
 import { Plus } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { CreateTaskModal } from './create-task-modal'
+import { QuickAddInput } from './quick-add-input'
 import type { Task } from '@/types'
 
 interface DetailSubIssuesProps {
@@ -50,7 +50,7 @@ export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateS
           <p className="text-sm text-muted-foreground italic">No sub-issues</p>
         )}
         {adding ? (
-          <CreateTaskModal
+          <QuickAddInput
             statusId={task.statusId}
             parentId={task.id}
             parentTaskNumber={task.taskNumber}

@@ -20,6 +20,7 @@
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Task } from "@/types";
 import { CircleSmallIcon, Plus } from "lucide-react";
@@ -197,7 +198,7 @@ export function TaskCard({
 
           {task.blockedByCount != null && task.blockedByCount > 0 && (
             <span
-              className="flex items-center gap-0.5 text-xs text-[#eb5757] shrink-0"
+              className="flex items-center gap-0.5 text-xs text-destructive shrink-0"
               title={`Blocked by ${task.blockedByCount} task(s)`}
               aria-label={`Blocked by ${task.blockedByCount} task(s)`}
             >
@@ -217,8 +218,10 @@ export function TaskCard({
 
       {/* Sub-task hover + — lives on the card, far right of row 1 area */}
       {onAddSubTask && (
-        <button
-          className="absolute top-1 right-1 opacity-0 group-hover/card:opacity-100 transition-opacity size-5 rounded bg-secondary text-muted-foreground hover:text-foreground hover:bg-accent flex items-center justify-center"
+        <Button
+          variant="ghost"
+          size="icon"
+          className="absolute top-1 right-1 size-5 rounded bg-secondary text-muted-foreground opacity-0 group-hover/card:opacity-100 transition-opacity [&_svg]:size-3"
           aria-label="Add sub-task"
           title="Add sub-task"
           onClick={(e) => {
@@ -226,8 +229,8 @@ export function TaskCard({
             onAddSubTask();
           }}
         >
-          <Plus className="size-3" />
-        </button>
+          <Plus />
+        </Button>
       )}
     </div>
   );

@@ -13,6 +13,7 @@ import type { FilterState } from '@/hooks/use-board-view-state'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { LabelOptionList } from './label-option-list'
 import { cn } from '@/lib/utils'
 
 interface FilterChipsBarProps {
@@ -75,34 +76,11 @@ export function FilterChipsBar({
         </PopoverTrigger>
         <PopoverContent align="start" className="w-56 p-2">
           <div className="text-xs font-medium text-muted-foreground mb-1.5">Filter by label</div>
-          <div className="flex flex-col gap-0.5">
-            {labels.length === 0 && (
-              <p className="text-xs text-muted-foreground py-1">No labels on this board</p>
-            )}
-            {labels.map((label) => {
-              const isActive = filters.labelIds.includes(label.id)
-              return (
-                <button
-                  key={label.id}
-                  type="button"
-                  onClick={() => onToggleLabel(label.id)}
-                  className={cn(
-                    'flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors text-left text-foreground',
-                    isActive && 'bg-accent',
-                  )}
-                >
-                  <span
-                    className="size-3 rounded-sm shrink-0"
-                    style={{ backgroundColor: label.color }}
-                  />
-                  <span className="truncate">{label.name}</span>
-                  {isActive && (
-                    <span className="ml-auto text-xs text-muted-foreground">✓</span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
+          <LabelOptionList
+            labels={labels}
+            isSelected={(id) => filters.labelIds.includes(id)}
+            onToggle={onToggleLabel}
+          />
         </PopoverContent>
       </Popover>
 

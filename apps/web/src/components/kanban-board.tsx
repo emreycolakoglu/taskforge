@@ -16,7 +16,7 @@ import { TaskCard } from './task-card'
 import { BoardColumn } from './board-column'
 import { BoardHeaderBar } from './board-header-bar'
 import { FilterChipsBar } from './filter-chips-bar'
-import { CreateTaskModal } from './create-task-modal'
+import { QuickAddInput } from './quick-add-input'
 import { CreateTaskDialog } from './create-task-dialog'
 import { LabelPill } from './label-pill'
 import { Button } from '@/components/ui/button'
@@ -268,7 +268,7 @@ export function KanbanBoard() {
 
                       {/* Inline quick-add inside the column footer slot */}
                       {creatingInStatus === status.id && (
-                        <CreateTaskModal
+                        <QuickAddInput
                           statusId={status.id}
                           onSubmit={(title) => handleCreateTask(status.id, title)}
                           onClose={() => setCreatingInStatus(null)}
@@ -344,7 +344,7 @@ export function KanbanBoard() {
               )}
             </DialogTitle>
           </DialogHeader>
-          <CreateTaskModal
+          <QuickAddInput
             statusId={creatingSubTask?.statusId ?? ''}
             parentId={creatingSubTask?.parentId}
             parentTaskNumber={creatingSubTask?.parentTaskNumber}

@@ -16,6 +16,7 @@ import { ArrowLeft } from "lucide-react";
 import { useTask, useTasksByBoard, useSetTaskPublic } from "@/hooks/use-tasks";
 import { useBoardFull } from "@/hooks/use-boards";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DetailBreadcrumbBar } from "@/components/detail-breadcrumb-bar";
 import { TaskDetailView } from "@/components/task-detail-view";
 
@@ -65,8 +66,14 @@ export function TaskDetailPage() {
 
   if (taskLoading) {
     return (
-      <div className="flex items-center justify-center h-full bg-background">
-        <div className="text-muted-foreground">Loading task…</div>
+      <div className="h-full space-y-4 bg-background p-6">
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="h-8 w-2/3" />
+        <div className="space-y-2 pt-2">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+          <Skeleton className="h-4 w-3/4" />
+        </div>
       </div>
     );
   }
