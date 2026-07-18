@@ -12,7 +12,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { cn } from "@/lib/utils";
+import { LabelOptionList } from "./label-option-list";
 
 interface LabelManagerProps {
   task: Task;
@@ -149,43 +149,12 @@ export function LabelManager({ task, boardId }: LabelManagerProps) {
         <div className="text-xs font-medium text-muted-foreground mb-1.5">
           Labels
         </div>
-        <div className="flex flex-col gap-1">
-          {allLabels.map((label) => {
-            const isAttached = currentLabelIds.has(label.id);
-            const isPending = pending.has(label.id);
-            return (
-              <button
-                key={label.id}
-                type="button"
-                disabled={isPending}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  toggle(label.id);
-                }}
-                className={cn(
-                  "flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent transition-colors text-left text-foreground",
-                  isAttached && "bg-accent",
-                )}
-              >
-                <span
-                  className="size-3 rounded-sm shrink-0"
-                  style={{ backgroundColor: label.color }}
-                />
-                <span className="truncate">{label.name}</span>
-                {isAttached && (
-                  <span className="ml-auto text-xs text-muted-foreground">
-                    ✓
-                  </span>
-                )}
-              </button>
-            );
-          })}
-          {allLabels.length === 0 && (
-            <p className="text-xs text-muted-foreground py-1">
-              No labels on this board
-            </p>
-          )}
-        </div>
+        <LabelOptionList
+          labels={allLabels}
+          isSelected={(id) => currentLabelIds.has(id)}
+          onToggle={toggle}
+          isPending={(id) => pending.has(id)}
+        />
       </PopoverContent>
     </Popover>
   );
