@@ -8,24 +8,10 @@ import {
   User,
   LogOut,
   ChevronRight,
-  Loader2,
   Plus,
   Columns3,
   Inbox,
-  Activity,
-  Layers,
-  Flag,
-  FolderKanban,
-  LayoutGrid,
-  MoreHorizontal,
-  Star,
 } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-  TooltipProvider,
-} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -38,7 +24,24 @@ import {
   CollapsibleTrigger,
   CollapsibleContent,
 } from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupAction,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarInset,
+  SidebarMenu,
+  SidebarMenuBadge,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarProvider,
+  useSidebar,
+} from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/auth-context";
 import { useBoards } from "@/hooks/use-boards";
 import { useUnreadCount } from "@/hooks/use-notifications";
@@ -49,27 +52,22 @@ interface SidebarLayoutProps {
   children: React.ReactNode;
 }
 
-// Primary nav vocabulary mirrors Linear. Only "My Issues" routes today; the
-// rest are placeholder links rendered as muted, non-interactive affordances
-// with a "Coming soon" tooltip. No backend features are implied.
+// Primary nav vocabulary mirrors Linear. Both routes exist today; placeholder
+// destinations were removed. No backend features are implied.
 const PRIMARY_NAV = [
-  {
-    label: "Inbox",
-    icon: Inbox,
-    to: "/inbox" as string | null,
-    enabled: true,
-  },
-  { label: "My Issues", icon: ListChecks, to: "/tasks", enabled: true },
-  // { label: "Pulse", icon: Activity, to: null, enabled: false },
-  // { label: "Workspace", icon: Layers, to: null, enabled: false },
-  // { label: "Initiatives", icon: Flag, to: null, enabled: false },
-  // { label: "Projects", icon: FolderKanban, to: null, enabled: false },
-  // { label: "Views", icon: LayoutGrid, to: null, enabled: false },
-  // { label: "More", icon: MoreHorizontal, to: null, enabled: false },
+  { label: "Inbox", icon: Inbox, to: "/inbox" },
+  { label: "My Issues", icon: ListChecks, to: "/tasks" },
 ];
 
+/**
+ * SidebarLayout — app chrome built on the shadcn Sidebar primitive.
+ *
+ * Collapse is now CSS-driven (data-[collapsible=icon]) rather than the old
+ * conditional-render `collapsed` state: labels stay mounted and hide via the
+ * sidebar's data attributes, tooltips come from SidebarMenuButton's `tooltip`
+ * prop, and ⌘/Ctrl-B toggles. State persists to a cookie across reloads.
+ */
 export function SidebarLayout({ children }: SidebarLayoutProps) {
-  const [collapsed, setCollapsed] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -84,327 +82,193 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
     : "T";
 
   return (
-    <TooltipProvider delayDuration={0}>
-      <div className="flex h-screen overflow-hidden bg-background">
-        <aside
-          className={cn(
-            "flex flex-col border-r bg-sidebar-background text-sidebar-foreground transition-all motion-reduce:transition-none duration-200",
-            collapsed ? "w-14" : "w-64",
-          )}
-        >
-          {/* Workspace header — plain label (Linear: avatar tile + name + chevron) */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div
-                className={cn(
-                  "flex h-11 mt-2 items-center gap-2 px-3 transition-colors w-full",
-                  collapsed && "justify-center px-0",
-                )}
-              >
-                <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">
-                  {avatarLetter}
-                </span>
-                {!collapsed && (
-                  <span className="flex-1 text-sm font-medium text-foreground">
-                    TaskForge
-                  </span>
-                )}
-              </div>
-            </TooltipTrigger>
-            {collapsed && (
-              <TooltipContent side="right">TaskForge</TooltipContent>
-            )}
-          </Tooltip>
+    <SidebarProvider className="h-svh overflow-hidden">
+      <Sidebar collapsible="icon" className="bg-sidebar-background">
+        {/* Workspace header — plain label, not an interactive trigger */}
+        <SidebarHeader>
+          <div className="flex h-8 items-center gap-2 px-1">
+            <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground text-xs font-semibold">
+              {avatarLetter}
+            </span>
+            <span className="text-sm font-medium text-foreground group-data-[collapsible=icon]:hidden">
+              TaskForge
+            </span>
+          </div>
+        </SidebarHeader>
 
+        <SidebarContent>
           {/* Primary navigation */}
-          <nav className="flex flex-col gap-0.5 px-2 pt-2">
-            {PRIMARY_NAV.map((item) => {
-              const isActive =
-                item.enabled &&
-                item.to !== null &&
-                location.pathname === item.to;
-              const content = (
-                <span
-                  className={cn(
-                    "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
-                    isActive
-                      ? "bg-sidebar-accent text-foreground"
-                      : item.enabled
-                        ? "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
-                        : "text-muted-foreground/60 cursor-default",
-                    collapsed && "justify-center px-2",
-                  )}
-                  aria-current={isActive ? "page" : undefined}
-                >
-                  <div className="relative">
-                    <item.icon className="size-4 shrink-0" />
-                    {item.label === "Inbox" && unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 size-1.5 rounded-full bg-primary" />
-                    )}
-                  </div>
-                  {!collapsed && (
-                    <span className="flex items-center gap-2 flex-1">
-                      <span>{item.label}</span>
+          <SidebarGroup>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {PRIMARY_NAV.map((item) => {
+                  const isActive = location.pathname === item.to;
+                  return (
+                    <SidebarMenuItem key={item.label}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={item.label}
+                      >
+                        <Link
+                          to={item.to}
+                          aria-label={item.label}
+                          aria-current={isActive ? "page" : undefined}
+                        >
+                          <item.icon />
+                          <span>{item.label}</span>
+                        </Link>
+                      </SidebarMenuButton>
                       {item.label === "Inbox" && unreadCount > 0 && (
-                        <span className="ml-auto rounded-full bg-primary text-primary-foreground text-[10px] font-medium px-1.5 py-0.5 min-w-[16px] text-center">
+                        <SidebarMenuBadge className="bg-primary text-primary-foreground">
                           {unreadCount}
-                        </span>
+                        </SidebarMenuBadge>
                       )}
-                    </span>
-                  )}
-                </span>
-              );
+                    </SidebarMenuItem>
+                  );
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
 
-              if (!item.enabled) {
-                return (
-                  <Tooltip key={item.label}>
-                    <TooltipTrigger asChild>
-                      <div>{content}</div>
-                    </TooltipTrigger>
-                    {!collapsed ? (
-                      <TooltipContent side="right">Coming soon</TooltipContent>
-                    ) : (
-                      <TooltipContent side="right">
-                        {item.label} — Coming soon
-                      </TooltipContent>
-                    )}
-                  </Tooltip>
-                );
-              }
-
-              return (
-                <Tooltip key={item.label}>
-                  <TooltipTrigger asChild>
-                    <Link to={item.to!} aria-label={item.label}>
-                      {content}
-                    </Link>
-                  </TooltipTrigger>
-                  {collapsed && (
-                    <TooltipContent side="right">{item.label}</TooltipContent>
-                  )}
-                </Tooltip>
-              );
-            })}
-          </nav>
-
-          {/* Favorites — collapsible section (Linear-style saved views placeholder) */}
-          {
-            // !collapsed && (
-            //   <div className="mt-4 px-2">
-            //     <Collapsible defaultOpen>
-            //       <CollapsibleTrigger className="flex w-full items-center gap-1 px-3 pt-2 pb-1 text-xs font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
-            //         <ChevronRight className="size-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
-            //         Favorites
-            //       </CollapsibleTrigger>
-            //       <CollapsibleContent>
-            //         <div className="flex flex-col gap-0.5">
-            //           <Link
-            //             to="/tasks"
-            //             className={cn(
-            //               "flex items-center gap-2 rounded-md px-3 py-1.5 text-sm transition-colors",
-            //               location.pathname === "/tasks"
-            //                 ? "bg-sidebar-accent text-foreground"
-            //                 : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-            //             )}
-            //           >
-            //             <Star className="size-3.5 shrink-0" />
-            //             Assigned to me
-            //           </Link>
-            //         </div>
-            //       </CollapsibleContent>
-            //     </Collapsible>
-            //   </div>
-            // )
-          }
-
-          {/* Boards section — collapsible */}
-          {!collapsed ? (
-            <div className="mt-2 px-2">
-              <Collapsible defaultOpen>
-                <div className="flex items-center px-3 pt-2 pb-1">
-                  <CollapsibleTrigger className="group flex items-center gap-1 text-xs font-medium text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors">
-                    <ChevronRight className="size-3.5 shrink-0 transition-transform duration-200 group-data-[state=open]:rotate-90" />
-                    BOARDS
-                  </CollapsibleTrigger>
-                  <button
-                    onClick={() => setCreateDialogOpen(true)}
-                    className="ml-auto text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label="Create board"
-                  >
-                    <Plus className="size-3.5" />
-                  </button>
-                </div>
-                <CollapsibleContent>
+          {/* Boards — collapsible group */}
+          <Collapsible defaultOpen className="group/collapsible">
+            <SidebarGroup>
+              <SidebarGroupLabel asChild>
+                <CollapsibleTrigger className="group/boards">
+                  <ChevronRight className="mr-1 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                  BOARDS
+                </CollapsibleTrigger>
+              </SidebarGroupLabel>
+              <SidebarGroupAction
+                aria-label="Create board"
+                onClick={() => setCreateDialogOpen(true)}
+              >
+                <Plus />
+              </SidebarGroupAction>
+              <CollapsibleContent>
+                <SidebarGroupContent>
                   {boardsLoading ? (
-                    <div className="flex items-center justify-center py-2">
-                      <Loader2 className="size-4 animate-spin text-muted-foreground" />
+                    <div className="flex flex-col gap-1 px-2 py-1">
+                      <Skeleton className="h-6 w-full" />
+                      <Skeleton className="h-6 w-3/4" />
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-0.5">
+                    <SidebarMenu>
                       {boards?.map((board) => {
                         const isActive =
                           location.pathname === `/board/${board.id}`;
                         return (
-                          <Link
-                            key={board.id}
-                            to={`/board/${board.id}`}
-                            className={cn(
-                              "relative flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
-                              isActive
-                                ? "bg-sidebar-accent text-foreground"
-                                : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-                            )}
-                            aria-current={isActive ? "page" : undefined}
-                          >
-                            {isActive && (
-                              <span className="absolute left-0 h-5 w-0.5 rounded-r bg-primary" />
-                            )}
-                            <Columns3 className="size-4 shrink-0" />
-                            <span>{board.name}</span>
-                          </Link>
+                          <SidebarMenuItem key={board.id}>
+                            <SidebarMenuButton
+                              asChild
+                              isActive={isActive}
+                              tooltip={board.name}
+                            >
+                              <Link
+                                to={`/board/${board.id}`}
+                                aria-current={isActive ? "page" : undefined}
+                              >
+                                <Columns3 />
+                                <span>{board.name}</span>
+                              </Link>
+                            </SidebarMenuButton>
+                          </SidebarMenuItem>
                         );
                       })}
-                    </div>
+                    </SidebarMenu>
                   )}
-                </CollapsibleContent>
-              </Collapsible>
-            </div>
-          ) : (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Link
-                  to="/"
-                  aria-label="Boards"
-                  className={cn(
-                    "flex items-center justify-center rounded-md px-2 py-1.5 text-sm transition-colors mt-4 mx-2",
-                    "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-                  )}
-                >
-                  <Columns3 className="size-4 shrink-0" />
-                </Link>
-              </TooltipTrigger>
-              <TooltipContent side="right">Boards</TooltipContent>
-            </Tooltip>
-          )}
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        </SidebarContent>
 
-          {/* Spacer to push bottom section down */}
-          <div className="flex-1" />
-
-          {/* Bottom section */}
-          <div className="flex flex-col gap-0.5 p-3 border-t border-sidebar-border">
-            <Tooltip>
-              <TooltipTrigger asChild>
+        {/* Bottom section */}
+        <SidebarFooter>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton
+                asChild
+                isActive={location.pathname.startsWith("/settings")}
+                tooltip="Settings"
+              >
                 <Link
                   to="/settings"
-                  className={cn(
-                    "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
-                    location.pathname.startsWith("/settings")
-                      ? "bg-sidebar-accent text-foreground"
-                      : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-                    collapsed && "justify-center px-2",
-                  )}
                   aria-current={
                     location.pathname.startsWith("/settings")
                       ? "page"
                       : undefined
                   }
                 >
-                  <Settings className="size-4 shrink-0" />
-                  {!collapsed && <span>Settings</span>}
+                  <Settings />
+                  <span>Settings</span>
                 </Link>
-              </TooltipTrigger>
-              {collapsed && (
-                <TooltipContent side="right">Settings</TooltipContent>
-              )}
-            </Tooltip>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
 
             {user && (
-              <DropdownMenu>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        className={cn(
-                          "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
-                          "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-                          collapsed && "justify-center px-2",
-                        )}
-                      >
-                        <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-secondary-foreground text-[11px] font-semibold">
-                          {avatarLetter}
-                        </span>
-                        {!collapsed && (
-                          <span className="truncate text-sm text-foreground">
-                            {user.displayName}
-                          </span>
-                        )}
-                      </button>
-                    </DropdownMenuTrigger>
-                  </TooltipTrigger>
-                  {collapsed && (
-                    <TooltipContent side="right">
-                      {user.displayName}
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-                <DropdownMenuContent side="right" align="start">
-                  <DropdownMenuItem asChild>
-                    <Link to="/account">
-                      <User className="size-4 mr-2" />
-                      Account
-                    </Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={logout}>
-                    <LogOut className="size-4 mr-2" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <SidebarMenuItem>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <SidebarMenuButton>
+                      <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-secondary-foreground text-[11px] font-semibold">
+                        {avatarLetter}
+                      </span>
+                      <span className="truncate text-foreground">
+                        {user.displayName}
+                      </span>
+                    </SidebarMenuButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent side="right" align="end">
+                    <DropdownMenuItem asChild>
+                      <Link to="/account">
+                        <User className="size-4 mr-2" />
+                        Account
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={logout}>
+                      <LogOut className="size-4 mr-2" />
+                      Sign Out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </SidebarMenuItem>
             )}
 
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  className={cn(
-                    "flex items-center gap-3 rounded-md px-3 py-1.5 text-sm transition-colors",
-                    "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent",
-                    collapsed && "justify-center px-2",
-                  )}
-                  aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-                  onClick={() => setCollapsed(!collapsed)}
-                >
-                  {collapsed ? (
-                    <PanelLeft className="size-4 shrink-0" />
-                  ) : (
-                    <>
-                      <PanelLeftClose className="size-4 shrink-0" />
-                      <span>Collapse</span>
-                    </>
-                  )}
-                </button>
-              </TooltipTrigger>
-              {collapsed && (
-                <TooltipContent side="right">Expand</TooltipContent>
-              )}
-            </Tooltip>
-          </div>
-        </aside>
+            <SidebarMenuItem>
+              <CollapseToggle />
+            </SidebarMenuItem>
+          </SidebarMenu>
+        </SidebarFooter>
+      </Sidebar>
 
-        {/* Main content — flex column so board header is sticky and body scrolls */}
-        <main
-          className="flex-1 flex flex-col overflow-hidden bg-background"
-          id="main-content"
-        >
-          {children}
-        </main>
+      <SidebarInset id="main-content" className="overflow-hidden">
+        {children}
+      </SidebarInset>
 
-        <CreateBoardDialog
-          open={createDialogOpen}
-          onOpenChange={setCreateDialogOpen}
-          onSuccess={(board) => navigate(`/board/${board.id}`)}
-        />
-      </div>
-    </TooltipProvider>
+      <CreateBoardDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onSuccess={(board) => navigate(`/board/${board.id}`)}
+      />
+    </SidebarProvider>
+  );
+}
+
+/** Footer toggle — collapses/expands the rail with a state-aware aria-label. */
+function CollapseToggle() {
+  const { state, toggleSidebar } = useSidebar();
+  const collapsed = state === "collapsed";
+  return (
+    <SidebarMenuButton
+      onClick={toggleSidebar}
+      tooltip={collapsed ? "Expand" : undefined}
+      aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+    >
+      {collapsed ? <PanelLeft /> : <PanelLeftClose />}
+      <span>Collapse</span>
+    </SidebarMenuButton>
   );
 }

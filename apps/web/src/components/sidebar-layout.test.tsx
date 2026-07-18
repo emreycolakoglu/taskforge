@@ -159,31 +159,36 @@ describe('SidebarLayout', () => {
     expect(screen.getByText('Test User')).toBeInTheDocument()
   })
 
-  it('collapses sidebar when collapse button is clicked', async () => {
+  it('collapses the sidebar to icon mode when the collapse button is clicked', async () => {
     const user = userEvent.setup()
-    renderSidebar()
+    const { container } = renderSidebar()
 
-    expect(screen.getByText('TaskForge')).toBeInTheDocument()
+    // shadcn Sidebar collapses via data attributes (labels are CSS-hidden, not
+    // unmounted), so assert the state flip rather than DOM removal.
+    const sidebar = container.querySelector('[data-variant]') as HTMLElement
+    expect(sidebar).toHaveAttribute('data-state', 'expanded')
 
-    const collapseButton = screen.getByLabelText('Collapse sidebar')
-    await user.click(collapseButton)
+    await user.click(screen.getByLabelText('Collapse sidebar'))
 
-    expect(screen.queryByText('TaskForge')).not.toBeInTheDocument()
+    expect(sidebar).toHaveAttribute('data-state', 'collapsed')
+    expect(sidebar).toHaveAttribute('data-collapsible', 'icon')
     expect(screen.getByLabelText('Expand sidebar')).toBeInTheDocument()
   })
 
-  it('shows Boards icon link when sidebar is collapsed', async () => {
+  it('keeps board links reachable when the sidebar is collapsed', async () => {
     const user = userEvent.setup()
-    renderSidebar()
+    const { container } = renderSidebar()
 
-    // Collapse sidebar
     await user.click(screen.getByLabelText('Collapse sidebar'))
 
-    // Should show a Boards icon link with tooltip
-    expect(screen.getByLabelText('Boards')).toBeInTheDocument()
+    const sidebar = container.querySelector('[data-variant]') as HTMLElement
+    expect(sidebar).toHaveAttribute('data-collapsible', 'icon')
 
-    // Board names should be hidden
-    expect(screen.queryByText('Sprint 1')).not.toBeInTheDocument()
+    // Board rows stay mounted (rendered as icons); the link is still navigable.
+    expect(screen.getByRole('link', { name: /sprint 1/i })).toHaveAttribute(
+      'href',
+      '/board/b1',
+    )
   })
 
   it('opens create board dialog when plus button is clicked', async () => {
