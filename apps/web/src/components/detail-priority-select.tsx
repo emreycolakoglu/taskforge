@@ -1,21 +1,20 @@
 /**
- * DetailPrioritySelect — compact Select for task priority with icon prefix.
+ * DetailPrioritySelect — compact priority picker (shadcn Select).
  *
- * Replaces the old 4-button priority row which used Crimson/Indigo tinted
- * fills (bg-[#eb5757]/10) — a bright-fill pattern design.md discourages on
- * chrome (conflict register #1). A Select with icon-prefixed options is quieter
- * and matches Linear's single-row property. Icons carry color via stroke only;
- * the row stays monochrome.
+ * Uses the shared radix Select primitive (same pattern as create-task-dialog),
+ * with a ghost-styled trigger so it reads as an inline property row, not a
+ * bordered form field. Each option carries a stroke-only signal icon; the row
+ * stays monochrome per design.md (no bright priority fills). SelectValue mirrors
+ * the selected option's icon + label into the trigger automatically.
  */
 
-import { Button } from "@/components/ui/button";
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { Task } from "@/types";
 import type { ReactElement } from "react";
 import {
@@ -33,43 +32,44 @@ const PRIORITY_LABELS: Record<Task["priority"], string> = {
 };
 
 const PRIORITY_ICONS: Record<Task["priority"], ReactElement> = {
-  low: <SignalZero data-icon="inline-start" />,
-  medium: <SignalLowIcon data-icon="inline-start" />,
-  high: <SignalMediumIcon data-icon="inline-start" />,
-  urgent: <SignalHighIcon data-icon="inline-start" />,
+  low: <SignalZero />,
+  medium: <SignalLowIcon />,
+  high: <SignalMediumIcon />,
+  urgent: <SignalHighIcon />,
 };
+
+const TRIGGER_CLASS =
+  "h-8 w-auto gap-1.5 border-0 bg-transparent px-2 py-1 text-muted-foreground shadow-none hover:bg-accent hover:text-foreground [&>span]:flex [&>span]:items-center [&>span]:gap-1.5 [&_svg]:size-4";
 
 interface DetailPrioritySelectProps {
   value: Task["priority"];
   onChange: (value: Task["priority"]) => void;
 }
 
+const OPTIONS: Task["priority"][] = ["low", "medium", "high", "urgent"];
+
 export function DetailPrioritySelect({
   value,
   onChange,
 }: DetailPrioritySelectProps) {
-  const options: Task["priority"][] = ["low", "medium", "high", "urgent"];
-
   return (
-    <div>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant={"ghost"} size={"sm"}>
-            {PRIORITY_ICONS[value]}
-            {PRIORITY_LABELS[value]}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuGroup>
-            {options.map((p) => (
-              <DropdownMenuItem key={p} onClick={() => onChange(p)}>
-                {PRIORITY_ICONS[p]}
-                {PRIORITY_LABELS[p]}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuGroup>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <Select
+      value={value}
+      onValueChange={(v) => onChange(v as Task["priority"])}
+    >
+      <SelectTrigger className={TRIGGER_CLASS} aria-label="Priority">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent align="start" className="[&_svg]:size-4">
+        {OPTIONS.map((p) => (
+          <SelectItem key={p} value={p}>
+            <span className="flex items-center gap-1.5">
+              {PRIORITY_ICONS[p]}
+              {PRIORITY_LABELS[p]}
+            </span>
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }
