@@ -20,6 +20,13 @@ import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Copy, Link2, Glob
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -119,13 +126,17 @@ export function DetailBreadcrumbBar({
         >
           <ArrowLeft className="size-4" />
         </Button>
-        <nav className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
-          <span className="truncate">{boardName}</span>
-          <span className="text-muted-foreground/50">›</span>
-          <span className="truncate">{statusName}</span>
-          <span className="text-muted-foreground/50">›</span>
-          <span className="font-mono text-foreground shrink-0">{taskNumber}</span>
-        </nav>
+        <Breadcrumb className="min-w-0">
+          <BreadcrumbList className="text-xs">
+            <BreadcrumbItem className="truncate">{boardName}</BreadcrumbItem>
+            <BreadcrumbSeparator>›</BreadcrumbSeparator>
+            <BreadcrumbItem className="truncate">{statusName}</BreadcrumbItem>
+            <BreadcrumbSeparator>›</BreadcrumbSeparator>
+            <BreadcrumbItem>
+              <BreadcrumbPage className="font-mono">{taskNumber}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
         {isPublic && (
           <Badge
             variant="outline"
