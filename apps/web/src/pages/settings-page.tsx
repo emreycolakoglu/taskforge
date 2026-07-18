@@ -6,6 +6,8 @@ import { useAuth } from '@/contexts/auth-context'
 import { useSettings, useUpdateSettings } from '@/hooks/use-settings'
 import { useUsers, useInvites, useCreateInvite, useRevokeInvite, useDeleteUser } from '@/hooks/use-users'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -72,22 +74,20 @@ function GeneralTab() {
       {isLoading && (
         <Card>
           <CardHeader>
-            <div className="h-4 w-32 animate-pulse rounded bg-muted" />
-            <div className="h-3 w-48 animate-pulse rounded bg-muted" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-48" />
           </CardHeader>
           <CardContent>
-            <div className="h-9 w-full animate-pulse rounded bg-muted" />
+            <Skeleton className="h-9 w-full" />
           </CardContent>
         </Card>
       )}
 
       {isError && (
-        <Card className="border-destructive">
-          <CardHeader>
-            <CardTitle className="text-base text-destructive">Error</CardTitle>
-            <CardDescription>Failed to load instance settings. Try refreshing the page.</CardDescription>
-          </CardHeader>
-        </Card>
+        <Alert variant="destructive">
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>Failed to load instance settings. Try refreshing the page.</AlertDescription>
+        </Alert>
       )}
 
       {settings && (

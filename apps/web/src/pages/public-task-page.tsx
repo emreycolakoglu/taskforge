@@ -23,6 +23,7 @@ import { useParams } from "react-router-dom";
 import { fetchPublicTask, PublicTaskNotFoundError } from "@/hooks/public-api";
 import { MarkdownEditor } from "@/components/markdown";
 import { LabelPill } from "@/components/label-pill";
+import { Skeleton } from "@/components/ui/skeleton";
 
 function formatTimestamp(value: string): string {
   return new Date(value).toLocaleDateString(undefined, {
@@ -76,8 +77,15 @@ export function PublicTaskPage() {
 
   if (isLoading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background">
-        <div className="text-muted-foreground">Loading…</div>
+      <div className="min-h-screen bg-background">
+        <div className="mx-auto max-w-3xl space-y-6 px-6 py-10">
+          <Skeleton className="h-4 w-40" />
+          <Skeleton className="h-8 w-2/3" />
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+          </div>
+        </div>
       </div>
     );
   }

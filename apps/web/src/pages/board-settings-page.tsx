@@ -13,6 +13,8 @@ import { Card, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ColorPicker } from '@/components/color-picker'
 import type { Label, Status } from '@/types'
 
@@ -25,8 +27,8 @@ export function BoardSettingsPage() {
   if (boardLoading || labelsLoading) {
     return (
       <div className="p-6">
-        <div className="h-6 w-40 animate-pulse rounded bg-muted mb-2" />
-        <div className="h-4 w-60 animate-pulse rounded bg-muted" />
+        <Skeleton className="h-6 w-40 mb-2" />
+        <Skeleton className="h-4 w-60" />
       </div>
     )
   }
@@ -34,7 +36,9 @@ export function BoardSettingsPage() {
   if (!board) {
     return (
       <div className="p-6">
-        <p className="text-destructive">Board not found.</p>
+        <Alert variant="destructive">
+          <AlertDescription>Board not found.</AlertDescription>
+        </Alert>
       </div>
     )
   }
