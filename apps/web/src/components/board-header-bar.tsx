@@ -11,6 +11,7 @@ import type { Board } from '@/types'
 import type { ViewMode } from '@/hooks/use-board-view-state'
 import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { SidebarTrigger } from '@/components/ui/sidebar'
 import { cn } from '@/lib/utils'
 
 interface BoardHeaderBarProps {
@@ -36,6 +37,12 @@ export function BoardHeaderBar({
     <header className="flex h-12 items-center justify-between px-6 border-b border-border bg-secondary shrink-0">
       {/* Left — breadcrumb / title */}
       <div className="flex items-center gap-2 min-w-0">
+        {/* Mobile-only: toggles the off-canvas sidebar. Hidden ≥md where the
+            sidebar is always docked. */}
+        <SidebarTrigger
+          className="md:hidden text-muted-foreground hover:text-foreground"
+          aria-label="Toggle sidebar"
+        />
         <h1 className="text-sm font-medium text-foreground truncate">{board.name}</h1>
       </div>
 

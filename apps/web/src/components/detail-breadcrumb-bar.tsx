@@ -33,6 +33,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { SidebarTrigger } from '@/components/ui/sidebar'
 import { toast } from 'sonner'
 
 /** The public URL for a task, derived from its number (e.g. TF-123 → /public/TF/123). */
@@ -117,6 +118,12 @@ export function DetailBreadcrumbBar({
     <header className="flex h-11 items-center justify-between px-6 border-b border-border bg-secondary shrink-0">
       {/* Left — back + breadcrumb */}
       <div className="flex items-center gap-2 min-w-0">
+        {/* Mobile-only: toggles the off-canvas sidebar. Hidden ≥md where the
+            sidebar is always docked. */}
+        <SidebarTrigger
+          className="md:hidden text-muted-foreground hover:text-foreground"
+          aria-label="Toggle sidebar"
+        />
         <Button
           variant="ghost"
           size="icon"
