@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DetailBreadcrumbBar } from "./detail-breadcrumb-bar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 const writeText = vi.fn().mockResolvedValue(undefined);
 
@@ -12,19 +13,21 @@ vi.mock("sonner", () => ({
 function renderBar(overrides: Partial<Parameters<typeof DetailBreadcrumbBar>[0]> = {}) {
   const onSetPublic = vi.fn().mockResolvedValue(undefined);
   render(
-    <DetailBreadcrumbBar
-      boardName="TaskForge"
-      statusName="In Progress"
-      taskNumber="TF-123"
-      taskId="task-1"
-      boardId="board-1"
-      isPublic={false}
-      position={{ current: 1, total: 3 }}
-      onBack={vi.fn()}
-      onNavigateTask={vi.fn()}
-      onSetPublic={onSetPublic}
-      {...overrides}
-    />,
+    <SidebarProvider>
+      <DetailBreadcrumbBar
+        boardName="TaskForge"
+        statusName="In Progress"
+        taskNumber="TF-123"
+        taskId="task-1"
+        boardId="board-1"
+        isPublic={false}
+        position={{ current: 1, total: 3 }}
+        onBack={vi.fn()}
+        onNavigateTask={vi.fn()}
+        onSetPublic={onSetPublic}
+        {...overrides}
+      />
+    </SidebarProvider>,
   );
   return { onSetPublic };
 }

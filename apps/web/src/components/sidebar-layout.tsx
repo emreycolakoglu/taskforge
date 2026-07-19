@@ -39,6 +39,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
+  SidebarRail,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -242,6 +243,8 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             </SidebarMenuItem>
           </SidebarMenu>
         </SidebarFooter>
+
+        <SidebarRail />
       </Sidebar>
 
       <SidebarInset id="main-content" className="overflow-hidden">
