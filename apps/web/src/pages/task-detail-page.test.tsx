@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TaskDetailPage } from "./task-detail-page";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 const mockTask = {
   id: "task-1",
@@ -131,7 +132,9 @@ function renderPage(route = "/board/board-1/task/task-1") {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[route]}>
-        <TaskDetailPage />
+        <SidebarProvider>
+          <TaskDetailPage />
+        </SidebarProvider>
       </MemoryRouter>
     </QueryClientProvider>,
   );
