@@ -152,8 +152,6 @@ export function KanbanBoard() {
         board={board}
         viewMode={viewMode}
         onViewModeChange={setViewMode}
-        onOpenFilters={() => { /* filter popover lives in FilterChipsBar; no-op here */ }}
-        onOpenDisplay={() => { /* display options placeholder — out of scope */ }}
         onOpenSettings={() => navigate(`/board/${id}/settings`)}
         onNewTask={() => setCreateDialogOpen(true)}
       />

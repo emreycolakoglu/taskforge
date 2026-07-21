@@ -6,20 +6,17 @@
  * No lime appears anywhere else in the header.
  */
 
-import { List, Columns3, Plus, SlidersHorizontal, Settings2, Settings } from 'lucide-react'
+import { List, Columns3, Plus, Settings } from 'lucide-react'
 import type { Board } from '@/types'
 import type { ViewMode } from '@/hooks/use-board-view-state'
 import { Button } from '@/components/ui/button'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { SidebarTrigger } from '@/components/ui/sidebar'
-import { cn } from '@/lib/utils'
 
 interface BoardHeaderBarProps {
   board: Board
   viewMode: ViewMode
   onViewModeChange: (mode: ViewMode) => void
-  onOpenFilters: () => void
-  onOpenDisplay: () => void
   onOpenSettings: () => void
   onNewTask: () => void
 }
@@ -28,8 +25,6 @@ export function BoardHeaderBar({
   board,
   viewMode,
   onViewModeChange,
-  onOpenFilters,
-  onOpenDisplay,
   onOpenSettings,
   onNewTask,
 }: BoardHeaderBarProps) {
@@ -80,25 +75,7 @@ export function BoardHeaderBar({
         <Button
           variant="ghost"
           size="icon"
-          className={cn('size-7 text-muted-foreground hover:text-foreground')}
-          aria-label="Add filter"
-          onClick={onOpenFilters}
-        >
-          <SlidersHorizontal className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn('size-7 text-muted-foreground hover:text-foreground')}
-          aria-label="Display options"
-          onClick={onOpenDisplay}
-        >
-          <Settings2 className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn('size-7 text-muted-foreground hover:text-foreground')}
+          className="size-7 text-muted-foreground hover:text-foreground"
           aria-label="Board settings"
           onClick={onOpenSettings}
         >
