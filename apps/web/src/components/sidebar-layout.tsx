@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   ListChecks,
@@ -77,12 +77,23 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
   useSocket();
   const unreadCount = unreadData?.count ?? 0;
 
+  // Close the mobile sidebar (Sheet) whenever the route changes.
+  // This component must be rendered inside <SidebarProvider>.
+  function MobileSidebarCloser() {
+    const { isMobile, setOpenMobile } = useSidebar();
+    useEffect(() => {
+      if (isMobile) setOpenMobile(false);
+    }, [location.pathname, isMobile, setOpenMobile]);
+    return null;
+  }
+
   const avatarLetter = user?.displayName
     ? user.displayName.charAt(0).toUpperCase()
     : "T";
 
   return (
     <SidebarProvider className="h-svh overflow-hidden">
+      <MobileSidebarCloser />
       <Sidebar collapsible="icon" className="bg-sidebar-background">
         {/* Workspace header — plain label, not an interactive trigger */}
         <SidebarHeader>
