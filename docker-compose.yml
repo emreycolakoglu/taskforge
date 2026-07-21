@@ -1,14 +1,15 @@
 version: "3.8"
 services:
   taskforge:
+    image: emreyc/taskforge:latest
     build: .
     ports:
-      - "4321:4321"
+      - "4321:3000"
     volumes:
       - taskforge-data:/data
     environment:
       - NODE_ENV=production
-      - PORT=4321
+      - PORT=3000
       - DATABASE_URL=file:/data/taskforge.db
       - CORS_ORIGIN=*
 
