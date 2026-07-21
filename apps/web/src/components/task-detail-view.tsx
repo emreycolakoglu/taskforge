@@ -22,7 +22,7 @@ import {
   useRemoveRelation,
 } from "@/hooks/use-relations";
 import { useBoardFull } from "@/hooks/use-boards";
-import { useComments, useCreateComment } from "@/hooks/use-comments";
+import { useComments, useCreateComment, useDeleteComment } from "@/hooks/use-comments";
 import { useUsers } from "@/hooks/use-users";
 import { useLabels } from "@/hooks/use-labels";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -63,6 +63,7 @@ export function TaskDetailView({
 
   const updateTask = useUpdateTask();
   const createComment = useCreateComment();
+  const deleteComment = useDeleteComment();
   const createTask = useCreateTask();
   const { data: relations } = useTaskRelations(taskId);
   const createRelation = useCreateRelation();
@@ -84,6 +85,14 @@ export function TaskDetailView({
       createComment.mutate({ taskId: task.id, author: "user", body });
     },
     [task, createComment],
+  );
+
+  const handleDeleteComment = useCallback(
+    (commentId: string) => {
+      if (!task) return;
+      deleteComment.mutate({ id: commentId, taskId: task.id });
+    },
+    [task, deleteComment],
   );
 
   const handleCreateSubTask = useCallback(
@@ -194,6 +203,7 @@ export function TaskDetailView({
           <DetailComments
             comments={comments}
             onSubmit={handleAddComment}
+            onDelete={handleDeleteComment}
             formatTimestamp={formatTimestamp}
           />
         </div>

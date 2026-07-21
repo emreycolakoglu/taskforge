@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -49,9 +49,19 @@ export class CommentsService {
     return comment;
   }
 
-  async remove(id: string) {
+  async remove(id: string, user?: { id: string; role: string }) {
     const comment = await this.prisma.comment.findUnique({ where: { id } });
     if (!comment) throw new NotFoundException('Comment not found');
+
+    // Authorization: author can delete their own; admin can delete any;
+    // anonymous comments (authorId null) only admin.
+    if (user) {
+      const isAuthor = comment.authorId === user.id;
+      const isAdmin = user.role === 'admin';
+      if (!isAuthor && !isAdmin) {
+        throw new ForbiddenException('You can only delete your own comments');
+      }
+    }
 
     const task = await this.prisma.task.findUnique({
       where: { id: comment.taskId },
@@ -59,6 +69,17 @@ export class CommentsService {
     });
 
     await this.prisma.comment.delete({ where: { id } });
+
+    // Activity log — content not logged, just the action
+    await this.prisma.activity.create({
+      data: {
+        taskId: comment.taskId,
+        actorId: user?.id ?? null,
+        actor: user?.id ? 'user' : 'system',
+        action: 'deleted_comment',
+      },
+    });
+
     this.events.emit('comment:deleted', { id }, task?.status?.boardId);
   }
 }

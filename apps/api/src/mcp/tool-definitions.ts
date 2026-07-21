@@ -186,6 +186,14 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       body: z.string(),
     },
   },
+  {
+    name: 'comments_delete',
+    title: 'Delete comment',
+    description: 'Delete a comment by its id. Only the author or an admin can delete. Anonymous (MCP bot) comments require admin.',
+    inputSchema: {
+      id: z.string(),
+    },
+  },
 
   // labels
   {

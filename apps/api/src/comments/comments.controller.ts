@@ -6,6 +6,7 @@ import { CreateCommentDto } from './dto/comment.dto';
 interface AuthedUser {
   id: string;
   displayName: string;
+  role: string;
 }
 
 @Controller('api/comments')
@@ -22,5 +23,8 @@ export class CommentsController {
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) { return this.service.remove(id); }
+  remove(@Param('id') id: string, @Req() req: Request) {
+    const user = (req as any).user as AuthedUser | undefined;
+    return this.service.remove(id, user);
+  }
 }

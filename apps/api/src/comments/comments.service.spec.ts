@@ -11,7 +11,7 @@ describe('CommentsService', () => {
   let events: EventsService;
   let board: any;
   let task: any;
-  let user: { id: string; displayName: string };
+  let user: { id: string; displayName: string; role: string };
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
@@ -35,7 +35,7 @@ describe('CommentsService', () => {
     board = await seedBoard(prisma);
     task = await seedTask(prisma, board.statuses[0].id);
     const dbUser = await seedUser(prisma);
-    user = { id: dbUser.id, displayName: dbUser.displayName };
+    user = { id: dbUser.id, displayName: dbUser.displayName, role: dbUser.role };
   });
 
   afterEach(async () => {
@@ -93,6 +93,57 @@ describe('CommentsService', () => {
       await service.remove(comment.id);
       const comments = await service.findByTask(task.id);
       expect(comments).toHaveLength(0);
+    });
+
+    it('should allow the author to delete their own comment', async () => {
+      const comment = await service.create({ taskId: task.id, body: 'My comment' }, user);
+      await service.remove(comment.id, user);
+      const comments = await service.findByTask(task.id);
+      expect(comments).toHaveLength(0);
+    });
+
+    it('should forbid a non-author non-admin from deleting', async () => {
+      const other = await seedUser(prisma, { displayName: 'Other' });
+      const comment = await service.create({ taskId: task.id, body: 'Not yours' }, user);
+      await expect(
+        service.remove(comment.id, { id: other.id, role: other.role }),
+      ).rejects.toThrow('You can only delete your own comments');
+      // Comment should still exist
+      const comments = await service.findByTask(task.id);
+      expect(comments).toHaveLength(1);
+    });
+
+    it('should allow admin to delete any comment', async () => {
+      const admin = await seedUser(prisma, { displayName: 'Admin', role: 'admin' });
+      const comment = await service.create({ taskId: task.id, body: 'Admin will delete' }, user);
+      await service.remove(comment.id, { id: admin.id, role: 'admin' });
+      const comments = await service.findByTask(task.id);
+      expect(comments).toHaveLength(0);
+    });
+
+    it('should allow admin to delete anonymous (authorId null) comments', async () => {
+      const admin = await seedUser(prisma, { displayName: 'Admin', role: 'admin' });
+      const comment = await seedComment(prisma, task.id, { authorId: null, author: 'system' });
+      await service.remove(comment.id, { id: admin.id, role: 'admin' });
+      const comments = await service.findByTask(task.id);
+      expect(comments).toHaveLength(0);
+    });
+
+    it('should forbid non-admin from deleting anonymous comments', async () => {
+      const comment = await seedComment(prisma, task.id, { authorId: null, author: 'system' });
+      await expect(
+        service.remove(comment.id, user),
+      ).rejects.toThrow('You can only delete your own comments');
+    });
+
+    it('should log activity on delete', async () => {
+      const comment = await service.create({ taskId: task.id, body: 'Will be deleted' }, user);
+      await service.remove(comment.id, user);
+      const activity = await prisma.activity.findMany({
+        where: { taskId: task.id, action: 'deleted_comment' },
+      });
+      expect(activity).toHaveLength(1);
+      expect(activity[0].actorId).toBe(user.id);
     });
   });
 

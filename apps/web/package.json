@@ -15,6 +15,7 @@
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource/jetbrains-mono": "^5.2.8",
     "@hello-pangea/dnd": "^17.0.0",
+    "@radix-ui/react-alert-dialog": "^1.1.20",
     "@radix-ui/react-avatar": "^1.2.0",
     "@radix-ui/react-checkbox": "^1.3.7",
     "@radix-ui/react-dialog": "^1.1.17",

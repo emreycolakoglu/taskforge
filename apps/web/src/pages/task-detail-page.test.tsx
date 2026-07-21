@@ -106,6 +106,11 @@ vi.mock("@/hooks/use-comments", () => ({
     ],
   }),
   useCreateComment: () => ({ mutate: vi.fn() }),
+  useDeleteComment: () => ({ mutate: vi.fn() }),
+}));
+
+vi.mock("@/contexts/auth-context", () => ({
+  useAuth: () => ({ user: { id: "user-1", role: "admin" } }),
 }));
 
 vi.mock("@/hooks/use-users", () => ({

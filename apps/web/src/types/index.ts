@@ -91,6 +91,7 @@ export interface Comment {
   id: string;
   taskId: string;
   author: string;
+  authorId?: string | null;
   body: string;
   createdAt: string;
 }

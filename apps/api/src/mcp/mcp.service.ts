@@ -487,6 +487,35 @@ export class McpService {
         this.events.emit('comment:created', comment, task?.status?.boardId);
         return comment;
       }
+      case 'delete': {
+        const comment = await this.prisma.comment.findUnique({ where: { id: params.id } });
+        if (!comment) throw new Error('Comment not found');
+
+        const isAdmin = user?.role === 'admin';
+        const isAuthor = comment.authorId === actorId;
+        if (!isAuthor && !isAdmin) {
+          throw new Error('You can only delete your own comments');
+        }
+
+        const task = await this.prisma.task.findUnique({
+          where: { id: comment.taskId },
+          include: { status: { select: { boardId: true } } },
+        });
+
+        await this.prisma.comment.delete({ where: { id: params.id } });
+
+        await this.prisma.activity.create({
+          data: {
+            taskId: comment.taskId,
+            actorId,
+            actor: authorName,
+            action: 'deleted_comment',
+          },
+        });
+
+        this.events.emit('comment:deleted', { id: params.id }, task?.status?.boardId);
+        return { success: true };
+      }
       default:
         throw new Error(`Unknown action: comments_${action}`);
     }
