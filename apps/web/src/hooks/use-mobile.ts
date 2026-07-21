@@ -1,21 +1,24 @@
-import * as React from "react"
-
-const MOBILE_BREAKPOINT = 768
-
 /**
- * useIsMobile — true when the viewport is narrower than the mobile breakpoint.
- * Drives the Sidebar's off-canvas Sheet mode on small screens.
+ * useIsMobile — true when the viewport is below the md breakpoint (768px).
+ *
+ * Matches Tailwind's `md` min-width so `useIsMobile()` ↔ `md:hidden` / `md:flex`
+ * classes stay in sync. SSR-safe: returns false on the server (no window).
  */
-export function useIsMobile() {
-  const [isMobile, setIsMobile] = React.useState<boolean | undefined>(undefined)
+import { useEffect, useState } from "react";
 
-  React.useEffect(() => {
-    const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`)
-    const onChange = () => setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    mql.addEventListener("change", onChange)
-    setIsMobile(window.innerWidth < MOBILE_BREAKPOINT)
-    return () => mql.removeEventListener("change", onChange)
-  }, [])
+export function useIsMobile(breakpoint = 768): boolean {
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia(`(max-width: ${breakpoint - 1}px)`).matches;
+  });
 
-  return !!isMobile
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mql = window.matchMedia(`(max-width: ${breakpoint - 1}px)`);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mql.addEventListener("change", handler);
+    return () => mql.removeEventListener("change", handler);
+  }, [breakpoint]);
+
+  return isMobile;
 }

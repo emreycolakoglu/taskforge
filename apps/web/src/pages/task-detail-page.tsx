@@ -10,9 +10,9 @@
  * action is editing, not creation). All Save/Submit buttons are outline/ghost.
  */
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, PanelRight } from "lucide-react";
 import { useTask, useTasksByBoard, useSetTaskPublic } from "@/hooks/use-tasks";
 import { useBoardFull } from "@/hooks/use-boards";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { TaskDetailView } from "@/components/task-detail-view";
 export function TaskDetailPage() {
   const { boardId, taskId } = useParams<{ boardId: string; taskId: string }>();
   const navigate = useNavigate();
+  const [propertiesOpen, setPropertiesOpen] = useState(false);
 
   const {
     data: task,
@@ -119,12 +120,25 @@ export function TaskDetailPage() {
         onBack={() => navigate(`/board/${boardId}`)}
         onNavigateTask={navigateToTask}
         onSetPublic={handleSetPublic}
+        propertiesTrigger={
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-7 text-muted-foreground hover:text-foreground md:hidden"
+            aria-label="Properties"
+            onClick={() => setPropertiesOpen(true)}
+          >
+            <PanelRight className="size-4" />
+          </Button>
+        }
       />
 
       <TaskDetailView
         taskId={taskId!}
         boardId={boardId!}
         onNavigateTask={navigateToTask}
+        propertiesSheetOpen={propertiesOpen}
+        onPropertiesSheetOpenChange={setPropertiesOpen}
       />
     </div>
   );

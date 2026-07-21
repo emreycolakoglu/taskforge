@@ -57,6 +57,8 @@ interface DetailBreadcrumbBarProps {
   onBack: () => void
   onNavigateTask: (id: string) => void
   onSetPublic: (isPublic: boolean) => Promise<void>
+  /** Optional slot rendered in the right action group (e.g. mobile Properties button). */
+  propertiesTrigger?: React.ReactNode
 }
 
 export function DetailBreadcrumbBar({
@@ -70,6 +72,7 @@ export function DetailBreadcrumbBar({
   onBack,
   onNavigateTask,
   onSetPublic,
+  propertiesTrigger,
 }: DetailBreadcrumbBarProps) {
   const publicUrl = publicUrlFor(taskNumber)
 
@@ -158,6 +161,7 @@ export function DetailBreadcrumbBar({
 
       {/* Right — prev/next + position + actions */}
       <div className="flex items-center gap-1 shrink-0">
+        {propertiesTrigger}
         <Button
           variant="ghost"
           size="icon"

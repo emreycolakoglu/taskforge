@@ -25,7 +25,9 @@ import { useBoardFull } from "@/hooks/use-boards";
 import { useComments, useCreateComment } from "@/hooks/use-comments";
 import { useUsers } from "@/hooks/use-users";
 import { useLabels } from "@/hooks/use-labels";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { DetailTitleBlock } from "@/components/detail-title-block";
 import { DetailDescriptionEditor } from "@/components/detail-description-editor";
 import { DetailSubIssues } from "@/components/detail-sub-issues";
@@ -38,12 +40,17 @@ interface TaskDetailViewProps {
   taskId: string;
   boardId: string;
   onNavigateTask?: (id: string) => void;
+  /** Controlled Sheet state for the mobile properties sidebar. */
+  propertiesSheetOpen?: boolean;
+  onPropertiesSheetOpenChange?: (open: boolean) => void;
 }
 
 export function TaskDetailView({
   taskId,
   boardId,
   onNavigateTask,
+  propertiesSheetOpen,
+  onPropertiesSheetOpenChange,
 }: TaskDetailViewProps) {
   const navigateToTask = onNavigateTask ?? ((id: string) => {});
 
@@ -138,6 +145,24 @@ export function TaskDetailView({
 
   // ── Render ──────────────────────────────────────────────────────────────────
 
+  const isMobile = useIsMobile();
+
+  const sidebar = (
+    <DetailPropertiesSidebar
+      task={task}
+      board={board}
+      users={users}
+      boardTasks={boardTasks}
+      relations={relations}
+      onUpdate={handleUpdate}
+      onAddRelation={handleAddRelation}
+      onRemoveRelation={handleRemoveRelation}
+      onNavigate={navigateToTask}
+      onScrollTo={handleScrollTo}
+      formatTimestamp={formatTimestamp}
+    />
+  );
+
   return (
     <div className="flex flex-1 min-h-0">
       {/* Main content column */}
@@ -174,20 +199,19 @@ export function TaskDetailView({
         </div>
       </ScrollArea>
 
-      {/* Right sidebar */}
-      <DetailPropertiesSidebar
-        task={task}
-        board={board}
-        users={users}
-        boardTasks={boardTasks}
-        relations={relations}
-        onUpdate={handleUpdate}
-        onAddRelation={handleAddRelation}
-        onRemoveRelation={handleRemoveRelation}
-        onNavigate={navigateToTask}
-        onScrollTo={handleScrollTo}
-        formatTimestamp={formatTimestamp}
-      />
+      {/* Right sidebar — docked on desktop, Sheet on mobile */}
+      {isMobile ? (
+        <Sheet
+          open={propertiesSheetOpen}
+          onOpenChange={onPropertiesSheetOpenChange}
+        >
+          <SheetContent side="right" className="w-[300px] sm:max-w-[300px] p-0">
+            {sidebar}
+          </SheetContent>
+        </Sheet>
+      ) : (
+        sidebar
+      )}
     </div>
   );
 }
