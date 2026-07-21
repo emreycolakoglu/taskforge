@@ -120,6 +120,7 @@ export function TaskCard({
         "group/card relative flex flex-col gap-1 rounded-md border border-border bg-card p-2.5 cursor-pointer transition-colors hover:border-foreground/20 hover:bg-accent/30",
         isDragging && "shadow-xl rotate-1",
         isSubTask && "pl-4 border-l-2 border-l-border",
+        task.isOptimistic && "opacity-75",
       )}
     >
       {/* Row 1 — priority icon + task number + parent task name + assignee */}

@@ -52,6 +52,8 @@ export interface Task {
   activity?: Activity[];
   _count?: { comments: number };
   blockedByCount?: number;
+  /** Frontend-only flag for optimistic rendering. Never set by the API. */
+  isOptimistic?: boolean;
 }
 
 export type RelationType = 'blocks' | 'related_to';

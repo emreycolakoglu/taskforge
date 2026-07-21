@@ -105,9 +105,10 @@ export function KanbanBoard() {
 
   const handleCreateTask = (statusId: string, title: string, parentId?: string) => {
     if (!id) return
+    setCreatingInStatus(null)
+    setCreatingSubTask(null)
     createTask.mutate(
       { statusId, title, boardId: id, parentId },
-      { onSuccess: () => { setCreatingInStatus(null); setCreatingSubTask(null) } },
     )
   }
 

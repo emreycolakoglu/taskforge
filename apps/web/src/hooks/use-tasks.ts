@@ -32,14 +32,49 @@ export function useCreateTask() {
       const { boardId: _boardId, ...taskData } = data;
       return api.tasks.create(taskData);
     },
-    onSuccess: (_data, variables) => {
+    onMutate: async (variables) => {
+      const queryKey = ['tasks', 'board', variables.boardId];
+      await queryClient.cancelQueries({ queryKey });
+
+      const previousTasks = queryClient.getQueryData<Task[]>(queryKey);
+
+      const optimisticTask: Task = {
+        id: `optimistic-${Date.now()}`,
+        statusId: variables.statusId,
+        boardId: variables.boardId,
+        number: 0,
+        taskNumber: '',
+        title: variables.title,
+        description: variables.description ?? null,
+        position: 999999,
+        priority: (variables as any).priority ?? 'medium',
+        doneAt: null,
+        assigneeId: (variables as any).assigneeId ?? null,
+        parentId: variables.parentId ?? null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isOptimistic: true,
+      };
+
+      queryClient.setQueryData<Task[]>(queryKey, (old = []) => [...old, optimisticTask]);
+
+      return { previousTasks, queryKey };
+    },
+    onError: (error, _variables, context) => {
+      if (context?.previousTasks) {
+        queryClient.setQueryData(context.queryKey, context.previousTasks);
+      }
+      toast.error("Failed to create task", { description: error.message });
+    },
+    onSuccess: (data, variables) => {
       toast.success("Task created");
-      queryClient.invalidateQueries({ queryKey: ['tasks', 'board', variables.boardId] });
+      // Replace the optimistic placeholder with the real task
+      queryClient.setQueryData<Task[]>(
+        ['tasks', 'board', variables.boardId],
+        (old = []) => old.map((t) => (t.isOptimistic ? { ...data, isOptimistic: false } : t)),
+      );
       queryClient.invalidateQueries({ queryKey: ['boards'] });
       queryClient.invalidateQueries({ queryKey: ['boards', variables.boardId, 'full'] });
-    },
-    onError: (error) => {
-      toast.error("Failed to create task", { description: error.message });
     },
   });
 }
