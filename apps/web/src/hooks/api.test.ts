@@ -273,6 +273,21 @@ describe('api', () => {
     expect(result.body).toBe('Nice!');
   });
 
+  it('should make DELETE request to delete a comment', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(undefined),
+    });
+
+    const { api } = await import('./api');
+    await api.comments.delete('c1');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/comments/c1', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    });
+  });
+
   it('should make POST request to MCP endpoint', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,
