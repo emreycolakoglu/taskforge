@@ -137,6 +137,7 @@
   html {
     @apply font-sans;
     color-scheme: dark;
+    touch-action: manipulation;
   }
 
   button:not(:disabled),
