@@ -11,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { EmojiPicker } from "@/components/emoji-picker"
 import type { Board } from "@/types"
 import { cn } from "@/lib/utils"
 
@@ -23,6 +24,7 @@ interface CreateBoardDialogProps {
 export function CreateBoardDialog({ open, onOpenChange, onSuccess }: CreateBoardDialogProps) {
   const [name, setName] = useState("")
   const [identifier, setIdentifier] = useState("")
+  const [icon, setIcon] = useState("⭐")
   const createBoard = useCreateBoard()
 
   const isValid = name.trim().length > 0 && /^[A-Z]{3}$/.test(identifier)
@@ -35,12 +37,13 @@ export function CreateBoardDialog({ open, onOpenChange, onSuccess }: CreateBoard
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
     createBoard.mutate(
-      { name: name.trim(), slug, identifier },
+      { name: name.trim(), slug, identifier, icon },
       {
         onSuccess: (board) => {
           onOpenChange(false)
           setName("")
           setIdentifier("")
+          setIcon("⭐")
           onSuccess?.(board)
         },
       },
@@ -60,12 +63,16 @@ export function CreateBoardDialog({ open, onOpenChange, onSuccess }: CreateBoard
         <div className="flex flex-col gap-4 py-2">
           <div className="flex flex-col gap-2">
             <Label htmlFor="board-name">Name</Label>
-            <Input
-              id="board-name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Sprint 24"
-            />
+            <div className="flex gap-2">
+              <EmojiPicker value={icon} onChange={setIcon} className="size-9 shrink-0 border border-border" />
+              <Input
+                id="board-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Sprint 24"
+                className="flex-1"
+              />
+            </div>
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="board-identifier">Identifier</Label>

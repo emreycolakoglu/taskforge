@@ -16,6 +16,10 @@ export class CreateBoardDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  icon?: string;
 }
 
 export class UpdateBoardDto {
@@ -35,4 +39,8 @@ export class UpdateBoardDto {
   @IsOptional()
   @IsString()
   description?: string;
+
+  @IsOptional()
+  @IsString()
+  icon?: string;
 }

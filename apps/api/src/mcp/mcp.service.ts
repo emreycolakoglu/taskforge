@@ -141,6 +141,20 @@ export class McpService {
         this.events.emit('board:created', board);
         return board;
       }
+      case 'update': {
+        const data: Record<string, any> = {};
+        if (params.name !== undefined) data.name = params.name;
+        if (params.slug !== undefined) data.slug = params.slug;
+        if (params.identifier !== undefined) data.identifier = params.identifier.toUpperCase();
+        if (params.description !== undefined) data.description = params.description;
+        if (params.icon !== undefined) data.icon = params.icon;
+        const board = await this.prisma.board.update({
+          where: { id: params.id },
+          data,
+        });
+        this.events.emit('board:updated', board, params.id);
+        return board;
+      }
       case 'delete': {
         await this.prisma.board.delete({ where: { id: params.id } });
         this.events.emit('board:deleted', { id: params.id }, params.id);

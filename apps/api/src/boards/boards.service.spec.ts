@@ -154,6 +154,16 @@ describe('BoardsService', () => {
       const board = await service.create({ name: 'Lower Board', slug: 'lower-board', identifier: 'low' });
       expect(board.identifier).toBe('LOW');
     });
+
+    it('should default icon to ⭐ when not provided', async () => {
+      const board = await service.create({ name: 'Icon Board', slug: 'icon-board', identifier: 'ICN' });
+      expect(board.icon).toBe('⭐');
+    });
+
+    it('should accept custom icon', async () => {
+      const board = await service.create({ name: 'Rocket', slug: 'rocket', identifier: 'RCK', icon: '🚀' });
+      expect(board.icon).toBe('🚀');
+    });
   });
 
   describe('update', () => {
@@ -165,6 +175,12 @@ describe('BoardsService', () => {
 
     it('should throw on non-existent board', async () => {
       await expect(service.update('nonexistent', { name: 'X' })).rejects.toThrow('Board not found');
+    });
+
+    it('should update board icon', async () => {
+      const seeded = await seedBoard(prisma);
+      const updated = await service.update(seeded.id, { icon: '🔥' });
+      expect(updated.icon).toBe('🔥');
     });
   });
 

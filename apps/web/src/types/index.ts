@@ -4,6 +4,7 @@ export interface Board {
   slug: string;
   identifier: string;
   description?: string;
+  icon?: string | null;
   createdAt: string;
   statuses?: Status[];
   labels?: Label[];

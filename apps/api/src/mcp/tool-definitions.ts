@@ -43,6 +43,19 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     description: 'Delete a board and all of its statuses, tasks, and labels.',
     inputSchema: { id: idField('Board') },
   },
+  {
+    name: 'boards_update',
+    title: 'Update board',
+    description: 'Update a board\'s name, slug, identifier, description, or icon.',
+    inputSchema: {
+      id: idField('Board'),
+      name: z.string().optional(),
+      slug: z.string().optional(),
+      identifier: z.string().optional().describe('Short uppercase prefix for task numbers, e.g. TF'),
+      description: z.string().optional(),
+      icon: z.string().optional().describe('Emoji icon for the board, e.g. ⭐'),
+    },
+  },
 
   // statuses
   {

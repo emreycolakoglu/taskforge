@@ -38,7 +38,10 @@ export function BoardHeaderBar({
           className="md:hidden text-muted-foreground hover:text-foreground"
           aria-label="Toggle sidebar"
         />
-        <h1 className="text-sm font-medium text-foreground truncate">{board.name}</h1>
+        <h1 className="text-sm font-medium text-foreground truncate">
+          <span className="mr-1.5">{board.icon ?? "⭐"}</span>
+          {board.name}
+        </h1>
       </div>
 
       {/* Center — view tabs. Active state = Graphite (bg-accent), NOT Lime

@@ -106,6 +106,23 @@ describe('api', () => {
     });
   });
 
+  it('should make PUT request to update board with icon', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ id: 'b1', name: 'Updated', icon: '🚀' }),
+    });
+
+    const { api } = await import('./api');
+    const result = await api.boards.update('b1', { icon: '🚀' });
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/boards/b1', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ icon: '🚀' }),
+    });
+    expect(result.icon).toBe('🚀');
+  });
+
   it('should throw on non-ok response', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,

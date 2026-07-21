@@ -16,6 +16,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ColorPicker } from '@/components/color-picker'
+import { EmojiPicker } from '@/components/emoji-picker'
 import type { Label, Status } from '@/types'
 
 export function BoardSettingsPage() {
@@ -57,11 +58,65 @@ export function BoardSettingsPage() {
 
       <div className="flex-1 overflow-y-auto bg-background p-6">
         <div className="space-y-6">
+          <BoardInfoSection boardId={id!} boardName={board.name} boardIcon={board.icon ?? '⭐'} />
           <StatusesSection boardId={id!} statuses={board.statuses ?? []} />
           <LabelsSection boardId={id!} labels={labels} />
         </div>
       </div>
     </div>
+  )
+}
+
+function BoardInfoSection({ boardId, boardName, boardIcon }: { boardId: string; boardName: string; boardIcon: string }) {
+  const queryClient = useQueryClient()
+  const [name, setName] = useState(boardName)
+  const [icon, setIcon] = useState(boardIcon)
+
+  const handleIconChange = async (newIcon: string) => {
+    setIcon(newIcon)
+    try {
+      await api.boards.update(boardId, { icon: newIcon })
+      queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] })
+      queryClient.invalidateQueries({ queryKey: ['boards'] })
+      toast.success('Board icon updated')
+    } catch (err) {
+      toast.error('Failed to update icon', { description: err instanceof Error ? err.message : undefined })
+      setIcon(boardIcon)
+    }
+  }
+
+  const handleNameBlur = async () => {
+    if (name.trim() === boardName) return
+    try {
+      await api.boards.update(boardId, { name: name.trim() })
+      queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] })
+      queryClient.invalidateQueries({ queryKey: ['boards'] })
+      toast.success('Board name updated')
+    } catch (err) {
+      toast.error('Failed to update name', { description: err instanceof Error ? err.message : undefined })
+      setName(boardName)
+    }
+  }
+
+  return (
+    <Card className="p-6 space-y-4">
+      <div>
+        <CardTitle className="text-base text-foreground">Board Info</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground mt-1">
+          Change the board's emoji icon and name. Saved instantly.
+        </CardDescription>
+      </div>
+      <div className="flex items-center gap-3">
+        <EmojiPicker value={icon} onChange={handleIconChange} className="size-10 text-xl border border-border" />
+        <Input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onBlur={handleNameBlur}
+          className="flex-1"
+          aria-label="Board name"
+        />
+      </div>
+    </Card>
   )
 }
 

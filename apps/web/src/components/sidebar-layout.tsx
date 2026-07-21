@@ -9,7 +9,6 @@ import {
   LogOut,
   ChevronRight,
   Plus,
-  Columns3,
   Inbox,
 } from "lucide-react";
 import {
@@ -170,7 +169,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                                 to={`/board/${board.id}`}
                                 aria-current={isActive ? "page" : undefined}
                               >
-                                <Columns3 />
+                                <span className="text-base leading-none">{board.icon ?? "⭐"}</span>
                                 <span>{board.name}</span>
                               </Link>
                             </SidebarMenuButton>

@@ -80,6 +80,7 @@ export class BoardsService {
         slug: dto.slug,
         identifier: dto.identifier.toUpperCase(),
         description: dto.description,
+        icon: dto.icon,
         statuses: {
           create: [
             { name: 'Backlog', position: 0, color: '#94a3b8' },
