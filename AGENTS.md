@@ -27,13 +27,7 @@ The API will crash if Prisma client hasn't been generated. The web app needs the
 
 ## Workflow
 
-**Never merge to `main` directly after creating a feature.** Always open a pull request using the `gh` CLI tool so CI can run and the change can be reviewed before it lands on `main`. Example:
-
-```bash
-gh pr create --title "feat: <short description>" --body "<what and why>"
-```
-
-Do not push to or merge into `main` directly. Let CI (`ci.yml`) pass on the PR before merging.
+Direct pushes to `main` are fine for solo development — no PR required. Just make sure tests pass (`pnpm --filter @taskforge/api test` and `pnpm --filter @taskforge/web test`) before pushing. CI will still run on `main` pushes via `ci.yml`.
 
 ## Commands
 
