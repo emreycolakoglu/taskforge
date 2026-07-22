@@ -28,17 +28,6 @@ import type { ReactNode } from "react";
 import { LabelManager } from "./label-manager";
 import { PriorityIcon } from "./priority-icons";
 
-// ── Contrast helper ───────────────────────────────────────────────────────────
-
-function contrastTextColor(hex: string): string {
-  const hex6 = hex.replace("#", "");
-  const r = parseInt(hex6.substring(0, 2), 16);
-  const g = parseInt(hex6.substring(2, 4), 16);
-  const b = parseInt(hex6.substring(4, 6), 16);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.55 ? "#030404" : "#f7f8f8";
-}
-
 function CommentIcon() {
   return (
     <svg
@@ -169,7 +158,7 @@ export function TaskCard({
                   key={tl.labelId}
                   variant={"outline"}
                   style={{
-                    color: contrastTextColor(tl.label.color),
+                    color: "#f7f8f8",
                   }}
                 >
                   <CircleSmallIcon
