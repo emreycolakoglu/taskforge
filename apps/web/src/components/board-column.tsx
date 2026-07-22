@@ -56,13 +56,9 @@ export function BoardColumn({
         isDraggingOver && 'bg-accent/30',
       )}
     >
-      {/* Column header — 50px, progress icon + status dot + name + count + menu */}
+      {/* Column header — 50px, progress icon + name + count + menu */}
       <div className="h-[50px] shrink-0 px-3 flex items-center gap-2 border-b border-border">
         <ProgressIcon progress={status.progress ?? 0} size={16} />
-        <span
-          className="size-3.5 rounded-full shrink-0"
-          style={{ backgroundColor: status.color || '#62666d' }}
-        />
         <span className="text-sm font-medium text-foreground">{status.name}</span>
         <span className="text-xs font-mono text-muted-foreground">{taskCount}</span>
         <div className="ml-auto">
