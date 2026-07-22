@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsInt, Min, Max } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsInt, Min, Max, IsArray } from 'class-validator';
 
 export class CreateStatusDto {
   @IsString()
