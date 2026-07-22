@@ -1,19 +1,13 @@
 #!/usr/bin/env node
-// Capture TaskForge screenshots via Puppeteer against localhost:3001
+// Capture TaskForge screenshots via Puppeteer against localhost:5173 (Vite dev)
 const path = require('path');
 const puppeteer = require(path.join(__dirname, '..', 'apps', 'web', 'node_modules', 'puppeteer'));
-const fs = require('fs');
 
-const BASE = 'http://localhost:3001';
-const TOKEN = fs.readFileSync('/tmp/taskforge-token.txt', 'utf8').trim();
+const BASE = 'http://localhost:5173';
+const TOKEN = '32895a97-36af-4f9a-b7a2-966fb4c79fa8';
 const OUT = 'apps/web/public/screenshots';
-
-const BOARD_ID = process.env.BOARD_ID;
-const TASK_ID = process.env.TASK_ID;
-if (!BOARD_ID || !TASK_ID) {
-  console.error('Missing BOARD_ID / TASK_ID env');
-  process.exit(1);
-}
+const BOARD_ID = 'cmrw7cmvh0005idas3kjvasia';
+const TASK_ID = 'cmrw7cmvn000pidas83b143ob';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -38,28 +32,22 @@ async function main() {
 
   // --- Home page ---
   await page.goto(`${BASE}/`, { waitUntil: 'networkidle0' });
-  await sleep(1500); // let boards render + images settle
+  await sleep(1500);
   await shot(page, 'home');
 
   // --- Kanban board ---
   await page.goto(`${BASE}/board/${BOARD_ID}`, { waitUntil: 'networkidle0' });
-  await sleep(2000); // board + columns + cards render
+  await sleep(2000);
   await shot(page, 'kanban');
 
   // --- Task detail ---
   await page.goto(`${BASE}/board/${BOARD_ID}/task/${TASK_ID}`, { waitUntil: 'networkidle0' });
-  await sleep(2000); // detail page fetches task + comments + relations
+  await sleep(2000);
   await shot(page, 'task-detail');
 
   // --- List view (Tasks search page) ---
   await page.goto(`${BASE}/tasks`, { waitUntil: 'networkidle0' });
-  // Type a search to populate the table
-  const input = await page.$('input[type="text"], input[type="search"]');
-  if (input) {
-    await input.click({ clickCount: 3 });
-    await input.type('OAuth');
-    await sleep(1500);
-  }
+  await sleep(1500);
   await shot(page, 'list-view');
 
   await browser.close();

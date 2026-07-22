@@ -1,66 +1,48 @@
 import puppeteer from 'puppeteer';
 
 const BASE = 'http://localhost:5173';
+const TOKEN = '32895a97-36af-4f9a-b7a2-966fb4c79fa8';
 const OUT_DIR = '/Users/emre/taskforge/apps/web/public/screenshots';
+const BOARD_ID = 'cmrw7cmvh0005idas3kjvasia';
+const TASK_ID = 'cmrw7cmvn000pidas83b143ob';
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function main() {
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: ['--no-sandbox', '--window-size=1440,900'],
+    defaultViewport: { width: 1440, height: 900, deviceScaleFactor: 1 },
+  });
   const page = await browser.newPage();
-  await page.setViewport({ width: 1440, height: 900 });
+
+  // Inject token before navigating
+  await page.goto(`${BASE}/login`, { waitUntil: 'domcontentloaded' });
+  await page.evaluate((token) => localStorage.setItem('taskforge_token', token), TOKEN);
 
   // 1. Home page
   await page.goto(BASE, { waitUntil: 'networkidle0' });
-  await new Promise(r => setTimeout(r, 3000));
+  await sleep(2000);
   await page.screenshot({ path: `${OUT_DIR}/home.png`, fullPage: false });
   console.log('✓ Screenshot: home.png');
 
-  // 2. Navigate to board by clicking the sidebar Boards link
-  const boardLink = await page.$('a[href="/"]');
-  if (boardLink) {
-    // Click the first board card
-    const cards = await page.$$('[class*="cursor-pointer"]');
-    if (cards.length > 0) {
-      await cards[0].click();
-      await new Promise(r => setTimeout(r, 3000));
-      await page.screenshot({ path: `${OUT_DIR}/kanban.png`, fullPage: false });
-      console.log('✓ Screenshot: kanban.png');
+  // 2. Kanban board
+  await page.goto(`${BASE}/board/${BOARD_ID}`, { waitUntil: 'networkidle0' });
+  await sleep(2000);
+  await page.screenshot({ path: `${OUT_DIR}/kanban.png`, fullPage: false });
+  console.log('✓ Screenshot: kanban.png');
 
-      // 3. List view via ToggleGroup
-      await page.evaluate(() => {
-        const btn = document.querySelector('button[value="list"]');
-        if (btn) btn.click();
-      });
-      await new Promise(r => setTimeout(r, 1000));
-      await page.screenshot({ path: `${OUT_DIR}/list-view.png`, fullPage: false });
-      console.log('✓ Screenshot: list-view.png');
+  // 3. Task detail
+  await page.goto(`${BASE}/board/${BOARD_ID}/task/${TASK_ID}`, { waitUntil: 'networkidle0' });
+  await sleep(2000);
+  await page.screenshot({ path: `${OUT_DIR}/task-detail.png`, fullPage: false });
+  console.log('✓ Screenshot: task-detail.png');
 
-      // 4. Back to kanban
-      await page.evaluate(() => {
-        const btn = document.querySelector('button[value="kanban"]');
-        if (btn) btn.click();
-      });
-      await new Promise(r => setTimeout(r, 1000));
-
-      // Task detail - click on a task card by finding it differently
-      const taskCards = await page.$$('[class*="rounded-lg"][class*="border"][class*="p-3"]');
-      console.log(`Found ${taskCards.length} task card elements`);
-      if (taskCards.length > 0) {
-        await taskCards[0].click();
-        await new Promise(r => setTimeout(r, 1500));
-        await page.screenshot({ path: `${OUT_DIR}/task-detail.png`, fullPage: false });
-        console.log('✓ Screenshot: task-detail.png');
-      } else {
-        // Fallback: click on anything in the kanban columns
-        const columnItems = await page.$$('[data-rfd-draggable-id] > div, [draggable] > div');
-        if (columnItems.length > 0) {
-          await columnItems[0].click();
-          await new Promise(r => setTimeout(r, 1500));
-        }
-        await page.screenshot({ path: `${OUT_DIR}/task-detail.png`, fullPage: false });
-        console.log('✓ Screenshot: task-detail.png (fallback)');
-      }
-    }
-  }
+  // 4. List view
+  await page.goto(`${BASE}/tasks`, { waitUntil: 'networkidle0' });
+  await sleep(2000);
+  await page.screenshot({ path: `${OUT_DIR}/list-view.png`, fullPage: false });
+  console.log('✓ Screenshot: list-view.png');
 
   await browser.close();
   console.log('Done.');

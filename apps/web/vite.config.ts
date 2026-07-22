@@ -24,6 +24,7 @@ export default defineConfig({
         // park another user's task data in this browser's Cache Storage, where logout does
         // not reach it.
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        globIgnores: ['**/screenshots/**'],
         // The SPA fallback serves cached index.html for navigations. /api and /ws must reach
         // the network — without these, the service worker would answer XHRs and the socket
         // handshake with the HTML shell.
