@@ -19,6 +19,7 @@ import { FilterChipsBar } from './filter-chips-bar'
 import { QuickAddInput } from './quick-add-input'
 import { CreateTaskDialog } from './create-task-dialog'
 import { LabelPill } from './label-pill'
+import { ProgressIcon } from './progress-icon'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -195,7 +196,12 @@ export function KanbanBoard() {
                       )}
                       {t.title}
                     </td>
-                    <td className="py-2.5 px-3 text-sm text-muted-foreground">{s.name}</td>
+                    <td className="py-2.5 px-3 text-sm text-muted-foreground">
+                      <span className="flex items-center gap-1.5">
+                        <ProgressIcon progress={s.progress ?? 0} size={14} />
+                        {s.name}
+                      </span>
+                    </td>
                     <td className="py-2.5 px-3 text-sm">
                       <span className={cn("font-semibold text-xs", priorityColor(t.priority))}>
                         {t.priority}

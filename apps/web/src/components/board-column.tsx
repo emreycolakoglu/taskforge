@@ -11,6 +11,7 @@ import type { ReactNode } from 'react'
 import { MoreHorizontal, Plus } from 'lucide-react'
 import type { Status } from '@/types'
 import { Button } from '@/components/ui/button'
+import { ProgressIcon } from '@/components/progress-icon'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -55,8 +56,9 @@ export function BoardColumn({
         isDraggingOver && 'bg-accent/30',
       )}
     >
-      {/* Column header — 50px, status dot + name + count + menu */}
+      {/* Column header — 50px, progress icon + status dot + name + count + menu */}
       <div className="h-[50px] shrink-0 px-3 flex items-center gap-2 border-b border-border">
+        <ProgressIcon progress={status.progress ?? 0} size={16} />
         <span
           className="size-3.5 rounded-full shrink-0"
           style={{ backgroundColor: status.color || '#62666d' }}

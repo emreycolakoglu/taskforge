@@ -36,6 +36,7 @@ export class StatusesService {
         position: dto.position ?? (maxPos._max.position ?? -1) + 1,
         color: dto.color,
         wipLimit: dto.wipLimit,
+        progress: dto.progress,
       },
     });
     this.events.emit('status:created', status, dto.boardId);

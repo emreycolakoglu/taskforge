@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsInt, Min, Max } from 'class-validator';
 
 export class CreateStatusDto {
   @IsString()
@@ -18,6 +18,12 @@ export class CreateStatusDto {
   @IsOptional()
   @IsNumber()
   wipLimit?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  progress?: number;
 }
 
 export class UpdateStatusDto {
@@ -36,6 +42,12 @@ export class UpdateStatusDto {
   @IsOptional()
   @IsNumber()
   wipLimit?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(100)
+  progress?: number;
 }
 
 export class ReorderStatusesDto {

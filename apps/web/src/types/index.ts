@@ -21,6 +21,7 @@ export interface Status {
   color?: string;
   wipLimit?: number;
   isDone?: boolean;
+  progress?: number;
   tasks?: Task[];
   _count?: { tasks: number };
 }

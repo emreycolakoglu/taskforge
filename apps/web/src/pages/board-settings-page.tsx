@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { ColorPicker } from '@/components/color-picker'
 import { EmojiPicker } from '@/components/emoji-picker'
+import { ProgressIcon } from '@/components/progress-icon'
 import type { Label, Status } from '@/types'
 
 export function BoardSettingsPage() {
@@ -123,6 +124,7 @@ function BoardInfoSection({ boardId, boardName, boardIcon }: { boardId: string; 
 function StatusesSection({ boardId, statuses }: { boardId: string; statuses: Status[] }) {
   const queryClient = useQueryClient()
   const [togglingId, setTogglingId] = useState<string | null>(null)
+  const [progressUpdating, setProgressUpdating] = useState<string | null>(null)
 
   const handleToggleDone = async (status: Status) => {
     setTogglingId(status.id)
@@ -141,6 +143,20 @@ function StatusesSection({ boardId, statuses }: { boardId: string; statuses: Sta
     }
   }
 
+  const handleProgressChange = async (statusId: string, value: string) => {
+    const num = parseInt(value, 10)
+    if (isNaN(num) || num < 0 || num > 100) return
+    setProgressUpdating(statusId)
+    try {
+      await api.statuses.update(statusId, { progress: num })
+      queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] })
+    } catch (err) {
+      toast.error('Failed to update progress', { description: err instanceof Error ? err.message : undefined })
+    } finally {
+      setProgressUpdating(null)
+    }
+  }
+
   return (
     <Card className="p-6 space-y-4">
       <div>
@@ -156,6 +172,7 @@ function StatusesSection({ boardId, statuses }: { boardId: string; statuses: Sta
             className="flex items-center justify-between py-3 border-b border-border last:border-0"
           >
             <div className="flex items-center gap-3">
+              <ProgressIcon progress={status.progress ?? 0} size={16} />
               <span className="text-sm text-foreground">{status.name}</span>
               {status.isDone && (
                 <Badge variant="secondary" className="text-xs text-muted-foreground bg-muted rounded-sm px-1.5 py-0.5 border-0">
@@ -163,16 +180,38 @@ function StatusesSection({ boardId, statuses }: { boardId: string; statuses: Sta
                 </Badge>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <UILabel htmlFor={`done-${status.id}`} className="text-xs text-muted-foreground">
-                Done
-              </UILabel>
-              <Switch
-                id={`done-${status.id}`}
-                checked={!!status.isDone}
-                disabled={togglingId === status.id}
-                onCheckedChange={() => handleToggleDone(status)}
-              />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <label htmlFor={`progress-${status.id}`} className="text-xs text-muted-foreground">
+                  Progress
+                </label>
+                <input
+                  id={`progress-${status.id}`}
+                  type="number"
+                  min={0}
+                  max={100}
+                  defaultValue={status.progress ?? 0}
+                  disabled={progressUpdating === status.id}
+                  onBlur={(e) => handleProgressChange(status.id, e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleProgressChange(status.id, (e.target as HTMLInputElement).value)
+                    }
+                  }}
+                  className="w-16 h-7 rounded-md border border-border bg-background px-2 text-xs text-foreground text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <UILabel htmlFor={`done-${status.id}`} className="text-xs text-muted-foreground">
+                  Done
+                </UILabel>
+                <Switch
+                  id={`done-${status.id}`}
+                  checked={!!status.isDone}
+                  disabled={togglingId === status.id}
+                  onCheckedChange={() => handleToggleDone(status)}
+                />
+              </div>
             </div>
           </div>
         ))}

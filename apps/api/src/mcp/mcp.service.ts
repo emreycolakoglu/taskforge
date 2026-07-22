@@ -186,15 +186,21 @@ export class McpService {
             position: params.position ?? (maxPos._max.position ?? -1) + 1,
             color: params.color,
             wipLimit: params.wipLimit,
+            progress: params.progress,
           },
         });
         this.events.emit('status:created', status, params.boardId);
         return status;
       }
       case 'update': {
+        const data: Record<string, any> = {};
+        if (params.name !== undefined) data.name = params.name;
+        if (params.color !== undefined) data.color = params.color;
+        if (params.wipLimit !== undefined) data.wipLimit = params.wipLimit;
+        if (params.progress !== undefined) data.progress = params.progress;
         const status = await this.prisma.status.update({
           where: { id: params.id },
-          data: { name: params.name, color: params.color, wipLimit: params.wipLimit },
+          data,
         });
         this.events.emit('status:updated', status, status.boardId);
         return status;

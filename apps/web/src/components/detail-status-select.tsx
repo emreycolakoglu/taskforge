@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Board, Task } from "@/types";
 import { ReactElement } from "react";
-import { CircleIcon } from "lucide-react";
+import { ProgressIcon } from "@/components/progress-icon";
 
 const TRIGGER_CLASS =
   "h-8 w-auto gap-1.5 border-0 bg-transparent px-2 py-1 text-muted-foreground shadow-none hover:bg-accent hover:text-foreground [&>span]:flex [&>span]:items-center [&>span]:gap-1.5 [&_svg]:size-4";
@@ -42,7 +42,7 @@ export const DetailStatusSelect = ({
         {statuses.map((s) => (
           <SelectItem key={s.id} value={s.id}>
             <span className="flex items-center gap-1.5">
-              <CircleIcon />
+              <ProgressIcon progress={s.progress ?? 0} size={16} />
               {s.name}
             </span>
           </SelectItem>

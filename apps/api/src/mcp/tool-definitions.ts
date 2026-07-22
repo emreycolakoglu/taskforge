@@ -74,6 +74,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       position: z.number().optional(),
       color: z.string().optional(),
       wipLimit: z.number().optional(),
+      progress: z.number().int().min(0).max(100).optional().describe('Progress percentage (0-100)'),
     },
   },
   {
@@ -85,6 +86,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       name: z.string().optional(),
       color: z.string().optional(),
       wipLimit: z.number().optional(),
+      progress: z.number().int().min(0).max(100).optional().describe('Progress percentage (0-100)'),
     },
   },
   {

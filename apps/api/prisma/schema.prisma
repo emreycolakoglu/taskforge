@@ -97,6 +97,7 @@ model Status {
   color     String?  @default("#6366f1")
   wipLimit  Int?
   isDone    Boolean  @default(false)
+  progress  Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
