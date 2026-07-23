@@ -1,11 +1,10 @@
 /**
  * DetailBreadcrumbBar — sticky breadcrumb row above the task detail.
  *
- * Splits the old header into a breadcrumb row (identifier + nav actions) and
- * lets the title live in the main column below. Left: back chevron → breadcrumb
- * text (Board › Status › TF-730) + a Public badge when the task is shared.
- * Right: prev/next + position indicator (mono) + actions DropdownMenu (⋯) with
- * Copy ID / Copy URL (client-side only) and the public-sharing toggle.
+ * Left: back chevron → breadcrumb text (Board › Status › TF-730) + a Public
+ * badge when the task is shared. Right: actions DropdownMenu (⋯) with Copy ID /
+ * Copy URL and the public-sharing toggle, followed by the mobile-only
+ * properties trigger (PanelRight).
  *
  * The Public badge is not decoration: publishing is one click in an overflow
  * menu, so the badge is the only thing that makes "which tasks are currently
@@ -16,7 +15,7 @@
  * since Lime is reserved for a single primary CTA per screen.
  */
 
-import { ArrowLeft, ChevronLeft, ChevronRight, MoreHorizontal, Copy, Link2, Globe, GlobeLock } from 'lucide-react'
+import { ArrowLeft, MoreHorizontal, Copy, Link2, Globe, GlobeLock } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -51,11 +50,7 @@ interface DetailBreadcrumbBarProps {
   taskId: string
   boardId: string
   isPublic: boolean
-  position: { current: number; total: number }
-  prevTask?: { id: string }
-  nextTask?: { id: string }
   onBack: () => void
-  onNavigateTask: (id: string) => void
   onSetPublic: (isPublic: boolean) => Promise<void>
   /** Optional slot rendered in the right action group (e.g. mobile Properties button). */
   propertiesTrigger?: React.ReactNode
@@ -66,11 +61,7 @@ export function DetailBreadcrumbBar({
   statusName,
   taskNumber,
   isPublic,
-  position,
-  prevTask,
-  nextTask,
   onBack,
-  onNavigateTask,
   onSetPublic,
   propertiesTrigger,
 }: DetailBreadcrumbBarProps) {
@@ -159,32 +150,8 @@ export function DetailBreadcrumbBar({
         )}
       </div>
 
-      {/* Right — prev/next + position + actions */}
+      {/* Right — actions + properties trigger */}
       <div className="flex items-center gap-1 shrink-0">
-        {propertiesTrigger}
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 text-muted-foreground hover:text-foreground"
-          disabled={!prevTask}
-          aria-label="Previous task"
-          onClick={() => prevTask && onNavigateTask(prevTask.id)}
-        >
-          <ChevronLeft className="size-4" />
-        </Button>
-        <span className="font-mono text-xs text-muted-foreground tabular-nums">
-          {position.current}/{position.total}
-        </span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 text-muted-foreground hover:text-foreground"
-          disabled={!nextTask}
-          aria-label="Next task"
-          onClick={() => nextTask && onNavigateTask(nextTask.id)}
-        >
-          <ChevronRight className="size-4" />
-        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
@@ -225,6 +192,7 @@ export function DetailBreadcrumbBar({
             )}
           </DropdownMenuContent>
         </DropdownMenu>
+        {propertiesTrigger}
       </div>
     </header>
   )

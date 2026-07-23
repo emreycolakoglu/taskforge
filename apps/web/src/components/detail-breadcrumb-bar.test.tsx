@@ -21,9 +21,7 @@ function renderBar(overrides: Partial<Parameters<typeof DetailBreadcrumbBar>[0]>
         taskId="task-1"
         boardId="board-1"
         isPublic={false}
-        position={{ current: 1, total: 3 }}
         onBack={vi.fn()}
-        onNavigateTask={vi.fn()}
         onSetPublic={onSetPublic}
         {...overrides}
       />
