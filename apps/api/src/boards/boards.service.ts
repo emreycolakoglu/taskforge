@@ -99,6 +99,13 @@ export class BoardsService {
       await this.labelsService.create(board.id, labelData);
     }
 
+    // Add creator as board admin
+    if (_user?.id) {
+      await this.prisma.member.create({
+        data: { boardId: board.id, userId: _user.id, role: 'admin' },
+      });
+    }
+
     this.events.emit('board:created', board);
     return board;
   }

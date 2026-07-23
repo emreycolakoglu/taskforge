@@ -28,9 +28,6 @@ async function validateParent(
   }
   const parent = await prisma.task.findUnique({ where: { id: parentId } });
   if (!parent) throw new NotFoundException('Parent task not found');
-  if (parent.boardId !== context.boardId) {
-    throw new BadRequestException('Parent task must be in the same board');
-  }
   if (parent.parentId) {
     throw new BadRequestException('Sub-tasks cannot have sub-tasks (single level only)');
   }
@@ -89,6 +86,7 @@ export class McpService {
         case 'relations': result = await this.handleRelations(action, req.params, user); break;
         case 'inbox': result = await this.handleInbox(action, req.params, user); break;
         case 'notifications': result = await this.handleNotifications(action, req.params, user); break;
+        case 'members': result = await this.handleMembers(action, req.params, user); break;
         default:
           return { jsonrpc: '2.0', id: req.id, error: { code: -32601, message: `Method not found: ${req.method}` } };
       }
@@ -138,6 +136,12 @@ export class McpService {
           },
           include: { statuses: true },
         });
+        // Add creator as board admin
+        if (user?.id) {
+          await this.prisma.member.create({
+            data: { boardId: board.id, userId: user.id, role: 'admin' },
+          });
+        }
         this.events.emit('board:created', board);
         return board;
       }
@@ -626,5 +630,94 @@ export class McpService {
       default:
         throw new Error(`Unknown action: notifications_${action}`);
     }
+  }
+
+  private async handleMembers(action: string, params: any, user?: AuthUser) {
+    switch (action) {
+      case 'list': {
+        if (!user) throw new Error('Authentication required');
+        return this.prisma.member.findMany({
+          where: { boardId: params.boardId },
+          include: {
+            user: { select: { id: true, email: true, displayName: true, role: true } },
+          },
+        });
+      }
+      case 'add': {
+        if (!user) throw new Error('Authentication required');
+        // Check authorization
+        const isAdmin = await this.isBoardAdmin(params.boardId, user.id);
+        if (!isAdmin) throw new Error('Only board admins can add members');
+        const member = await this.prisma.member.upsert({
+          where: { boardId_userId: { boardId: params.boardId, userId: params.userId } },
+          update: { role: params.role || 'member' },
+          create: { boardId: params.boardId, userId: params.userId, role: params.role || 'member' },
+          include: {
+            user: { select: { id: true, email: true, displayName: true, role: true } },
+          },
+        });
+        return member;
+      }
+      case 'remove': {
+        if (!user) throw new Error('Authentication required');
+        const isAdmin = await this.isBoardAdmin(params.boardId, user.id);
+        if (!isAdmin) throw new Error('Only board admins can remove members');
+        const member = await this.prisma.member.findUnique({
+          where: { boardId_userId: { boardId: params.boardId, userId: params.userId } },
+        });
+        if (!member) throw new Error('Member not found');
+        if (member.role === 'admin') {
+          const adminCount = await this.prisma.member.count({
+            where: { boardId: params.boardId, role: 'admin' },
+          });
+          if (adminCount <= 1) throw new Error('Cannot remove the last admin');
+        }
+        await this.prisma.member.delete({
+          where: { boardId_userId: { boardId: params.boardId, userId: params.userId } },
+        });
+        return { success: true };
+      }
+      case 'join': {
+        if (!user) throw new Error('Authentication required');
+        const existing = await this.prisma.member.findUnique({
+          where: { boardId_userId: { boardId: params.boardId, userId: user.id } },
+        });
+        if (existing) return existing;
+        return this.prisma.member.create({
+          data: { boardId: params.boardId, userId: user.id, role: 'member' },
+          include: {
+            user: { select: { id: true, email: true, displayName: true, role: true } },
+          },
+        });
+      }
+      case 'leave': {
+        if (!user) throw new Error('Authentication required');
+        const member = await this.prisma.member.findUnique({
+          where: { boardId_userId: { boardId: params.boardId, userId: user.id } },
+        });
+        if (!member) return { success: true };
+        if (member.role === 'admin') {
+          const adminCount = await this.prisma.member.count({
+            where: { boardId: params.boardId, role: 'admin' },
+          });
+          if (adminCount <= 1) throw new Error('Cannot leave as the last admin');
+        }
+        await this.prisma.member.delete({
+          where: { boardId_userId: { boardId: params.boardId, userId: user.id } },
+        });
+        return { success: true };
+      }
+      default:
+        throw new Error(`Unknown action: members_${action}`);
+    }
+  }
+
+  private async isBoardAdmin(boardId: string, userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (user?.role === 'admin') return true;
+    const member = await this.prisma.member.findUnique({
+      where: { boardId_userId: { boardId, userId } },
+    });
+    return member?.role === 'admin';
   }
 }

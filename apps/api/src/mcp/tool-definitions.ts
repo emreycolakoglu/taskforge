@@ -299,6 +299,45 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     description: 'Mark a single notification read by id, or all of the user\'s notifications read when id is omitted.',
     inputSchema: { id: optionalId('Notification') },
   },
+
+  // members
+  {
+    name: 'members_list',
+    title: 'List members',
+    description: 'List members of a board.',
+    inputSchema: { boardId: idField('Board') },
+  },
+  {
+    name: 'members_add',
+    title: 'Add member',
+    description: 'Add a member to a board. Requires board admin or global admin.',
+    inputSchema: {
+      boardId: idField('Board'),
+      userId: idField('User'),
+      role: z.enum(['admin', 'member', 'viewer']).optional().describe('Role: admin, member, or viewer'),
+    },
+  },
+  {
+    name: 'members_remove',
+    title: 'Remove member',
+    description: 'Remove a member from a board. Requires board admin or global admin.',
+    inputSchema: {
+      boardId: idField('Board'),
+      userId: idField('User'),
+    },
+  },
+  {
+    name: 'members_join',
+    title: 'Join board',
+    description: 'Join a board as a member. Any authenticated user can join any board.',
+    inputSchema: { boardId: idField('Board') },
+  },
+  {
+    name: 'members_leave',
+    title: 'Leave board',
+    description: 'Leave a board. Cannot leave if you are the last admin.',
+    inputSchema: { boardId: idField('Board') },
+  },
 ];
 
 export const TOOL_NAMES = TOOL_DEFINITIONS.map(t => t.name);

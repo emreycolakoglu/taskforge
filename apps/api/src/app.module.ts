@@ -16,6 +16,8 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PublicModule } from './public/public.module';
 
+import { MembersModule } from './members/members.module';
+
 @Module({
   imports: [
     PrismaModule,
@@ -34,6 +36,7 @@ import { PublicModule } from './public/public.module';
     SubscriptionsModule,
     NotificationsModule,
     PublicModule,
+    MembersModule,
   ],
 })
 export class AppModule {}

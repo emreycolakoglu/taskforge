@@ -39,7 +39,6 @@ function applyParentFilter(where: any, opts?: { include?: 'all' | 'top' | 'sub';
  *
  * C1: a task cannot be its own parent
  * C2: parent must exist
- * C3: parent must be in the same board
  * C4: parent must not itself have a parentId (no nesting beyond one level)
  * C5: a task being assigned a parent must not already have children
  *
@@ -61,10 +60,6 @@ async function validateParent(
   const parent = await prisma.task.findUnique({ where: { id: parentId } });
   // C2 — existence
   if (!parent) throw new NotFoundException('Parent task not found');
-  // C3 — same board
-  if (parent.boardId !== context.boardId) {
-    throw new BadRequestException('Parent task must be in the same board');
-  }
   // C4 — single level
   if (parent.parentId) {
     throw new BadRequestException('Sub-tasks cannot have sub-tasks (single level only)');

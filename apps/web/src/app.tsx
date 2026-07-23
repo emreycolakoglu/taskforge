@@ -13,6 +13,7 @@ import { SignupPage } from "@/pages/signup-page";
 
 import { KanbanBoard } from "@/components/kanban-board";
 import { BoardSettingsPage } from "@/pages/board-settings-page";
+import { BoardsPage } from "@/pages/boards-page";
 import { TaskDetailPage } from "@/pages/task-detail-page";
 import { InboxPage } from "@/pages/inbox-page";
 import { PublicTaskPage } from "@/pages/public-task-page";
@@ -34,6 +35,14 @@ function AuthedRoutes() {
           element={
             <SidebarLayout>
               <HomePage />
+            </SidebarLayout>
+          }
+        />
+        <Route
+          path="/boards"
+          element={
+            <SidebarLayout>
+              <BoardsPage />
             </SidebarLayout>
           }
         />

@@ -342,7 +342,7 @@ describe('McpService', () => {
       expect(res.result.parentId).toBe(parent.id);
     });
 
-    it('tasks_create with invalid parentId (other board) returns JSON-RPC error', async () => {
+    it('tasks_create with parentId from different board → succeeds (cross-board sub-tasks allowed)', async () => {
       const otherBoard = await seedBoard(prisma);
       const foreignParent = await seedTask(prisma, otherBoard.statuses[0].id, { title: 'Foreign' });
       const res = await service.handleRequest({
@@ -350,9 +350,8 @@ describe('McpService', () => {
         params: { statusId: board.statuses[0].id, title: 'Child', parentId: foreignParent.id },
         id: 302,
       }, user);
-      expect(res.error).toBeDefined();
-      expect(res.error.code).toBe(-32603);
-      expect(res.error.message).toContain('same board');
+      expect(res.result).toBeDefined();
+      expect(res.result.parentId).toBe(foreignParent.id);
     });
 
     it('tasks_list with include="top" excludes sub-tasks', async () => {

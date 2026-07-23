@@ -10,6 +10,7 @@ import {
   ChevronRight,
   Plus,
   Inbox,
+  LayoutGrid,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -57,6 +58,7 @@ interface SidebarLayoutProps {
 const PRIMARY_NAV = [
   { label: "Inbox", icon: Inbox, to: "/inbox" },
   { label: "My Issues", icon: ListChecks, to: "/tasks" },
+  { label: "Boards", icon: LayoutGrid, to: "/boards" },
 ];
 
 /**
@@ -66,6 +68,10 @@ const PRIMARY_NAV = [
  * conditional-render `collapsed` state: labels stay mounted and hide via the
  * sidebar's data attributes, tooltips come from SidebarMenuButton's `tooltip`
  * prop, and ⌘/Ctrl-B toggles. State persists to a cookie across reloads.
+ *
+ * Boards section: each board the current user is a member of is shown as a
+ * collapsible group with Issues / Settings sub-items. Non-member boards are
+ * hidden from the sidebar but accessible via /boards or direct link.
  */
 export function SidebarLayout({ children }: SidebarLayoutProps) {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -86,6 +92,18 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
     }, [location.pathname, isMobile, setOpenMobile]);
     return null;
   }
+
+  // Filter boards to only those the current user is a member of.
+  // Membership is determined by the `members` array (if present) or by
+  // checking if the user's ID appears in the board's member list.
+  const memberBoards = boards?.filter((board) => {
+    if (!user) return false;
+    if (board.members && board.members.length > 0) {
+      return board.members.some((m) => m.userId === user.id);
+    }
+    // If members array isn't loaded (list endpoint), show all boards
+    return true;
+  });
 
   const avatarLetter = user?.displayName
     ? user.displayName.charAt(0).toUpperCase()
@@ -142,7 +160,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             </SidebarGroupContent>
           </SidebarGroup>
 
-          {/* Boards — collapsible group */}
+          {/* Boards — collapsible group with per-board sub-items */}
           <Collapsible defaultOpen className="group/collapsible">
             <SidebarGroup>
               <SidebarGroupLabel asChild>
@@ -166,27 +184,70 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                     </div>
                   ) : (
                     <SidebarMenu>
-                      {boards?.map((board) => {
-                        const isActive =
+                      {memberBoards?.map((board) => {
+                        const issuesActive =
                           location.pathname === `/board/${board.id}`;
+                        const settingsActive =
+                          location.pathname ===
+                          `/board/${board.id}/settings`;
+                        const boardActive =
+                          issuesActive || settingsActive;
                         return (
-                          <SidebarMenuItem key={board.id}>
-                            <SidebarMenuButton
-                              asChild
-                              isActive={isActive}
-                              tooltip={board.name}
-                            >
-                              <Link
-                                to={`/board/${board.id}`}
-                                aria-current={isActive ? "page" : undefined}
-                              >
-                                <span className="text-base leading-none">{board.icon ?? "⭐"}</span>
-                                <span>{board.name}</span>
-                              </Link>
-                            </SidebarMenuButton>
-                          </SidebarMenuItem>
+                          <Collapsible
+                            key={board.id}
+                            defaultOpen={boardActive}
+                            className="group/collapsible"
+                          >
+                            <SidebarMenuItem>
+                              <CollapsibleTrigger asChild>
+                                <SidebarMenuButton
+                                  isActive={boardActive}
+                                  tooltip={board.name}
+                                >
+                                  <ChevronRight className="size-3 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                  <span className="text-base leading-none">
+                                    {board.icon ?? "⭐"}
+                                  </span>
+                                  <span className="truncate">
+                                    {board.name}
+                                  </span>
+                                </SidebarMenuButton>
+                              </CollapsibleTrigger>
+                              <CollapsibleContent>
+                                <div className="ml-6 flex flex-col gap-0.5">
+                                  <SidebarMenuButton
+                                    asChild
+                                    isActive={issuesActive}
+                                    size="sm"
+                                    className="pl-2"
+                                  >
+                                    <Link to={`/board/${board.id}`}>
+                                      Issues
+                                    </Link>
+                                  </SidebarMenuButton>
+                                  <SidebarMenuButton
+                                    asChild
+                                    isActive={settingsActive}
+                                    size="sm"
+                                    className="pl-2"
+                                  >
+                                    <Link
+                                      to={`/board/${board.id}/settings`}
+                                    >
+                                      Settings
+                                    </Link>
+                                  </SidebarMenuButton>
+                                </div>
+                              </CollapsibleContent>
+                            </SidebarMenuItem>
+                          </Collapsible>
                         );
                       })}
+                      {(!memberBoards || memberBoards.length === 0) && (
+                        <p className="px-3 py-2 text-xs text-muted-foreground">
+                          No boards yet
+                        </p>
+                      )}
                     </SidebarMenu>
                   )}
                 </SidebarGroupContent>

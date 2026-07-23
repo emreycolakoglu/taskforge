@@ -9,7 +9,7 @@ export interface Board {
   statuses?: Status[];
   labels?: Label[];
   members?: Member[];
-  _count?: { statuses: number; tasks: number };
+  _count?: { statuses: number; tasks: number; members?: number };
   nextTaskNum?: number;
 }
 

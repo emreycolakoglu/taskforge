@@ -325,12 +325,11 @@ describe('TasksService', () => {
       ).rejects.toThrow('Parent task not found');
     });
 
-    it('3. create with parentId from different board → BadRequestException (C3)', async () => {
+    it('3. create with parentId from different board → succeeds (cross-board sub-tasks allowed)', async () => {
       const otherBoard = await seedBoard(prisma);
       const foreignParent = await seedTask(prisma, otherBoard.statuses[0].id, { title: 'Foreign' });
-      await expect(
-        service.create({ statusId: board.statuses[0].id, title: 'Child', parentId: foreignParent.id }, user),
-      ).rejects.toThrow('Parent task must be in the same board');
+      const child = await service.create({ statusId: board.statuses[0].id, title: 'Child', parentId: foreignParent.id }, user);
+      expect(child.parentId).toBe(foreignParent.id);
     });
 
     it('4. create with parentId pointing to a task that already has parentId → BadRequestException (C4)', async () => {

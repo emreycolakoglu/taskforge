@@ -214,10 +214,12 @@ model Activity {
 }
 
 model Member {
-  id      String @id @default(cuid())
-  boardId String
-  userId  String
-  role    String @default("member") // admin, member, viewer
+  id        String   @id @default(cuid())
+  boardId   String
+  userId    String
+  role      String   @default("member") // admin, member, viewer
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)

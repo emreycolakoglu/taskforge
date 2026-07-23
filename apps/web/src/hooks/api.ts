@@ -1,4 +1,4 @@
-import { API_BASE, Board, Status, Task, TaskLabel, Comment, Label, User, AuthStatus, OnboardRequest, AuthResponse, InviteTokenResponse, Invite, Settings, RelationType, RelationEntry, TaskRelations, Notification, TaskSubscriptionState } from '../types';
+import { API_BASE, Board, Status, Task, TaskLabel, Comment, Label, User, AuthStatus, OnboardRequest, AuthResponse, InviteTokenResponse, Invite, Settings, RelationType, RelationEntry, TaskRelations, Notification, TaskSubscriptionState, Member } from '../types';
 
 const TOKEN_KEY = 'taskforge_token';
 
@@ -194,6 +194,19 @@ export const api = {
     unreadCount: () => request<{ count: number }>('/notifications/unread-count'),
     markRead: (id: string) => request<{ read: boolean }>(`/notifications/${id}/read`, { method: 'POST' }),
     markAllRead: () => request<{ updated: number }>('/notifications/read-all', { method: 'POST' }),
+  },
+
+  // Members
+  members: {
+    list: (boardId: string) => request<Member[]>(`/boards/${boardId}/members`),
+    add: (boardId: string, data: { userId: string; role?: string }) =>
+      request<Member>(`/boards/${boardId}/members`, { method: 'POST', body: JSON.stringify(data) }),
+    remove: (boardId: string, userId: string) =>
+      request<void>(`/boards/${boardId}/members/${userId}`, { method: 'DELETE' }),
+    join: (boardId: string) =>
+      request<Member>(`/boards/${boardId}/join`, { method: 'POST' }),
+    leave: (boardId: string) =>
+      request<void>(`/boards/${boardId}/leave`, { method: 'POST' }),
   },
 
   // MCP
