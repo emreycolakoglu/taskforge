@@ -5,14 +5,13 @@
  * bg-card, hover:bg-accent/30). "Add sub-issue" renders QuickAddInput inline
  * in place of the add button when active (no full-screen modal overlay).
  *
- * "Link existing issue" opens a CMDK-style search dialog that searches across
+ * "Add related" opens a CMDK-style search dialog that searches across
  * all boards by title or task number (e.g. "TFG-12"), letting the user select
- * an existing task to set as a sub-task.
+ * an existing task to add as a related issue.
  */
 
 import { useState, useCallback, useRef } from 'react'
 import { Plus, Search, Link } from 'lucide-react'
-import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -34,15 +33,15 @@ interface DetailSubIssuesProps {
   boardId: string
   onNavigate: (id: string) => void
   onCreateSubTask: (title: string) => void
+  onAddRelation: (otherTaskId: string) => void
 }
 
-export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateSubTask }: DetailSubIssuesProps) {
+export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateSubTask, onAddRelation }: DetailSubIssuesProps) {
   const [adding, setAdding] = useState(false)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchResults, setSearchResults] = useState<Task[]>([])
   const [searching, setSearching] = useState(false)
-  const queryClient = useQueryClient()
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const subTasks = task.subTasks ?? []
@@ -71,20 +70,17 @@ export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateS
     }, 300)
   }, [task.id, subTaskIds])
 
-  const handleLinkTask = useCallback(async (selectedTaskId: string) => {
+  const handleAddRelated = useCallback(async (selectedTaskId: string) => {
     try {
-      await api.tasks.update(selectedTaskId, { parentId: task.id })
-      toast.success('Sub-task linked')
-      queryClient.invalidateQueries({ queryKey: ['tasks', task.id] })
-      queryClient.invalidateQueries({ queryKey: ['tasks', 'board', _boardId] })
-      queryClient.invalidateQueries({ queryKey: ['boards', _boardId, 'full'] })
+      onAddRelation(selectedTaskId)
+      toast.success('Related issue added')
       setSearchOpen(false)
       setSearchQuery('')
       setSearchResults([])
     } catch (err) {
-      toast.error('Failed to link sub-task', { description: err instanceof Error ? err.message : undefined })
+      toast.error('Failed to add related issue', { description: err instanceof Error ? err.message : undefined })
     }
-  }, [task.id, _boardId, queryClient])
+  }, [onAddRelation])
 
   return (
     <section id="sub-issues" className="space-y-2">
@@ -140,7 +136,7 @@ export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateS
               onClick={() => setSearchOpen(true)}
             >
               <Link className="size-3.5" />
-              Link existing
+              Add related
             </Button>
           </div>
         )}
@@ -156,7 +152,7 @@ export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateS
       }}>
         <DialogContent className="p-0 gap-0 max-w-lg">
           <DialogHeader className="sr-only">
-            <DialogTitle>Link existing issue</DialogTitle>
+            <DialogTitle>Add related issue</DialogTitle>
           </DialogHeader>
           <Command shouldFilter={false}>
             <CommandInput
@@ -175,7 +171,7 @@ export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateS
                     <CommandItem
                       key={result.id}
                       value={`${result.taskNumber ?? ''} ${result.title}`}
-                      onSelect={() => handleLinkTask(result.id)}
+                      onSelect={() => handleAddRelated(result.id)}
                     >
                       <Search className="size-3.5 text-muted-foreground shrink-0" />
                       <span className="shrink-0 font-mono text-xs text-muted-foreground">

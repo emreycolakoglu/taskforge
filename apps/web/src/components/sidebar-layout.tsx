@@ -164,10 +164,19 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
           <Collapsible defaultOpen className="group/collapsible">
             <SidebarGroup>
               <SidebarGroupLabel asChild>
-                <CollapsibleTrigger className="group/boards">
-                  <ChevronRight className="mr-1 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                  BOARDS
-                </CollapsibleTrigger>
+                <div className="flex items-center gap-0 w-full">
+                  <CollapsibleTrigger asChild>
+                    <button className="flex items-center justify-center size-6 shrink-0 rounded-md hover:bg-accent/50 transition-colors">
+                      <ChevronRight className="size-3 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                    </button>
+                  </CollapsibleTrigger>
+                  <Link
+                    to="/boards"
+                    className="flex-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors ml-1"
+                  >
+                    BOARDS
+                  </Link>
+                </div>
               </SidebarGroupLabel>
               <SidebarGroupAction
                 aria-label="Create board"
@@ -199,32 +208,25 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                             className="group/collapsible"
                           >
                             <SidebarMenuItem>
-                              <CollapsibleTrigger asChild>
-                                <SidebarMenuButton
-                                  isActive={boardActive}
-                                  tooltip={board.name}
-                                >
-                                  <ChevronRight className="size-3 shrink-0 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                                  <span className="text-base leading-none">
-                                    {board.icon ?? "⭐"}
-                                  </span>
-                                  <span className="truncate">
-                                    {board.name}
-                                  </span>
+                              <div className="flex items-center">
+                                <CollapsibleTrigger asChild>
+                                  <SidebarMenuButton className="w-auto shrink-0 px-1" tooltip={board.name}>
+                                    <ChevronRight className="size-3 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                                  </SidebarMenuButton>
+                                </CollapsibleTrigger>
+                                <SidebarMenuButton asChild isActive={issuesActive} tooltip={board.name} className="flex-1">
+                                  <Link to={`/board/${board.id}`}>
+                                    <span className="text-base leading-none">
+                                      {board.icon ?? "⭐"}
+                                    </span>
+                                    <span className="truncate">
+                                      {board.name}
+                                    </span>
+                                  </Link>
                                 </SidebarMenuButton>
-                              </CollapsibleTrigger>
+                              </div>
                               <CollapsibleContent>
                                 <div className="ml-6 flex flex-col gap-0.5">
-                                  <SidebarMenuButton
-                                    asChild
-                                    isActive={issuesActive}
-                                    size="sm"
-                                    className="pl-2"
-                                  >
-                                    <Link to={`/board/${board.id}`}>
-                                      Issues
-                                    </Link>
-                                  </SidebarMenuButton>
                                   <SidebarMenuButton
                                     asChild
                                     isActive={settingsActive}

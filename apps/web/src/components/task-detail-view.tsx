@@ -193,6 +193,7 @@ export function TaskDetailView({
             boardId={boardId}
             onNavigate={navigateToTask}
             onCreateSubTask={handleCreateSubTask}
+            onAddRelation={(otherTaskId) => handleAddRelation(otherTaskId, 'related_to')}
           />
 
           <DetailActivity
