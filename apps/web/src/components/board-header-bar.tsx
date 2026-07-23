@@ -85,9 +85,14 @@ export function BoardHeaderBar({
           <Settings className="size-4" />
         </Button>
         {/* Single primary CTA — Acid Lime fill (design.md: one CTA per screen) */}
-        <Button size="sm" className="ml-1" onClick={onNewTask}>
+        <Button
+          size="icon"
+          className="ml-1 md:h-8 md:w-auto md:px-3"
+          onClick={onNewTask}
+          aria-label="New issue"
+        >
           <Plus className="size-4" />
-          New Issue
+          <span className="hidden md:inline">New Issue</span>
         </Button>
       </div>
     </header>
