@@ -1,58 +1,45 @@
 /**
- * Rasterizes the PWA icon art in assets/pwa/*.svg into public/icons/*.png.
+ * Installs the PWA icon art from assets/pwa/ into the paths the app actually serves.
  *
  *   node scripts/generate-icons.mjs
  *
- * The PNGs are committed, so this only needs re-running when the SVG art changes.
- * Why rasterize at all: the manifest could point at an SVG and Chrome would cope, but
- * iOS home-screen icons and Android launcher/splash icons need real PNGs, and "add to
- * home screen" on iOS is most of the point of shipping this.
+ * The art is delivered as raster at every size we ship, so this no longer rasterizes
+ * anything — it is the mapping from master filename to served path, written down so it is
+ * repeatable instead of living in someone's shell history. assets/pwa/ is the source of
+ * truth, public/ is generated output: edit a master and re-run, never hand-edit the copies.
  *
- * Uses puppeteer because it is already a devDependency here (scripts/screenshots.mjs),
- * so this adds no new toolchain — it just renders each SVG in a headless page and
- * screenshots it at the target size.
+ * Each size is its own master rather than a downscale done here, because the art is tuned
+ * per size (the 192s carry a chunkier glyph than a shrunk 512 would). PNG rather than SVG
+ * because iOS home-screen icons and Android launcher tiles require raster.
  */
-import puppeteer from 'puppeteer';
-import { readFile, mkdir } from 'fs/promises';
+import { copyFile, mkdir } from 'fs/promises';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SRC_DIR = join(ROOT, 'assets', 'pwa');
-const OUT_DIR = join(ROOT, 'public', 'icons');
+const PUBLIC_DIR = join(ROOT, 'public');
 
 /**
- * `transparent` controls whether the PNG keeps the art's transparent corners. It must be
- * false for apple-touch-icon: iOS composites transparency against black, which would ring
- * the squircle in black slivers, so that one renders from the full-bleed maskable art.
+ * apple-touch-icon is a separate master, not a resized 192: iOS ignores the manifest, mounts
+ * the image at exactly 180px, and composites transparency against black before applying its
+ * own squircle mask — so that art is full-bleed with no corner radius of its own.
  */
 const ICONS = [
-  { src: 'app-icon.svg', out: 'pwa-192.png', size: 192, transparent: true },
-  { src: 'app-icon.svg', out: 'pwa-512.png', size: 512, transparent: true },
-  { src: 'app-icon-maskable.svg', out: 'pwa-maskable-512.png', size: 512, transparent: false },
-  { src: 'app-icon-maskable.svg', out: 'apple-touch-icon.png', size: 180, transparent: false },
+  { src: 'favicon.ico', out: 'favicon.ico' },
+  { src: 'icon-192.png', out: 'icons/pwa-192.png' },
+  { src: 'icon-512.png', out: 'icons/pwa-512.png' },
+  { src: 'icon-192-maskable.png', out: 'icons/pwa-maskable-192.png' },
+  { src: 'icon-512-maskable.png', out: 'icons/pwa-maskable-512.png' },
+  { src: 'apple-touch-icon.png', out: 'icons/apple-touch-icon.png' },
 ];
 
 async function main() {
-  await mkdir(OUT_DIR, { recursive: true });
-  const browser = await puppeteer.launch({ headless: true, args: ['--no-sandbox'] });
+  await mkdir(join(PUBLIC_DIR, 'icons'), { recursive: true });
 
-  try {
-    const page = await browser.newPage();
-
-    for (const { src, out, size, transparent } of ICONS) {
-      const svg = await readFile(join(SRC_DIR, src), 'utf8');
-
-      await page.setViewport({ width: size, height: size, deviceScaleFactor: 1 });
-      await page.setContent(
-        `<style>html,body{margin:0;padding:0}svg{display:block;width:${size}px;height:${size}px}</style>${svg}`,
-      );
-      await page.screenshot({ path: join(OUT_DIR, out), omitBackground: transparent });
-
-      console.log(`✓ ${out} (${size}×${size})`);
-    }
-  } finally {
-    await browser.close();
+  for (const { src, out } of ICONS) {
+    await copyFile(join(SRC_DIR, src), join(PUBLIC_DIR, out));
+    console.log(`✓ ${out}`);
   }
 }
 

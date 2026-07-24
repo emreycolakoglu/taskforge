@@ -11,7 +11,13 @@
   -->
   <meta name="robots" content="noindex, nofollow" />
   <title>TaskForge</title>
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <!--
+    Two entries because browsers differ on what they will pick up: the .ico is the
+    zero-config fallback every browser requests at /favicon.ico anyway, and the 192 PNG is
+    what Chrome and Firefox reach for on high-DPI tabs and bookmark tiles.
+  -->
+  <link rel="icon" type="image/x-icon" href="/favicon.ico" sizes="32x32" />
+  <link rel="icon" type="image/png" href="/icons/pwa-192.png" sizes="192x192" />
   <!--
     PWA install support. The <link rel="manifest"> and the service-worker registration are
     injected at build time by vite-plugin-pwa (see vite.config.ts) — the tags below are the

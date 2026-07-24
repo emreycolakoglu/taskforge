@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { pwaManifest } from './manifest';
 
@@ -29,16 +29,39 @@ describe('pwaManifest', () => {
     expect(anySizes).toContain('512x512');
   });
 
-  it('declares a maskable icon so Android does not letterbox the launcher tile', () => {
-    const maskable = (pwaManifest.icons ?? []).filter((icon) => icon.purpose === 'maskable');
+  it('declares maskable icons so Android does not letterbox the launcher tile', () => {
+    const maskable = (pwaManifest.icons ?? [])
+      .filter((icon) => icon.purpose === 'maskable')
+      .map((icon) => icon.sizes);
 
-    expect(maskable).toHaveLength(1);
-    expect(maskable[0].sizes).toBe('512x512');
+    expect(maskable).toEqual(['192x192', '512x512']);
   });
 
   it('is installable: standalone display with a start_url inside scope', () => {
     expect(pwaManifest.display).toBe('standalone');
     expect(pwaManifest.start_url).toBeDefined();
     expect(pwaManifest.start_url!.startsWith(pwaManifest.scope!)).toBe(true);
+  });
+});
+
+/**
+ * index.html carries the icons the manifest cannot: the tab favicon, and apple-touch-icon,
+ * which iOS reads *instead of* the manifest. Neither is type-checked and neither breaks the
+ * build when its file is renamed away — the tab just quietly falls back to a blank page
+ * glyph, and iOS home screens get a screenshot of the page.
+ */
+describe('index.html icons', () => {
+  const html = readFileSync(join(__dirname, '..', '..', 'index.html'), 'utf8');
+  const hrefs = [...html.matchAll(/<link rel="(?:icon|apple-touch-icon)"[^>]*href="([^"]+)"/g)].map(
+    (match) => match[1],
+  );
+
+  it('references a favicon and an apple-touch-icon', () => {
+    expect(hrefs).toContain('/favicon.ico');
+    expect(hrefs).toContain('/icons/apple-touch-icon.png');
+  });
+
+  it('points every icon link at a file that exists in public/', () => {
+    expect(hrefs.filter((href) => !existsSync(join(PUBLIC_DIR, href)))).toEqual([]);
   });
 });
