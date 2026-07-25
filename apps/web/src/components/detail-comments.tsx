@@ -6,6 +6,12 @@
  * newline. Comment rows are flat (no card chrome) with border-b — Linear uses
  * a flat timeline, not cards.
  *
+ * Bodies are stored as markdown and rendered through the read-only
+ * MarkdownEditor — same renderer as the description, so a comment and a
+ * description with the same source look identical. The composer stays a plain
+ * Textarea: Enter-to-submit and a WYSIWYG surface don't mix, and markdown typed
+ * there renders once posted.
+ *
  * Delete: three-dot menu appears on the user's own comments (or any comment
  * if admin). Desktop: hover-revealed. Mobile: always visible. Confirmation
  * via AlertDialog — "Bu yorumu silmek istediğine emin misin?" — no preview.
@@ -32,6 +38,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { MarkdownEditor } from '@/components/markdown'
 import { useAuth } from '@/contexts/auth-context'
 import type { Comment } from '@/types'
 
@@ -142,7 +149,7 @@ export function DetailComments({ comments, onSubmit, onDelete, formatTimestamp }
                 </AlertDialog>
               )}
             </div>
-            <p className="text-sm text-foreground/90 mt-1">{c.body}</p>
+            <MarkdownEditor value={c.body} editable={false} className="mt-1" />
           </div>
         ))}
         {comments.length === 0 && (

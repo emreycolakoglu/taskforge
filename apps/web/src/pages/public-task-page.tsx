@@ -146,7 +146,7 @@ export function PublicTaskPage() {
                       {formatTimestamp(c.createdAt)}
                     </span>
                   </div>
-                  <p className="mt-1 text-sm text-foreground/90">{c.body}</p>
+                  <MarkdownEditor value={c.body} editable={false} className="mt-1" />
                 </li>
               ))}
             </ul>

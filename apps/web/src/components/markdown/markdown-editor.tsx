@@ -60,8 +60,9 @@ export default function MarkdownEditor({
     editorProps: {
       attributes: {
         class: cn(
-          'markdown-body focus:outline-none min-h-[60px]',
-          !editable && 'cursor-default',
+          'markdown-body focus:outline-none',
+          // The click target only matters when there is something to click into.
+          editable ? 'min-h-[60px]' : 'cursor-default',
         ),
       },
     },

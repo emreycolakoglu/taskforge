@@ -8,10 +8,11 @@
  * - Delete button shown for any comment when user is admin
  * - Delete button shown for anonymous comments only to admin
  * - Hover behavior: hidden on desktop, visible on mobile (CSS class check)
+ * - Comment bodies render as markdown, not literal source
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { DetailComments } from "./detail-comments";
 import type { Comment } from "@/types";
 
@@ -113,6 +114,20 @@ describe("DetailComments — delete feature (TFG-8)", () => {
     const comment = makeComment({ authorId: null, author: "system" });
     renderComments([comment], vi.fn());
     expect(screen.queryByLabelText("Comment actions")).not.toBeInTheDocument();
+  });
+
+  it("renders the body as markdown once the editor chunk loads", async () => {
+    const comment = makeComment({ body: "**bold** and [link](https://x.com)" });
+    renderComments([comment]);
+
+    // The lazy MarkdownEditor resolves asynchronously; before it does, the
+    // skeleton shows the raw source.
+    const strong = await screen.findByText("bold");
+    expect(strong.tagName).toBe("STRONG");
+
+    const link = screen.getByRole("link", { name: "link" });
+    expect(link).toHaveAttribute("href", "https://x.com");
+    expect(screen.queryByText(/\*\*bold\*\*/)).not.toBeInTheDocument();
   });
 
   it("delete button has mobile-visible (opacity-100) and desktop-hover (md:opacity-0) classes", () => {

@@ -16,13 +16,14 @@ const LazyMarkdownEditor = lazy(() => import('./markdown-editor'))
 
 function MarkdownEditorSkeleton({
   value,
+  editable = true,
   placeholder,
   className,
-}: Pick<MarkdownEditorProps, 'value' | 'placeholder' | 'className'>) {
+}: Pick<MarkdownEditorProps, 'value' | 'editable' | 'placeholder' | 'className'>) {
   const isEmpty = value.trim().length === 0
   return (
     <div className={className} aria-busy="true">
-      <div className="markdown-body min-h-[60px] whitespace-pre-wrap">
+      <div className={cn('markdown-body whitespace-pre-wrap', editable && 'min-h-[60px]')}>
         {isEmpty ? (
           <span className="italic text-muted-foreground">
             {placeholder ?? 'Add a description…'}
@@ -41,6 +42,7 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
       fallback={
         <MarkdownEditorSkeleton
           value={props.value}
+          editable={props.editable}
           placeholder={props.placeholder}
           className={cn(props.className)}
         />
