@@ -10,6 +10,7 @@ import { useCreateTask } from '@/hooks/use-tasks'
 import { useUsers } from '@/hooks/use-users'
 import { useSocket } from '@/hooks/use-socket'
 import { useBoardViewState } from '@/hooks/use-board-view-state'
+import { useDragScroll } from '@/hooks/use-drag-scroll'
 import { Task, Label, Board } from '@/types'
 import { planTaskMove } from '@/lib/kanban-dnd'
 import { TaskCard } from './task-card'
@@ -51,6 +52,8 @@ export function KanbanBoard() {
 
   const createTask = useCreateTask()
   const { data: users = [] } = useUsers()
+
+  const { ref: boardScrollRef, isDragging: isPanning } = useDragScroll<HTMLDivElement>()
 
   // Map of taskId → taskNumber for resolving parent badges on sub-task cards.
   const tasks = useMemo(() => statuses.flatMap((s) => s.tasks || []), [statuses])
@@ -226,7 +229,13 @@ export function KanbanBoard() {
         </div>
       ) : (
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="flex-1 overflow-x-auto bg-background">
+          <div
+            ref={boardScrollRef}
+            className={cn(
+              'flex-1 overflow-x-auto bg-background',
+              isPanning && 'cursor-grabbing select-none',
+            )}
+          >
             <div className="flex gap-4 h-full min-h-0 px-4 py-3">
               {filteredStatuses.map((status) => (
                 <Droppable key={status.id} droppableId={status.id}>
