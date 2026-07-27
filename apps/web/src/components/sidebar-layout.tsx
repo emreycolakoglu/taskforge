@@ -48,6 +48,7 @@ import { useBoards } from "@/hooks/use-boards";
 import { useUnreadCount } from "@/hooks/use-notifications";
 import { useSocket } from "@/hooks/use-socket";
 import { CreateBoardDialog } from "@/components/create-board-dialog";
+import { CommandPalette } from "@/components/command-palette";
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
@@ -329,6 +330,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
         onOpenChange={setCreateDialogOpen}
         onSuccess={(board) => navigate(`/board/${board.id}`)}
       />
+      <CommandPalette />
     </SidebarProvider>
   );
 }
