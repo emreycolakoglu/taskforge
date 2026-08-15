@@ -169,33 +169,92 @@ describe('BoardsService', () => {
   describe('update', () => {
     it('should update board name', async () => {
       const seeded = await seedBoard(prisma);
-      const updated = await service.update(seeded.id, { name: 'Updated Board' });
+      const admin = await seedUser(prisma);
+      await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
+      const updated = await service.update(seeded.id, { name: 'Updated Board' }, { id: admin.id, displayName: admin.displayName });
       expect(updated.name).toBe('Updated Board');
     });
 
     it('should throw on non-existent board', async () => {
-      await expect(service.update('nonexistent', { name: 'X' })).rejects.toThrow('Board not found');
+      const admin = await seedUser(prisma);
+      await expect(service.update('nonexistent', { name: 'X' }, { id: admin.id, displayName: admin.displayName })).rejects.toThrow('Board not found');
     });
 
     it('should update board icon', async () => {
       const seeded = await seedBoard(prisma);
-      const updated = await service.update(seeded.id, { icon: '🔥' });
+      const admin = await seedUser(prisma);
+      await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
+      const updated = await service.update(seeded.id, { icon: '🔥' }, { id: admin.id, displayName: admin.displayName });
       expect(updated.icon).toBe('🔥');
+    });
+
+    it('should forbid non-admin user from updating', async () => {
+      const seeded = await seedBoard(prisma);
+      const admin = await seedUser(prisma);
+      const member = await seedUser(prisma);
+      await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
+      await prisma.member.create({ data: { boardId: seeded.id, userId: member.id, role: 'member' } });
+      await expect(
+        service.update(seeded.id, { name: 'Hack' }, { id: member.id, displayName: member.displayName }),
+      ).rejects.toThrow('Only board admins can perform this action');
+    });
+
+    it('should forbid update with no user', async () => {
+      const seeded = await seedBoard(prisma);
+      const admin = await seedUser(prisma);
+      await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
+      await expect(service.update(seeded.id, { name: 'X' })).rejects.toThrow('Admin access required');
+    });
+
+    it('should allow update on legacy board with no admin members', async () => {
+      const seeded = await seedBoard(prisma);
+      const user = await seedUser(prisma);
+      const updated = await service.update(seeded.id, { name: 'Legacy' }, { id: user.id, displayName: user.displayName });
+      expect(updated.name).toBe('Legacy');
     });
   });
 
   describe('remove', () => {
     it('should delete a board', async () => {
       const seeded = await seedBoard(prisma);
-      await service.remove(seeded.id);
+      const admin = await seedUser(prisma);
+      await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
+      await service.remove(seeded.id, { id: admin.id, displayName: admin.displayName });
       await expect(service.findOne(seeded.id)).rejects.toThrow('Board not found');
     });
 
     it('should cascade delete statuses', async () => {
       const seeded = await seedBoard(prisma);
-      await service.remove(seeded.id);
+      const admin = await seedUser(prisma);
+      await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
+      await service.remove(seeded.id, { id: admin.id, displayName: admin.displayName });
       const statuses = await prisma.status.findMany({ where: { boardId: seeded.id } });
       expect(statuses).toHaveLength(0);
+    });
+
+    it('should forbid non-admin user from deleting', async () => {
+      const seeded = await seedBoard(prisma);
+      const admin = await seedUser(prisma);
+      const member = await seedUser(prisma);
+      await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
+      await prisma.member.create({ data: { boardId: seeded.id, userId: member.id, role: 'member' } });
+      await expect(
+        service.remove(seeded.id, { id: member.id, displayName: member.displayName }),
+      ).rejects.toThrow('Only board admins can perform this action');
+    });
+
+    it('should forbid delete with no user', async () => {
+      const seeded = await seedBoard(prisma);
+      const admin = await seedUser(prisma);
+      await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
+      await expect(service.remove(seeded.id)).rejects.toThrow('Admin access required');
+    });
+
+    it('should allow delete on legacy board with no admin members', async () => {
+      const seeded = await seedBoard(prisma);
+      const user = await seedUser(prisma);
+      await service.remove(seeded.id, { id: user.id, displayName: user.displayName });
+      await expect(service.findOne(seeded.id)).rejects.toThrow('Board not found');
     });
   });
 });

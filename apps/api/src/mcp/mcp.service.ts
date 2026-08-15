@@ -146,6 +146,7 @@ export class McpService {
         return board;
       }
       case 'update': {
+        await this.assertBoardAdmin(params.id, user);
         const data: Record<string, any> = {};
         if (params.name !== undefined) data.name = params.name;
         if (params.slug !== undefined) data.slug = params.slug;
@@ -160,6 +161,7 @@ export class McpService {
         return board;
       }
       case 'delete': {
+        await this.assertBoardAdmin(params.id, user);
         await this.prisma.board.delete({ where: { id: params.id } });
         this.events.emit('board:deleted', { id: params.id }, params.id);
         return { deleted: true };
@@ -719,5 +721,21 @@ export class McpService {
       where: { boardId_userId: { boardId, userId } },
     });
     return member?.role === 'admin';
+  }
+
+  /**
+   * Board-level admin gate for destructive/config operations (boards_update, boards_delete).
+   * Must be called with the authenticated user. If the board has no admin member rows at
+   * all (legacy boards), we allow the call as a pragmatic fallback. Otherwise the caller
+   * must be an admin on the board.
+   */
+  private async assertBoardAdmin(boardId: string, user?: AuthUser) {
+    if (!user?.id) throw new Error('Admin access required');
+    const admins = await this.prisma.member.findMany({
+      where: { boardId, role: 'admin' },
+    });
+    if (admins.length === 0) return; // legacy board with no admin rows — allow
+    const isAdmin = admins.some((m) => m.userId === user.id);
+    if (!isAdmin) throw new Error('Only board admins can perform this action');
   }
 }

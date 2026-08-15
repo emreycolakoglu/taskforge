@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Plus, Pencil, Trash2, X, Check, UserMinus, LogOut, UserPlus } from 'lucide-react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { useBoardFull } from '@/hooks/use-boards'
+import { useBoardFull, useDeleteBoard } from '@/hooks/use-boards'
 import { useLabels, useCreateLabel, useUpdateLabel, useDeleteLabel } from '@/hooks/use-labels'
 import { useMembers, useAddMember, useRemoveMember, useLeaveBoard } from '@/hooks/use-members'
 import { useUsers } from '@/hooks/use-users'
@@ -66,6 +66,7 @@ export function BoardSettingsPage() {
           <StatusesSection boardId={id!} statuses={board.statuses ?? []} />
           <LabelsSection boardId={id!} labels={labels} />
           <MembersSection boardId={id!} />
+          <DeleteBoardSection boardId={id!} boardName={board.name} />
         </div>
       </div>
     </div>
@@ -577,6 +578,60 @@ function MembersSection({ boardId }: { boardId: string }) {
           </Button>
         )}
       </div>
+    </Card>
+  )
+}
+
+export function DeleteBoardSection({ boardId, boardName }: { boardId: string; boardName: string }) {
+  const { user } = useAuth()
+  const { data: members = [] } = useMembers(boardId)
+  const deleteBoard = useDeleteBoard()
+  const navigate = useNavigate()
+  const [confirmOpen, setConfirmOpen] = useState(false)
+
+  const isAdmin = members.some((m) => m.userId === user?.id && m.role === 'admin')
+
+  const handleDelete = () => {
+    deleteBoard.mutate(boardId, {
+      onSuccess: () => {
+        setConfirmOpen(false)
+        navigate('/boards')
+      },
+    })
+  }
+
+  if (!isAdmin) return null
+
+  return (
+    <Card className="p-6 space-y-4 border-destructive/40">
+      <div>
+        <CardTitle className="text-base text-foreground">Danger Zone</CardTitle>
+        <CardDescription className="text-sm text-muted-foreground mt-1">
+          Permanently delete this board and all of its tasks, comments, and labels. This cannot be undone.
+        </CardDescription>
+      </div>
+      <Button variant="destructive" onClick={() => setConfirmOpen(true)}>
+        <Trash2 className="size-4 mr-1.5" />
+        Delete Board
+      </Button>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete board</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete <strong>{boardName}</strong>? This will permanently delete the board
+              and all of its tasks, comments, and labels. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteBoard.isPending}>
+              {deleteBoard.isPending ? 'Deleting…' : 'Delete'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   )
 }

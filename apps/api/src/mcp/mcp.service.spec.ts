@@ -91,9 +91,35 @@ describe('McpService', () => {
   });
 
   describe('boards_delete', () => {
-    it('should delete a board', async () => {
+    it('should delete a board (legacy board, no admin members)', async () => {
       const res = await service.handleRequest({ method: 'boards_delete', params: { id: board.id }, id: 4 }, user);
       expect(res.result.deleted).toBe(true);
+    });
+
+    it('should delete a board when user is admin', async () => {
+      const b = await seedBoard(prisma);
+      await prisma.member.create({ data: { boardId: b.id, userId: user.id, role: 'admin' } });
+      const res = await service.handleRequest({ method: 'boards_delete', params: { id: b.id }, id: 4 }, user);
+      expect(res.result.deleted).toBe(true);
+    });
+
+    it('should forbid non-admin user from deleting', async () => {
+      const b = await seedBoard(prisma);
+      const admin = await seedUser(prisma);
+      await prisma.member.create({ data: { boardId: b.id, userId: admin.id, role: 'admin' } });
+      await prisma.member.create({ data: { boardId: b.id, userId: user.id, role: 'member' } });
+      const res = await service.handleRequest({ method: 'boards_delete', params: { id: b.id }, id: 4 }, user);
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('Only board admins can perform this action');
+    });
+
+    it('should forbid delete with no user', async () => {
+      const b = await seedBoard(prisma);
+      const admin = await seedUser(prisma);
+      await prisma.member.create({ data: { boardId: b.id, userId: admin.id, role: 'admin' } });
+      const res = await service.handleRequest({ method: 'boards_delete', params: { id: b.id }, id: 4 });
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('Admin access required');
     });
   });
 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { LabelsService } from '../labels/labels.service';
@@ -111,6 +111,7 @@ export class BoardsService {
   }
 
   async update(id: string, dto: UpdateBoardDto, _user?: { id: string; displayName: string }) {
+    await this.assertBoardAdmin(id, _user);
     await this.findOne(id);
     const data: Record<string, any> = { ...dto };
     if (dto.identifier) data.identifier = dto.identifier.toUpperCase();
@@ -120,8 +121,29 @@ export class BoardsService {
   }
 
   async remove(id: string, _user?: { id: string; displayName: string }) {
+    await this.assertBoardAdmin(id, _user);
     await this.findOne(id);
     await this.prisma.board.delete({ where: { id } });
     this.events.emit('board:deleted', { id }, id);
+  }
+
+  /**
+   * Board-level admin gate for destructive/config operations (update, remove).
+   * A user must be a member with role 'admin' on the board. If the board has no
+   * admin member rows at all (e.g. legacy boards created before members existed),
+   * we allow the call as a pragmatic fallback rather than locking the board.
+   */
+  private async assertBoardAdmin(boardId: string, user?: { id: string; displayName: string }) {
+    if (!user?.id) {
+      throw new ForbiddenException('Admin access required');
+    }
+    const admins = await this.prisma.member.findMany({
+      where: { boardId, role: 'admin' },
+    });
+    if (admins.length === 0) return; // legacy board with no admin rows — allow
+    const isAdmin = admins.some((m) => m.userId === user.id);
+    if (!isAdmin) {
+      throw new ForbiddenException('Only board admins can perform this action');
+    }
   }
 }
