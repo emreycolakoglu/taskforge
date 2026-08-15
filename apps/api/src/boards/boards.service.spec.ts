@@ -50,6 +50,18 @@ describe('BoardsService', () => {
       expect(boards[0]._count).toHaveProperty('statuses');
       expect(boards[0]._count).toHaveProperty('members');
     });
+
+    it('should include members array so the frontend can detect membership', async () => {
+      const seeded = await seedBoard(prisma);
+      const member = await seedUser(prisma);
+      await prisma.member.create({ data: { boardId: seeded.id, userId: member.id, role: 'member' } });
+      const boards = await service.findAll();
+      const board = boards.find((b: any) => b.id === seeded.id);
+      expect(board).toBeDefined();
+      expect(Array.isArray(board.members)).toBe(true);
+      expect(board.members).toHaveLength(1);
+      expect(board.members[0]).toMatchObject({ userId: member.id, role: 'member' });
+    });
   });
 
   describe('findOne', () => {

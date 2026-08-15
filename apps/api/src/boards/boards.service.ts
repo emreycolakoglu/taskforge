@@ -23,7 +23,7 @@ export class BoardsService {
 
   async findAll() {
     return this.prisma.board.findMany({
-      include: { _count: { select: { statuses: true, members: true } } },
+      include: { _count: { select: { statuses: true, members: true } }, members: true },
       orderBy: { createdAt: 'desc' },
     });
   }

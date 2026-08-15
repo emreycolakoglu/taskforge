@@ -65,6 +65,16 @@ describe('McpService', () => {
       expect(Array.isArray(res.result)).toBe(true);
       expect(res.result.length).toBeGreaterThanOrEqual(1);
     });
+
+    it('should include members array so clients can detect membership', async () => {
+      await prisma.member.create({ data: { boardId: board.id, userId: user.id, role: 'member' } });
+      const res = await service.handleRequest({ method: 'boards_list', params: {}, id: 1 }, user);
+      const found = (res.result as any[]).find((b: any) => b.id === board.id);
+      expect(found).toBeDefined();
+      expect(Array.isArray(found.members)).toBe(true);
+      expect(found.members).toHaveLength(1);
+      expect(found.members[0]).toMatchObject({ userId: user.id, role: 'member' });
+    });
   });
 
   describe('boards_get', () => {

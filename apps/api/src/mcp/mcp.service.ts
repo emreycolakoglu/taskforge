@@ -105,7 +105,7 @@ export class McpService {
     switch (action) {
       case 'list': {
         return this.prisma.board.findMany({
-          include: { _count: { select: { statuses: true, members: true } } },
+          include: { _count: { select: { statuses: true, members: true } }, members: true },
         });
       }
       case 'get': {
