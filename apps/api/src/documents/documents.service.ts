@@ -153,7 +153,7 @@ export class DocumentsService {
       },
     });
 
-    this.events.emit('document:deleted', { id }, doc.boardId);
+    this.events.emit('document:deleted', { id, boardId: doc.boardId, taskId: doc.taskId }, doc.boardId);
   }
 
   async setPublic(id: string, isPublic: boolean, user?: { id: string; displayName: string }) {
@@ -165,7 +165,10 @@ export class DocumentsService {
         where: { id },
         include: { board: { select: { identifier: true } } },
       });
-      return withDocNumber(unchanged);
+      return withDocNumber({
+        ...unchanged,
+        boardIdentifier: unchanged.board.identifier,
+      });
     }
 
     const doc = await this.prisma.document.update({
@@ -186,6 +189,9 @@ export class DocumentsService {
     });
 
     this.events.emit('document:updated', doc, doc.boardId);
-    return withDocNumber(doc);
+    return withDocNumber({
+      ...doc,
+      boardIdentifier: doc.board.identifier,
+    });
   }
 }

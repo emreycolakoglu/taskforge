@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useBoardFull } from "@/hooks/use-boards";
 import { useDocumentsByBoard, useCreateDocument } from "@/hooks/use-documents";
 import { useParams } from "react-router-dom";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import type { Document } from "@/types";
 
 /**
  * BoardDocumentsPage — per-board document index at /board/:boardId/docs.
@@ -28,15 +28,22 @@ export function BoardDocumentsPage() {
 
   const handleCreate = async () => {
     if (!title.trim() || !taskId) return;
-    const doc = await createDocument.mutateAsync({
-      taskId,
-      boardId: boardId!,
-      title: title.trim(),
-    });
-    setCreating(false);
-    setTitle("");
-    setTaskId("");
-    navigate(`/board/${boardId}/doc/${doc.id}`);
+    try {
+      const doc = await createDocument.mutateAsync({
+        taskId,
+        boardId: boardId!,
+        title: title.trim(),
+      });
+      setCreating(false);
+      setTitle("");
+      setTaskId("");
+      navigate(`/board/${boardId}/doc/${doc.id}`);
+    } catch {
+      // Keep the form open so the user can correct and retry.
+      toast.error("Failed to create document", {
+        description: "Please try again.",
+      });
+    }
   };
 
   const formatTimestamp = (ts: string) =>
@@ -82,15 +89,16 @@ export function BoardDocumentsPage() {
                 .flatMap((s) => s.tasks ?? [])
                 .map((t) => (
                   <option key={t.id} value={t.id}>
-                    {t.taskNumber ?? t.title}
+                    {t.taskNumber}
                   </option>
                 ))}
             </select>
             <div className="flex gap-2">
               <Button
                 size="sm"
+                variant="outline"
                 onClick={handleCreate}
-                disabled={createDocument.isPending}
+                disabled={!title.trim() || !taskId || createDocument.isPending}
               >
                 Create
               </Button>
@@ -117,7 +125,7 @@ export function BoardDocumentsPage() {
           </div>
         ) : (
           <div className="space-y-1">
-            {documents.map((doc: Document) => (
+            {documents.map((doc) => (
               <button
                 key={doc.id}
                 type="button"
@@ -135,7 +143,7 @@ export function BoardDocumentsPage() {
                     {doc.taskNumber}
                   </span>
                 )}
-                <span className="text-xs text-muted-foreground shrink-0">
+                <span className="font-mono text-xs text-muted-foreground shrink-0">
                   {formatTimestamp(doc.updatedAt)}
                 </span>
                 <span className="font-mono text-[10px] text-muted-foreground shrink-0">

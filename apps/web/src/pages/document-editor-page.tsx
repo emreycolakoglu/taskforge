@@ -21,6 +21,17 @@ import { createAutosaver, type Autosaver } from "@/lib/autosave";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 
 const AUTOSAVE_DELAY_MS = 1000;
@@ -34,7 +45,9 @@ export function DocumentEditorPage() {
   const setPublic = useSetDocumentPublic();
 
   const [title, setTitle] = useState(doc?.title ?? "");
+  const titleFocusedRef = useRef(false);
   useEffect(() => {
+    if (titleFocusedRef.current) return;
     setTitle(doc?.title ?? "");
   }, [doc?.title]);
 
@@ -85,7 +98,13 @@ export function DocumentEditorPage() {
       });
       return;
     }
-    const url = `${window.location.origin}/public/docs/${d.boardIdentifier ?? "???"}/${d.number}`;
+    if (!d.boardIdentifier) {
+      toast.error("Could not build the public link", {
+        description: "This document is missing its board identifier.",
+      });
+      return;
+    }
+    const url = `${window.location.origin}/public/docs/${d.boardIdentifier}/${d.number}`;
     navigator.clipboard.writeText(url).then(
       () =>
         toast.success("Document published", {
@@ -157,15 +176,33 @@ export function DocumentEditorPage() {
           >
             {doc.isPublic ? "Make private" : "Publish"}
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 text-muted-foreground hover:text-destructive"
-            aria-label="Delete document"
-            onClick={handleDelete}
-          >
-            <Trash2 className="size-4" />
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8 text-muted-foreground hover:text-destructive"
+                aria-label="Delete document"
+              >
+                <Trash2 className="size-4" />
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete document?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  "{doc.title}" will be permanently removed. This action cannot
+                  be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete}>
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </header>
 
@@ -174,7 +211,13 @@ export function DocumentEditorPage() {
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            onBlur={saveTitle}
+            onFocus={() => {
+              titleFocusedRef.current = true;
+            }}
+            onBlur={() => {
+              titleFocusedRef.current = false;
+              saveTitle();
+            }}
             placeholder="Document title…"
             className="h-10 border-none bg-transparent px-0 text-2xl font-medium tracking-tight text-foreground focus-visible:ring-0"
             aria-label="Document title"

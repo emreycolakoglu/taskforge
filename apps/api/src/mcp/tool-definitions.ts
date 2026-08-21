@@ -343,7 +343,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'documents_list',
     title: 'List documents',
-    description: 'List documents for a board or a task, newest first. Excludes bodies.',
+    description: 'List documents for a board or a task, newest first. Excludes bodies. With neither boardId nor taskId, lists every document across all boards.',
     inputSchema: {
       boardId: optionalId('Board'),
       taskId: optionalId('Task'),
