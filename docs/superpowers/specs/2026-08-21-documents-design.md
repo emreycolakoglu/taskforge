@@ -103,8 +103,8 @@ No publish tool. MCP handlers write activity rows and emit the same events as RE
 
 ### Pages & routes (under `SidebarLayout`)
 
-- `/board/:boardId/docs` — board docs index: list of documents with title, task link (`TFG-123`), updated timestamp. Click → editor.
-- `/board/:boardId/doc/:docId` — the full-page editor. Title editable inline, body via the existing `MarkdownEditor` with the same autosave (`createAutosaver` + flush on blur/unmount) as `DetailDescriptionEditor`. Header: "Back to task" link, delete + publish controls.
+- `/board/:boardId/docs` — board docs index: list of documents with title, task link (`TFG-123`), updated timestamp, and a published indicator (Fog `published`/`private` mono tag). Click → editor.
+- `/board/:boardId/doc/:docId` — the full-page editor. Title editable inline, body via the existing `MarkdownEditor` with the same autosave (`createAutosaver` + flush on blur/unmount) as `DetailDescriptionEditor`. Header: "Back to task" link, delete + publish controls. Publishing copies the public URL (`/public/docs/:identifier/:number`) to the clipboard and confirms with a toast, mirroring task publishing. Unpublished state is indicated in the header.
 
 ### Task detail integration
 
