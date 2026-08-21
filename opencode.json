@@ -5,9 +5,9 @@
   "mcp": {
     "taskforge": {
       "type": "remote",
-      "url": "http://localhost:4321/api/mcp",
+      "url": "https://tasks.healmeets.com/api/mcp",
       "headers": {
-        "Authorization": "Bearer 0b698709-1e13-43d7-a06d-beb8782b93d5"
+        "Authorization": "Bearer 6684c886-9184-4c29-9f17-f5b4feb82332"
       }
     }
   }
