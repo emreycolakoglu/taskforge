@@ -10,27 +10,24 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      // The new service worker activates as soon as it is fetched instead of waiting for
-      // every tab to close. TaskForge is long-lived in a pinned tab, so "waiting" in
-      // practice means "never" — users would sit on stale assets for days.
+      // The service worker is cosmetic: it exists to keep the PWA registration alive so the
+      // app stays installable ("Add to Home Screen"), and it never intercepts a request.
+      // See src/sw.js for the why.
       registerType: 'autoUpdate',
-      // Injects the registration snippet into index.html, so no registration code is needed
-      // in main.tsx.
       injectRegister: 'auto',
       manifest: pwaManifest,
-      workbox: {
-        // Precache the built app shell only. Deliberately no runtimeCaching for /api: every
-        // route is behind a session token and boards are shared, so caching responses would
-        // park another user's task data in this browser's Cache Storage, where logout does
-        // not reach it.
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-        globIgnores: ['**/screenshots/**'],
-        // The SPA fallback serves cached index.html for navigations. /api and /ws must reach
-        // the network — without these, the service worker would answer XHRs and the socket
-        // handshake with the HTML shell.
-        navigateFallback: 'index.html',
-        navigateFallbackDenylist: [/^\/api/, /^\/ws/],
-        cleanupOutdatedCaches: true,
+      // injectManifest lets us ship our own worker instead of workbox's precaching one. The
+      // worker in src/sw.js is inert — no `fetch` handler, nothing precached — so every
+      // request, including /api and /ws, passes straight through to the network exactly as if
+      // there were no worker.
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
+      // Don't let workbox's icon auto-inclusion put anything in the precache manifest either.
+      includeManifestIcons: false,
+      injectManifest: {
+        // Precache nothing. The worker exists to be registered, not to serve anything.
+        globPatterns: [],
       },
     }),
   ],
