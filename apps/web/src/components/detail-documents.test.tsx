@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
+import { toast } from "sonner";
 import { DetailDocuments } from "./detail-documents";
 
 const mockDocs = [
@@ -74,6 +75,23 @@ describe("DetailDocuments", () => {
       taskId: "t1",
       boardId: "b1",
       title: "Report",
+    });
+  });
+
+  it("keeps the form open and toasts when create fails", async () => {
+    const mutateAsync = vi.fn().mockRejectedValue(new Error("boom"));
+    mockUseCreateDocument.mockImplementation(() => ({ mutateAsync }));
+    const { user } = renderWithUser();
+    await user.click(screen.getByRole("button", { name: /new document/i }));
+    await user.type(screen.getByPlaceholderText(/document title/i), "Report");
+    await user.click(screen.getByRole("button", { name: /^create$/i }));
+    expect(screen.getByPlaceholderText(/document title/i)).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Report")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /^create$/i }),
+    ).toBeInTheDocument();
+    expect(toast.error).toHaveBeenCalledWith("Failed to create document", {
+      description: "Please try again.",
     });
   });
 });

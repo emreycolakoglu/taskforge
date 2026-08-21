@@ -11,6 +11,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus } from "lucide-react";
+import { toast } from "sonner";
 import { useDocumentsByTask, useCreateDocument } from "@/hooks/use-documents";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -40,8 +41,10 @@ export function DetailDocuments({ taskId, boardId }: DetailDocumentsProps) {
       setTitle("");
       navigate(`/board/${boardId}/doc/${doc.id}`);
     } catch {
-      setAdding(false);
-      setTitle("");
+      // Keep the form open so the user can correct and retry.
+      toast.error("Failed to create document", {
+        description: "Please try again.",
+      });
     }
   };
 
