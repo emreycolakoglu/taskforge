@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { MemoryRouter } from "react-router-dom";
 import { DetailDocuments } from "./detail-documents";
 
@@ -16,16 +17,20 @@ const mockDocs = [
 
 // Module-level mock fn so per-test overrides work (same pattern as use-tasks.test.tsx).
 const mockUseDocumentsByTask = vi.fn((..._args: any[]) => ({ data: mockDocs }));
+const mockUseCreateDocument = vi.fn((_args?: any) => ({
+  mutateAsync: vi.fn(),
+}));
 
 vi.mock("@/hooks/use-documents", () => ({
   useDocumentsByTask: (...args: any[]) => mockUseDocumentsByTask(...args),
-  useCreateDocument: () => ({ mutateAsync: vi.fn() }),
+  useCreateDocument: (args?: any) => mockUseCreateDocument(args),
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 beforeEach(() => {
   vi.clearAllMocks();
   mockUseDocumentsByTask.mockImplementation(() => ({ data: mockDocs }));
+  mockUseCreateDocument.mockImplementation(() => ({ mutateAsync: vi.fn() }));
 });
 
 function renderDocs() {
@@ -34,6 +39,13 @@ function renderDocs() {
       <DetailDocuments taskId="t1" boardId="b1" />
     </MemoryRouter>,
   );
+}
+
+function renderWithUser() {
+  return {
+    user: userEvent.setup(),
+    ...renderDocs(),
+  };
 }
 
 describe("DetailDocuments", () => {
@@ -47,5 +59,21 @@ describe("DetailDocuments", () => {
     mockUseDocumentsByTask.mockImplementation(() => ({ data: [] }));
     renderDocs();
     expect(screen.getByText(/no documents/i)).toBeInTheDocument();
+  });
+
+  it("creates a document when Create is clicked", async () => {
+    const mutateAsync = vi
+      .fn()
+      .mockResolvedValue({ id: "d2", docNumber: "D-2" });
+    mockUseCreateDocument.mockImplementation(() => ({ mutateAsync }));
+    const { user } = renderWithUser();
+    await user.click(screen.getByRole("button", { name: /new document/i }));
+    await user.type(screen.getByPlaceholderText(/document title/i), "Report");
+    await user.click(screen.getByRole("button", { name: /^create$/i }));
+    expect(mutateAsync).toHaveBeenCalledWith({
+      taskId: "t1",
+      boardId: "b1",
+      title: "Report",
+    });
   });
 });

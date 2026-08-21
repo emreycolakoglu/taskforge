@@ -10,7 +10,7 @@
  */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useDocumentsByTask, useCreateDocument } from "@/hooks/use-documents";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,14 +30,19 @@ export function DetailDocuments({ taskId, boardId }: DetailDocumentsProps) {
 
   const handleCreate = async () => {
     if (!title.trim()) return;
-    const doc = await createDocument.mutateAsync({
-      taskId,
-      boardId,
-      title: title.trim(),
-    });
-    setAdding(false);
-    setTitle("");
-    navigate(`/board/${boardId}/doc/${doc.id}`);
+    try {
+      const doc = await createDocument.mutateAsync({
+        taskId,
+        boardId,
+        title: title.trim(),
+      });
+      setAdding(false);
+      setTitle("");
+      navigate(`/board/${boardId}/doc/${doc.id}`);
+    } catch {
+      setAdding(false);
+      setTitle("");
+    }
   };
 
   return (
@@ -84,7 +89,12 @@ export function DetailDocuments({ taskId, boardId }: DetailDocumentsProps) {
               onBlur={() => setAdding(false)}
               placeholder="Document title…"
             />
-            <Button size="sm" onClick={handleCreate}>
+            <Button
+              size="sm"
+              variant="outline"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={handleCreate}
+            >
               Create
             </Button>
           </div>
