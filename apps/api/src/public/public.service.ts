@@ -74,4 +74,45 @@ export class PublicService {
       updatedAt: task.updatedAt,
     };
   }
+
+  /**
+   * Look up a published document by its board number (e.g. TFG + doc number 2 → D-2).
+   *
+   * Same two rules as findPublicTask: `select`, never `include` (a new column
+   * must be opted into here deliberately), and nothing that wasn't published —
+   * only the doc title/body, its task identity, and the board identifier ride
+   * along. 404 for both missing and unpublished.
+   */
+  async findPublicDocument(identifier: string, number: number) {
+    if (!Number.isInteger(number) || number < 1) {
+      throw new NotFoundException('Document not found');
+    }
+
+    const doc = await this.prisma.document.findFirst({
+      where: {
+        number,
+        isPublic: true,
+        board: { identifier },
+      },
+      select: {
+        number: true,
+        title: true,
+        body: true,
+        updatedAt: true,
+        board: { select: { identifier: true } },
+        task: { select: { number: true, title: true } },
+      },
+    });
+
+    if (!doc) throw new NotFoundException('Document not found');
+
+    return {
+      docNumber: `D-${doc.number}`,
+      taskNumber: `${doc.board.identifier}-${doc.task.number}`,
+      taskTitle: doc.task.title,
+      title: doc.title,
+      body: doc.body,
+      updatedAt: doc.updatedAt,
+    };
+  }
 }
