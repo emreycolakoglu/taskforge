@@ -57,6 +57,7 @@ export class DocumentsService {
     if (!doc) throw new NotFoundException('Document not found');
     return withDocNumber({
       ...doc,
+      boardIdentifier: doc.board.identifier,
       taskNumber: `${doc.board.identifier}-${doc.task.number}`,
       taskTitle: doc.task.title,
     });
