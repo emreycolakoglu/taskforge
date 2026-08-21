@@ -7,6 +7,7 @@ import { BoardsModule } from './boards/boards.module';
 import { StatusesModule } from './statuses/statuses.module';
 import { TasksModule } from './tasks/tasks.module';
 import { CommentsModule } from './comments/comments.module';
+import { DocumentsModule } from './documents/documents.module';
 import { LabelsModule } from './labels/labels.module';
 import { ActivityModule } from './activity/activity.module';
 import { McpModule } from './mcp/mcp.module';
