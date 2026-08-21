@@ -223,6 +223,16 @@ export interface PublicTask {
   updatedAt: string;
 }
 
+/** The curated doc payload served to unauthenticated visitors. No ids, no board. */
+export interface PublicDocument {
+  docNumber: string;
+  taskNumber: string;
+  taskTitle: string;
+  title: string;
+  body: string;
+  updatedAt: string;
+}
+
 export const API_BASE = '/api';
 
 export const PREDEFINED_COLORS = [

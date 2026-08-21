@@ -19,6 +19,7 @@ import { BoardsPage } from "@/pages/boards-page";
 import { TaskDetailPage } from "@/pages/task-detail-page";
 import { InboxPage } from "@/pages/inbox-page";
 import { PublicTaskPage } from "@/pages/public-task-page";
+import { PublicDocumentPage } from "@/pages/public-document-page";
 
 /**
  * The authenticated app. Everything here sits under AuthProvider, whose init
@@ -167,6 +168,10 @@ export function App() {
           <Route
             path="/public/:identifier/:number"
             element={<PublicTaskPage />}
+          />
+          <Route
+            path="/public/docs/:identifier/:number"
+            element={<PublicDocumentPage />}
           />
           <Route path="*" element={<AuthedRoutes />} />
         </Routes>

@@ -1,4 +1,4 @@
-import { API_BASE, PublicTask } from '../types';
+import { API_BASE, PublicTask, PublicDocument } from '../types';
 
 /**
  * Fetch for the public task page — deliberately NOT the shared `api` client.
@@ -28,5 +28,19 @@ export async function fetchPublicTask(identifier: string, number: string): Promi
   if (res.status === 404) throw new PublicTaskNotFoundError();
   if (!res.ok) throw new Error(await res.text());
 
+  return res.json();
+}
+
+export class PublicDocumentNotFoundError extends Error {
+  constructor() {
+    super('Document not found');
+    this.name = 'PublicDocumentNotFoundError';
+  }
+}
+
+export async function fetchPublicDocument(identifier: string, number: string): Promise<PublicDocument> {
+  const res = await fetch(`${API_BASE}/public/docs/${encodeURIComponent(identifier)}/${encodeURIComponent(number)}`);
+  if (res.status === 404) throw new PublicDocumentNotFoundError();
+  if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
