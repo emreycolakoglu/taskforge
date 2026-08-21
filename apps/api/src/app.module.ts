@@ -29,6 +29,7 @@ import { MembersModule } from './members/members.module';
     StatusesModule,
     TasksModule,
     CommentsModule,
+    DocumentsModule,
     LabelsModule,
     ActivityModule,
     McpModule,
