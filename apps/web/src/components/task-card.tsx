@@ -18,25 +18,19 @@
  * accepted existing deviation (semantic signal). Inter weight 400 for the title.
  */
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
-import type { Task } from "@/types";
-import { CircleSmallIcon, Plus } from "lucide-react";
-import type { ReactNode } from "react";
-import { LabelManager } from "./label-manager";
-import { PriorityIcon } from "./priority-icons";
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+import type { Task } from '@/types';
+import { CircleSmallIcon, Plus } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { LabelManager } from './label-manager';
+import { PriorityIcon } from './priority-icons';
 
 function CommentIcon() {
   return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
       <path
         d="M2 3a1 1 0 011-1h8a1 1 0 011 1v5a1 1 0 01-1 1H5l-2 2V9H3a1 1 0 01-1-1V3z"
         stroke="currentColor"
@@ -50,13 +44,7 @@ function CommentIcon() {
 // Blocked indicator — Crimson (#eb5757), per design.md semantic accent.
 function BlockedIcon() {
   return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
       <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.2" />
       <path
         d="M4.5 4.5l5 5M9.5 4.5l-5 5"
@@ -90,9 +78,7 @@ export function TaskCard({
   const labels = task.taskLabels ?? task.labels ?? [];
   const isSubTask = !!task.parentId;
 
-  const priorityIcon = (): ReactNode => (
-    <PriorityIcon priority={task.priority} />
-  );
+  const priorityIcon = (): ReactNode => <PriorityIcon priority={task.priority} />;
 
   const visibleLabels = labels.slice(0, 2);
   const overflowCount = labels.length > 2 ? labels.length - 2 : 0;
@@ -106,10 +92,10 @@ export function TaskCard({
   return (
     <div
       className={cn(
-        "group/card relative flex flex-col gap-1 rounded-md border border-border bg-card p-2.5 cursor-pointer transition-colors hover:border-foreground/20 hover:bg-accent/30",
-        isDragging && "shadow-xl rotate-1",
-        isSubTask && "pl-4 border-l-2 border-l-border",
-        task.isOptimistic && "opacity-75",
+        'group/card relative flex flex-col gap-1 rounded-md border border-border bg-card p-2.5 cursor-pointer transition-colors hover:border-foreground/20 hover:bg-accent/30',
+        isDragging && 'shadow-xl rotate-1',
+        isSubTask && 'pl-4 border-l-2 border-l-border',
+        task.isOptimistic && 'opacity-75',
       )}
     >
       {/* Row 1 — priority icon + task number + parent task name + assignee */}
@@ -122,23 +108,15 @@ export function TaskCard({
         )}
         {parentTaskName && (
           <>
-            <span className="text-xs text-muted-foreground truncate">
-              {">"}
-            </span>
-            <span
-              className="text-xs text-muted-foreground truncate flex-1"
-              title={parentTaskName}
-            >
+            <span className="text-xs text-muted-foreground truncate">{'>'}</span>
+            <span className="text-xs text-muted-foreground truncate flex-1" title={parentTaskName}>
               {parentTaskName}
             </span>
           </>
         )}
         {task.assignee && (
           <Avatar className="size-5 ml-auto shrink-0">
-            <AvatarFallback
-              className="text-[9px] font-semibold"
-              title={task.assignee.displayName}
-            >
+            <AvatarFallback className="text-[9px] font-semibold" title={task.assignee.displayName}>
               {task.assignee.displayName.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
@@ -156,9 +134,9 @@ export function TaskCard({
               {visibleLabels.map((tl) => (
                 <Badge
                   key={tl.labelId}
-                  variant={"outline"}
+                  variant={'outline'}
                   style={{
-                    color: "#f7f8f8",
+                    color: '#f7f8f8',
                   }}
                 >
                   <CircleSmallIcon
@@ -169,9 +147,7 @@ export function TaskCard({
                 </Badge>
               ))}
               {overflowCount > 0 && (
-                <span className="text-[10px] text-muted-foreground">
-                  +{overflowCount}
-                </span>
+                <span className="text-[10px] text-muted-foreground">+{overflowCount}</span>
               )}
             </div>
           )}

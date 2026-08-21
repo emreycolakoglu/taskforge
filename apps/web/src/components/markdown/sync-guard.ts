@@ -7,11 +7,11 @@
  * focused (would clobber the caret), and only when it actually differs.
  */
 export function shouldSyncExternalValue(params: {
-  isFocused: boolean
-  current: string
-  incoming: string
+  isFocused: boolean;
+  current: string;
+  incoming: string;
 }): boolean {
-  const { isFocused, current, incoming } = params
-  if (isFocused) return false
-  return current !== incoming
+  const { isFocused, current, incoming } = params;
+  if (isFocused) return false;
+  return current !== incoming;
 }

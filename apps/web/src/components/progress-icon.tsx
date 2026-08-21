@@ -9,40 +9,30 @@
  *   size      — viewBox size in px (default 16)
  *   className — optional Tailwind classes
  */
-import type { FC } from 'react'
+import type { FC } from 'react';
 
 interface ProgressIconProps {
-  progress: number
-  size?: number
-  className?: string
+  progress: number;
+  size?: number;
+  className?: string;
 }
 
 function progressColor(p: number): string {
-  if (p <= 30) return '#EF4444'   // red
-  if (p <= 70) return '#F59E0B'   // amber
-  return '#22C55E'                 // green
+  if (p <= 30) return '#EF4444'; // red
+  if (p <= 70) return '#F59E0B'; // amber
+  return '#22C55E'; // green
 }
 
-export const ProgressIcon: FC<ProgressIconProps> = ({
-  progress,
-  size = 16,
-  className,
-}) => {
-  const p = Math.max(0, Math.min(100, progress))
-  const r = 6                      // radius
-  const strokeWidth = 2
-  const circumference = 2 * Math.PI * r
-  const offset = circumference * (1 - p / 100)
-  const color = progressColor(p)
+export const ProgressIcon: FC<ProgressIconProps> = ({ progress, size = 16, className }) => {
+  const p = Math.max(0, Math.min(100, progress));
+  const r = 6; // radius
+  const strokeWidth = 2;
+  const circumference = 2 * Math.PI * r;
+  const offset = circumference * (1 - p / 100);
+  const color = progressColor(p);
 
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 16 16"
-      className={className}
-      aria-hidden="true"
-    >
+    <svg width={size} height={size} viewBox="0 0 16 16" className={className} aria-hidden="true">
       {/* Background ring */}
       <circle
         cx="8"
@@ -68,5 +58,5 @@ export const ProgressIcon: FC<ProgressIconProps> = ({
         style={{ transition: 'stroke-dashoffset 0.3s ease, stroke 0.3s ease' }}
       />
     </svg>
-  )
-}
+  );
+};

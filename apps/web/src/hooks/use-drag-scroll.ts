@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react';
 
 /**
  * useDragScroll — Linear-style click-and-drag horizontal panning.
@@ -26,83 +26,82 @@ const NON_PANNABLE_SELECTOR = [
   'select',
   '[role="button"]',
   '[contenteditable="true"]',
-].join(',')
+].join(',');
 
 /** Movement below this is a click, not a pan — keeps plain clicks working. */
-const DRAG_THRESHOLD_PX = 4
+const DRAG_THRESHOLD_PX = 4;
 
 export function useDragScroll<T extends HTMLElement>() {
-  const [element, setElement] = useState<T | null>(null)
-  const [isDragging, setIsDragging] = useState(false)
+  const [element, setElement] = useState<T | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   // A callback ref rather than useRef: the container mounts later than the hook
   // (the board renders nothing until it has data, and the list view unmounts it
   // entirely), so the effect has to re-run when the element appears.
-  const ref = useCallback((node: T | null) => setElement(node), [])
+  const ref = useCallback((node: T | null) => setElement(node), []);
 
   useEffect(() => {
-    if (!element) return
+    if (!element) return;
 
-    let startX = 0
-    let startScrollLeft = 0
-    let armed = false
-    let panning = false
+    let startX = 0;
+    let startScrollLeft = 0;
+    let armed = false;
+    let panning = false;
 
     // A pan ends on mouseup, which the browser follows with a click on the
     // common ancestor of the press and release — that would open whichever card
     // the cursor happened to land on. Swallow exactly that one click.
     const suppressClick = (e: MouseEvent) => {
-      e.preventDefault()
-      e.stopPropagation()
-    }
-    const stopSuppressingClick = () =>
-      element.removeEventListener('click', suppressClick, true)
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    const stopSuppressingClick = () => element.removeEventListener('click', suppressClick, true);
 
     const onMouseMove = (e: MouseEvent) => {
-      const dx = e.clientX - startX
+      const dx = e.clientX - startX;
       if (!panning) {
-        if (Math.abs(dx) < DRAG_THRESHOLD_PX) return
-        panning = true
-        setIsDragging(true)
+        if (Math.abs(dx) < DRAG_THRESHOLD_PX) return;
+        panning = true;
+        setIsDragging(true);
       }
-      element.scrollLeft = startScrollLeft - dx
-      e.preventDefault()
-    }
+      element.scrollLeft = startScrollLeft - dx;
+      e.preventDefault();
+    };
 
     const onMouseUp = () => {
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
-      armed = false
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      armed = false;
       if (panning) {
-        panning = false
-        setIsDragging(false)
-        element.addEventListener('click', suppressClick, { capture: true, once: true })
+        panning = false;
+        setIsDragging(false);
+        element.addEventListener('click', suppressClick, { capture: true, once: true });
       }
-    }
+    };
 
     const onMouseDown = (e: MouseEvent) => {
       // A stale suppressor survives when mouseup fired outside the window and no
       // click followed; drop it so it can't eat an unrelated click later.
-      stopSuppressingClick()
-      if (e.button !== 0 || armed) return
-      const target = e.target as HTMLElement | null
-      if (!target || target.closest(NON_PANNABLE_SELECTOR)) return
+      stopSuppressingClick();
+      if (e.button !== 0 || armed) return;
+      const target = e.target as HTMLElement | null;
+      if (!target || target.closest(NON_PANNABLE_SELECTOR)) return;
 
-      armed = true
-      startX = e.clientX
-      startScrollLeft = element.scrollLeft
-      window.addEventListener('mousemove', onMouseMove)
-      window.addEventListener('mouseup', onMouseUp)
-    }
+      armed = true;
+      startX = e.clientX;
+      startScrollLeft = element.scrollLeft;
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    };
 
-    element.addEventListener('mousedown', onMouseDown)
+    element.addEventListener('mousedown', onMouseDown);
     return () => {
-      element.removeEventListener('mousedown', onMouseDown)
-      window.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('mouseup', onMouseUp)
-      stopSuppressingClick()
-    }
-  }, [element])
+      element.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      stopSuppressingClick();
+    };
+  }, [element]);
 
-  return { ref, isDragging }
+  return { ref, isDragging };
 }

@@ -1,4 +1,15 @@
-import { Controller, Get, Post, Put, Delete, Param, Body, Query, Req, ForbiddenException } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Param,
+  Body,
+  Query,
+  Req,
+  ForbiddenException,
+} from '@nestjs/common';
 import { Request } from 'express';
 import { TasksService } from './tasks.service';
 import { CreateTaskDto, UpdateTaskDto, MoveTaskDto, ReorderTasksDto } from './dto/task.dto';
@@ -45,10 +56,14 @@ export class TasksController {
   }
 
   @Get('search')
-  search(@Query('q') q: string) { return this.service.search(q); }
+  search(@Query('q') q: string) {
+    return this.service.search(q);
+  }
 
   @Get(':id')
-  findOne(@Param('id') id: string) { return this.service.findOne(id); }
+  findOne(@Param('id') id: string) {
+    return this.service.findOne(id);
+  }
 
   @Post()
   create(@Body() dto: CreateTaskDto, @Req() req: Request) {
@@ -83,7 +98,9 @@ export class TasksController {
   }
 
   @Put('reorder')
-  reorder(@Body() dto: ReorderTasksDto) { return this.service.reorder(dto); }
+  reorder(@Body() dto: ReorderTasksDto) {
+    return this.service.reorder(dto);
+  }
 
   @Post(':taskId/labels/:labelId')
   attachLabel(@Param('taskId') taskId: string, @Param('labelId') labelId: string) {

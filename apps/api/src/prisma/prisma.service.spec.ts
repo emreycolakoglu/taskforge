@@ -15,10 +15,11 @@ describe('PrismaService', () => {
     dbUrl = `file:${dbPath}`;
 
     process.env.DATABASE_URL = dbUrl;
-    execSync(
-      `npx prisma migrate deploy`,
-      { env: { ...process.env, DATABASE_URL: dbUrl }, stdio: 'pipe', cwd: join(__dirname, '..', '..') },
-    );
+    execSync(`npx prisma migrate deploy`, {
+      env: { ...process.env, DATABASE_URL: dbUrl },
+      stdio: 'pipe',
+      cwd: join(__dirname, '..', '..'),
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [PrismaService],
@@ -47,5 +48,4 @@ describe('PrismaService', () => {
     await service.onModuleDestroy();
     expect(disconnectSpy).toHaveBeenCalled();
   });
-
 });

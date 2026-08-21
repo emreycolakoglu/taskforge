@@ -8,11 +8,11 @@
  * at the same min-height, so swapping in the live editor causes no layout jump.
  */
 
-import { lazy, Suspense } from 'react'
-import { cn } from '@/lib/utils'
-import type { MarkdownEditorProps } from './markdown-editor'
+import { lazy, Suspense } from 'react';
+import { cn } from '@/lib/utils';
+import type { MarkdownEditorProps } from './markdown-editor';
 
-const LazyMarkdownEditor = lazy(() => import('./markdown-editor'))
+const LazyMarkdownEditor = lazy(() => import('./markdown-editor'));
 
 function MarkdownEditorSkeleton({
   value,
@@ -20,7 +20,7 @@ function MarkdownEditorSkeleton({
   placeholder,
   className,
 }: Pick<MarkdownEditorProps, 'value' | 'editable' | 'placeholder' | 'className'>) {
-  const isEmpty = value.trim().length === 0
+  const isEmpty = value.trim().length === 0;
   return (
     <div className={className} aria-busy="true">
       <div className={cn('markdown-body whitespace-pre-wrap', editable && 'min-h-[60px]')}>
@@ -33,7 +33,7 @@ function MarkdownEditorSkeleton({
         )}
       </div>
     </div>
-  )
+  );
 }
 
 export function MarkdownEditor(props: MarkdownEditorProps) {
@@ -50,7 +50,7 @@ export function MarkdownEditor(props: MarkdownEditorProps) {
     >
       <LazyMarkdownEditor {...props} />
     </Suspense>
-  )
+  );
 }
 
-export type { MarkdownEditorProps }
+export type { MarkdownEditorProps };

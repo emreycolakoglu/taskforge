@@ -14,11 +14,11 @@ export function useUpdateSettings() {
   return useMutation({
     mutationFn: (data: { title?: string }) => api.settings.update(data),
     onSuccess: () => {
-      toast.success("Settings saved");
+      toast.success('Settings saved');
       queryClient.invalidateQueries({ queryKey: ['settings'] });
     },
     onError: (error) => {
-      toast.error("Failed to update settings", { description: error.message });
+      toast.error('Failed to update settings', { description: error.message });
     },
   });
 }

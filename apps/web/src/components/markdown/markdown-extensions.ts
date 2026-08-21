@@ -13,14 +13,14 @@
  * - Feature set is core prose + GFM task-list checkboxes. No tables, no images.
  */
 
-import StarterKit from '@tiptap/starter-kit'
-import { TaskList } from '@tiptap/extension-task-list'
-import { TaskItem } from '@tiptap/extension-task-item'
-import { Placeholder } from '@tiptap/extension-placeholder'
-import { Markdown, type MarkdownStorage } from 'tiptap-markdown'
-import type { Editor, Extensions } from '@tiptap/core'
+import StarterKit from '@tiptap/starter-kit';
+import { TaskList } from '@tiptap/extension-task-list';
+import { TaskItem } from '@tiptap/extension-task-item';
+import { Placeholder } from '@tiptap/extension-placeholder';
+import { Markdown, type MarkdownStorage } from 'tiptap-markdown';
+import type { Editor, Extensions } from '@tiptap/core';
 
-const SAFE_PROTOCOLS = ['http', 'https', 'mailto'] as const
+const SAFE_PROTOCOLS = ['http', 'https', 'mailto'] as const;
 
 /**
  * Returns the href unchanged when it is safe to render, or `null` when it must
@@ -29,20 +29,18 @@ const SAFE_PROTOCOLS = ['http', 'https', 'mailto'] as const
  * `data:`, `vbscript:`) is rejected.
  */
 export function sanitizeHref(href: string | null | undefined): string | null {
-  if (!href) return null
-  const trimmed = href.trim()
-  if (!trimmed) return null
+  if (!href) return null;
+  const trimmed = href.trim();
+  if (!trimmed) return null;
 
-  const schemeMatch = trimmed.match(/^([a-z][a-z0-9+.-]*):/i)
+  const schemeMatch = trimmed.match(/^([a-z][a-z0-9+.-]*):/i);
   if (!schemeMatch) {
     // No scheme → relative path or fragment. Safe.
-    return trimmed
+    return trimmed;
   }
 
-  const scheme = schemeMatch[1].toLowerCase()
-  return SAFE_PROTOCOLS.includes(scheme as (typeof SAFE_PROTOCOLS)[number])
-    ? trimmed
-    : null
+  const scheme = schemeMatch[1].toLowerCase();
+  return SAFE_PROTOCOLS.includes(scheme as (typeof SAFE_PROTOCOLS)[number]) ? trimmed : null;
 }
 
 /**
@@ -51,16 +49,14 @@ export function sanitizeHref(href: string | null | undefined): string | null {
  * this narrows it in one place instead of casting at every call site.
  */
 export function getMarkdown(editor: Editor): string {
-  return (editor.storage as unknown as { markdown: MarkdownStorage }).markdown.getMarkdown()
+  return (editor.storage as unknown as { markdown: MarkdownStorage }).markdown.getMarkdown();
 }
 
 interface MarkdownExtensionsOptions {
-  placeholder?: string
+  placeholder?: string;
 }
 
-export function createMarkdownExtensions(
-  options: MarkdownExtensionsOptions = {},
-): Extensions {
+export function createMarkdownExtensions(options: MarkdownExtensionsOptions = {}): Extensions {
   return [
     StarterKit.configure({
       link: {
@@ -86,5 +82,5 @@ export function createMarkdownExtensions(
       breaks: false,
       transformPastedText: true,
     }),
-  ]
+  ];
 }

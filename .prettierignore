@@ -1,0 +1,12 @@
+node_modules
+dist
+build
+coverage
+*.db
+*.db-journal
+apps/web/public
+apps/web/assets
+pnpm-lock.yaml
+docs/task-detail
+docs/task-board
+.hermes

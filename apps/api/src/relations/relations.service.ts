@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
@@ -45,12 +50,20 @@ export class RelationsService {
     const rows = await this.prisma.taskRelation.findMany({
       where: { OR: [{ fromTaskId: taskId }, { toTaskId: taskId }] },
       include: {
-        fromTask: { select: { id: true, number: true, title: true, board: { select: { identifier: true } } } },
-        toTask: { select: { id: true, number: true, title: true, board: { select: { identifier: true } } } },
+        fromTask: {
+          select: { id: true, number: true, title: true, board: { select: { identifier: true } } },
+        },
+        toTask: {
+          select: { id: true, number: true, title: true, board: { select: { identifier: true } } },
+        },
       },
     });
 
-    const entry = (relId: string, type: 'blocks' | 'related_to', t: { id: string; number: number; title: string; board: { identifier: string } | null }): RelationEntry => ({
+    const entry = (
+      relId: string,
+      type: 'blocks' | 'related_to',
+      t: { id: string; number: number; title: string; board: { identifier: string } | null },
+    ): RelationEntry => ({
       relationId: relId,
       type,
       task: {
@@ -89,14 +102,26 @@ export class RelationsService {
     // 2. Other task exists
     const other = await this.prisma.task.findUnique({
       where: { id: dto.otherTaskId },
-      select: { id: true, number: true, title: true, boardId: true, board: { select: { identifier: true } } },
+      select: {
+        id: true,
+        number: true,
+        title: true,
+        boardId: true,
+        board: { select: { identifier: true } },
+      },
     });
     if (!other) throw new NotFoundException('Related task not found');
 
     // 3. Same board
     const urlTask = await this.prisma.task.findUnique({
       where: { id: taskId },
-      select: { id: true, number: true, title: true, boardId: true, board: { select: { identifier: true } } },
+      select: {
+        id: true,
+        number: true,
+        title: true,
+        boardId: true,
+        board: { select: { identifier: true } },
+      },
     });
     if (!urlTask) throw new NotFoundException('Task not found');
     if (urlTask.boardId !== other.boardId) {
@@ -157,7 +182,9 @@ export class RelationsService {
     this.events.emit('relation:created', payload, boardId);
 
     // Return a RelationEntry for the "other" task (from the URL task's perspective)
-    const otherTaskNumber = other.board?.identifier ? `${other.board.identifier}-${other.number}` : String(other.number);
+    const otherTaskNumber = other.board?.identifier
+      ? `${other.board.identifier}-${other.number}`
+      : String(other.number);
     return {
       relationId: row.id,
       type: dto.type,
@@ -175,13 +202,17 @@ export class RelationsService {
     await this.prisma.taskRelation.delete({ where: { id: relationId } });
 
     const boardId = row.fromTask.boardId;
-    this.events.emit('relation:deleted', {
-      relationId: row.id,
-      type: row.type as 'blocks' | 'related_to',
-      fromTaskId: row.fromTaskId,
-      toTaskId: row.toTaskId,
+    this.events.emit(
+      'relation:deleted',
+      {
+        relationId: row.id,
+        type: row.type as 'blocks' | 'related_to',
+        fromTaskId: row.fromTaskId,
+        toTaskId: row.toTaskId,
+        boardId,
+      } satisfies RelationEventPayload,
       boardId,
-    } satisfies RelationEventPayload, boardId);
+    );
 
     return { deleted: true };
   }
@@ -202,13 +233,17 @@ export class RelationsService {
     });
 
     for (const r of rows) {
-      this.events.emit('relation:deleted', {
-        relationId: r.id,
-        type: r.type as 'blocks' | 'related_to',
-        fromTaskId: r.fromTaskId,
-        toTaskId: r.toTaskId,
-        boardId: r.fromTask.boardId,
-      } satisfies RelationEventPayload, r.fromTask.boardId);
+      this.events.emit(
+        'relation:deleted',
+        {
+          relationId: r.id,
+          type: r.type as 'blocks' | 'related_to',
+          fromTaskId: r.fromTaskId,
+          toTaskId: r.toTaskId,
+          boardId: r.fromTask.boardId,
+        } satisfies RelationEventPayload,
+        r.fromTask.boardId,
+      );
     }
   }
 

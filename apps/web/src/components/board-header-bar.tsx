@@ -6,19 +6,19 @@
  * No lime appears anywhere else in the header.
  */
 
-import { List, Columns3, Plus, Settings } from 'lucide-react'
-import type { Board } from '@/types'
-import type { ViewMode } from '@/hooks/use-board-view-state'
-import { Button } from '@/components/ui/button'
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
-import { SidebarTrigger } from '@/components/ui/sidebar'
+import { List, Columns3, Plus, Settings } from 'lucide-react';
+import type { Board } from '@/types';
+import type { ViewMode } from '@/hooks/use-board-view-state';
+import { Button } from '@/components/ui/button';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 
 interface BoardHeaderBarProps {
-  board: Board
-  viewMode: ViewMode
-  onViewModeChange: (mode: ViewMode) => void
-  onOpenSettings: () => void
-  onNewTask: () => void
+  board: Board;
+  viewMode: ViewMode;
+  onViewModeChange: (mode: ViewMode) => void;
+  onOpenSettings: () => void;
+  onNewTask: () => void;
 }
 
 export function BoardHeaderBar({
@@ -39,7 +39,7 @@ export function BoardHeaderBar({
           aria-label="Toggle sidebar"
         />
         <h1 className="text-sm font-medium text-foreground truncate">
-          <span className="mr-1.5">{board.icon ?? "⭐"}</span>
+          <span className="mr-1.5">{board.icon ?? '⭐'}</span>
           {board.name}
         </h1>
       </div>
@@ -49,7 +49,9 @@ export function BoardHeaderBar({
       <ToggleGroup
         type="single"
         value={viewMode}
-        onValueChange={(v) => { if (v) onViewModeChange(v as ViewMode) }}
+        onValueChange={(v) => {
+          if (v) onViewModeChange(v as ViewMode);
+        }}
         aria-label="View mode"
         variant="outline"
         size="sm"
@@ -96,5 +98,5 @@ export function BoardHeaderBar({
         </Button>
       </div>
     </header>
-  )
+  );
 }

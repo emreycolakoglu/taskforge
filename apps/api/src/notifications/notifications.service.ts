@@ -36,9 +36,17 @@ export class NotificationsService {
       include: { board: { select: { identifier: true } } },
     });
     if (!task) return;
-    const taskNumber = task.board?.identifier ? `${task.board.identifier}-${task.number}` : `#${task.number}`;
+    const taskNumber = task.board?.identifier
+      ? `${task.board.identifier}-${task.number}`
+      : `#${task.number}`;
 
-    const summary = this.buildSummary(activity.actor, activity.action, taskNumber, task.title, activity.detail);
+    const summary = this.buildSummary(
+      activity.actor,
+      activity.action,
+      taskNumber,
+      task.title,
+      activity.detail,
+    );
 
     const rows = subscriptions.map((s) => ({
       userId: s.userId,
@@ -60,7 +68,13 @@ export class NotificationsService {
     }
   }
 
-  private buildSummary(actor: string, action: string, taskNumber: string, title: string, detail: string | null): string {
+  private buildSummary(
+    actor: string,
+    action: string,
+    taskNumber: string,
+    title: string,
+    detail: string | null,
+  ): string {
     if (action === 'commented') {
       return `${actor} commented on ${taskNumber} "${title}"`;
     }
@@ -74,7 +88,11 @@ export class NotificationsService {
       where,
       orderBy: { createdAt: 'desc' },
       take: limit,
-      include: { task: { select: { id: true, title: true, number: true, board: { select: { identifier: true } } } } },
+      include: {
+        task: {
+          select: { id: true, title: true, number: true, board: { select: { identifier: true } } },
+        },
+      },
     });
   }
 

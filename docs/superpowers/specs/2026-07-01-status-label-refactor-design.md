@@ -11,18 +11,18 @@ The current model conflates two "status" concepts:
 1. **`List`** — board-scoped, ordered, colored columns shown on the Kanban board. Each task belongs to exactly one `List`. The UI calls these "lists".
 2. **`Task.status`** — a separate enum field (`active | done | archived`) shown in task detail via `DetailStatusSelect`. Used in ~15 places across `tasks.service`, `boards.service`, `mcp.service`, `relations.service`, and `notifications.service` to hide archived/done tasks from the board.
 
-This is confusing: "status" should mean the column the task is in, not a hidden archive flag. The Kanban columns *are* the statuses.
+This is confusing: "status" should mean the column the task is in, not a hidden archive flag. The Kanban columns _are_ the statuses.
 
 ## Decisions (from brainstorming)
 
-| Question | Decision |
-|---|---|
+| Question                                     | Decision                                                                                    |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------- |
 | Fate of `Task.status` (active/done/archived) | **Remove entirely.** Fold into statuses — the column is the status. No archiving mechanism. |
-| How to know which tasks are hidden/archived | **No archiving.** Every task is always visible on its status column. |
-| Status set | **Per-board, customizable.** Like today's lists; new boards get a default set. |
-| Labels | **Keep as-is.** Label + TaskLabel many-to-many model untouched. |
-| How to identify the Done status | **`Status.isDone: boolean`.** Exactly one per board. |
-| Done timestamp source | **`Task.doneAt: DateTime?`**, stamped on move-in, cleared on move-out. |
+| How to know which tasks are hidden/archived  | **No archiving.** Every task is always visible on its status column.                        |
+| Status set                                   | **Per-board, customizable.** Like today's lists; new boards get a default set.              |
+| Labels                                       | **Keep as-is.** Label + TaskLabel many-to-many model untouched.                             |
+| How to identify the Done status              | **`Status.isDone: boolean`.** Exactly one per board.                                        |
+| Done timestamp source                        | **`Task.doneAt: DateTime?`**, stamped on move-in, cleared on move-out.                      |
 
 ## Data Model
 
@@ -124,7 +124,7 @@ async toggleDone(boardId: string, statusId: string, user?): Promise<Status>
 - `create()`: takes `statusId` instead of `listId`. No `status` field set.
 - `update()`: drop `dto.status` handling and the `status:` change-detection in activity detail. `listId`/`statusId` move handled separately.
 - `move(taskId, { statusId, position })`:
-  - Read the target status's `isDone`. If true, set `doneAt = now()` on the moved task. If false and the *source* status was `isDone`, clear `doneAt`.
+  - Read the target status's `isDone`. If true, set `doneAt = now()` on the moved task. If false and the _source_ status was `isDone`, clear `doneAt`.
   - Activity detail: `moved to "<statusName>"`.
   - Remove the `status` field from the update payload entirely.
 - `archive()` method: **removed**. No archiving.

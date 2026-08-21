@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -118,7 +123,9 @@ export class MembersService {
         where: { boardId, role: 'admin' },
       });
       if (adminCount <= 1) {
-        throw new BadRequestException('Cannot leave as the last admin. Transfer admin role first or delete the board.');
+        throw new BadRequestException(
+          'Cannot leave as the last admin. Transfer admin role first or delete the board.',
+        );
       }
     }
 

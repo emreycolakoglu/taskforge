@@ -1,7 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SubscriptionsService } from './subscriptions.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { createTestPrisma, seedBoard, seedTask, seedUser, seedSubscription } from '../../test/setup';
+import {
+  createTestPrisma,
+  seedBoard,
+  seedTask,
+  seedUser,
+  seedSubscription,
+} from '../../test/setup';
 
 describe('SubscriptionsService', () => {
   let service: SubscriptionsService;
@@ -18,7 +24,9 @@ describe('SubscriptionsService', () => {
     service = module.get<SubscriptionsService>(SubscriptionsService);
   });
 
-  afterAll(async () => { await prisma.$disconnect(); });
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
 
   beforeEach(async () => {
     board = await seedBoard(prisma);
@@ -49,7 +57,9 @@ describe('SubscriptionsService', () => {
     it('is idempotent — duplicate subscribe does not throw or duplicate', async () => {
       await service.subscribe(task.id, user.id);
       const second = await service.subscribe(task.id, user.id);
-      const rows = await prisma.taskSubscription.findMany({ where: { taskId: task.id, userId: user.id } });
+      const rows = await prisma.taskSubscription.findMany({
+        where: { taskId: task.id, userId: user.id },
+      });
       expect(rows).toHaveLength(1);
       expect(second.taskId).toBe(task.id);
     });
@@ -59,7 +69,9 @@ describe('SubscriptionsService', () => {
     it('removes the subscription row', async () => {
       await seedSubscription(prisma, task.id, user.id);
       await service.unsubscribe(task.id, user.id);
-      const rows = await prisma.taskSubscription.findMany({ where: { taskId: task.id, userId: user.id } });
+      const rows = await prisma.taskSubscription.findMany({
+        where: { taskId: task.id, userId: user.id },
+      });
       expect(rows).toHaveLength(0);
     });
 

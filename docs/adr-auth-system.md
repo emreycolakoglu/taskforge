@@ -32,15 +32,15 @@ model User {
 }
 ```
 
-| Field | Type | Constraints | Notes |
-|---|---|---|---|
-| `id` | `String` | PK, `@default(cuid())` | CUID, consistent with existing models |
-| `email` | `String` | `@unique` | Login identifier |
-| `passwordHash` | `String` | — | bcrypt hash, never returned in API responses |
-| `displayName` | `String` | required | Shown in UI, used for task claiming during onboarding |
-| `role` | `String` | `@default("member")` | `"admin"` or `"member"`. Global role, not per-board |
-| `createdAt` | `DateTime` | `@default(now())` | |
-| `updatedAt` | `DateTime` | `@updatedAt` | |
+| Field          | Type       | Constraints            | Notes                                                 |
+| -------------- | ---------- | ---------------------- | ----------------------------------------------------- |
+| `id`           | `String`   | PK, `@default(cuid())` | CUID, consistent with existing models                 |
+| `email`        | `String`   | `@unique`              | Login identifier                                      |
+| `passwordHash` | `String`   | —                      | bcrypt hash, never returned in API responses          |
+| `displayName`  | `String`   | required               | Shown in UI, used for task claiming during onboarding |
+| `role`         | `String`   | `@default("member")`   | `"admin"` or `"member"`. Global role, not per-board   |
+| `createdAt`    | `DateTime` | `@default(now())`      |                                                       |
+| `updatedAt`    | `DateTime` | `@updatedAt`           |                                                       |
 
 **Indexes**: `email` is unique (implicit from `@unique`).
 
@@ -65,16 +65,16 @@ model Session {
 }
 ```
 
-| Field | Type | Constraints | Notes |
-|---|---|---|---|
-| `id` | `String` | PK | |
-| `token` | `String` | `@unique` | `crypto.randomUUID()`-generated bearer token |
-| `userId` | `String` | FK → User.id, `onDelete: Cascade` | |
-| `bot` | `Boolean` | `@default(false)` | Distinguishes human sessions from MCP bot tokens |
-| `label` | `String?` | — | Optional label for bot tokens (e.g., "Claude", "GitHub Actions") |
-| `revokedAt` | `DateTime?` | — | Null = active; non-null = revoked. Logout sets this |
-| `expiresAt` | `DateTime` | — | 90 days from creation for human sessions; configurable for bot tokens |
-| `createdAt` | `DateTime` | `@default(now())` | |
+| Field       | Type        | Constraints                       | Notes                                                                 |
+| ----------- | ----------- | --------------------------------- | --------------------------------------------------------------------- |
+| `id`        | `String`    | PK                                |                                                                       |
+| `token`     | `String`    | `@unique`                         | `crypto.randomUUID()`-generated bearer token                          |
+| `userId`    | `String`    | FK → User.id, `onDelete: Cascade` |                                                                       |
+| `bot`       | `Boolean`   | `@default(false)`                 | Distinguishes human sessions from MCP bot tokens                      |
+| `label`     | `String?`   | —                                 | Optional label for bot tokens (e.g., "Claude", "GitHub Actions")      |
+| `revokedAt` | `DateTime?` | —                                 | Null = active; non-null = revoked. Logout sets this                   |
+| `expiresAt` | `DateTime`  | —                                 | 90 days from creation for human sessions; configurable for bot tokens |
+| `createdAt` | `DateTime`  | `@default(now())`                 |                                                                       |
 
 **Indexes**: `token` (unique, for lookup speed), `userId` (list user's sessions), `expiresAt` (cleanup query).
 
@@ -90,13 +90,13 @@ model Settings {
 }
 ```
 
-| Field | Type | Constraints | Notes |
-|---|---|---|---|
-| `id` | `String` | PK, always `"singleton"` | Single-row table |
-| `title` | `String` | `@default("TaskForge")` | Instance display name from onboarding |
-| `onboarded` | `Boolean` | `@default(false)` | `true` after first admin completes onboarding |
-| `createdAt` | `DateTime` | `@default(now())` | |
-| `updatedAt` | `DateTime` | `@updatedAt` | |
+| Field       | Type       | Constraints              | Notes                                         |
+| ----------- | ---------- | ------------------------ | --------------------------------------------- |
+| `id`        | `String`   | PK, always `"singleton"` | Single-row table                              |
+| `title`     | `String`   | `@default("TaskForge")`  | Instance display name from onboarding         |
+| `onboarded` | `Boolean`  | `@default(false)`        | `true` after first admin completes onboarding |
+| `createdAt` | `DateTime` | `@default(now())`        |                                               |
+| `updatedAt` | `DateTime` | `@updatedAt`             |                                               |
 
 #### InviteToken
 
@@ -118,15 +118,15 @@ model InviteToken {
 }
 ```
 
-| Field | Type | Constraints | Notes |
-|---|---|---|---|
-| `id` | `String` | PK | |
-| `token` | `String` | `@unique` | Random UUID, shareable link token |
-| `createdBy` | `String` | FK → User.id, `onDelete: Cascade` | Admin who created it |
-| `usedBy` | `String?` | FK → User.id, `onDelete: SetNull` | User who used it; null until used |
-| `usedAt` | `DateTime?` | — | When it was used; null until used |
-| `expiresAt` | `DateTime` | — | 7 days from creation by default |
-| `createdAt` | `DateTime` | `@default(now())` | |
+| Field       | Type        | Constraints                       | Notes                             |
+| ----------- | ----------- | --------------------------------- | --------------------------------- |
+| `id`        | `String`    | PK                                |                                   |
+| `token`     | `String`    | `@unique`                         | Random UUID, shareable link token |
+| `createdBy` | `String`    | FK → User.id, `onDelete: Cascade` | Admin who created it              |
+| `usedBy`    | `String?`   | FK → User.id, `onDelete: SetNull` | User who used it; null until used |
+| `usedAt`    | `DateTime?` | —                                 | When it was used; null until used |
+| `expiresAt` | `DateTime`  | —                                 | 7 days from creation by default   |
+| `createdAt` | `DateTime`  | `@default(now())`                 |                                   |
 
 **User model update** — add reverse relations:
 
@@ -257,7 +257,7 @@ model Member {
 @@ -9,6 +9,55 @@
    url      = env("DATABASE_URL")
  }
- 
+
 +model User {
 +  id           String    @id @default(cuid())
 +  email        String    @unique
@@ -322,7 +322,7 @@ model Member {
    name      String
 @@ -36,10 +85,11 @@
  }
- 
+
  model Task {
 -  id          String   @id @default(cuid())
 -  listId      String
@@ -348,7 +348,7 @@ model Member {
 +  metadata    String?
 +  createdAt   DateTime  @default(now())
 +  updatedAt   DateTime  @updatedAt
- 
+
 -  list     List      @relation(fields: [listId], references: [id], onDelete: Cascade)
 -  labels   TaskLabel[]
 -  comments Comment[]
@@ -361,10 +361,10 @@ model Member {
 +
 +  @@index([assigneeId])
  }
- 
+
 @@ -74,13 +124,15 @@
  }
- 
+
  model Comment {
 -  id        String   @id @default(cuid())
 -  taskId    String
@@ -379,14 +379,14 @@ model Member {
 +  body      String
 +  createdAt DateTime @default(now())
 +  updatedAt DateTime @updatedAt
- 
+
 -  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 +  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
 +  author User?  @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
 +
 +  @@index([authorId])
  }
- 
+
  model Activity {
 -  id        String   @id @default(cuid())
 -  taskId    String
@@ -401,23 +401,23 @@ model Member {
 +  action    String
 +  detail    String?
 +  createdAt DateTime @default(now())
- 
+
 -  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
 +  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
 +  actor User? @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
 +
 +  @@index([actorId])
  }
- 
+
  model Member {
    id      String @id @default(cuid())
    boardId String
    userId  String
    role    String @default("member")
- 
+
    board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
 +  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
- 
+
    @@unique([boardId, userId])
 +  @@index([userId])
  }
@@ -482,6 +482,7 @@ or after onboarding:
 Public endpoint. **409 Conflict** if `Settings.onboarded === true`.
 
 Request body:
+
 ```json
 {
   "title": "Acme Task Board",
@@ -493,6 +494,7 @@ Request body:
 ```
 
 Validation:
+
 - `title`: 1–100 chars, required
 - `displayName`: 1–100 chars, required
 - `email`: valid email, required
@@ -500,6 +502,7 @@ Validation:
 - `claimTaskIds`: array of existing task IDs, optional
 
 Server logic:
+
 1. Check `Settings.onboarded` — if true, return 409.
 2. Create Settings singleton row with `title` and `onboarded: true`.
 3. Hash password with bcrypt (cost factor 12).
@@ -510,6 +513,7 @@ Server logic:
 8. Return `{ user, token }`.
 
 Response:
+
 ```json
 {
   "user": {
@@ -554,6 +558,7 @@ The frontend shows these as checkboxes the user can select before submitting the
 Public endpoint.
 
 Request:
+
 ```json
 {
   "email": "alice@example.com",
@@ -562,12 +567,14 @@ Request:
 ```
 
 Server logic:
+
 1. Find User by email (case-insensitive lookup).
 2. Compare password with `bcrypt.compare`.
 3. If match: create a Session with `token = crypto.randomUUID()`, `expiresAt = now + 90 days`, `bot = false`.
 4. If no match: return 401 `{ message: "Invalid credentials" }`.
 
 Response (200):
+
 ```json
 {
   "user": {
@@ -593,6 +600,7 @@ A NestJS guard (`AuthGuard`) that:
 Applied globally via `app.useGlobalGuards(AuthGuard)`, **except** for whitelisted routes:
 
 **Public routes** (no auth required):
+
 - `POST /api/auth/login`
 - `POST /api/auth/onboard`
 - `GET /api/auth/status`
@@ -651,12 +659,14 @@ Auth required, admin only. Request:
 `expiresInDays` defaults to 7. `label` is optional.
 
 Server logic:
+
 1. Verify `request.user.role === "admin"`. 403 if not.
 2. Generate `token = crypto.randomUUID()`.
 3. Create `InviteToken` with `createdBy = user.id`, `expiresAt = now() + expiresInDays days`.
 4. Return the invite token.
 
 Response:
+
 ```json
 {
   "id": "clx...",
@@ -688,6 +698,7 @@ Auth required, admin only. Deletes the invite token.
 Public endpoint.
 
 Request:
+
 ```json
 {
   "token": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
@@ -699,6 +710,7 @@ Request:
 ```
 
 Server logic:
+
 1. Look up `InviteToken` by `token`.
 2. Verify `usedBy IS NULL` and `expiresAt > now()`. If invalid/expired/used, return 400.
 3. Check `email` is not already taken. If taken, return 409.
@@ -715,24 +727,24 @@ Server logic:
 
 ### 5.1 New Endpoints
 
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `GET` | `/api/auth/status` | No | Check if onboarding is needed |
-| `POST` | `/api/auth/onboard` | No | Complete onboarding, create first admin |
-| `GET` | `/api/auth/claimable-tasks` | No | List tasks claimable by displayName |
-| `POST` | `/api/auth/login` | No | Email + password login |
-| `POST` | `/api/auth/signup` | No | Signup with invite token |
-| `GET` | `/api/auth/me` | Yes | Get current user |
-| `POST` | `/api/auth/logout` | Yes | Revoke current session |
-| `POST` | `/api/auth/logout-all` | Yes | Revoke all other sessions |
-| `POST` | `/api/auth/invite` | Admin | Create invite token |
-| `GET` | `/api/auth/invites` | Admin | List invite tokens |
-| `DELETE` | `/api/auth/invite/:id` | Admin | Delete/revoke invite token |
-| `PUT` | `/api/auth/password` | Yes | Change current user's password |
-| `PUT` | `/api/auth/profile` | Yes | Change display name |
-| `POST` | `/api/auth/bot-token` | Admin | Create a bot/MCP session token |
-| `GET` | `/api/settings` | Yes | Get instance settings (title) |
-| `PUT` | `/api/settings` | Admin | Update instance settings |
+| Method   | Path                        | Auth  | Description                             |
+| -------- | --------------------------- | ----- | --------------------------------------- |
+| `GET`    | `/api/auth/status`          | No    | Check if onboarding is needed           |
+| `POST`   | `/api/auth/onboard`         | No    | Complete onboarding, create first admin |
+| `GET`    | `/api/auth/claimable-tasks` | No    | List tasks claimable by displayName     |
+| `POST`   | `/api/auth/login`           | No    | Email + password login                  |
+| `POST`   | `/api/auth/signup`          | No    | Signup with invite token                |
+| `GET`    | `/api/auth/me`              | Yes   | Get current user                        |
+| `POST`   | `/api/auth/logout`          | Yes   | Revoke current session                  |
+| `POST`   | `/api/auth/logout-all`      | Yes   | Revoke all other sessions               |
+| `POST`   | `/api/auth/invite`          | Admin | Create invite token                     |
+| `GET`    | `/api/auth/invites`         | Admin | List invite tokens                      |
+| `DELETE` | `/api/auth/invite/:id`      | Admin | Delete/revoke invite token              |
+| `PUT`    | `/api/auth/password`        | Yes   | Change current user's password          |
+| `PUT`    | `/api/auth/profile`         | Yes   | Change display name                     |
+| `POST`   | `/api/auth/bot-token`       | Admin | Create a bot/MCP session token          |
+| `GET`    | `/api/settings`             | Yes   | Get instance settings (title)           |
+| `PUT`    | `/api/settings`             | Admin | Update instance settings                |
 
 ### 5.2 Request/Response Shapes
 
@@ -741,10 +753,10 @@ Server logic:
 ```typescript
 // Request
 interface OnboardDto {
-  title: string;          // 1-100 chars
-  displayName: string;    // 1-100 chars
-  email: string;          // valid email
-  password: string;       // >= 6 chars
+  title: string; // 1-100 chars
+  displayName: string; // 1-100 chars
+  email: string; // valid email
+  password: string; // >= 6 chars
   claimTaskIds?: string[];
 }
 
@@ -758,7 +770,7 @@ interface UserResponse {
   id: string;
   email: string;
   displayName: string;
-  role: "admin" | "member";
+  role: 'admin' | 'member';
 }
 ```
 
@@ -779,10 +791,10 @@ interface LoginDto {
 ```typescript
 // Request
 interface SignupDto {
-  token: string;          // invite token
+  token: string; // invite token
   displayName: string;
   email: string;
-  password: string;       // >= 6 chars
+  password: string; // >= 6 chars
   claimTaskIds?: string[];
 }
 
@@ -795,7 +807,7 @@ interface SignupDto {
 // Request
 interface ChangePasswordDto {
   currentPassword: string;
-  newPassword: string;     // >= 6 chars
+  newPassword: string; // >= 6 chars
 }
 ```
 
@@ -804,7 +816,7 @@ interface ChangePasswordDto {
 ```typescript
 // Request
 interface UpdateProfileDto {
-  displayName: string;    // 1-100 chars
+  displayName: string; // 1-100 chars
 }
 ```
 
@@ -813,7 +825,7 @@ interface UpdateProfileDto {
 ```typescript
 // Request
 interface CreateBotTokenDto {
-  label?: string;         // e.g., "Claude MCP"
+  label?: string; // e.g., "Claude MCP"
   expiresInDays?: number; // default 365
 }
 
@@ -863,8 +875,8 @@ interface UpdateSettingsDto {
 ```typescript
 interface TaskResponse {
   // ...existing fields...
-  assigneeId: string | null;     // replaces assignee string
-  assignee?: { id: string; displayName: string } | null;  // included when withRelations
+  assigneeId: string | null; // replaces assignee string
+  assignee?: { id: string; displayName: string } | null; // included when withRelations
 }
 ```
 
@@ -875,7 +887,7 @@ interface CommentResponse {
   id: string;
   taskId: string;
   authorId: string | null;
-  author: string;        // "Alice" or "Agent" or "System"
+  author: string; // "Alice" or "Agent" or "System"
   body: string;
   createdAt: string;
   updatedAt: string;
@@ -889,7 +901,7 @@ interface ActivityResponse {
   id: string;
   taskId: string;
   actorId: string | null;
-  actor: string;         // "Alice" or "agent" or "system"
+  actor: string; // "Alice" or "agent" or "system"
   action: string;
   detail: string | null;
   createdAt: string;
@@ -903,7 +915,7 @@ interface MemberResponse {
   id: string;
   boardId: string;
   userId: string;
-  role: "admin" | "member" | "viewer";
+  role: 'admin' | 'member' | 'viewer';
   user?: { id: string; displayName: string; email: string };
 }
 ```
@@ -1018,7 +1030,9 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
 
     // Attach user to socket
     (client as any).user = session.user;
-    client.emit('auth_ok', { user: { id: session.user.id, displayName: session.user.displayName, role: session.user.role } });
+    client.emit('auth_ok', {
+      user: { id: session.user.id, displayName: session.user.displayName, role: session.user.role },
+    });
 
     // Join board rooms as before
     const boardId = client.handshake.query.boardId as string;
@@ -1049,8 +1063,12 @@ The existing Socket.IO client connection needs to:
 ```typescript
 const socket = io('/ws');
 socket.emit('auth', { token: storedToken });
-socket.on('auth_ok', (data) => { /* connected */ });
-socket.on('auth_error', (data) => { /* redirect to login */ });
+socket.on('auth_ok', (data) => {
+  /* connected */
+});
+socket.on('auth_error', (data) => {
+  /* redirect to login */
+});
 ```
 
 ---
@@ -1059,12 +1077,12 @@ socket.on('auth_error', (data) => { /* redirect to login */ });
 
 ### 8.1 New Routes/Pages
 
-| Path | Component | Auth Required | Description |
-|------|-----------|---------------|-------------|
-| `/onboarding` | `OnboardingPage` | No | Onboarding wizard (only accessible when not yet onboarded) |
-| `/login` | `LoginPage` | No | Email + password login form |
-| `/signup/:token` | `SignupPage` | No | Signup with invite token |
-| `/account` | `AccountPage` | Yes | Change display name and password |
+| Path             | Component        | Auth Required | Description                                                |
+| ---------------- | ---------------- | ------------- | ---------------------------------------------------------- |
+| `/onboarding`    | `OnboardingPage` | No            | Onboarding wizard (only accessible when not yet onboarded) |
+| `/login`         | `LoginPage`      | No            | Email + password login form                                |
+| `/signup/:token` | `SignupPage`     | No            | Signup with invite token                                   |
+| `/account`       | `AccountPage`    | Yes           | Change display name and password                           |
 
 ### 8.2 Route Guard — `AuthContext`
 
@@ -1089,12 +1107,62 @@ function App() {
             <Route path="/onboarding" element={<OnboardingPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/signup/:token" element={<SignupPage />} />
-            <Route path="/account" element={<RequireAuth><AccountPage /></RequireAuth>} />
-            <Route path="/" element={<RequireAuth><SidebarLayout><HomePage /></SidebarLayout></RequireAuth>} />
-            <Route path="/board/:id" element={<RequireAuth><SidebarLayout><KanbanBoard /></SidebarLayout></RequireAuth>} />
-            <Route path="/tasks" element={<RequireAuth><SidebarLayout><TasksPage /></SidebarLayout></RequireAuth>} />
-            <Route path="/settings" element={<RequireAuth><SidebarLayout><SettingsPage /></SidebarLayout></RequireAuth>} />
-            <Route path="*" element={<SidebarLayout><NotFoundPage /></SidebarLayout>} />
+            <Route
+              path="/account"
+              element={
+                <RequireAuth>
+                  <AccountPage />
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/"
+              element={
+                <RequireAuth>
+                  <SidebarLayout>
+                    <HomePage />
+                  </SidebarLayout>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/board/:id"
+              element={
+                <RequireAuth>
+                  <SidebarLayout>
+                    <KanbanBoard />
+                  </SidebarLayout>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/tasks"
+              element={
+                <RequireAuth>
+                  <SidebarLayout>
+                    <TasksPage />
+                  </SidebarLayout>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <RequireAuth>
+                  <SidebarLayout>
+                    <SettingsPage />
+                  </SidebarLayout>
+                </RequireAuth>
+              }
+            />
+            <Route
+              path="*"
+              element={
+                <SidebarLayout>
+                  <NotFoundPage />
+                </SidebarLayout>
+              }
+            />
           </Routes>
         </AuthProvider>
       </BrowserRouter>
@@ -1169,28 +1237,28 @@ export interface User {
 
 export interface Task {
   // ...
-  assigneeId?: string;         // was: assignee?: string
-  assignee?: { id: string; displayName: string } | null;  // relation
+  assigneeId?: string; // was: assignee?: string
+  assignee?: { id: string; displayName: string } | null; // relation
   // ...
 }
 
 export interface Comment {
   // ...
-  authorId?: string;           // new
-  author: string;              // kept as display name
+  authorId?: string; // new
+  author: string; // kept as display name
   // ...
 }
 
 export interface Activity {
   // ...
-  actorId?: string | null;     // new
-  actor: string;               // kept as display name
+  actorId?: string | null; // new
+  actor: string; // kept as display name
   // ...
 }
 
 export interface Member {
   // ...
-  user?: { id: string; displayName: string; email: string };  // new
+  user?: { id: string; displayName: string; email: string }; // new
 }
 
 export interface AuthResponse {
@@ -1206,6 +1274,7 @@ export interface AuthResponse {
 ### 9.1 Prisma Migration Steps
 
 1. **Create the migration**:
+
    ```bash
    cd apps/api
    npx prisma migrate dev --name add-auth
@@ -1373,8 +1442,8 @@ settings/
 @Module({
   imports: [
     PrismaModule,
-    AuthModule,      // new
-    SettingsModule,  // new
+    AuthModule, // new
+    SettingsModule, // new
     BoardsModule,
     ListsModule,
     TasksModule,
@@ -1432,16 +1501,16 @@ app.useGlobalGuards(new AuthGuard(reflector));
 
 The `AuthGuard` skips routes decorated with `@Public()`:
 
-| Route | Method | Public? |
-|-------|--------|---------|
-| `/api/auth/status` | GET | Yes |
-| `/api/auth/onboard` | POST | Yes |
-| `/api/auth/login` | POST | Yes |
-| `/api/auth/signup` | POST | Yes |
-| `/api/auth/claimable-tasks` | GET | Yes |
-| `/api/mcp` | POST | No (auth via bearer) |
-| `/api/mcp/jsonrpc` | POST | No (auth via bearer) |
-| All other `/api/*` | * | No |
+| Route                       | Method | Public?              |
+| --------------------------- | ------ | -------------------- |
+| `/api/auth/status`          | GET    | Yes                  |
+| `/api/auth/onboard`         | POST   | Yes                  |
+| `/api/auth/login`           | POST   | Yes                  |
+| `/api/auth/signup`          | POST   | Yes                  |
+| `/api/auth/claimable-tasks` | GET    | Yes                  |
+| `/api/mcp`                  | POST   | No (auth via bearer) |
+| `/api/mcp/jsonrpc`          | POST   | No (auth via bearer) |
+| All other `/api/*`          | *      | No                   |
 
 The `@Public()` decorator uses `SetMetadata('isPublic', true)` and `AuthGuard` checks it via `reflector`.
 
@@ -1571,9 +1640,9 @@ import bcrypt from 'bcryptjs';
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = process.argv.find(a => a.startsWith('--email='))?.split('=')[1];
-  const password = process.argv.find(a => a.startsWith('--password='))?.split('=')[1];
-  const displayName = process.argv.find(a => a.startsWith('--displayName='))?.split('=')[1];
+  const email = process.argv.find((a) => a.startsWith('--email='))?.split('=')[1];
+  const password = process.argv.find((a) => a.startsWith('--password='))?.split('=')[1];
+  const displayName = process.argv.find((a) => a.startsWith('--displayName='))?.split('=')[1];
 
   if (!email || !password || !displayName) {
     console.error('Usage: seed --email=X --password=X --displayName=X');
@@ -1613,29 +1682,29 @@ main().finally(() => prisma.$disconnect());
 
 ### Auth Endpoints
 
-| Method | Path | Auth | Role | Handler |
-|--------|------|------|------|---------|
-| `GET` | `/api/auth/status` | No | — | Check onboarding status |
-| `POST` | `/api/auth/onboard` | No | — | Create first admin + settings |
-| `GET` | `/api/auth/claimable-tasks?displayName=X` | No | — | List claimable tasks |
-| `POST` | `/api/auth/login` | No | — | Login |
-| `POST` | `/api/auth/signup` | No | — | Signup with invite token |
-| `GET` | `/api/auth/me` | Yes | — | Get current user |
-| `POST` | `/api/auth/logout` | Yes | — | Revoke current session |
-| `POST` | `/api/auth/logout-all` | Yes | — | Revoke all other sessions |
-| `PUT` | `/api/auth/password` | Yes | — | Change password |
-| `PUT` | `/api/auth/profile` | Yes | — | Update display name |
-| `POST` | `/api/auth/invite` | Yes | admin | Create invite token |
-| `GET` | `/api/auth/invites` | Yes | admin | List invite tokens |
-| `DELETE` | `/api/auth/invite/:id` | Yes | admin | Delete invite token |
-| `POST` | `/api/auth/bot-token` | Yes | admin | Create MCP bot token |
+| Method   | Path                                      | Auth | Role  | Handler                       |
+| -------- | ----------------------------------------- | ---- | ----- | ----------------------------- |
+| `GET`    | `/api/auth/status`                        | No   | —     | Check onboarding status       |
+| `POST`   | `/api/auth/onboard`                       | No   | —     | Create first admin + settings |
+| `GET`    | `/api/auth/claimable-tasks?displayName=X` | No   | —     | List claimable tasks          |
+| `POST`   | `/api/auth/login`                         | No   | —     | Login                         |
+| `POST`   | `/api/auth/signup`                        | No   | —     | Signup with invite token      |
+| `GET`    | `/api/auth/me`                            | Yes  | —     | Get current user              |
+| `POST`   | `/api/auth/logout`                        | Yes  | —     | Revoke current session        |
+| `POST`   | `/api/auth/logout-all`                    | Yes  | —     | Revoke all other sessions     |
+| `PUT`    | `/api/auth/password`                      | Yes  | —     | Change password               |
+| `PUT`    | `/api/auth/profile`                       | Yes  | —     | Update display name           |
+| `POST`   | `/api/auth/invite`                        | Yes  | admin | Create invite token           |
+| `GET`    | `/api/auth/invites`                       | Yes  | admin | List invite tokens            |
+| `DELETE` | `/api/auth/invite/:id`                    | Yes  | admin | Delete invite token           |
+| `POST`   | `/api/auth/bot-token`                     | Yes  | admin | Create MCP bot token          |
 
 ### Settings Endpoints
 
-| Method | Path | Auth | Role | Handler |
-|--------|------|------|------|---------|
-| `GET` | `/api/settings` | Yes | — | Get instance settings |
-| `PUT` | `/api/settings` | Yes | admin | Update instance settings |
+| Method | Path            | Auth | Role  | Handler                  |
+| ------ | --------------- | ---- | ----- | ------------------------ |
+| `GET`  | `/api/settings` | Yes  | —     | Get instance settings    |
+| `PUT`  | `/api/settings` | Yes  | admin | Update instance settings |
 
 ### Existing Endpoints (Modified)
 
@@ -1645,18 +1714,19 @@ All require authentication. `author`/`assignee` field semantics change as descri
 
 ## Appendix C: Frontend Route Summary
 
-| Path | Component | Auth | Redirect If |
-|------|-----------|------|-------------|
-| `/onboarding` | `OnboardingPage` | No | → `/login` if `onboarded === true` |
-| `/login` | `LoginPage` | No | → `/` if already authenticated |
-| `/signup/:token` | `SignupPage` | No | → `/login` if token invalid |
-| `/` | `HomePage` | Yes | → `/login` if unauthenticated |
-| `/board/:id` | `KanbanBoard` | Yes | → `/login` if unauthenticated |
-| `/tasks` | `TasksPage` | Yes | → `/login` if unauthenticated |
-| `/settings` | `SettingsPage` | Yes | → `/login` if unauthenticated |
-| `/account` | `AccountPage` | Yes | → `/login` if unauthenticated |
+| Path             | Component        | Auth | Redirect If                        |
+| ---------------- | ---------------- | ---- | ---------------------------------- |
+| `/onboarding`    | `OnboardingPage` | No   | → `/login` if `onboarded === true` |
+| `/login`         | `LoginPage`      | No   | → `/` if already authenticated     |
+| `/signup/:token` | `SignupPage`     | No   | → `/login` if token invalid        |
+| `/`              | `HomePage`       | Yes  | → `/login` if unauthenticated      |
+| `/board/:id`     | `KanbanBoard`    | Yes  | → `/login` if unauthenticated      |
+| `/tasks`         | `TasksPage`      | Yes  | → `/login` if unauthenticated      |
+| `/settings`      | `SettingsPage`   | Yes  | → `/login` if unauthenticated      |
+| `/account`       | `AccountPage`    | Yes  | → `/login` if unauthenticated      |
 
 **App startup flow**:
+
 1. `AuthProvider` calls `GET /api/auth/status`.
 2. If `onboarded === false` and no token → redirect to `/onboarding`.
 3. If `onboarded === true` and no token → redirect to `/login`.

@@ -21,7 +21,14 @@ describe('McpServerFactory', () => {
     const relations = new RelationsService(prisma as any, events);
     const subscriptions = new SubscriptionsService(prisma as any);
     const notifications = new NotificationsService(prisma as any, events);
-    const mcpService = new McpService(prisma as any, events, relations, subscriptions, notifications, new DocumentsService(prisma as any, events));
+    const mcpService = new McpService(
+      prisma as any,
+      events,
+      relations,
+      subscriptions,
+      notifications,
+      new DocumentsService(prisma as any, events),
+    );
     factory = new McpServerFactory(mcpService);
   });
 
@@ -56,12 +63,14 @@ describe('McpServerFactory', () => {
       clientTransport.onmessage = (msg) => {
         if ((msg as any).id === 1) resolve(msg);
       };
-      clientTransport.send({
-        jsonrpc: '2.0',
-        id: 1,
-        method: 'tools/list',
-        params: {},
-      } as any).catch(reject);
+      clientTransport
+        .send({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'tools/list',
+          params: {},
+        } as any)
+        .catch(reject);
       setTimeout(() => reject(new Error('tools/list timeout')), 2000);
     });
 
@@ -87,12 +96,14 @@ describe('McpServerFactory', () => {
       clientTransport.onmessage = (msg) => {
         if ((msg as any).id === 10) resolve(msg);
       };
-      clientTransport.send({
-        jsonrpc: '2.0',
-        id: 10,
-        method: 'tools/call',
-        params: { name: 'boards_list', arguments: {} },
-      } as any).catch(reject);
+      clientTransport
+        .send({
+          jsonrpc: '2.0',
+          id: 10,
+          method: 'tools/call',
+          params: { name: 'boards_list', arguments: {} },
+        } as any)
+        .catch(reject);
       setTimeout(() => reject(new Error('tools/call timeout')), 2000);
     });
 

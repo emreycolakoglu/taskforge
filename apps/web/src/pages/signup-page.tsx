@@ -54,8 +54,12 @@ export function SignupPage() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-sm shadow-xl p-6 space-y-4 rounded-xl">
         <CardHeader className="text-center space-y-2 p-0">
-          <CardTitle className="text-lg font-medium tracking-tight text-foreground">Create Account</CardTitle>
-          <CardDescription className="text-sm text-muted-foreground">Accept your invitation to join TaskForge</CardDescription>
+          <CardTitle className="text-lg font-medium tracking-tight text-foreground">
+            Create Account
+          </CardTitle>
+          <CardDescription className="text-sm text-muted-foreground">
+            Accept your invitation to join TaskForge
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
@@ -102,9 +106,7 @@ export function SignupPage() {
                 required
               />
             </div>
-            {error && (
-              <p className="text-sm text-destructive">{error}</p>
-            )}
+            {error && <p className="text-sm text-destructive">{error}</p>}
             <Button type="submit" disabled={submitting} className="w-full mt-2">
               {submitting ? 'Creating account...' : 'Create Account'}
             </Button>

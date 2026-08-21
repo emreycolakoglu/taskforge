@@ -92,8 +92,10 @@ export function useSocket(boardId?: string) {
       ) {
         const doc = eventData as { id?: string; boardId?: string; taskId?: string };
         if (doc.id) queryClient.invalidateQueries({ queryKey: ['documents', doc.id] });
-        if (doc.boardId) queryClient.invalidateQueries({ queryKey: ['documents', 'board', doc.boardId] });
-        if (doc.taskId) queryClient.invalidateQueries({ queryKey: ['documents', 'task', doc.taskId] });
+        if (doc.boardId)
+          queryClient.invalidateQueries({ queryKey: ['documents', 'board', doc.boardId] });
+        if (doc.taskId)
+          queryClient.invalidateQueries({ queryKey: ['documents', 'task', doc.taskId] });
       }
 
       if (

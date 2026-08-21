@@ -12,4 +12,4 @@ export const PREDEFINED_COLORS = [
   '#8b5cf6', // violet
   '#ec4899', // pink
   '#78716c', // stone
-] as const
+] as const;

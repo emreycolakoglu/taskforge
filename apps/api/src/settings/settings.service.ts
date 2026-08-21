@@ -28,7 +28,13 @@ export class SettingsService {
   async getFullSettings() {
     const settings = await this.prisma.settings.findUnique({ where: { id: 'singleton' } });
     if (!settings) {
-      return { id: 'singleton', title: 'TaskForge', onboarded: false, createdAt: null, updatedAt: null };
+      return {
+        id: 'singleton',
+        title: 'TaskForge',
+        onboarded: false,
+        createdAt: null,
+        updatedAt: null,
+      };
     }
     return settings;
   }

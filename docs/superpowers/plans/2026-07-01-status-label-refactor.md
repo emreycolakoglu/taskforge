@@ -82,10 +82,12 @@
 ### Task 1: Prisma schema + migration
 
 **Files:**
+
 - Modify: `apps/api/prisma/schema.prisma`
 - Create: `apps/api/prisma/migrations/<timestamp>_rename_list_to_status_add_is_done_done_at/migration.sql` (generated)
 
 **Interfaces:**
+
 - Produces: `Status` model with `isDone: Boolean @default(false)`; `Task.statusId` relation; `Task.doneAt: DateTime?`; no `Task.status` field. Migration runs via `prisma migrate dev`.
 
 - [ ] **Step 1: Update schema.prisma**
@@ -93,6 +95,7 @@
 Edit `apps/api/prisma/schema.prisma`:
 
 1. Rename the `List` model to `Status`, rename its table map (remove `@@map` if present, or set to `statuses`). Add `isDone Boolean @default(false)` field. Update the `Board.lists` relation to `Board.statuses`:
+
 ```prisma
 model Board {
   // ...existing fields...
@@ -119,6 +122,7 @@ model Status {
 ```
 
 2. In `Task`, rename `listId` → `statusId`, drop the `status` field, add `doneAt DateTime?`, and update the relation:
+
 ```prisma
 model Task {
   id          String    @id @default(cuid())
@@ -145,27 +149,33 @@ model Task {
 - [ ] **Step 2: Generate the migration**
 
 Run from the repo root:
+
 ```bash
 pnpm --filter @taskforge/api prisma:migrate -- --name rename_list_to_status_add_is_done_done_at
 ```
+
 Expected: Prisma generates a migration SQL file under `apps/api/prisma/migrations/`. The SQL will rename the `lists` table → `statuses`, rename `tasks.listId` → `tasks.statusId`, add `statuses.isDone`, drop `tasks.status`, and add `tasks.doneAt`. Prisma regenerates the client automatically.
 
 - [ ] **Step 3: Add backfill SQL to the migration**
 
 Open the generated `migration.sql` and append, at the end, after the structural changes but inside the migration:
+
 ```sql
 -- Backfill: mark the "Done" status in each board as isDone=true, and stamp doneAt on its tasks.
 UPDATE "statuses" SET "isDone" = 1 WHERE "name" = 'Done';
 UPDATE "tasks" SET "doneAt" = "updatedAt" WHERE "statusId" IN (SELECT "id" FROM "statuses" WHERE "isDone" = 1);
 ```
+
 (Note: SQLite stores booleans as 0/1 integers.)
 
 - [ ] **Step 4: Verify the migration applies cleanly**
 
 Run:
+
 ```bash
 pnpm --filter @taskforge/api prisma:migrate
 ```
+
 Expected: migration applies (or is already applied from step 2); no errors. The dev DB at `apps/api/prisma/dev.db` (or wherever `DATABASE_URL` points) now has the `statuses` and updated `tasks` tables.
 
 - [ ] **Step 5: Commit**
@@ -180,14 +190,17 @@ git commit -m "feat(api): rename List→Status schema, drop Task.status, add isD
 ### Task 2: Update test setup helpers
 
 **Files:**
+
 - Modify: `apps/api/test/setup.ts`
 
 **Interfaces:**
+
 - Produces: `seedBoard()` returns a board with `statuses` (the "Done" status has `isDone: true`); `seedTask()` takes `statusId` and no longer sets `status`.
 
 - [ ] **Step 1: Update seedBoard**
 
 In `apps/api/test/setup.ts`, rename `lists` → `statuses` in the `prisma.board.create` call, and set `isDone: true` on the "Done" entry:
+
 ```ts
 export async function seedBoard(prisma: PrismaClient) {
   // ...existing id/identifier logic...
@@ -216,9 +229,20 @@ export async function seedBoard(prisma: PrismaClient) {
 - [ ] **Step 2: Update seedTask**
 
 Rename `listId` → `statusId` in the `seedTask` signature and body, and drop the `status` field from the `prisma.task.create` data. Derive `boardId` from the status if not provided:
+
 ```ts
-export async function seedTask(prisma: PrismaClient, statusId: string, overrides: Record<string, any> = {}) {
-  const { assigneeId, boardId: overrideBoardId, number: overrideNumber, parentId, ...rest } = overrides;
+export async function seedTask(
+  prisma: PrismaClient,
+  statusId: string,
+  overrides: Record<string, any> = {},
+) {
+  const {
+    assigneeId,
+    boardId: overrideBoardId,
+    number: overrideNumber,
+    parentId,
+    ...rest
+  } = overrides;
   let boardId = overrideBoardId;
   if (!boardId) {
     const status = await prisma.status.findUniqueOrThrow({ where: { id: statusId } });
@@ -248,9 +272,11 @@ export async function seedTask(prisma: PrismaClient, statusId: string, overrides
 - [ ] **Step 3: Run a quick sanity check**
 
 Run any single existing API test to confirm the setup compiles and the schema push works:
+
 ```bash
 pnpm --filter @taskforge/api test -- --testPathPattern=boards.service
 ```
+
 Expected: failures (because `boards.service` still references `lists`), but the `createTestPrisma()` + `seedBoard()` + `seedTask()` setup itself should not crash on schema mismatch. If it does crash on schema, fix the setup before proceeding.
 
 - [ ] **Step 4: Commit**
@@ -265,10 +291,12 @@ git commit -m "test(api): rename list→status in seed helpers, drop Task.status
 ### Task 3: Rename `lists` module → `statuses` module (service, controller, DTOs, module)
 
 **Files:**
+
 - Rename dir: `apps/api/src/lists/` → `apps/api/src/statuses/`
 - Rename files inside: `lists.service.ts`→`statuses.service.ts`, `lists.controller.ts`→`statuses.controller.ts`, `lists.module.ts`→`statuses.module.ts`, `lists.service.spec.ts`→`statuses.service.spec.ts`, `dto/list.dto.ts`→`dto/status.dto.ts`
 
 **Interfaces:**
+
 - Produces: `StatusesService` with methods `findByBoard(boardId)`, `findOne(id)`, `create(dto)`, `update(id, dto)`, `reorder(dto)`, `remove(id)`, `toggleDone(boardId, statusId)`, `unsetDone(boardId)`. `StatusesController` at route `api/statuses`. `StatusesModule` exporting the controller + service. Events emit `status:created`, `status:updated`, `status:reordered`, `status:deleted`, `status:doneToggled`.
 
 - [ ] **Step 1: Rename the directory and files**
@@ -285,6 +313,7 @@ git mv apps/api/src/statuses/dto/list.dto.ts apps/api/src/statuses/dto/status.dt
 - [ ] **Step 2: Write the failing test for `toggleDone`**
 
 In `apps/api/src/statuses/statuses.service.spec.ts`, replace the entire file content. Rename `ListsService`→`StatusesService`, `board.lists`→`board.statuses`, "List"→"Status" in strings, and add tests for `toggleDone` and `unsetDone`:
+
 ```ts
 import { Test, TestingModule } from '@nestjs/testing';
 import { StatusesService } from './statuses.service';
@@ -301,14 +330,22 @@ describe('StatusesService', () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     const events = new EventsService();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [StatusesService, { provide: PrismaService, useValue: prisma }, { provide: EventsService, useValue: events }],
+      providers: [
+        StatusesService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: EventsService, useValue: events },
+      ],
     }).compile();
     service = module.get<StatusesService>(StatusesService);
   });
 
-  afterAll(async () => { await prisma.$disconnect(); });
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
 
-  beforeEach(async () => { board = await seedBoard(prisma); });
+  beforeEach(async () => {
+    board = await seedBoard(prisma);
+  });
 
   afterEach(async () => {
     await prisma.taskLabel.deleteMany();
@@ -363,7 +400,10 @@ describe('StatusesService', () => {
 
     it('should create a status with color and wipLimit', async () => {
       const status = await service.create({
-        boardId: board.id, name: 'Blocked', color: '#ef4444', wipLimit: 3,
+        boardId: board.id,
+        name: 'Blocked',
+        color: '#ef4444',
+        wipLimit: 3,
       });
       expect(status.color).toBe('#ef4444');
       expect(status.wipLimit).toBe(3);
@@ -373,7 +413,8 @@ describe('StatusesService', () => {
   describe('update', () => {
     it('should update status name and color', async () => {
       const status = await service.update(board.statuses[0].id, {
-        name: 'Icebox', color: '#000000',
+        name: 'Icebox',
+        color: '#000000',
       });
       expect(status.name).toBe('Icebox');
       expect(status.color).toBe('#000000');
@@ -415,7 +456,9 @@ describe('StatusesService', () => {
       const taskInBacklog = await seedTask(prisma, backlog.id);
       // Move done onto backlog:
       await service.toggleDone(backlog.id);
-      const refreshedBacklogTask = await prisma.task.findUnique({ where: { id: taskInBacklog.id } });
+      const refreshedBacklogTask = await prisma.task.findUnique({
+        where: { id: taskInBacklog.id },
+      });
       const refreshedDoneTask = await prisma.task.findUnique({ where: { id: taskInDone.id } });
       expect(refreshedBacklogTask!.doneAt).not.toBeNull();
       expect(refreshedDoneTask!.doneAt).toBeNull();
@@ -439,14 +482,17 @@ describe('StatusesService', () => {
 - [ ] **Step 3: Run the test to verify it fails**
 
 Run:
+
 ```bash
 pnpm --filter @taskforge/api test -- --testPathPattern=statuses.service
 ```
+
 Expected: FAIL — `StatusesService` not found, `toggleDone`/`unsetDone` not implemented.
 
 - [ ] **Step 4: Implement `StatusesService`**
 
 In `apps/api/src/statuses/statuses.service.ts`, replace the entire file. Note `toggleDone(statusId)` derives `boardId` from the status itself:
+
 ```ts
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -504,7 +550,10 @@ export class StatusesService {
       this.prisma.status.update({ where: { id: item.id }, data: { position: item.position } }),
     );
     const result = await this.prisma.$transaction(updates);
-    const boardId = dto.items.length > 0 ? (await this.prisma.status.findUnique({ where: { id: dto.items[0].id } }))?.boardId : undefined;
+    const boardId =
+      dto.items.length > 0
+        ? (await this.prisma.status.findUnique({ where: { id: dto.items[0].id } }))?.boardId
+        : undefined;
     this.events.emit('status:reordered', result, boardId);
     return result;
   }
@@ -547,6 +596,7 @@ export class StatusesService {
 - [ ] **Step 5: Implement the DTO**
 
 In `apps/api/src/statuses/dto/status.dto.ts`, replace the entire file:
+
 ```ts
 import { IsString, IsOptional, IsNumber, IsArray, IsBoolean } from 'class-validator';
 
@@ -597,6 +647,7 @@ export class ReorderStatusesDto {
 - [ ] **Step 6: Implement the controller**
 
 In `apps/api/src/statuses/statuses.controller.ts`, replace the entire file:
+
 ```ts
 import { Controller, Get, Post, Put, Delete, Param, Body, Req } from '@nestjs/common';
 import { Request } from 'express';
@@ -613,10 +664,14 @@ export class StatusesController {
   constructor(private readonly service: StatusesService) {}
 
   @Get('board/:boardId')
-  findByBoard(@Param('boardId') boardId: string) { return this.service.findByBoard(boardId); }
+  findByBoard(@Param('boardId') boardId: string) {
+    return this.service.findByBoard(boardId);
+  }
 
   @Get(':id')
-  findOne(@Param('id') id: string) { return this.service.findOne(id); }
+  findOne(@Param('id') id: string) {
+    return this.service.findOne(id);
+  }
 
   @Post()
   create(@Body() dto: CreateStatusDto, @Req() req: Request) {
@@ -631,7 +686,9 @@ export class StatusesController {
   }
 
   @Put('reorder')
-  reorder(@Body() dto: ReorderStatusesDto) { return this.service.reorder(dto); }
+  reorder(@Body() dto: ReorderStatusesDto) {
+    return this.service.reorder(dto);
+  }
 
   @Delete(':id')
   remove(@Param('id') id: string, @Req() req: Request) {
@@ -656,6 +713,7 @@ export class StatusesController {
 - [ ] **Step 7: Implement the module**
 
 In `apps/api/src/statuses/statuses.module.ts`, replace the entire file:
+
 ```ts
 import { Module } from '@nestjs/common';
 import { StatusesController } from './statuses.controller';
@@ -672,9 +730,11 @@ export class StatusesModule {}
 - [ ] **Step 8: Run the tests to verify they pass**
 
 Run:
+
 ```bash
 pnpm --filter @taskforge/api test -- --testPathPattern=statuses.service
 ```
+
 Expected: PASS — all `StatusesService` tests green.
 
 - [ ] **Step 9: Commit**
@@ -689,11 +749,13 @@ git commit -m "feat(api): rename lists module→statuses, add toggleDone/unsetDo
 ### Task 4: Wire `StatusesModule` into `AppModule`, remove `ListsModule`
 
 **Files:**
+
 - Modify: `apps/api/src/app.module.ts`
 
 - [ ] **Step 1: Update the import and providers**
 
 In `apps/api/src/app.module.ts`, replace `ListsModule` references:
+
 ```ts
 import { StatusesModule } from './statuses/statuses.module';
 // ...
@@ -706,6 +768,7 @@ import { StatusesModule } from './statuses/statuses.module';
   // ...
 })
 ```
+
 Remove the `import { ListsModule } from './lists/lists.module';` line.
 
 - [ ] **Step 2: Verify the app compiles**
@@ -713,6 +776,7 @@ Remove the `import { ListsModule } from './lists/lists.module';` line.
 ```bash
 pnpm --filter @taskforge/api exec tsc --noEmit
 ```
+
 Expected: no errors related to `ListsModule`. (Other errors from not-yet-updated `tasks.service` etc. are expected at this stage — ignore `list`/`List` errors in those files for now.)
 
 - [ ] **Step 3: Commit**
@@ -727,23 +791,33 @@ git commit -m "feat(api): wire StatusesModule into AppModule"
 ### Task 5: Update `BoardsService` (lists→statuses, drop status filter, seed isDone)
 
 **Files:**
+
 - Modify: `apps/api/src/boards/boards.service.ts`
 - Modify: `apps/api/src/boards/boards.service.spec.ts`
 
 **Interfaces:**
+
 - Produces: `BoardsService.findFull` returns `board.statuses` with all tasks (no `status: 'active'` filter); `BoardsService.create` seeds 5 statuses with `isDone: true` on "Done"; `findAll` counts `statuses` not `lists`.
 
 - [ ] **Step 1: Write the failing test update**
 
 In `apps/api/src/boards/boards.service.spec.ts`, update `lists`→`statuses` throughout. The test "should create a board with 5 default lists" becomes "should create a board with 5 default statuses, Done isDone=true":
+
 ```ts
 it('should create a board with 5 default statuses', async () => {
   const board = await service.create({ name: 'New', slug: 'new', identifier: 'NEW' });
   const statuses = board.statuses;
-  expect(statuses.map((s: any) => s.name)).toEqual(['Backlog', 'To Do', 'In Progress', 'Review', 'Done']);
+  expect(statuses.map((s: any) => s.name)).toEqual([
+    'Backlog',
+    'To Do',
+    'In Progress',
+    'Review',
+    'Done',
+  ]);
   expect(statuses.find((s: any) => s.name === 'Done').isDone).toBe(true);
 });
 ```
+
 Also update any `board.lists.flatMap` → `board.statuses.flatMap` and `board.lists.map` → `board.statuses.map`.
 
 - [ ] **Step 2: Run the test to verify it fails**
@@ -751,11 +825,13 @@ Also update any `board.lists.flatMap` → `board.statuses.flatMap` and `board.li
 ```bash
 pnpm --filter @taskforge/api test -- --testPathPattern=boards.service
 ```
+
 Expected: FAIL.
 
 - [ ] **Step 3: Update `BoardsService`**
 
 In `apps/api/src/boards/boards.service.ts`:
+
 - `findAll`: `_count: { select: { lists: true, members: true } }` → `_count: { select: { statuses: true, members: true } }`.
 - `findOne`: `lists: { ... }` → `statuses: { ... }`.
 - `findFull`: `lists: { ... include: { tasks: { where: { status: 'active' }, ... } } }` → `statuses: { ... include: { tasks: { orderBy: { position: 'asc' }, ... } } }` (drop the `where: { status: 'active' }` entirely). Update the `for (const list of board.lists)` loop → `for (const status of board.statuses) { status.tasks = status.tasks.map(withTaskNumber); }`.
@@ -766,6 +842,7 @@ In `apps/api/src/boards/boards.service.ts`:
 ```bash
 pnpm --filter @taskforge/api test -- --testPathPattern=boards.service
 ```
+
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -780,17 +857,20 @@ git commit -m "feat(api): boards service uses statuses, seeds isDone, drops stat
 ### Task 6: Update `TasksService` (listId→statusId, drop status filters, move stamps doneAt, remove archive)
 
 **Files:**
+
 - Modify: `apps/api/src/tasks/tasks.service.ts`
 - Modify: `apps/api/src/tasks/tasks.controller.ts`
 - Modify: `apps/api/src/tasks/dto/task.dto.ts`
 - Modify: `apps/api/src/tasks/tasks.service.spec.ts`
 
 **Interfaces:**
+
 - Produces: `TasksService.findByStatus(statusId, opts)`, `create(dto)` with `statusId`, `move(id, dto)` stamping `doneAt` based on target `isDone`, `update` without `status`/`listId` (uses `statusId`), `remove` hard-deletes (no archive). `withTaskNumber` reads `task.status?.board`. `MoveTaskDto` has `statusId`.
 
 - [ ] **Step 1: Write the failing test updates**
 
 In `apps/api/src/tasks/tasks.service.spec.ts`:
+
 - Replace all `board.lists[0]` → `board.statuses[0]`, `board.lists[1]` → `board.statuses[1]`, `board.lists[2]` → `board.statuses[2]`.
 - Rename `findByList` describe → `findByStatus`; `service.findByList(...)` → `service.findByStatus(...)`.
 - Drop the "should not return archived tasks" test (no archiving).
@@ -803,6 +883,7 @@ In `apps/api/src/tasks/tasks.service.spec.ts`:
 - Update sub-task tests: all `listId` → `statusId`.
 - Update "remove (archive) a parent → children parentId cleared" test: `service.remove` now hard-deletes. The test should instead verify the parent is gone and children's `parentId` is cleared (or the children are also deleted — depends on `onDelete: SetNull` for `parentId`). Since `parentId` relation is `onDelete: SetNull`, hard-deleting the parent clears `parentId` on children. Update the test to assert the parent task is not found and children have `parentId: null`. Drop the `archived.status` assertion.
 - Add a new test for `doneAt` stamping:
+
 ```ts
 describe('move — doneAt stamping', () => {
   it('moving into an isDone status stamps doneAt', async () => {
@@ -825,7 +906,9 @@ describe('move — doneAt stamping', () => {
   });
 });
 ```
+
 - Add a test that every task is returned regardless of status (no hidden filter):
+
 ```ts
 it('should return all tasks regardless of status (no archive filter)', async () => {
   await seedTask(prisma, board.statuses[0].id);
@@ -840,11 +923,13 @@ it('should return all tasks regardless of status (no archive filter)', async () 
 ```bash
 pnpm --filter @taskforge/api test -- --testPathPattern=tasks.service
 ```
+
 Expected: FAIL.
 
 - [ ] **Step 3: Update the DTO**
 
 In `apps/api/src/tasks/dto/task.dto.ts`:
+
 - `CreateTaskDto.listId` → `statusId`.
 - `UpdateTaskDto.listId` → `statusId`; remove the `status?: string` field.
 - `MoveTaskDto.listId` → `statusId`.
@@ -952,6 +1037,7 @@ export class ReorderTasksDto {
 - [ ] **Step 4: Update `TasksService`**
 
 In `apps/api/src/tasks/tasks.service.ts`:
+
 - `withTaskNumber`: `task.list?.board?.identifier` → `task.status?.board?.identifier`.
 - `findByBoard`: `where: { list: { boardId }, status: 'active' }` → `where: { status: { boardId } }`. `include: { list: true, ... }` → `include: { status: true, ... }`.
 - `findByList(listId, opts)` → `findByStatus(statusId, opts)`: `where: { listId, status: 'active' }` → `where: { statusId }`. `include: { list: { include: { board: true } }, ... }` → `include: { status: { include: { board: true } }, ... }`.
@@ -960,6 +1046,7 @@ In `apps/api/src/tasks/tasks.service.ts`:
 - `create`: `dto.listId` → `dto.statusId` everywhere; `this.prisma.list.findUniqueOrThrow` → `this.prisma.status.findUniqueOrThrow`; `tx.list.findUniqueOrThrow` → `tx.status.findUniqueOrThrow`; `where: { listId: dto.listId }` → `where: { statusId: dto.statusId }`; `data: { listId: dto.listId, ... status: 'active', ... }` → `data: { statusId: dto.statusId, ... }` (drop `status: 'active'`); `include: { ... list: { include: { board: true } } ... }` → `include: { ... status: { include: { board: true } } ... }`; `task.list.boardId` → `task.status.boardId` in the `events.emit`.
 - `update`: drop `if (dto.status !== undefined) changes.status = dto.status;`; `if (dto.listId !== undefined) changes.listId = dto.listId;` → `if (dto.statusId !== undefined) changes.statusId = dto.statusId;`; `include: { ... list: { include: { board: true } } ... }` → `include: { ... status: { include: { board: true } } ... }`; in the activity detail, `if (dto.listId && dto.listId !== existing.listId)` → `if (dto.statusId && dto.statusId !== existing.statusId)` and `this.prisma.list.findUnique` → `this.prisma.status.findUnique`; drop `if (dto.status && dto.status !== existing.status) detail.push(...)`; `task.list.boardId` → `task.status.boardId`.
 - `move`: `where: { listId: dto.listId }` → `where: { statusId: dto.statusId }`; `data: { listId: dto.listId, ... }` → `data: { statusId: dto.statusId, ... }`; add `doneAt` stamping — before the update, read the source and target statuses' `isDone`:
+
 ```ts
 async move(id: string, dto: MoveTaskDto, user?: { id: string; displayName: string }) {
   const existing = await this.findOne(id);
@@ -1006,7 +1093,9 @@ async move(id: string, dto: MoveTaskDto, user?: { id: string; displayName: strin
   return withTaskNumber(task);
 }
 ```
+
 - `remove`: replace the archive logic with a hard delete. Drop the `action: 'archived'` activity and the `status: 'archived'` update. Instead:
+
 ```ts
 async remove(id: string, user?: { id: string; displayName: string }) {
   const task = await this.findOne(id);
@@ -1037,6 +1126,7 @@ async remove(id: string, user?: { id: string; displayName: string }) {
   this.events.emit('task:deleted', { id }, boardId);
 }
 ```
+
 - `attachLabel`/`detachLabel`: `include: { list: { select: { boardId: true } } }` → `include: { status: { select: { boardId: true } } }`; `task.list.boardId` → `task.status.boardId`.
 
 - [ ] **Step 5: Update `TasksController`**
@@ -1048,6 +1138,7 @@ In `apps/api/src/tasks/tasks.controller.ts`: `@Get('list/:listId') findByList(@P
 ```bash
 pnpm --filter @taskforge/api test -- --testPathPattern=tasks.service
 ```
+
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
@@ -1062,10 +1153,12 @@ git commit -m "feat(api): tasks service uses statusId, move stamps doneAt, hard-
 ### Task 7: Update `RelationsService` (drop status from RelationEntry)
 
 **Files:**
+
 - Modify: `apps/api/src/relations/relations.service.ts`
 - Modify: `apps/api/src/relations/relations.service.spec.ts`
 
 **Interfaces:**
+
 - Produces: `RelationEntry.task` no longer has `status`; the `select` clauses on `fromTask`/`toTask` drop `status`.
 
 - [ ] **Step 1: Write the failing test update**
@@ -1077,11 +1170,13 @@ In `apps/api/src/relations/relations.service.spec.ts`, find the assertion `expec
 ```bash
 pnpm --filter @taskforge/api test -- --testPathPattern=relations.service
 ```
+
 Expected: FAIL (type error or assertion failure on `.status`).
 
 - [ ] **Step 3: Update `RelationsService`**
 
 In `apps/api/src/relations/relations.service.ts`:
+
 - `RelationEntry` interface: `task: { id: string; taskNumber: string; title: string; status: string }` → `task: { id: string; taskNumber: string; title: string }`.
 - `entry` helper: drop `status: t.status` from the returned object; drop `status` from the `t` parameter type.
 - `list` method: `fromTask: { select: { ..., status: true, ... } }` → drop `status: true`; same for `toTask`.
@@ -1092,6 +1187,7 @@ In `apps/api/src/relations/relations.service.ts`:
 ```bash
 pnpm --filter @taskforge/api test -- --testPathPattern=relations.service
 ```
+
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -1106,10 +1202,12 @@ git commit -m "feat(api): relations service drops Task.status from RelationEntry
 ### Task 8: Update `NotificationsService` (drop status: branch)
 
 **Files:**
+
 - Modify: `apps/api/src/notifications/notifications.service.ts`
 - Modify: `apps/api/src/notifications/notifications.service.spec.ts`
 
 **Interfaces:**
+
 - Produces: `isNotifying` no longer checks for `status:` changes; `buildSummary` no longer has a `status:` branch. The `archived` action branch is also removed (no archiving).
 
 - [ ] **Step 1: Write the failing test update**
@@ -1121,18 +1219,22 @@ In `apps/api/src/notifications/notifications.service.spec.ts`, find the test `it
 ```bash
 pnpm --filter @taskforge/api test -- --testPathPattern=notifications.service
 ```
+
 Expected: FAIL (missing test or compile error from removed branch).
 
 - [ ] **Step 3: Update `NotificationsService`**
 
 In `apps/api/src/notifications/notifications.service.ts`:
+
 - `isNotifying`: drop the `if (activity.action === 'updated') { ... status: ... }` branch entirely. Drop `if (activity.action === 'archived') return true;`. Keep `if (activity.action === 'commented') return true;`. Add `if (activity.action === 'moved') return true;` so moves notify subscribers (optional — but the old behavior was that moves did NOT notify; keep that: don't add `moved`). Final:
+
 ```ts
 private isNotifying(activity: ActivityInput): boolean {
   if (activity.action === 'commented') return true;
   return false;
 }
 ```
+
 - `buildSummary`: drop the `if (action === 'archived')` branch and the `if (action === 'updated') { ... status: ... }` branch. Keep the `commented` branch and the final fallback.
 
 - [ ] **Step 4: Run the tests to verify they pass**
@@ -1140,6 +1242,7 @@ private isNotifying(activity: ActivityInput): boolean {
 ```bash
 pnpm --filter @taskforge/api test -- --testPathPattern=notifications.service
 ```
+
 Expected: PASS.
 
 - [ ] **Step 5: Commit**
@@ -1154,16 +1257,19 @@ git commit -m "feat(api): notifications drop status: and archived branches"
 ### Task 9: Update `McpService` + tool definitions
 
 **Files:**
+
 - Modify: `apps/api/src/mcp/mcp.service.ts`
 - Modify: `apps/api/src/mcp/tool-definitions.ts`
 - Modify: `apps/api/src/mcp/mcp.service.spec.ts`
 
 **Interfaces:**
+
 - Produces: `handleLists`→`handleStatuses` with `statuses_*` methods + `toggle_done`/`unset_done`; `tasks_*` params use `statusId`; `tasks_list`/`tasks_update` drop `status`; `tasks_move` stamps `doneAt`; `tasks_delete` hard-deletes; `withTaskNumber` uses `task.status?.board`; `activity_list` where uses `status` relation.
 
 - [ ] **Step 1: Write the failing test updates**
 
 In `apps/api/src/mcp/mcp.service.spec.ts`:
+
 - `board.lists[0]` → `board.statuses[0]` everywhere; `board.lists[2]` → `board.statuses[2]`.
 - `params: { listId: board.statuses[0].id, ... }` → `params: { statusId: board.statuses[0].id, ... }`.
 - `'MCP List'` → `'MCP Status'` in the `lists_create` test; method `'lists_create'` → `'statuses_create'`; method `'lists_list'` → `'statuses_list'`.
@@ -1177,16 +1283,19 @@ In `apps/api/src/mcp/mcp.service.spec.ts`:
 ```bash
 pnpm --filter @taskforge/api test -- --testPathPattern=mcp.service
 ```
+
 Expected: FAIL.
 
 - [ ] **Step 3: Update tool definitions**
 
 In `apps/api/src/mcp/tool-definitions.ts`:
+
 - `boards_list` description: "list and member counts" → "status and member counts".
 - `boards_get` description: "lists, tasks, and labels" → "statuses, tasks, and labels".
 - `boards_create` description: "five default lists" → "five default statuses".
 - `boards_delete` description: "lists, tasks, and labels" → "statuses, tasks, and labels".
 - Replace the `lists_*` block with `statuses_*`:
+
 ```ts
 // statuses
 {
@@ -1237,6 +1346,7 @@ In `apps/api/src/mcp/tool-definitions.ts`:
   inputSchema: { boardId: idField('Board') },
 },
 ```
+
 - `tasks_list` description: "List tasks with optional filters. Defaults to active status." → "List tasks with optional filters." Drop `status: z.enum(...)` from `inputSchema`. `listId: optionalId('List')` → `statusId: optionalId('Status')`.
 - `tasks_get` description: "list, board, labels..." → "status, board, labels...".
 - `tasks_create` description: "Create a task in a list." → "Create a task in a status." `listId: idField('List')` → `statusId: idField('Status')`.
@@ -1247,9 +1357,11 @@ In `apps/api/src/mcp/tool-definitions.ts`:
 - [ ] **Step 4: Update `McpService`**
 
 In `apps/api/src/mcp/mcp.service.ts`:
+
 - `withTaskNumber`: `task.list?.board?.identifier` → `task.status?.board?.identifier`.
 - `handleRequest` switch: `case 'lists': result = await this.handleLists(...)` → `case 'statuses': result = await this.handleStatuses(...)`.
 - Rename `handleLists` → `handleStatuses`; inside, `this.prisma.list` → `this.prisma.status`; event names `list:*` → `status:*`; add `case 'toggle_done':` and `case 'unset_done':`:
+
 ```ts
 case 'toggle_done': {
   const target = await this.prisma.status.findUniqueOrThrow({ where: { id: params.id } });
@@ -1277,6 +1389,7 @@ case 'unset_done': {
   return { unset: true };
 }
 ```
+
 - `handleBoards`:
   - `case 'list'`: `_count: { select: { lists: true, members: true } }` → `_count: { select: { statuses: true, members: true } }`.
   - `case 'get'`: `lists: { ... include: { tasks: { where: { status: 'active' }, ... } } }` → `statuses: { ... include: { tasks: { orderBy: { position: 'asc' } } } }` (drop `where`).
@@ -1289,6 +1402,7 @@ case 'unset_done': {
   - `case 'update'`: drop `if (params.status !== undefined) data.status = params.status;`; `if (params.listId !== undefined) data.listId = params.listId;` → `if (params.statusId !== undefined) data.statusId = params.statusId;`; `include: { ... list: ... }` → `include: { ... status: ... }`; in `changes`: `if (params.listId && params.listId !== existing.listId)` → `if (params.statusId && params.statusId !== existing.statusId)`; `this.prisma.list.findUnique` → `this.prisma.status.findUnique`; drop `if (params.status && params.status !== existing.status) changes.push(...)`; `task.list?.boardId` → `task.status?.boardId`.
   - `case 'move'`: add `doneAt` stamping (same logic as `TasksService.move`); `where: { listId: params.listId }` → `where: { statusId: params.statusId }`; `data: { listId: params.listId, ... }` → `data: { statusId: params.statusId, ... }`; `this.prisma.list.findUnique` → `this.prisma.status.findUnique`; `include: { list: ... }` → `include: { status: ... }`; `task.list?.boardId` → `task.status?.boardId`.
   - `case 'delete'`: replace the archive update with a hard delete:
+
 ```ts
 case 'delete': {
   const existingTask = await this.prisma.task.findUnique({
@@ -1301,14 +1415,16 @@ case 'delete': {
   return { deleted: true };
 }
 ```
-  - `handleComments` `case 'create'`: `include: { list: { select: { boardId: true } } }` → `include: { status: { select: { boardId: true } } }`; `task?.list?.boardId` → `task?.status?.boardId`.
-  - `handleActivity` `case 'list'`: `if (params.boardId) where.task = { list: { boardId: params.boardId } };` → `if (params.boardId) where.task = { status: { boardId: params.boardId } };`.
+
+- `handleComments` `case 'create'`: `include: { list: { select: { boardId: true } } }` → `include: { status: { select: { boardId: true } } }`; `task?.list?.boardId` → `task?.status?.boardId`.
+- `handleActivity` `case 'list'`: `if (params.boardId) where.task = { list: { boardId: params.boardId } };` → `if (params.boardId) where.task = { status: { boardId: params.boardId } };`.
 
 - [ ] **Step 5: Run the tests to verify they pass**
 
 ```bash
 pnpm --filter @taskforge/api test -- --testPathPattern=mcp.service
 ```
+
 Expected: PASS.
 
 - [ ] **Step 6: Commit**
@@ -1323,6 +1439,7 @@ git commit -m "feat(api): mcp lists→statuses, drop status filters, move stamps
 ### Task 10: Update remaining API spec files (auth, boards, mcp-transport)
 
 **Files:**
+
 - Modify: `apps/api/src/auth/auth.service.spec.ts`
 - Modify: `apps/api/src/boards/boards.service.spec.ts` (any remaining `lists` references)
 - Verify: `apps/api/src/mcp/mcp-transport.controller.spec.ts` (uses `status` for HTTP status codes — unrelated to `Task.status`; no change needed unless it references `list`/`lists`).
@@ -1340,6 +1457,7 @@ In `apps/api/src/boards/boards.service.spec.ts`, ensure all `board.lists` → `b
 ```bash
 pnpm --filter @taskforge/api test
 ```
+
 Expected: PASS — all API tests green.
 
 - [ ] **Step 4: Commit**
@@ -1354,6 +1472,7 @@ git commit -m "test(api): update remaining specs for list→status rename"
 ### Task 11: API typecheck
 
 **Files:**
+
 - Verify: `apps/api/` compiles.
 
 - [ ] **Step 1: Run tsc**
@@ -1361,6 +1480,7 @@ git commit -m "test(api): update remaining specs for list→status rename"
 ```bash
 pnpm --filter @taskforge/api exec tsc --noEmit
 ```
+
 Expected: no errors. If there are errors, fix them (likely missed `list`→`status` references in files not covered above — grep for `listId`, `\.list\b`, `prisma.list`, `ListsService`, `List` type references in `apps/api/src/`).
 
 - [ ] **Step 2: Grep for stragglers**
@@ -1368,6 +1488,7 @@ Expected: no errors. If there are errors, fix them (likely missed `list`→`stat
 ```bash
 rg -n "listId|prisma\.list|ListsService|ListsModule|ListsController|\bListsService\b" apps/api/src/
 ```
+
 Expected: no matches (or only matches in unrelated contexts like `InviteToken`).
 
 - [ ] **Step 3: Commit if any fixes**
@@ -1382,21 +1503,25 @@ git commit -m "fix(api): clean up remaining list→status references"
 ### Task 12: Web types + api hook
 
 **Files:**
+
 - Modify: `apps/web/src/types/index.ts`
 - Modify: `apps/web/src/types/index.test.ts`
 - Modify: `apps/web/src/hooks/api.ts`
 - Modify: `apps/web/src/hooks/api.test.ts`
 
 **Interfaces:**
+
 - Produces: `Status` interface (with `isDone?: boolean`); `Task.statusId`, `Task.status`, `Task.doneAt`, no `Task.status` union; `Board.statuses`; `RelationEntry.task` without `status`. `api.statuses.*` with `toggleDone`/`unsetDone`; `api.tasks.create`/`move` use `statusId`; `api.tasks.listByList`→`api.tasks.listByStatus`.
 
 - [ ] **Step 1: Update types**
 
 In `apps/web/src/types/index.ts`:
+
 - `Board.lists` → `Board.statuses`; `Board._count.lists` → `Board._count.statuses`.
 - `List` interface → `Status`; add `isDone?: boolean`.
 - `Task.listId` → `Task.statusId`; `Task.list` → `Task.status`; drop `Task.status` union; add `doneAt?: string | null`.
 - `RelationEntry.task`: drop `status: string`.
+
 ```ts
 export interface Board {
   id: string;
@@ -1440,7 +1565,13 @@ export interface Task {
   metadata?: string;
   dueDate?: string;
   parentId?: string | null;
-  parent?: { id: string; number: number; taskNumber?: string; title: string; board?: { identifier: string } } | null;
+  parent?: {
+    id: string;
+    number: number;
+    taskNumber?: string;
+    title: string;
+    board?: { identifier: string };
+  } | null;
   subTasks?: Task[];
   createdAt: string;
   updatedAt: string;
@@ -1470,8 +1601,10 @@ In `apps/web/src/types/index.test.ts`: rename `List`→`Status`, `lists`→`stat
 - [ ] **Step 3: Update `api.ts`**
 
 In `apps/web/src/hooks/api.ts`:
+
 - Import: `List` → `Status`.
 - `api.lists` → `api.statuses`:
+
 ```ts
 statuses: {
   list: (boardId: string) => request<Status[]>(`/statuses/board/${boardId}`),
@@ -1488,6 +1621,7 @@ statuses: {
     request<{ unset: boolean }>(`/statuses/board/${boardId}/unset-done`, { method: 'POST' }),
 },
 ```
+
 - `api.tasks.listByList` → `api.tasks.listByStatus`: `request<Task[]>(\`/tasks/status/${statusId}...\`)`.
 - `api.tasks.create`: `listId` → `statusId` in the data type and JSON body.
 - `api.tasks.move`: `listId` → `statusId` in the data type and JSON body.
@@ -1495,6 +1629,7 @@ statuses: {
 - [ ] **Step 4: Update `api.test.ts`**
 
 In `apps/web/src/hooks/api.test.ts`:
+
 - The "move task" test: `api.tasks.move('t1', { listId: 'l2' })` → `api.tasks.move('t1', { statusId: 's2' })`; `body: JSON.stringify({ listId: 'l2' })` → `body: JSON.stringify({ statusId: 's2' })`; `expect(result.listId).toBe('l2')` → `expect(result.statusId).toBe('s2')`.
 - The "create with parentId" test: `api.tasks.create({ listId: 'l1', title: 'Child', parentId: 'p1' })` → `api.tasks.create({ statusId: 's1', title: 'Child', parentId: 'p1' })`; `body: JSON.stringify({ listId: 'l1', ... })` → `body: JSON.stringify({ statusId: 's1', ... })`.
 - The relations create test: `task: { id: 't2', taskNumber: 'TF-2', title: 'Other', status: 'active' }` → `task: { id: 't2', taskNumber: 'TF-2', title: 'Other' }` (drop `status`).
@@ -1504,6 +1639,7 @@ In `apps/web/src/hooks/api.test.ts`:
 ```bash
 pnpm --filter @taskforge/web test
 ```
+
 Expected: PASS for the types and api tests. (Other web tests may fail until components are updated — that's the next tasks.)
 
 - [ ] **Step 6: Commit**
@@ -1518,11 +1654,13 @@ git commit -m "feat(web): rename List→Status types, api.statuses with toggleDo
 ### Task 13: Update web hooks (use-tasks, use-boards)
 
 **Files:**
+
 - Modify: `apps/web/src/hooks/use-tasks.ts`
 
 - [ ] **Step 1: Update `useMoveTask`**
 
 In `apps/web/src/hooks/use-tasks.ts`, `useMoveTask` mutationFn:
+
 ```ts
 mutationFn: ({ id, data, boardId }: { id: string; data: { statusId: string; position?: number }; boardId: string }) =>
   api.tasks.move(id, data),
@@ -1540,6 +1678,7 @@ git commit -m "feat(web): useMoveTask uses statusId"
 ### Task 14: Delete `DetailStatusSelect`, update `kanban-board` + `board-column`
 
 **Files:**
+
 - Delete: `apps/web/src/components/detail-status-select.tsx`
 - Modify: `apps/web/src/components/kanban-board.tsx`
 - Modify: `apps/web/src/components/board-column.tsx`
@@ -1553,6 +1692,7 @@ git rm apps/web/src/components/detail-status-select.tsx
 - [ ] **Step 2: Update `board-column.tsx`**
 
 In `apps/web/src/components/board-column.tsx`:
+
 - `import type { List } from '@/types'` → `import type { Status } from '@/types'`.
 - `interface BoardColumnProps { list: List; ... onDeleteList: () => void; onEditList: () => void; ... }` → `{ status: Status; ... onDeleteStatus: () => void; onEditStatus: () => void; ... }`.
 - Destructure `status, onDeleteStatus, onEditStatus` instead of `list, onDeleteList, onEditList`.
@@ -1562,6 +1702,7 @@ In `apps/web/src/components/board-column.tsx`:
 - [ ] **Step 3: Update `kanban-board.tsx`**
 
 In `apps/web/src/components/kanban-board.tsx`:
+
 - `const lists = board?.lists || []` → `const statuses = board?.statuses || []`.
 - `const [creatingInList, setCreatingInList]` → `const [creatingInStatus, setCreatingInStatus]`.
 - `const [creatingSubTask, setCreatingSubTask] = useState<{ parentId: string; listId: string; ... }>` → `useState<{ parentId: string; statusId: string; ... }>`.
@@ -1590,6 +1731,7 @@ In `apps/web/src/components/kanban-board.tsx`:
 ```bash
 cd apps/web && npx tsc --noEmit
 ```
+
 Expected: errors in components not yet updated (create-task-dialog, create-task-modal, etc.), but `kanban-board.tsx` and `board-column.tsx` should be clean relative to each other.
 
 - [ ] **Step 5: Commit**
@@ -1604,6 +1746,7 @@ git commit -m "feat(web): kanban-board + board-column use status, delete DetailS
 ### Task 15: Update remaining web components
 
 **Files:**
+
 - Modify: `apps/web/src/components/create-task-dialog.tsx`
 - Modify: `apps/web/src/components/create-task-modal.tsx`
 - Modify: `apps/web/src/components/task-card.tsx`
@@ -1616,6 +1759,7 @@ git commit -m "feat(web): kanban-board + board-column use status, delete DetailS
 - [ ] **Step 1: `create-task-dialog.tsx`**
 
 In `apps/web/src/components/create-task-dialog.tsx`:
+
 - `import type { List, Task, User } from '@/types'` → `import type { Status, Task, User } from '@/types'`.
 - `lists: List[]` → `statuses: Status[]`.
 - `onSubmit: (data: { ... listId: string; ... })` → `onSubmit: (data: { ... statusId: string; ... })`.
@@ -1629,6 +1773,7 @@ In `apps/web/src/components/create-task-dialog.tsx`:
 - [ ] **Step 2: `create-task-modal.tsx`**
 
 In `apps/web/src/components/create-task-modal.tsx`:
+
 - `listId: string` prop → `statusId: string`.
 - Any `listId` usage → `statusId`.
 
@@ -1639,12 +1784,14 @@ In `apps/web/src/components/task-card.tsx`: grep for `list`/`listId` and rename 
 - [ ] **Step 4: `task-detail-view.tsx`**
 
 In `apps/web/src/components/task-detail-view.tsx`:
+
 - `createTask.mutate({ listId: task.listId, title, boardId, parentId: task.id })` → `createTask.mutate({ statusId: task.statusId, title, boardId, parentId: task.id })`.
 - Any other `listId` → `statusId`.
 
 - [ ] **Step 5: `detail-properties-sidebar.tsx`**
 
 In `apps/web/src/components/detail-properties-sidebar.tsx`:
+
 - `const listName = board?.lists?.find((l) => l.id === task.listId)?.name ?? 'Unknown list'` → `const statusName = board?.statuses?.find((s) => s.id === task.statusId)?.name ?? 'Unknown status'`.
 - `<DetailPropertyRow label="List">` → `<DetailPropertyRow label="Status">`.
 - Remove the `<DetailStatusSelect>` usage (the active/done/archived picker) — drop that property row entirely.
@@ -1653,6 +1800,7 @@ In `apps/web/src/components/detail-properties-sidebar.tsx`:
 - [ ] **Step 6: `detail-sub-issues.tsx`**
 
 In `apps/web/src/components/detail-sub-issues.tsx`:
+
 - `listId={task.listId}` → `statusId={task.statusId}`.
 
 - [ ] **Step 7: `label-manager.tsx`**
@@ -1668,6 +1816,7 @@ In `apps/web/src/components/detail-breadcrumb-bar.tsx`, line 6 comment: `Board �
 ```bash
 cd apps/web && npx tsc --noEmit
 ```
+
 Expected: fewer errors; remaining should be in pages not yet updated.
 
 - [ ] **Step 10: Commit**
@@ -1682,6 +1831,7 @@ git commit -m "feat(web): components use status/statusId, drop DetailStatusSelec
 ### Task 16: Update web pages
 
 **Files:**
+
 - Modify: `apps/web/src/pages/task-detail-page.tsx`
 - Modify: `apps/web/src/pages/tasks-page.tsx`
 - Modify: `apps/web/src/pages/board-settings-page.tsx`
@@ -1691,18 +1841,21 @@ git commit -m "feat(web): components use status/statusId, drop DetailStatusSelec
 - [ ] **Step 1: `task-detail-page.tsx`**
 
 In `apps/web/src/pages/task-detail-page.tsx`:
+
 - `const listName = board?.lists?.find((l) => l.id === task.listId)?.name ?? 'Unknown list'` → `const statusName = board?.statuses?.find((s) => s.id === task.statusId)?.name ?? 'Unknown status'`.
 - Any `listName` usage → `statusName`.
 
 - [ ] **Step 2: `tasks-page.tsx`**
 
 In `apps/web/src/pages/tasks-page.tsx`:
+
 - `task.list?.boardId` → `task.status?.boardId`.
 - `task.list` → `task.status`; `task.list.name` → `task.status.name`.
 
 - [ ] **Step 3: `board-settings-page.tsx`**
 
 In `apps/web/src/pages/board-settings-page.tsx`:
+
 - Find the list management section and rename to status management. "Lists" heading → "Statuses". Any `api.lists.*` call → `api.statuses.*`. Any `board.lists` → `board.statuses`.
 - Add a Done toggle control: for each status in the list, show a "Done" badge if `status.isDone`, and a button/menu item to call `api.statuses.toggleDone(status.id)` or `api.statuses.unsetDone(boardId)`. After calling, invalidate the `['boards', id, 'full']` query. Use `toast.success("Done status updated")`.
 
@@ -1717,6 +1870,7 @@ In `apps/web/src/pages/tasks-page.test.tsx`: `listId: 'l1'` → `statusId: 's1'`
 cd apps/web && npx tsc --noEmit
 pnpm --filter @taskforge/web test
 ```
+
 Expected: typecheck clean; tests pass.
 
 - [ ] **Step 6: Commit**
@@ -1731,6 +1885,7 @@ git commit -m "feat(web): pages use statuses, board-settings adds Done toggle"
 ### Task 17: Final verification
 
 **Files:**
+
 - Verify: all tests pass, typecheck clean, build works.
 
 - [ ] **Step 1: Grep for stragglers in web**
@@ -1738,6 +1893,7 @@ git commit -m "feat(web): pages use statuses, board-settings adds Done toggle"
 ```bash
 rg -n "listId|\.list\b|board\.lists|List\b" apps/web/src/ --glob '!*.test.ts' | rg -v "node_modules|ui/tabs|InboxList|TabsList|board-header-bar.*List className|List view|aria-label.*List"
 ```
+
 Expected: no matches (ignore `TabsList`, `InboxList` component names, and the "List" view-mode label in `board-header-bar` which is the view toggle, not the column concept).
 
 - [ ] **Step 2: Full API test suite**
@@ -1745,6 +1901,7 @@ Expected: no matches (ignore `TabsList`, `InboxList` component names, and the "L
 ```bash
 pnpm --filter @taskforge/api test
 ```
+
 Expected: PASS.
 
 - [ ] **Step 3: Full web test suite**
@@ -1752,6 +1909,7 @@ Expected: PASS.
 ```bash
 pnpm --filter @taskforge/web test
 ```
+
 Expected: PASS.
 
 - [ ] **Step 4: API typecheck**
@@ -1759,6 +1917,7 @@ Expected: PASS.
 ```bash
 pnpm --filter @taskforge/api exec tsc --noEmit
 ```
+
 Expected: no errors.
 
 - [ ] **Step 5: Web typecheck**
@@ -1766,6 +1925,7 @@ Expected: no errors.
 ```bash
 cd apps/web && npx tsc --noEmit
 ```
+
 Expected: no errors.
 
 - [ ] **Step 6: Build all**
@@ -1773,6 +1933,7 @@ Expected: no errors.
 ```bash
 pnpm build
 ```
+
 Expected: both apps build successfully.
 
 - [ ] **Step 7: Commit any final fixes**

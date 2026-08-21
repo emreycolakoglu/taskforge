@@ -33,7 +33,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     inputSchema: {
       name: z.string(),
       slug: z.string(),
-      identifier: z.string().optional().describe('Short uppercase prefix for task numbers, e.g. TF'),
+      identifier: z
+        .string()
+        .optional()
+        .describe('Short uppercase prefix for task numbers, e.g. TF'),
       description: z.string().optional(),
     },
   },
@@ -46,12 +49,15 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'boards_update',
     title: 'Update board',
-    description: 'Update a board\'s name, slug, identifier, description, or icon.',
+    description: "Update a board's name, slug, identifier, description, or icon.",
     inputSchema: {
       id: idField('Board'),
       name: z.string().optional(),
       slug: z.string().optional(),
-      identifier: z.string().optional().describe('Short uppercase prefix for task numbers, e.g. TF'),
+      identifier: z
+        .string()
+        .optional()
+        .describe('Short uppercase prefix for task numbers, e.g. TF'),
       description: z.string().optional(),
       icon: z.string().optional().describe('Emoji icon for the board, e.g. ⭐'),
     },
@@ -98,13 +104,15 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'statuses_toggle_done',
     title: 'Toggle Done status',
-    description: 'Set a status as the board\'s Done column. Stamps doneAt on its tasks and clears doneAt on the previous Done status\'s tasks.',
+    description:
+      "Set a status as the board's Done column. Stamps doneAt on its tasks and clears doneAt on the previous Done status's tasks.",
     inputSchema: { id: idField('Status') },
   },
   {
     name: 'statuses_unset_done',
     title: 'Unset Done status',
-    description: 'Clear the board\'s Done column. Clears isDone and doneAt on the current Done status and its tasks.',
+    description:
+      "Clear the board's Done column. Clears isDone and doneAt on the current Done status and its tasks.",
     inputSchema: { boardId: idField('Board') },
   },
 
@@ -117,8 +125,15 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       boardId: optionalId('Board'),
       statusId: optionalId('Status'),
       assigneeId: optionalId('Assignee'),
-      parentId: z.string().nullable().optional().describe('Filter by parent task id; null for top-level tasks only'),
-      include: z.enum(['top', 'sub']).optional().describe('"top" = top-level only, "sub" = sub-tasks only'),
+      parentId: z
+        .string()
+        .nullable()
+        .optional()
+        .describe('Filter by parent task id; null for top-level tasks only'),
+      include: z
+        .enum(['top', 'sub'])
+        .optional()
+        .describe('"top" = top-level only, "sub" = sub-tasks only'),
       limit: z.number().optional(),
     },
   },
@@ -204,7 +219,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'comments_delete',
     title: 'Delete comment',
-    description: 'Delete a comment by its id. Only the author or an admin can delete. Anonymous (MCP bot) comments require admin.',
+    description:
+      'Delete a comment by its id. Only the author or an admin can delete. Anonymous (MCP bot) comments require admin.',
     inputSchema: {
       id: z.string(),
     },
@@ -256,7 +272,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'relations_create',
     title: 'Create relation',
-    description: 'Create a relation between two tasks. direction: "source" = URL task blocks other; "target" = URL task blocked by other. Defaults to "source".',
+    description:
+      'Create a relation between two tasks. direction: "source" = URL task blocks other; "target" = URL task blocked by other. Defaults to "source".',
     inputSchema: {
       taskId: idField('Task'),
       otherTaskId: idField('Other task'),
@@ -281,13 +298,13 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'task_unsubscribe',
     title: 'Unsubscribe from task',
-    description: 'Remove the authenticated user\'s subscription to a task.',
+    description: "Remove the authenticated user's subscription to a task.",
     inputSchema: { taskId: idField('Task') },
   },
   {
     name: 'inbox_list',
     title: 'List inbox notifications',
-    description: 'List the authenticated user\'s inbox notifications, newest first.',
+    description: "List the authenticated user's inbox notifications, newest first.",
     inputSchema: {
       filter: z.enum(['unread', 'all']).optional(),
       limit: z.number().optional(),
@@ -296,7 +313,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'notifications_mark_read',
     title: 'Mark notification(s) read',
-    description: 'Mark a single notification read by id, or all of the user\'s notifications read when id is omitted.',
+    description:
+      "Mark a single notification read by id, or all of the user's notifications read when id is omitted.",
     inputSchema: { id: optionalId('Notification') },
   },
 
@@ -314,7 +332,10 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     inputSchema: {
       boardId: idField('Board'),
       userId: idField('User'),
-      role: z.enum(['admin', 'member', 'viewer']).optional().describe('Role: admin, member, or viewer'),
+      role: z
+        .enum(['admin', 'member', 'viewer'])
+        .optional()
+        .describe('Role: admin, member, or viewer'),
     },
   },
   {
@@ -343,7 +364,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'documents_list',
     title: 'List documents',
-    description: 'List documents for a board or a task, newest first. Excludes bodies. With neither boardId nor taskId, lists every document across all boards.',
+    description:
+      'List documents for a board or a task, newest first. Excludes bodies. With neither boardId nor taskId, lists every document across all boards.',
     inputSchema: {
       boardId: optionalId('Board'),
       taskId: optionalId('Task'),
@@ -384,4 +406,4 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   },
 ];
 
-export const TOOL_NAMES = TOOL_DEFINITIONS.map(t => t.name);
+export const TOOL_NAMES = TOOL_DEFINITIONS.map((t) => t.name);

@@ -23,9 +23,7 @@ function resolveDatabaseUrl(raw: string): string {
   // file:<relative-path> — resolve relative to the schema directory
   if (raw.startsWith('file:')) {
     const relativePath = raw.slice('file:'.length);
-    const absolutePath = isAbsolute(relativePath)
-      ? relativePath
-      : join(SCHEMA_DIR, relativePath);
+    const absolutePath = isAbsolute(relativePath) ? relativePath : join(SCHEMA_DIR, relativePath);
     return pathToFileURL(absolutePath).href;
   }
 

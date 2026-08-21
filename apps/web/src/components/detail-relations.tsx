@@ -7,24 +7,20 @@
  * scale and feels heavy for "add a relation".
  */
 
-import { Button } from "@/components/ui/button";
-import type { RelationEntry, RelationType, Task } from "@/types";
-import { XIcon } from "lucide-react";
-import { DetailAddRelationPopover } from "./detail-add-relation-popover";
+import { Button } from '@/components/ui/button';
+import type { RelationEntry, RelationType, Task } from '@/types';
+import { XIcon } from 'lucide-react';
+import { DetailAddRelationPopover } from './detail-add-relation-popover';
 
 interface DetailRelationsProps {
   relations?: RelationEntry[];
   taskId: string;
   boardId: string;
   boardTasks: Task[];
-  onAdd: (
-    otherTaskId: string,
-    type: RelationType,
-    direction?: "source" | "target",
-  ) => void;
+  onAdd: (otherTaskId: string, type: RelationType, direction?: 'source' | 'target') => void;
   onRemove: (relationId: string) => void;
   onNavigate: (id: string) => void;
-  listType: "related_to" | "blocks-source" | "blocks-target";
+  listType: 'related_to' | 'blocks-source' | 'blocks-target';
 }
 
 export function DetailRelations({
@@ -45,7 +41,7 @@ export function DetailRelations({
       {relations?.map((r) => (
         <div key={r.relationId} className="w-full flex gap-1 items-center">
           <Button
-            variant={"ghost"}
+            variant={'ghost'}
             size="sm"
             className="flex w-full shrink rounded-xl text-left h-6 line-clamp-1 text-ellipsis"
             onClick={() => onNavigate(r.task.id)}
@@ -53,7 +49,7 @@ export function DetailRelations({
             {r.task.title}
           </Button>
           <Button
-            variant={"ghost"}
+            variant={'ghost'}
             size="icon"
             onClick={() => onRemove(r.relationId)}
             className="shrink-0 rounded-2xl p-0 h-6"
@@ -69,12 +65,12 @@ export function DetailRelations({
           onAdd={(id) =>
             onAdd(
               id,
-              listType == "related_to" ? "related_to" : "blocks",
-              listType == "related_to"
+              listType == 'related_to' ? 'related_to' : 'blocks',
+              listType == 'related_to'
                 ? undefined
-                : listType == "blocks-source"
-                  ? "source"
-                  : "target",
+                : listType == 'blocks-source'
+                  ? 'source'
+                  : 'target',
             )
           }
         />

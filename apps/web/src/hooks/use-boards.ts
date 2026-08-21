@@ -30,11 +30,11 @@ export function useCreateBoard() {
     mutationFn: (data: { name: string; slug: string; identifier: string; description?: string }) =>
       api.boards.create(data),
     onSuccess: () => {
-      toast.success("Board created");
+      toast.success('Board created');
       queryClient.invalidateQueries({ queryKey: ['boards'] });
     },
     onError: (error) => {
-      toast.error("Failed to create board", { description: error.message });
+      toast.error('Failed to create board', { description: error.message });
     },
   });
 }
@@ -42,16 +42,15 @@ export function useCreateBoard() {
 export function useUpdateBoard() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Board> }) =>
-      api.boards.update(id, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<Board> }) => api.boards.update(id, data),
     onSuccess: (_data, variables) => {
-      toast.success("Board updated");
+      toast.success('Board updated');
       queryClient.invalidateQueries({ queryKey: ['boards'] });
       queryClient.invalidateQueries({ queryKey: ['boards', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['boards', variables.id, 'full'] });
     },
     onError: (error) => {
-      toast.error("Failed to update board", { description: error.message });
+      toast.error('Failed to update board', { description: error.message });
     },
   });
 }
@@ -61,11 +60,11 @@ export function useDeleteBoard() {
   return useMutation({
     mutationFn: (id: string) => api.boards.delete(id),
     onSuccess: () => {
-      toast.success("Board deleted");
+      toast.success('Board deleted');
       queryClient.invalidateQueries({ queryKey: ['boards'] });
     },
     onError: (error) => {
-      toast.error("Failed to delete board", { description: error.message });
+      toast.error('Failed to delete board', { description: error.message });
     },
   });
 }

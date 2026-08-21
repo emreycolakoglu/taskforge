@@ -43,16 +43,16 @@ New NestJS domain module `apps/api/src/documents/` with `controller.ts`, `servic
 
 ### REST routes
 
-| Method | Route | Purpose |
-| --- | --- | --- |
-| `GET` | `/api/boards/:boardId/documents` | Board docs index — id, number, docNumber, taskNumber, title, updatedAt. Body excluded. |
-| `GET` | `/api/tasks/:taskId/documents` | Docs for one task, newest first. |
-| `POST` | `/api/tasks/:taskId/documents` | Create (title, body). Assigns next doc number in a transaction. |
-| `GET` | `/api/documents/:id` | Single doc, includes body + taskNumber + board identifier. |
-| `PUT` | `/api/documents/:id` | Update title/body (full replace — autosave-friendly). |
-| `DELETE` | `/api/documents/:id` | Delete. |
-| `PUT` | `/api/documents/:id/publish` | Publish. `assertNotBot`, same rule as tasks. |
-| `DELETE` | `/api/documents/:id/publish` | Unpublish. `assertNotBot`. |
+| Method   | Route                            | Purpose                                                                                |
+| -------- | -------------------------------- | -------------------------------------------------------------------------------------- |
+| `GET`    | `/api/boards/:boardId/documents` | Board docs index — id, number, docNumber, taskNumber, title, updatedAt. Body excluded. |
+| `GET`    | `/api/tasks/:taskId/documents`   | Docs for one task, newest first.                                                       |
+| `POST`   | `/api/tasks/:taskId/documents`   | Create (title, body). Assigns next doc number in a transaction.                        |
+| `GET`    | `/api/documents/:id`             | Single doc, includes body + taskNumber + board identifier.                             |
+| `PUT`    | `/api/documents/:id`             | Update title/body (full replace — autosave-friendly).                                  |
+| `DELETE` | `/api/documents/:id`             | Delete.                                                                                |
+| `PUT`    | `/api/documents/:id/publish`     | Publish. `assertNotBot`, same rule as tasks.                                           |
+| `DELETE` | `/api/documents/:id/publish`     | Unpublish. `assertNotBot`.                                                             |
 
 `GET /api/documents/:id` also returns the linked task's `taskNumber` (e.g. `TFG-12`) so the editor can show a "back to task" link.
 
@@ -63,6 +63,7 @@ Deliberately **not** a field on the update DTO and **not** an MCP tool. Same rat
 ### Activity & notifications
 
 Creating/updating/deleting a document writes an `Activity` row on the linked task:
+
 - `action: 'doc_created'` / `'doc_updated'` / `'doc_deleted'`, `detail` carries the doc title.
 
 No notifications are dispatched. This matches the agreed scope (activity yes, notifications no).
@@ -75,13 +76,13 @@ No notifications are dispatched. This matches the agreed scope (activity yes, no
 
 New `documents_*` tools in `mcp.service.ts` (`handleDocuments`) and `tool-definitions.ts`:
 
-| Tool | Input | Notes |
-| --- | --- | --- |
-| `documents_list` | `boardId` *or* `taskId`, `limit?` | List excludes bodies by default. |
-| `documents_get` | `id` | Full body + task info. |
-| `documents_create` | `taskId`, `title`, `body?` | Writes `doc_created` activity. |
-| `documents_update` | `id`, `title?`, `body?` | Writes `doc_updated` activity if changed. |
-| `documents_delete` | `id` | Writes `doc_deleted` activity. |
+| Tool               | Input                             | Notes                                     |
+| ------------------ | --------------------------------- | ----------------------------------------- |
+| `documents_list`   | `boardId` _or_ `taskId`, `limit?` | List excludes bodies by default.          |
+| `documents_get`    | `id`                              | Full body + task info.                    |
+| `documents_create` | `taskId`, `title`, `body?`        | Writes `doc_created` activity.            |
+| `documents_update` | `id`, `title?`, `body?`           | Writes `doc_updated` activity if changed. |
+| `documents_delete` | `id`                              | Writes `doc_deleted` activity.            |
 
 No publish tool. MCP handlers write activity rows and emit the same events as REST.
 

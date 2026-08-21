@@ -1,25 +1,25 @@
-import { useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
-import { Bell } from 'lucide-react'
-import { useNotifications, useMarkRead, useMarkAllRead } from '@/hooks/use-notifications'
-import { InboxList } from '@/components/inbox-list'
-import { InboxTaskDetail } from '@/components/inbox-task-detail'
-import type { Notification } from '@/types'
+import { useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { Bell } from 'lucide-react';
+import { useNotifications, useMarkRead, useMarkAllRead } from '@/hooks/use-notifications';
+import { InboxList } from '@/components/inbox-list';
+import { InboxTaskDetail } from '@/components/inbox-task-detail';
+import type { Notification } from '@/types';
 
 export function InboxPage() {
-  const { notificationId } = useParams<{ notificationId: string }>()
-  const navigate = useNavigate()
-  const { data: notifications = [] } = useNotifications('all')
-  const markRead = useMarkRead()
-  const markAllRead = useMarkAllRead()
+  const { notificationId } = useParams<{ notificationId: string }>();
+  const navigate = useNavigate();
+  const { data: notifications = [] } = useNotifications('all');
+  const markRead = useMarkRead();
+  const markAllRead = useMarkAllRead();
 
-  const selected = notifications.find((n) => n.id === notificationId) ?? null
+  const selected = notifications.find((n) => n.id === notificationId) ?? null;
 
   useEffect(() => {
     if (selected && selected.readAt === null) {
-      markRead.mutate(selected.id)
+      markRead.mutate(selected.id);
     }
-  }, [selected, markRead])
+  }, [selected, markRead]);
 
   return (
     <div className="flex flex-1 min-h-0">
@@ -30,10 +30,7 @@ export function InboxPage() {
         onMarkAllRead={() => markAllRead.mutate()}
       />
       {selected ? (
-        <InboxTaskDetail
-          notification={selected}
-          onNavigateTask={() => {}}
-        />
+        <InboxTaskDetail notification={selected} onNavigateTask={() => {}} />
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center text-muted-foreground">
           <Bell className="size-6 mb-3 opacity-40" />
@@ -41,5 +38,5 @@ export function InboxPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

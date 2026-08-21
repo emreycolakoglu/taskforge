@@ -7,8 +7,8 @@
  * - updates when viewport crosses the breakpoint
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook } from '@testing-library/react';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -27,8 +27,7 @@ function createMatchMediaMock(width: number) {
       onchange: null,
       addListener: vi.fn(),
       removeListener: vi.fn(),
-      addEventListener: (_event: string, listener: MatchMediaListener) =>
-        listeners.add(listener),
+      addEventListener: (_event: string, listener: MatchMediaListener) => listeners.add(listener),
       removeEventListener: (_event: string, listener: MatchMediaListener) =>
         listeners.delete(listener),
       dispatchEvent: vi.fn(),
@@ -36,38 +35,38 @@ function createMatchMediaMock(width: number) {
   };
 }
 
-describe("useIsMobile (TFG-13)", () => {
+describe('useIsMobile (TFG-13)', () => {
   const original = window.matchMedia;
 
   afterEach(() => {
     window.matchMedia = original;
   });
 
-  it("returns false when viewport is at desktop width (1024px)", async () => {
+  it('returns false when viewport is at desktop width (1024px)', async () => {
     window.matchMedia = createMatchMediaMock(1024) as typeof window.matchMedia;
-    const { useIsMobile } = await import("./use-mobile");
+    const { useIsMobile } = await import('./use-mobile');
     const { result } = renderHook(() => useIsMobile());
     expect(result.current).toBe(false);
   });
 
-  it("returns true when viewport is at mobile width (375px)", async () => {
+  it('returns true when viewport is at mobile width (375px)', async () => {
     window.matchMedia = createMatchMediaMock(375) as typeof window.matchMedia;
-    const { useIsMobile } = await import("./use-mobile");
+    const { useIsMobile } = await import('./use-mobile');
     const { result } = renderHook(() => useIsMobile());
     expect(result.current).toBe(true);
   });
 
-  it("returns false at exactly the breakpoint (768px)", async () => {
+  it('returns false at exactly the breakpoint (768px)', async () => {
     // 768 is md, not mobile — useIsMobile uses max-width: 767px
     window.matchMedia = createMatchMediaMock(768) as typeof window.matchMedia;
-    const { useIsMobile } = await import("./use-mobile");
+    const { useIsMobile } = await import('./use-mobile');
     const { result } = renderHook(() => useIsMobile());
     expect(result.current).toBe(false);
   });
 
-  it("returns true just below the breakpoint (767px)", async () => {
+  it('returns true just below the breakpoint (767px)', async () => {
     window.matchMedia = createMatchMediaMock(767) as typeof window.matchMedia;
-    const { useIsMobile } = await import("./use-mobile");
+    const { useIsMobile } = await import('./use-mobile');
     const { result } = renderHook(() => useIsMobile());
     expect(result.current).toBe(true);
   });

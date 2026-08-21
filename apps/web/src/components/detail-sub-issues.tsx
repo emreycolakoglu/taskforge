@@ -10,12 +10,12 @@
  * an existing task to add as a related issue.
  */
 
-import { useState, useCallback, useRef } from 'react'
-import { Plus, Search, Link } from 'lucide-react'
-import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { useState, useCallback, useRef } from 'react';
+import { Plus, Search, Link } from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import {
   Command,
   CommandInput,
@@ -23,64 +23,78 @@ import {
   CommandEmpty,
   CommandGroup,
   CommandItem,
-} from '@/components/ui/command'
-import { QuickAddInput } from './quick-add-input'
-import { api } from '@/hooks/api'
-import type { Task } from '@/types'
+} from '@/components/ui/command';
+import { QuickAddInput } from './quick-add-input';
+import { api } from '@/hooks/api';
+import type { Task } from '@/types';
 
 interface DetailSubIssuesProps {
-  task: Task
-  boardId: string
-  onNavigate: (id: string) => void
-  onCreateSubTask: (title: string) => void
-  onAddRelation: (otherTaskId: string) => void
+  task: Task;
+  boardId: string;
+  onNavigate: (id: string) => void;
+  onCreateSubTask: (title: string) => void;
+  onAddRelation: (otherTaskId: string) => void;
 }
 
-export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateSubTask, onAddRelation }: DetailSubIssuesProps) {
-  const [adding, setAdding] = useState(false)
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [searchResults, setSearchResults] = useState<Task[]>([])
-  const [searching, setSearching] = useState(false)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+export function DetailSubIssues({
+  task,
+  boardId: _boardId,
+  onNavigate,
+  onCreateSubTask,
+  onAddRelation,
+}: DetailSubIssuesProps) {
+  const [adding, setAdding] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<Task[]>([]);
+  const [searching, setSearching] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const subTasks = task.subTasks ?? []
-  const subTaskIds = new Set(subTasks.map((st) => st.id))
+  const subTasks = task.subTasks ?? [];
+  const subTaskIds = new Set(subTasks.map((st) => st.id));
 
-  const handleSearch = useCallback((q: string) => {
-    setSearchQuery(q)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
+  const handleSearch = useCallback(
+    (q: string) => {
+      setSearchQuery(q);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
 
-    if (!q.trim()) {
-      setSearchResults([])
-      return
-    }
-
-    setSearching(true)
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const results = await api.tasks.search(q.trim())
-        // Exclude the current task and its existing sub-tasks
-        setSearchResults(results.filter((r) => r.id !== task.id && !subTaskIds.has(r.id)))
-      } catch {
-        // Silently fail — search is best-effort
-      } finally {
-        setSearching(false)
+      if (!q.trim()) {
+        setSearchResults([]);
+        return;
       }
-    }, 300)
-  }, [task.id, subTaskIds])
 
-  const handleAddRelated = useCallback(async (selectedTaskId: string) => {
-    try {
-      onAddRelation(selectedTaskId)
-      toast.success('Related issue added')
-      setSearchOpen(false)
-      setSearchQuery('')
-      setSearchResults([])
-    } catch (err) {
-      toast.error('Failed to add related issue', { description: err instanceof Error ? err.message : undefined })
-    }
-  }, [onAddRelation])
+      setSearching(true);
+      debounceRef.current = setTimeout(async () => {
+        try {
+          const results = await api.tasks.search(q.trim());
+          // Exclude the current task and its existing sub-tasks
+          setSearchResults(results.filter((r) => r.id !== task.id && !subTaskIds.has(r.id)));
+        } catch {
+          // Silently fail — search is best-effort
+        } finally {
+          setSearching(false);
+        }
+      }, 300);
+    },
+    [task.id, subTaskIds],
+  );
+
+  const handleAddRelated = useCallback(
+    async (selectedTaskId: string) => {
+      try {
+        onAddRelation(selectedTaskId);
+        toast.success('Related issue added');
+        setSearchOpen(false);
+        setSearchQuery('');
+        setSearchResults([]);
+      } catch (err) {
+        toast.error('Failed to add related issue', {
+          description: err instanceof Error ? err.message : undefined,
+        });
+      }
+    },
+    [onAddRelation],
+  );
 
   return (
     <section id="sub-issues" className="space-y-2">
@@ -98,10 +112,14 @@ export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateS
             onClick={() => onNavigate(st.id)}
           >
             {st.taskNumber && (
-              <span className="text-xs text-muted-foreground font-mono shrink-0">{st.taskNumber}</span>
+              <span className="text-xs text-muted-foreground font-mono shrink-0">
+                {st.taskNumber}
+              </span>
             )}
             <span className="text-sm text-foreground truncate flex-1">{st.title}</span>
-            <Badge variant="secondary" className="text-[10px] shrink-0">{st.status?.name ?? '—'}</Badge>
+            <Badge variant="secondary" className="text-[10px] shrink-0">
+              {st.status?.name ?? '—'}
+            </Badge>
           </div>
         ))}
         {subTasks.length === 0 && !adding && (
@@ -113,8 +131,8 @@ export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateS
             parentId={task.id}
             parentTaskNumber={task.taskNumber}
             onSubmit={(title) => {
-              onCreateSubTask(title)
-              setAdding(false)
+              onCreateSubTask(title);
+              setAdding(false);
             }}
             onClose={() => setAdding(false)}
           />
@@ -143,13 +161,16 @@ export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateS
       </div>
 
       {/* CMDK search dialog for linking existing tasks */}
-      <Dialog open={searchOpen} onOpenChange={(open) => {
-        setSearchOpen(open)
-        if (!open) {
-          setSearchQuery('')
-          setSearchResults([])
-        }
-      }}>
+      <Dialog
+        open={searchOpen}
+        onOpenChange={(open) => {
+          setSearchOpen(open);
+          if (!open) {
+            setSearchQuery('');
+            setSearchResults([]);
+          }
+        }}
+      >
         <DialogContent className="p-0 gap-0 max-w-lg">
           <DialogHeader className="sr-only">
             <DialogTitle>Add related issue</DialogTitle>
@@ -163,7 +184,11 @@ export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateS
             />
             <CommandList>
               <CommandEmpty>
-                {searching ? 'Searching...' : searchQuery ? 'No tasks found' : 'Type to search tasks'}
+                {searching
+                  ? 'Searching...'
+                  : searchQuery
+                    ? 'No tasks found'
+                    : 'Type to search tasks'}
               </CommandEmpty>
               {searchResults.length > 0 && (
                 <CommandGroup heading="Results">
@@ -192,5 +217,5 @@ export function DetailSubIssues({ task, boardId: _boardId, onNavigate, onCreateS
         </DialogContent>
       </Dialog>
     </section>
-  )
+  );
 }

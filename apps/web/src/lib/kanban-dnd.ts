@@ -1,5 +1,5 @@
-import type { DropResult } from '@hello-pangea/dnd'
-import type { Status } from '@/types'
+import type { DropResult } from '@hello-pangea/dnd';
+import type { Status } from '@/types';
 
 /**
  * Result of computing a drag-and-drop move against the current board columns.
@@ -15,11 +15,11 @@ import type { Status } from '@/types'
  */
 export type MovePlan =
   | { kind: 'reorder'; statuses: Status[]; items: { id: string; position: number }[] }
-  | { kind: 'move'; statuses: Status[]; taskId: string; statusId: string; position: number }
+  | { kind: 'move'; statuses: Status[]; taskId: string; statusId: string; position: number };
 
 /** Shallow-clone the columns so we never mutate the cached query data. */
 function cloneStatuses(statuses: Status[]): Status[] {
-  return statuses.map((s) => ({ ...s, tasks: s.tasks ? [...s.tasks] : s.tasks }))
+  return statuses.map((s) => ({ ...s, tasks: s.tasks ? [...s.tasks] : s.tasks }));
 }
 
 /**
@@ -39,14 +39,14 @@ function fullInsertIndex(
   visibleIdsWithoutMoved: string[],
   destinationIndex: number,
 ): number {
-  const tasks = fullTasks ?? []
-  const anchorId = visibleIdsWithoutMoved[destinationIndex]
+  const tasks = fullTasks ?? [];
+  const anchorId = visibleIdsWithoutMoved[destinationIndex];
   if (anchorId !== undefined) {
-    return tasks.findIndex((t) => t.id === anchorId)
+    return tasks.findIndex((t) => t.id === anchorId);
   }
-  const lastVisibleId = visibleIdsWithoutMoved[visibleIdsWithoutMoved.length - 1]
-  if (lastVisibleId === undefined) return tasks.length
-  return tasks.findIndex((t) => t.id === lastVisibleId) + 1
+  const lastVisibleId = visibleIdsWithoutMoved[visibleIdsWithoutMoved.length - 1];
+  if (lastVisibleId === undefined) return tasks.length;
+  return tasks.findIndex((t) => t.id === lastVisibleId) + 1;
 }
 
 /**
@@ -62,50 +62,56 @@ export function planTaskMove(
   filteredStatuses: Status[],
   result: DropResult,
 ): MovePlan | null {
-  const { draggableId, source, destination } = result
-  if (!destination) return null
+  const { draggableId, source, destination } = result;
+  if (!destination) return null;
 
-  const sameColumn = source.droppableId === destination.droppableId
-  if (sameColumn && source.index === destination.index) return null
+  const sameColumn = source.droppableId === destination.droppableId;
+  if (sameColumn && source.index === destination.index) return null;
 
-  const next = cloneStatuses(statuses)
-  const sourceCol = next.find((s) => s.id === source.droppableId)
-  const targetCol = next.find((s) => s.id === destination.droppableId)
-  if (!sourceCol?.tasks || !targetCol) return null
-  if (!targetCol.tasks) targetCol.tasks = []
+  const next = cloneStatuses(statuses);
+  const sourceCol = next.find((s) => s.id === source.droppableId);
+  const targetCol = next.find((s) => s.id === destination.droppableId);
+  if (!sourceCol?.tasks || !targetCol) return null;
+  if (!targetCol.tasks) targetCol.tasks = [];
 
   // Identify the dragged task by id (robust to filtering) and pull it out.
-  const fromIndex = sourceCol.tasks.findIndex((t) => t.id === draggableId)
-  if (fromIndex === -1) return null
-  const [moved] = sourceCol.tasks.splice(fromIndex, 1)
+  const fromIndex = sourceCol.tasks.findIndex((t) => t.id === draggableId);
+  if (fromIndex === -1) return null;
+  const [moved] = sourceCol.tasks.splice(fromIndex, 1);
 
   // Visible target tasks, excluding the dragged one, in render order.
   const visibleIdsWithoutMoved = (
     filteredStatuses.find((s) => s.id === destination.droppableId)?.tasks ?? []
   )
     .filter((t) => t.id !== draggableId)
-    .map((t) => t.id)
+    .map((t) => t.id);
 
-  const insertAt = fullInsertIndex(targetCol.tasks, visibleIdsWithoutMoved, destination.index)
+  const insertAt = fullInsertIndex(targetCol.tasks, visibleIdsWithoutMoved, destination.index);
 
   if (sameColumn) {
     // `sourceCol` and `targetCol` are the same array; `moved` is already removed.
-    targetCol.tasks.splice(insertAt, 0, moved)
-    const items = targetCol.tasks.map((t, i) => ({ id: t.id, position: i }))
-    return { kind: 'reorder', statuses: next, items }
+    targetCol.tasks.splice(insertAt, 0, moved);
+    const items = targetCol.tasks.map((t, i) => ({ id: t.id, position: i }));
+    return { kind: 'reorder', statuses: next, items };
   }
 
   // Cross-column: derive a target position from the neighbours (matching the
   // backend's non-reshuffling `move` semantics) before inserting.
-  const targetTasks = targetCol.tasks
+  const targetTasks = targetCol.tasks;
   const position =
     insertAt < targetTasks.length
       ? targetTasks[insertAt].position
       : targetTasks.length > 0
         ? targetTasks[targetTasks.length - 1].position + 1
-        : 0
+        : 0;
 
-  targetTasks.splice(insertAt, 0, { ...moved, statusId: destination.droppableId })
+  targetTasks.splice(insertAt, 0, { ...moved, statusId: destination.droppableId });
 
-  return { kind: 'move', statuses: next, taskId: draggableId, statusId: destination.droppableId, position }
+  return {
+    kind: 'move',
+    statuses: next,
+    taskId: draggableId,
+    statusId: destination.droppableId,
+    position,
+  };
 }

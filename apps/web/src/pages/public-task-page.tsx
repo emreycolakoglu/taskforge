@@ -18,18 +18,18 @@
  * border-defined edges, mono for the task ID, Inter weights capped at 590.
  */
 
-import { useQuery } from "@tanstack/react-query";
-import { useParams } from "react-router-dom";
-import { fetchPublicTask, PublicTaskNotFoundError } from "@/hooks/public-api";
-import { MarkdownEditor } from "@/components/markdown";
-import { LabelPill } from "@/components/label-pill";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useQuery } from '@tanstack/react-query';
+import { useParams } from 'react-router-dom';
+import { fetchPublicTask, PublicTaskNotFoundError } from '@/hooks/public-api';
+import { MarkdownEditor } from '@/components/markdown';
+import { LabelPill } from '@/components/label-pill';
+import { Skeleton } from '@/components/ui/skeleton';
 
 function formatTimestamp(value: string): string {
   return new Date(value).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
   });
 }
 
@@ -69,10 +69,9 @@ export function PublicTaskPage() {
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["public-task", identifier, number],
+    queryKey: ['public-task', identifier, number],
     queryFn: () => fetchPublicTask(identifier!, number!),
-    retry: (failureCount, err) =>
-      !(err instanceof PublicTaskNotFoundError) && failureCount < 1,
+    retry: (failureCount, err) => !(err instanceof PublicTaskNotFoundError) && failureCount < 1,
   });
 
   if (isLoading) {
@@ -95,18 +94,14 @@ export function PublicTaskPage() {
   return (
     <div className="min-h-screen bg-background">
       <header className="flex h-11 items-center gap-2 border-b border-border bg-secondary px-6">
-        <span className="font-mono text-xs text-foreground">
-          {task.taskNumber}
-        </span>
+        <span className="font-mono text-xs text-foreground">{task.taskNumber}</span>
         <span className="text-muted-foreground/50">›</span>
         <StatusPill status={task.status} />
       </header>
 
       <main className="mx-auto max-w-3xl space-y-8 px-8 py-10">
         <div className="space-y-3">
-          <h1 className="text-2xl font-medium tracking-tight text-foreground">
-            {task.title}
-          </h1>
+          <h1 className="text-2xl font-medium tracking-tight text-foreground">{task.title}</h1>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-muted-foreground">
             <span className="capitalize">{task.priority} priority</span>
             {task.assignee && <span>Assigned to {task.assignee}</span>}
@@ -124,9 +119,7 @@ export function PublicTaskPage() {
         {task.description ? (
           <MarkdownEditor value={task.description} editable={false} />
         ) : (
-          <p className="text-sm italic text-muted-foreground">
-            No description.
-          </p>
+          <p className="text-sm italic text-muted-foreground">No description.</p>
         )}
 
         {task.comments.length > 0 && (

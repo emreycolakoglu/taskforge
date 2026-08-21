@@ -9,22 +9,22 @@
  * sentinel value that is mapped back to `null` at the boundary.
  */
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import type { User } from "@/types";
-import type { ReactNode } from "react";
-import { UserIcon } from "lucide-react";
+} from '@/components/ui/select';
+import type { User } from '@/types';
+import type { ReactNode } from 'react';
+import { UserIcon } from 'lucide-react';
 
-const UNASSIGNED = "__unassigned__";
+const UNASSIGNED = '__unassigned__';
 
 const TRIGGER_CLASS =
-  "h-8 w-auto gap-1.5 border-0 bg-transparent px-2 py-1 text-muted-foreground shadow-none hover:bg-accent hover:text-foreground [&>span]:flex [&>span]:items-center [&>span]:gap-1.5 [&_svg]:size-4";
+  'h-8 w-auto gap-1.5 border-0 bg-transparent px-2 py-1 text-muted-foreground shadow-none hover:bg-accent hover:text-foreground [&>span]:flex [&>span]:items-center [&>span]:gap-1.5 [&_svg]:size-4';
 
 interface DetailAssigneeSelectProps {
   value: string | null;
@@ -42,11 +42,7 @@ function InitialAvatar({ children }: { children: ReactNode }) {
   );
 }
 
-export function DetailAssigneeSelect({
-  value,
-  users,
-  onChange,
-}: DetailAssigneeSelectProps) {
+export function DetailAssigneeSelect({ value, users, onChange }: DetailAssigneeSelectProps) {
   return (
     <Select
       value={value ?? UNASSIGNED}
@@ -67,9 +63,7 @@ export function DetailAssigneeSelect({
         {users.map((u) => (
           <SelectItem key={u.id} value={u.id}>
             <span className="flex items-center gap-1.5">
-              <InitialAvatar>
-                {u.displayName.charAt(0).toUpperCase()}
-              </InitialAvatar>
+              <InitialAvatar>{u.displayName.charAt(0).toUpperCase()}</InitialAvatar>
               {u.displayName}
             </span>
           </SelectItem>

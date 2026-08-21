@@ -99,5 +99,4 @@ export class AuthController {
     await this.authService.deleteUser(id, user.id);
     return { success: true };
   }
-
 }

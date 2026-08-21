@@ -12,52 +12,52 @@
  */
 
 export interface Autosaver<T> {
-  schedule: (value: T) => void
-  flush: () => void
-  cancel: () => void
+  schedule: (value: T) => void;
+  flush: () => void;
+  cancel: () => void;
 }
 
 interface AutosaverOptions {
-  delayMs: number
-  setTimeoutFn?: typeof setTimeout
-  clearTimeoutFn?: typeof clearTimeout
+  delayMs: number;
+  setTimeoutFn?: typeof setTimeout;
+  clearTimeoutFn?: typeof clearTimeout;
 }
 
 export function createAutosaver<T>(
   save: (value: T) => void,
   { delayMs, setTimeoutFn = setTimeout, clearTimeoutFn = clearTimeout }: AutosaverOptions,
 ): Autosaver<T> {
-  let timer: ReturnType<typeof setTimeout> | null = null
-  let hasPending = false
-  let pendingValue: T
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  let hasPending = false;
+  let pendingValue: T;
 
   const clear = () => {
     if (timer !== null) {
-      clearTimeoutFn(timer)
-      timer = null
+      clearTimeoutFn(timer);
+      timer = null;
     }
-  }
+  };
 
   return {
     schedule(value: T) {
-      pendingValue = value
-      hasPending = true
-      clear()
+      pendingValue = value;
+      hasPending = true;
+      clear();
       timer = setTimeoutFn(() => {
-        timer = null
-        hasPending = false
-        save(pendingValue)
-      }, delayMs)
+        timer = null;
+        hasPending = false;
+        save(pendingValue);
+      }, delayMs);
     },
     flush() {
-      if (!hasPending) return
-      clear()
-      hasPending = false
-      save(pendingValue)
+      if (!hasPending) return;
+      clear();
+      hasPending = false;
+      save(pendingValue);
     },
     cancel() {
-      clear()
-      hasPending = false
+      clear();
+      hasPending = false;
     },
-  }
+  };
 }

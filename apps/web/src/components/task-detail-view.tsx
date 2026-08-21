@@ -9,37 +9,24 @@
  * optional onNavigateTask for parent/sub-task links.
  */
 
-import { useCallback } from "react";
-import {
-  useTask,
-  useUpdateTask,
-  useTasksByBoard,
-  useCreateTask,
-} from "@/hooks/use-tasks";
-import {
-  useTaskRelations,
-  useCreateRelation,
-  useRemoveRelation,
-} from "@/hooks/use-relations";
-import { useBoardFull } from "@/hooks/use-boards";
-import {
-  useComments,
-  useCreateComment,
-  useDeleteComment,
-} from "@/hooks/use-comments";
-import { useUsers } from "@/hooks/use-users";
-import { useLabels } from "@/hooks/use-labels";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
-import { DetailTitleBlock } from "@/components/detail-title-block";
-import { DetailDescriptionEditor } from "@/components/detail-description-editor";
-import { DetailSubIssues } from "@/components/detail-sub-issues";
-import { DetailDocuments } from "@/components/detail-documents";
-import { DetailActivity } from "@/components/detail-activity";
-import { DetailComments } from "@/components/detail-comments";
-import { DetailPropertiesSidebar } from "@/components/detail-properties-sidebar";
-import type { RelationType, Task } from "@/types";
+import { useCallback } from 'react';
+import { useTask, useUpdateTask, useTasksByBoard, useCreateTask } from '@/hooks/use-tasks';
+import { useTaskRelations, useCreateRelation, useRemoveRelation } from '@/hooks/use-relations';
+import { useBoardFull } from '@/hooks/use-boards';
+import { useComments, useCreateComment, useDeleteComment } from '@/hooks/use-comments';
+import { useUsers } from '@/hooks/use-users';
+import { useLabels } from '@/hooks/use-labels';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { DetailTitleBlock } from '@/components/detail-title-block';
+import { DetailDescriptionEditor } from '@/components/detail-description-editor';
+import { DetailSubIssues } from '@/components/detail-sub-issues';
+import { DetailDocuments } from '@/components/detail-documents';
+import { DetailActivity } from '@/components/detail-activity';
+import { DetailComments } from '@/components/detail-comments';
+import { DetailPropertiesSidebar } from '@/components/detail-properties-sidebar';
+import type { RelationType, Task } from '@/types';
 
 interface TaskDetailViewProps {
   taskId: string;
@@ -87,7 +74,7 @@ export function TaskDetailView({
   const handleAddComment = useCallback(
     (body: string) => {
       if (!task) return;
-      createComment.mutate({ taskId: task.id, author: "user", body });
+      createComment.mutate({ taskId: task.id, author: 'user', body });
     },
     [task, createComment],
   );
@@ -114,11 +101,7 @@ export function TaskDetailView({
   );
 
   const handleAddRelation = useCallback(
-    (
-      otherTaskId: string,
-      type: RelationType,
-      direction?: "source" | "target",
-    ) => {
+    (otherTaskId: string, type: RelationType, direction?: 'source' | 'target') => {
       if (!task || !boardId) return;
       createRelation.mutate({
         taskId: task.id,
@@ -140,9 +123,7 @@ export function TaskDetailView({
   );
 
   const handleScrollTo = useCallback((anchor: string) => {
-    document
-      .getElementById(anchor)
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
   if (!task) return null;
@@ -150,10 +131,10 @@ export function TaskDetailView({
   const formatTimestamp = (ts: string) => {
     const d = new Date(ts);
     return d.toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
     });
   };
 
@@ -189,7 +170,7 @@ export function TaskDetailView({
           />
 
           <DetailDescriptionEditor
-            value={task.description ?? ""}
+            value={task.description ?? ''}
             onSave={(description) => handleUpdate({ description })}
           />
 
@@ -198,17 +179,12 @@ export function TaskDetailView({
             boardId={boardId}
             onNavigate={navigateToTask}
             onCreateSubTask={handleCreateSubTask}
-            onAddRelation={(otherTaskId) =>
-              handleAddRelation(otherTaskId, "related_to")
-            }
+            onAddRelation={(otherTaskId) => handleAddRelation(otherTaskId, 'related_to')}
           />
 
           <DetailDocuments taskId={task.id} boardId={boardId} />
 
-          <DetailActivity
-            activity={task.activity ?? []}
-            formatTimestamp={formatTimestamp}
-          />
+          <DetailActivity activity={task.activity ?? []} formatTimestamp={formatTimestamp} />
 
           <DetailComments
             comments={comments}
@@ -221,10 +197,7 @@ export function TaskDetailView({
 
       {/* Right sidebar — docked on desktop, Sheet on mobile */}
       {isMobile ? (
-        <Sheet
-          open={propertiesSheetOpen}
-          onOpenChange={onPropertiesSheetOpenChange}
-        >
+        <Sheet open={propertiesSheetOpen} onOpenChange={onPropertiesSheetOpenChange}>
           <SheetContent side="right" className="w-[300px] sm:max-w-[300px] p-0">
             {sidebar}
           </SheetContent>

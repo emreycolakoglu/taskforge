@@ -128,7 +128,10 @@ describe('TasksService', () => {
 
   describe('create', () => {
     it('should create a task with default position', async () => {
-      const task = await service.create({ statusId: board.statuses[0].id, title: 'New task' }, user);
+      const task = await service.create(
+        { statusId: board.statuses[0].id, title: 'New task' },
+        user,
+      );
       expect(task.title).toBe('New task');
       expect(task.position).toBe(0);
       expect(task.priority).toBe('medium');
@@ -137,23 +140,29 @@ describe('TasksService', () => {
 
     it('should create a task with labels', async () => {
       const label = await seedLabel(prisma, board.id);
-      const task = await service.create({
-        statusId: board.statuses[0].id,
-        title: 'Bug fix',
-        labelIds: [label.id],
-      }, user);
+      const task = await service.create(
+        {
+          statusId: board.statuses[0].id,
+          title: 'Bug fix',
+          labelIds: [label.id],
+        },
+        user,
+      );
       expect(task.labels).toHaveLength(1);
       expect(task.labels[0].label.name).toBe('bug');
     });
 
     it('should create a task with all fields', async () => {
-      const task = await service.create({
-        statusId: board.statuses[0].id,
-        title: 'Urgent fix',
-        description: 'Fix the critical bug',
-        priority: 'urgent',
-        dueDate: '2026-07-01T00:00:00Z',
-      }, user);
+      const task = await service.create(
+        {
+          statusId: board.statuses[0].id,
+          title: 'Urgent fix',
+          description: 'Fix the critical bug',
+          priority: 'urgent',
+          dueDate: '2026-07-01T00:00:00Z',
+        },
+        user,
+      );
       expect(task.priority).toBe('urgent');
       expect(task.assigneeId).toBeNull();
     });
@@ -256,7 +265,12 @@ describe('TasksService', () => {
     it('should reorder tasks within a status', async () => {
       const t1 = await seedTask(prisma, board.statuses[0].id, { position: 0 });
       const t2 = await seedTask(prisma, board.statuses[0].id, { position: 1 });
-      await service.reorder({ items: [{ id: t1.id, position: 1 }, { id: t2.id, position: 0 }] });
+      await service.reorder({
+        items: [
+          { id: t1.id, position: 1 },
+          { id: t2.id, position: 0 },
+        ],
+      });
       const tasks = await service.findByStatus(board.statuses[0].id);
       expect(tasks[0].id).toBe(t2.id);
       expect(tasks[1].id).toBe(t1.id);
@@ -314,7 +328,9 @@ describe('TasksService', () => {
         user,
       );
       expect(child.parentId).toBe(parent.id);
-      const activity = await prisma.activity.findFirst({ where: { taskId: child.id, action: 'created' } });
+      const activity = await prisma.activity.findFirst({
+        where: { taskId: child.id, action: 'created' },
+      });
       expect(activity).not.toBeNull();
       expect(activity!.detail).toContain(parent.id);
     });
@@ -328,15 +344,24 @@ describe('TasksService', () => {
     it('3. create with parentId from different board → succeeds (cross-board sub-tasks allowed)', async () => {
       const otherBoard = await seedBoard(prisma);
       const foreignParent = await seedTask(prisma, otherBoard.statuses[0].id, { title: 'Foreign' });
-      const child = await service.create({ statusId: board.statuses[0].id, title: 'Child', parentId: foreignParent.id }, user);
+      const child = await service.create(
+        { statusId: board.statuses[0].id, title: 'Child', parentId: foreignParent.id },
+        user,
+      );
       expect(child.parentId).toBe(foreignParent.id);
     });
 
     it('4. create with parentId pointing to a task that already has parentId → BadRequestException (C4)', async () => {
       const grandparent = await seedTask(prisma, board.statuses[0].id, { title: 'Grandparent' });
-      const parent = await seedTask(prisma, board.statuses[0].id, { title: 'Parent', parentId: grandparent.id });
+      const parent = await seedTask(prisma, board.statuses[0].id, {
+        title: 'Parent',
+        parentId: grandparent.id,
+      });
       await expect(
-        service.create({ statusId: board.statuses[0].id, title: 'Child', parentId: parent.id }, user),
+        service.create(
+          { statusId: board.statuses[0].id, title: 'Child', parentId: parent.id },
+          user,
+        ),
       ).rejects.toThrow('Sub-tasks cannot have sub-tasks (single level only)');
     });
 
@@ -354,9 +379,9 @@ describe('TasksService', () => {
 
     it('6. update to set parentId to own id → BadRequestException (C1)', async () => {
       const task = await seedTask(prisma, board.statuses[0].id, { title: 'Self' });
-      await expect(
-        service.update(task.id, { parentId: task.id }, user),
-      ).rejects.toThrow('A task cannot be its own parent');
+      await expect(service.update(task.id, { parentId: task.id }, user)).rejects.toThrow(
+        'A task cannot be its own parent',
+      );
     });
 
     it('7. update to set parentId on a task that already has children → BadRequestException (C5)', async () => {
@@ -364,23 +389,29 @@ describe('TasksService', () => {
       await seedTask(prisma, board.statuses[0].id, { title: 'Child', parentId: parent.id });
       const newParent = await seedTask(prisma, board.statuses[0].id, { title: 'NewParent' });
       // parent already has children → cannot be nested under newParent.
-      await expect(
-        service.update(parent.id, { parentId: newParent.id }, user),
-      ).rejects.toThrow('Cannot nest a task that already has sub-tasks');
+      await expect(service.update(parent.id, { parentId: newParent.id }, user)).rejects.toThrow(
+        'Cannot nest a task that already has sub-tasks',
+      );
     });
 
     it('8. update to set parentId on a task whose prospective parent is itself a sub-task → BadRequestException (C4)', async () => {
       const grandparent = await seedTask(prisma, board.statuses[0].id, { title: 'Grandparent' });
-      const parent = await seedTask(prisma, board.statuses[0].id, { title: 'Parent', parentId: grandparent.id });
+      const parent = await seedTask(prisma, board.statuses[0].id, {
+        title: 'Parent',
+        parentId: grandparent.id,
+      });
       const target = await seedTask(prisma, board.statuses[0].id, { title: 'Target' });
-      await expect(
-        service.update(target.id, { parentId: parent.id }, user),
-      ).rejects.toThrow('Sub-tasks cannot have sub-tasks (single level only)');
+      await expect(service.update(target.id, { parentId: parent.id }, user)).rejects.toThrow(
+        'Sub-tasks cannot have sub-tasks (single level only)',
+      );
     });
 
     it('9. update parentId to null → un-nests', async () => {
       const parent = await seedTask(prisma, board.statuses[0].id, { title: 'Parent' });
-      const child = await seedTask(prisma, board.statuses[0].id, { title: 'Child', parentId: parent.id });
+      const child = await seedTask(prisma, board.statuses[0].id, {
+        title: 'Child',
+        parentId: parent.id,
+      });
       const updated = await service.update(child.id, { parentId: null }, user);
       expect(updated.parentId).toBeNull();
     });
@@ -395,13 +426,16 @@ describe('TasksService', () => {
 
     it('11. findByBoard include=sub → only sub-tasks', async () => {
       const parent = await seedTask(prisma, board.statuses[0].id, { title: 'Parent' });
-      const child = await seedTask(prisma, board.statuses[0].id, { title: 'Child', parentId: parent.id });
+      const child = await seedTask(prisma, board.statuses[0].id, {
+        title: 'Child',
+        parentId: parent.id,
+      });
       const tasks = await service.findByBoard(board.id, { include: 'sub' });
       expect(tasks).toHaveLength(1);
       expect(tasks[0].id).toBe(child.id);
     });
 
-    it('12. findByBoard parentId=<id> → only that parent\'s children', async () => {
+    it("12. findByBoard parentId=<id> → only that parent's children", async () => {
       const parentA = await seedTask(prisma, board.statuses[0].id, { title: 'ParentA' });
       const parentB = await seedTask(prisma, board.statuses[0].id, { title: 'ParentB' });
       await seedTask(prisma, board.statuses[0].id, { title: 'ChildA1', parentId: parentA.id });
@@ -421,8 +455,14 @@ describe('TasksService', () => {
     it('14. remove a parent (hard-delete) → parent gone; children parentId cleared; task:updated emitted per child', async () => {
       const emitSpy = jest.spyOn(events, 'emit');
       const parent = await seedTask(prisma, board.statuses[0].id, { title: 'Parent' });
-      const child1 = await seedTask(prisma, board.statuses[0].id, { title: 'Child1', parentId: parent.id });
-      const child2 = await seedTask(prisma, board.statuses[0].id, { title: 'Child2', parentId: parent.id });
+      const child1 = await seedTask(prisma, board.statuses[0].id, {
+        title: 'Child1',
+        parentId: parent.id,
+      });
+      const child2 = await seedTask(prisma, board.statuses[0].id, {
+        title: 'Child2',
+        parentId: parent.id,
+      });
 
       await service.remove(parent.id, user);
 
@@ -444,7 +484,10 @@ describe('TasksService', () => {
 
     it('15. move a sub-task to a different status → succeeds; parentId retained', async () => {
       const parent = await seedTask(prisma, board.statuses[0].id, { title: 'Parent' });
-      const child = await seedTask(prisma, board.statuses[0].id, { title: 'Child', parentId: parent.id });
+      const child = await seedTask(prisma, board.statuses[0].id, {
+        title: 'Child',
+        parentId: parent.id,
+      });
       const moved = await service.move(child.id, { statusId: board.statuses[2].id }, user);
       expect(moved.statusId).toBe(board.statuses[2].id);
       expect(moved.parentId).toBe(parent.id);
@@ -452,7 +495,10 @@ describe('TasksService', () => {
 
     it('16. sub-task moved independently of parent → parent stays in its status', async () => {
       const parent = await seedTask(prisma, board.statuses[0].id, { title: 'Parent' });
-      const child = await seedTask(prisma, board.statuses[0].id, { title: 'Child', parentId: parent.id });
+      const child = await seedTask(prisma, board.statuses[0].id, {
+        title: 'Child',
+        parentId: parent.id,
+      });
       await service.move(child.id, { statusId: board.statuses[2].id }, user);
       const refreshedParent = await prisma.task.findUnique({ where: { id: parent.id } });
       expect(refreshedParent!.statusId).toBe(board.statuses[0].id);
@@ -461,7 +507,10 @@ describe('TasksService', () => {
 
   describe('subscriptions + notifications integration', () => {
     it('creating a task subscribes the creator', async () => {
-      const task = await service.create({ statusId: board.statuses[0].id, title: 'New task' }, user);
+      const task = await service.create(
+        { statusId: board.statuses[0].id, title: 'New task' },
+        user,
+      );
       const sub = await prisma.taskSubscription.findUnique({
         where: { taskId_userId: { taskId: task.id, userId: user.id } },
       });
@@ -479,7 +528,10 @@ describe('TasksService', () => {
     });
 
     it('updating title only does NOT notify subscribers', async () => {
-      const task = await service.create({ statusId: board.statuses[0].id, title: 'New task' }, user);
+      const task = await service.create(
+        { statusId: board.statuses[0].id, title: 'New task' },
+        user,
+      );
       const other = await seedUser(prisma, { displayName: 'Other' });
       await prisma.taskSubscription.create({ data: { taskId: task.id, userId: other.id } });
       await service.update(task.id, { title: 'Renamed' }, user);
@@ -488,7 +540,10 @@ describe('TasksService', () => {
     });
 
     it('moving a task does NOT notify subscribers', async () => {
-      const task = await service.create({ statusId: board.statuses[0].id, title: 'New task' }, user);
+      const task = await service.create(
+        { statusId: board.statuses[0].id, title: 'New task' },
+        user,
+      );
       const other = await seedUser(prisma, { displayName: 'Other' });
       await prisma.taskSubscription.create({ data: { taskId: task.id, userId: other.id } });
       await service.move(task.id, { statusId: board.statuses[2].id }, user);
@@ -525,7 +580,11 @@ describe('TasksService', () => {
 
       const activity = await prisma.activity.findMany({ where: { taskId: task.id } });
       expect(activity).toHaveLength(1);
-      expect(activity[0]).toMatchObject({ action: 'published', actor: user.displayName, actorId: user.id });
+      expect(activity[0]).toMatchObject({
+        action: 'published',
+        actor: user.displayName,
+        actorId: user.id,
+      });
     });
 
     it('logs an unpublished activity row — the un-share must be auditable', async () => {
@@ -563,12 +622,18 @@ describe('TasksService', () => {
 
       await service.setPublic(task.id, true, user);
 
-      expect(spy).toHaveBeenCalledWith('task:updated', expect.objectContaining({ isPublic: true }), board.id);
+      expect(spy).toHaveBeenCalledWith(
+        'task:updated',
+        expect.objectContaining({ isPublic: true }),
+        board.id,
+      );
       spy.mockRestore();
     });
 
     it('throws NotFound for an unknown task', async () => {
-      await expect(service.setPublic('does-not-exist', true, user)).rejects.toThrow('Task not found');
+      await expect(service.setPublic('does-not-exist', true, user)).rejects.toThrow(
+        'Task not found',
+      );
     });
   });
 });

@@ -8,14 +8,14 @@
  * design.md: no Lime here (the detail page's one Lime is the top CTA on the
  * board; this list is a quiet utility section).
  */
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
-import { toast } from "sonner";
-import { useDocumentsByTask, useCreateDocument } from "@/hooks/use-documents";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus } from 'lucide-react';
+import { toast } from 'sonner';
+import { useDocumentsByTask, useCreateDocument } from '@/hooks/use-documents';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 
 interface DetailDocumentsProps {
   taskId: string;
@@ -27,7 +27,7 @@ export function DetailDocuments({ taskId, boardId }: DetailDocumentsProps) {
   const { data: documents = [] } = useDocumentsByTask(taskId);
   const createDocument = useCreateDocument();
   const [adding, setAdding] = useState(false);
-  const [title, setTitle] = useState("");
+  const [title, setTitle] = useState('');
 
   const handleCreate = async () => {
     if (!title.trim()) return;
@@ -38,12 +38,12 @@ export function DetailDocuments({ taskId, boardId }: DetailDocumentsProps) {
         title: title.trim(),
       });
       setAdding(false);
-      setTitle("");
+      setTitle('');
       navigate(`/board/${boardId}/doc/${doc.id}`);
     } catch {
       // Keep the form open so the user can correct and retry.
-      toast.error("Failed to create document", {
-        description: "Please try again.",
+      toast.error('Failed to create document', {
+        description: 'Please try again.',
       });
     }
   };
@@ -66,9 +66,7 @@ export function DetailDocuments({ taskId, boardId }: DetailDocumentsProps) {
             <span className="font-mono text-xs text-muted-foreground shrink-0">
               {doc.docNumber}
             </span>
-            <span className="text-sm text-foreground truncate flex-1">
-              {doc.title}
-            </span>
+            <span className="text-sm text-foreground truncate flex-1">{doc.title}</span>
             {doc.isPublic && (
               <Badge
                 variant="outline"
@@ -88,7 +86,7 @@ export function DetailDocuments({ taskId, boardId }: DetailDocumentsProps) {
               autoFocus
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              onKeyDown={(e) => e.key === 'Enter' && handleCreate()}
               onBlur={() => setAdding(false)}
               placeholder="Document title…"
             />

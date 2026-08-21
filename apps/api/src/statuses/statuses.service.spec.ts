@@ -13,14 +13,22 @@ describe('StatusesService', () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     const events = new EventsService();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [StatusesService, { provide: PrismaService, useValue: prisma }, { provide: EventsService, useValue: events }],
+      providers: [
+        StatusesService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: EventsService, useValue: events },
+      ],
     }).compile();
     service = module.get<StatusesService>(StatusesService);
   });
 
-  afterAll(async () => { await prisma.$disconnect(); });
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
 
-  beforeEach(async () => { board = await seedBoard(prisma); });
+  beforeEach(async () => {
+    board = await seedBoard(prisma);
+  });
 
   afterEach(async () => {
     await prisma.taskLabel.deleteMany();
@@ -75,7 +83,10 @@ describe('StatusesService', () => {
 
     it('should create a status with color and wipLimit', async () => {
       const status = await service.create({
-        boardId: board.id, name: 'Blocked', color: '#ef4444', wipLimit: 3,
+        boardId: board.id,
+        name: 'Blocked',
+        color: '#ef4444',
+        wipLimit: 3,
       });
       expect(status.color).toBe('#ef4444');
       expect(status.wipLimit).toBe(3);
@@ -85,7 +96,8 @@ describe('StatusesService', () => {
   describe('update', () => {
     it('should update status name and color', async () => {
       const status = await service.update(board.statuses[0].id, {
-        name: 'Icebox', color: '#000000',
+        name: 'Icebox',
+        color: '#000000',
       });
       expect(status.name).toBe('Icebox');
       expect(status.color).toBe('#000000');
@@ -127,7 +139,9 @@ describe('StatusesService', () => {
       const taskInBacklog = await seedTask(prisma, backlog.id);
       // Move done onto backlog:
       await service.toggleDone(backlog.id);
-      const refreshedBacklogTask = await prisma.task.findUnique({ where: { id: taskInBacklog.id } });
+      const refreshedBacklogTask = await prisma.task.findUnique({
+        where: { id: taskInBacklog.id },
+      });
       const refreshedDoneTask = await prisma.task.findUnique({ where: { id: taskInDone.id } });
       expect(refreshedBacklogTask!.doneAt).not.toBeNull();
       expect(refreshedDoneTask!.doneAt).toBeNull();

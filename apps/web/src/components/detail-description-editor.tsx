@@ -11,44 +11,44 @@
  * clobbering the caret mid-edit (last-write-wins on the field).
  */
 
-import { useEffect, useRef } from 'react'
-import { MarkdownEditor } from '@/components/markdown'
-import { createAutosaver, type Autosaver } from '@/lib/autosave'
+import { useEffect, useRef } from 'react';
+import { MarkdownEditor } from '@/components/markdown';
+import { createAutosaver, type Autosaver } from '@/lib/autosave';
 
-const AUTOSAVE_DELAY_MS = 1000
+const AUTOSAVE_DELAY_MS = 1000;
 
 interface DetailDescriptionEditorProps {
-  value: string
-  onSave: (value: string) => void
+  value: string;
+  onSave: (value: string) => void;
 }
 
 export function DetailDescriptionEditor({ value, onSave }: DetailDescriptionEditorProps) {
-  const onSaveRef = useRef(onSave)
-  const valueRef = useRef(value)
-  onSaveRef.current = onSave
-  valueRef.current = value
+  const onSaveRef = useRef(onSave);
+  const valueRef = useRef(value);
+  onSaveRef.current = onSave;
+  valueRef.current = value;
 
-  const saverRef = useRef<Autosaver<string> | null>(null)
+  const saverRef = useRef<Autosaver<string> | null>(null);
   if (saverRef.current === null) {
     saverRef.current = createAutosaver<string>(
       (markdown) => {
-        if (markdown !== valueRef.current) onSaveRef.current(markdown)
+        if (markdown !== valueRef.current) onSaveRef.current(markdown);
       },
       { delayMs: AUTOSAVE_DELAY_MS },
-    )
+    );
   }
 
   // Flush any pending edit if the view unmounts (navigation away mid-edit).
-  useEffect(() => () => saverRef.current?.flush(), [])
+  useEffect(() => () => saverRef.current?.flush(), []);
 
   return (
     <MarkdownEditor
       value={value}
       onChange={(markdown) => saverRef.current?.schedule(markdown)}
       onBlur={(markdown) => {
-        saverRef.current?.schedule(markdown)
-        saverRef.current?.flush()
+        saverRef.current?.schedule(markdown);
+        saverRef.current?.flush();
       }}
     />
-  )
+  );
 }

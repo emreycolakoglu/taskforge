@@ -30,7 +30,7 @@ export class SessionCleanupService {
 
     this.logger.log(
       `Cleaned up ${expired.count} expired sessions, ${revoked.count} old revoked sessions, ` +
-      `${expiredInvites.count} expired invites, ${usedInvites.count} used invites`,
+        `${expiredInvites.count} expired invites, ${usedInvites.count} used invites`,
     );
   }
 }

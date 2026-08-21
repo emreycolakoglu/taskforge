@@ -15,45 +15,45 @@
  * since Lime is reserved for a single primary CTA per screen.
  */
 
-import { ArrowLeft, MoreHorizontal, Copy, Link2, Globe, GlobeLock } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
+import { ArrowLeft, MoreHorizontal, Copy, Link2, Globe, GlobeLock } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Breadcrumb,
   BreadcrumbList,
   BreadcrumbItem,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb'
+} from '@/components/ui/breadcrumb';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { SidebarTrigger } from '@/components/ui/sidebar'
-import { toast } from 'sonner'
+} from '@/components/ui/dropdown-menu';
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import { toast } from 'sonner';
 
 /** The public URL for a task, derived from its number (e.g. TF-123 → /public/TF/123). */
 function publicUrlFor(taskNumber: string): string | null {
-  const match = taskNumber.match(/^(.+)-(\d+)$/)
-  if (!match) return null
-  const [, identifier, number] = match
-  return `${window.location.origin}/public/${identifier}/${number}`
+  const match = taskNumber.match(/^(.+)-(\d+)$/);
+  if (!match) return null;
+  const [, identifier, number] = match;
+  return `${window.location.origin}/public/${identifier}/${number}`;
 }
 
 interface DetailBreadcrumbBarProps {
-  boardName: string
-  statusName: string
-  taskNumber: string
-  taskId: string
-  boardId: string
-  isPublic: boolean
-  onBack: () => void
-  onSetPublic: (isPublic: boolean) => Promise<void>
+  boardName: string;
+  statusName: string;
+  taskNumber: string;
+  taskId: string;
+  boardId: string;
+  isPublic: boolean;
+  onBack: () => void;
+  onSetPublic: (isPublic: boolean) => Promise<void>;
   /** Optional slot rendered in the right action group (e.g. mobile Properties button). */
-  propertiesTrigger?: React.ReactNode
+  propertiesTrigger?: React.ReactNode;
 }
 
 export function DetailBreadcrumbBar({
@@ -65,48 +65,48 @@ export function DetailBreadcrumbBar({
   onSetPublic,
   propertiesTrigger,
 }: DetailBreadcrumbBarProps) {
-  const publicUrl = publicUrlFor(taskNumber)
+  const publicUrl = publicUrlFor(taskNumber);
 
   const copyId = () => {
     navigator.clipboard.writeText(taskNumber).then(
       () => toast.success('Task ID copied'),
       () => toast.error('Failed to copy'),
-    )
-  }
+    );
+  };
 
   const copyUrl = () => {
     navigator.clipboard.writeText(window.location.href).then(
       () => toast.success('Task URL copied'),
       () => toast.error('Failed to copy'),
-    )
-  }
+    );
+  };
 
   // Publish and copy in one gesture — the point of the button is to walk away
   // with a link. If the clipboard write fails the task is still published, so
   // the toast falls back to showing the URL rather than claiming a copy.
   const makePublic = async () => {
-    await onSetPublic(true)
-    if (!publicUrl) return
+    await onSetPublic(true);
+    if (!publicUrl) return;
     navigator.clipboard.writeText(publicUrl).then(
       () => toast.success('Task published', { description: 'Public link copied to clipboard' }),
       () => toast.success('Task published', { description: publicUrl }),
-    )
-  }
+    );
+  };
 
   const makePrivate = async () => {
-    await onSetPublic(false)
+    await onSetPublic(false);
     toast.success('Task is no longer public', {
       description: 'The public link now shows a not-found page.',
-    })
-  }
+    });
+  };
 
   const copyPublicUrl = () => {
-    if (!publicUrl) return
+    if (!publicUrl) return;
     navigator.clipboard.writeText(publicUrl).then(
       () => toast.success('Public link copied'),
       () => toast.error('Failed to copy'),
-    )
-  }
+    );
+  };
 
   return (
     <header className="flex h-11 items-center justify-between px-6 border-b border-border bg-secondary shrink-0">
@@ -195,5 +195,5 @@ export function DetailBreadcrumbBar({
         {propertiesTrigger}
       </div>
     </header>
-  )
+  );
 }

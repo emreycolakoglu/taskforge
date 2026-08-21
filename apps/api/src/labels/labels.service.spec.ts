@@ -13,7 +13,11 @@ describe('LabelsService', () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     const events = new EventsService();
     const module: TestingModule = await Test.createTestingModule({
-      providers: [LabelsService, { provide: PrismaService, useValue: prisma }, { provide: EventsService, useValue: events }],
+      providers: [
+        LabelsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: EventsService, useValue: events },
+      ],
     }).compile();
     service = module.get<LabelsService>(LabelsService);
   });

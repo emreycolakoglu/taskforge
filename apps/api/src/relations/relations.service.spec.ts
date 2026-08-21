@@ -61,7 +61,11 @@ describe('RelationsService', () => {
   // ─── create ──────────────────────────────────────────────────────────────
 
   it('1. create blocks (direction=source) → row {from: urlTask, to: other}; entry has taskNumber', async () => {
-    const entry = await service.create(tA.id, { otherTaskId: tB.id, type: 'blocks', direction: 'source' });
+    const entry = await service.create(tA.id, {
+      otherTaskId: tB.id,
+      type: 'blocks',
+      direction: 'source',
+    });
     expect(entry.type).toBe('blocks');
     expect(entry.task.id).toBe(tB.id);
     expect(entry.task.taskNumber).toBe(`${board.identifier}-${tB.number}`);
@@ -96,56 +100,71 @@ describe('RelationsService', () => {
   });
 
   it('5. create with self → BadRequestException (both types)', async () => {
-    await expect(service.create(tA.id, { otherTaskId: tA.id, type: 'blocks' }))
-      .rejects.toBeInstanceOf(BadRequestException);
-    await expect(service.create(tA.id, { otherTaskId: tA.id, type: 'related_to' }))
-      .rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.create(tA.id, { otherTaskId: tA.id, type: 'blocks' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.create(tA.id, { otherTaskId: tA.id, type: 'related_to' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('6. create with non-existent otherTaskId → NotFoundException', async () => {
-    await expect(service.create(tA.id, { otherTaskId: 'nope', type: 'blocks' }))
-      .rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.create(tA.id, { otherTaskId: 'nope', type: 'blocks' }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('7. create across boards → BadRequestException', async () => {
     const otherBoard = await seedBoard(prisma);
     const foreign = await seedTask(prisma, otherBoard.statuses[0].id, { title: 'Foreign' });
-    await expect(service.create(tA.id, { otherTaskId: foreign.id, type: 'blocks' }))
-      .rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.create(tA.id, { otherTaskId: foreign.id, type: 'blocks' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('8. create duplicate (same pair+type) → ConflictException (409)', async () => {
     await service.create(tA.id, { otherTaskId: tB.id, type: 'blocks', direction: 'source' });
-    await expect(service.create(tA.id, { otherTaskId: tB.id, type: 'blocks', direction: 'source' }))
-      .rejects.toBeInstanceOf(ConflictException);
+    await expect(
+      service.create(tA.id, { otherTaskId: tB.id, type: 'blocks', direction: 'source' }),
+    ).rejects.toBeInstanceOf(ConflictException);
   });
 
   it('9. create blocks A→B then B→A → BadRequestException (cycle)', async () => {
     await service.create(tA.id, { otherTaskId: tB.id, type: 'blocks', direction: 'source' }); // A blocks B
     // Now try B blocks A → B→A would close a cycle (A already blocks B).
-    await expect(service.create(tB.id, { otherTaskId: tA.id, type: 'blocks', direction: 'source' }))
-      .rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.create(tB.id, { otherTaskId: tA.id, type: 'blocks', direction: 'source' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('10. create blocks A→B, B→C, then C→A → cycle rejected (3-node chain)', async () => {
     await service.create(tA.id, { otherTaskId: tB.id, type: 'blocks', direction: 'source' }); // A→B
     await service.create(tB.id, { otherTaskId: tC.id, type: 'blocks', direction: 'source' }); // B→C
     // C→A would close A→B→C→A
-    await expect(service.create(tC.id, { otherTaskId: tA.id, type: 'blocks', direction: 'source' }))
-      .rejects.toBeInstanceOf(BadRequestException);
+    await expect(
+      service.create(tC.id, { otherTaskId: tA.id, type: 'blocks', direction: 'source' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('11. create blocks A→B, B→C, then A→C → succeeds (no cycle)', async () => {
     await service.create(tA.id, { otherTaskId: tB.id, type: 'blocks', direction: 'source' }); // A→B
     await service.create(tB.id, { otherTaskId: tC.id, type: 'blocks', direction: 'source' }); // B→C
     // A→C is fine (no path C→A)
-    const entry = await service.create(tA.id, { otherTaskId: tC.id, type: 'blocks', direction: 'source' });
+    const entry = await service.create(tA.id, {
+      otherTaskId: tC.id,
+      type: 'blocks',
+      direction: 'source',
+    });
     expect(entry.type).toBe('blocks');
   });
 
   it('12. create related_to A→B, then blocks A→B → succeeds (different types independent)', async () => {
     await service.create(tA.id, { otherTaskId: tB.id, type: 'related_to' });
-    const entry = await service.create(tA.id, { otherTaskId: tB.id, type: 'blocks', direction: 'source' });
+    const entry = await service.create(tA.id, {
+      otherTaskId: tB.id,
+      type: 'blocks',
+      direction: 'source',
+    });
     expect(entry.type).toBe('blocks');
     const rows = await prisma.taskRelation.findMany();
     expect(rows).toHaveLength(2);
@@ -184,7 +203,11 @@ describe('RelationsService', () => {
   // ─── delete ──────────────────────────────────────────────────────────────
 
   it('15. delete existing relation → removed; returns {deleted: true}', async () => {
-    const entry = await service.create(tA.id, { otherTaskId: tB.id, type: 'blocks', direction: 'source' });
+    const entry = await service.create(tA.id, {
+      otherTaskId: tB.id,
+      type: 'blocks',
+      direction: 'source',
+    });
     const res = await service.delete(entry.relationId);
     expect(res).toEqual({ deleted: true });
     const row = await prisma.taskRelation.findUnique({ where: { id: entry.relationId } });
@@ -218,7 +241,11 @@ describe('RelationsService', () => {
   it('18. blocks cycle check ignores related_to edges', async () => {
     // A related_to B (undirected, no cycle impact), then A blocks B should succeed.
     await service.create(tA.id, { otherTaskId: tB.id, type: 'related_to' });
-    const entry = await service.create(tA.id, { otherTaskId: tB.id, type: 'blocks', direction: 'source' });
+    const entry = await service.create(tA.id, {
+      otherTaskId: tB.id,
+      type: 'blocks',
+      direction: 'source',
+    });
     expect(entry.type).toBe('blocks');
   });
 });

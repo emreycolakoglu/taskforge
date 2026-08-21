@@ -27,7 +27,17 @@ export const pwaManifest: Partial<ManifestOptions> = {
     // Kept separate from the "any" icons on purpose: a maskable icon is full-bleed and gets
     // cropped to the launcher's shape, so reusing the rounded-corner art here would have the
     // OS round off already-rounded corners.
-    { src: '/icons/pwa-maskable-192.png', sizes: '192x192', type: 'image/png', purpose: 'maskable' },
-    { src: '/icons/pwa-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+    {
+      src: '/icons/pwa-maskable-192.png',
+      sizes: '192x192',
+      type: 'image/png',
+      purpose: 'maskable',
+    },
+    {
+      src: '/icons/pwa-maskable-512.png',
+      sizes: '512x512',
+      type: 'image/png',
+      purpose: 'maskable',
+    },
   ],
 };

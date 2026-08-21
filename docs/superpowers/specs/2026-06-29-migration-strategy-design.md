@@ -30,6 +30,7 @@ Create `apps/api/prisma/migrations/` from the current `schema.prisma` via `prism
 ### 2. Entrypoint script
 
 Create `apps/api/docker-entrypoint.sh`:
+
 - `cd` to the app directory (so Prisma can find `schema.prisma` and `migrations/`).
 - Run `prisma migrate deploy`.
 - `exec node dist/main.js` (replaces the shell process with node, so signals propagate correctly).

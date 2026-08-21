@@ -6,9 +6,9 @@
  * search live in the shared picker.
  */
 
-import { useMemo } from "react";
-import { TaskPickerPopover } from "./task-picker-popover";
-import type { Task } from "@/types";
+import { useMemo } from 'react';
+import { TaskPickerPopover } from './task-picker-popover';
+import type { Task } from '@/types';
 
 interface DetailAddParentPopoverProps {
   boardTasks: Task[];
@@ -26,15 +26,10 @@ export function DetailAddParentPopover({
   const tasks = useMemo(
     () =>
       boardTasks.filter(
-        (t) =>
-          t.id !== currentTaskId &&
-          !t.parentId &&
-          !currentSubTaskIds.has(t.id),
+        (t) => t.id !== currentTaskId && !t.parentId && !currentSubTaskIds.has(t.id),
       ),
     [boardTasks, currentTaskId, currentSubTaskIds],
   );
 
-  return (
-    <TaskPickerPopover tasks={tasks} onSelect={onAdd} triggerLabel="Set parent" />
-  );
+  return <TaskPickerPopover tasks={tasks} onSelect={onAdd} triggerLabel="Set parent" />;
 }

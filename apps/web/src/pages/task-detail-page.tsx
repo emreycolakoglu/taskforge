@@ -10,26 +10,22 @@
  * action is editing, not creation). All Save/Submit buttons are outline/ghost.
  */
 
-import { useCallback, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, PanelRight } from "lucide-react";
-import { useTask, useSetTaskPublic } from "@/hooks/use-tasks";
-import { useBoardFull } from "@/hooks/use-boards";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
-import { DetailBreadcrumbBar } from "@/components/detail-breadcrumb-bar";
-import { TaskDetailView } from "@/components/task-detail-view";
+import { useCallback, useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, PanelRight } from 'lucide-react';
+import { useTask, useSetTaskPublic } from '@/hooks/use-tasks';
+import { useBoardFull } from '@/hooks/use-boards';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { DetailBreadcrumbBar } from '@/components/detail-breadcrumb-bar';
+import { TaskDetailView } from '@/components/task-detail-view';
 
 export function TaskDetailPage() {
   const { boardId, taskId } = useParams<{ boardId: string; taskId: string }>();
   const navigate = useNavigate();
   const [propertiesOpen, setPropertiesOpen] = useState(false);
 
-  const {
-    data: task,
-    isLoading: taskLoading,
-    error: taskError,
-  } = useTask(taskId!);
+  const { data: task, isLoading: taskLoading, error: taskError } = useTask(taskId!);
   const { data: board } = useBoardFull(boardId!);
   const setPublic = useSetTaskPublic();
 
@@ -75,10 +71,8 @@ export function TaskDetailPage() {
 
   // ── Derived data ───────────────────────────────────────────────────────────
 
-  const boardName = board?.name ?? "Board";
-  const statusName =
-    board?.statuses?.find((s) => s.id === task.statusId)?.name ??
-    "Unknown status";
+  const boardName = board?.name ?? 'Board';
+  const statusName = board?.statuses?.find((s) => s.id === task.statusId)?.name ?? 'Unknown status';
 
   // ── Render ──────────────────────────────────────────────────────────────────
 

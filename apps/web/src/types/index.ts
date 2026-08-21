@@ -42,7 +42,13 @@ export interface Task {
   metadata?: string;
   dueDate?: string;
   parentId?: string | null;
-  parent?: { id: string; number: number; taskNumber?: string; title: string; board?: { identifier: string } } | null;
+  parent?: {
+    id: string;
+    number: number;
+    taskNumber?: string;
+    title: string;
+    board?: { identifier: string };
+  } | null;
   subTasks?: Task[];
   isPublic?: boolean;
   createdAt: string;

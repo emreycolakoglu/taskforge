@@ -10,9 +10,12 @@
     "db:generate": "pnpm --filter @taskforge/api prisma:generate",
     "db:migrate": "pnpm --filter @taskforge/api prisma:migrate",
     "docker:build": "docker build -t taskforge .",
-    "docker:run": "docker run -p 3000:3000 -p 3001:3001 taskforge"
+    "docker:run": "docker run -p 3000:3000 -p 3001:3001 taskforge",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "prettier": "^3.9.6",
     "turbo": "^2.9.16",
     "typescript": "^5.7.0"
   },

@@ -5,24 +5,29 @@
  * Enter, cancels on blur/Escape. No Add/Cancel buttons — the fast path.
  */
 
-import { useState } from 'react'
-import { Input } from '@/components/ui/input'
+import { useState } from 'react';
+import { Input } from '@/components/ui/input';
 
 interface QuickAddInputProps {
-  statusId: string
-  onSubmit: (title: string) => void
-  onClose: () => void
-  parentId?: string
-  parentTaskNumber?: string
+  statusId: string;
+  onSubmit: (title: string) => void;
+  onClose: () => void;
+  parentId?: string;
+  parentTaskNumber?: string;
 }
 
-export function QuickAddInput({ onSubmit, onClose, parentId, parentTaskNumber }: QuickAddInputProps) {
-  const [title, setTitle] = useState('')
+export function QuickAddInput({
+  onSubmit,
+  onClose,
+  parentId,
+  parentTaskNumber,
+}: QuickAddInputProps) {
+  const [title, setTitle] = useState('');
 
   const handleSubmit = () => {
-    if (!title.trim()) return
-    onSubmit(title.trim())
-  }
+    if (!title.trim()) return;
+    onSubmit(title.trim());
+  };
 
   return (
     <div className="py-1">
@@ -36,13 +41,19 @@ export function QuickAddInput({ onSubmit, onClose, parentId, parentTaskNumber }:
         value={title}
         onChange={(e) => setTitle(e.target.value)}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') { e.preventDefault(); handleSubmit() }
-          if (e.key === 'Escape') { e.preventDefault(); onClose() }
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            handleSubmit();
+          }
+          if (e.key === 'Escape') {
+            e.preventDefault();
+            onClose();
+          }
         }}
         onBlur={onClose}
         placeholder="Task title..."
         className="h-7 text-sm"
       />
     </div>
-  )
+  );
 }

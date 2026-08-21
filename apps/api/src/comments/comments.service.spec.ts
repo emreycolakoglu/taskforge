@@ -3,7 +3,14 @@ import { CommentsService } from './comments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { createTestPrisma, seedBoard, seedTask, seedComment, seedUser, seedSubscription } from '../../test/setup';
+import {
+  createTestPrisma,
+  seedBoard,
+  seedTask,
+  seedComment,
+  seedUser,
+  seedSubscription,
+} from '../../test/setup';
 
 describe('CommentsService', () => {
   let service: CommentsService;
@@ -55,7 +62,7 @@ describe('CommentsService', () => {
   describe('findByTask', () => {
     it('should return comments in reverse chronological order', async () => {
       await seedComment(prisma, task.id, { body: 'First' });
-      await new Promise(r => setTimeout(r, 5));
+      await new Promise((r) => setTimeout(r, 5));
       await seedComment(prisma, task.id, { body: 'Second' });
       const comments = await service.findByTask(task.id);
       expect(comments).toHaveLength(2);
@@ -105,9 +112,9 @@ describe('CommentsService', () => {
     it('should forbid a non-author non-admin from deleting', async () => {
       const other = await seedUser(prisma, { displayName: 'Other' });
       const comment = await service.create({ taskId: task.id, body: 'Not yours' }, user);
-      await expect(
-        service.remove(comment.id, { id: other.id, role: other.role }),
-      ).rejects.toThrow('You can only delete your own comments');
+      await expect(service.remove(comment.id, { id: other.id, role: other.role })).rejects.toThrow(
+        'You can only delete your own comments',
+      );
       // Comment should still exist
       const comments = await service.findByTask(task.id);
       expect(comments).toHaveLength(1);
@@ -131,9 +138,9 @@ describe('CommentsService', () => {
 
     it('should forbid non-admin from deleting anonymous comments', async () => {
       const comment = await seedComment(prisma, task.id, { authorId: null, author: 'system' });
-      await expect(
-        service.remove(comment.id, user),
-      ).rejects.toThrow('You can only delete your own comments');
+      await expect(service.remove(comment.id, user)).rejects.toThrow(
+        'You can only delete your own comments',
+      );
     });
 
     it('should log activity on delete', async () => {

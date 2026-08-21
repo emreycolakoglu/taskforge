@@ -10,7 +10,11 @@ interface AuthContextValue {
   isInitialized: boolean | null;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateUser: (data: { displayName?: string; currentPassword?: string; newPassword?: string }) => Promise<void>;
+  updateUser: (data: {
+    displayName?: string;
+    currentPassword?: string;
+    newPassword?: string;
+  }) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -87,7 +91,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     init();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [navigate]);
 
   const login = useCallback(async (email: string, password: string) => {
@@ -109,13 +115,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     navigate('/login', { replace: true });
   }, [navigate]);
 
-  const updateUser = useCallback(async (data: { displayName?: string; currentPassword?: string; newPassword?: string }) => {
-    const updated = await api.auth.updateUser(data);
-    setUser(updated);
-  }, []);
+  const updateUser = useCallback(
+    async (data: { displayName?: string; currentPassword?: string; newPassword?: string }) => {
+      const updated = await api.auth.updateUser(data);
+      setUser(updated);
+    },
+    [],
+  );
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, isInitialized, login, logout, updateUser }}>
+    <AuthContext.Provider
+      value={{ user, token, isLoading, isInitialized, login, logout, updateUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

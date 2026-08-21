@@ -16,19 +16,13 @@ export class PublicController {
 
   @Public()
   @Get('tasks/:identifier/:number')
-  findPublicTask(
-    @Param('identifier') identifier: string,
-    @Param('number') number: string,
-  ) {
+  findPublicTask(@Param('identifier') identifier: string, @Param('number') number: string) {
     return this.service.findPublicTask(identifier.toUpperCase(), parseInt(number, 10));
   }
 
   @Public()
   @Get('docs/:identifier/:number')
-  findPublicDocument(
-    @Param('identifier') identifier: string,
-    @Param('number') number: string,
-  ) {
+  findPublicDocument(@Param('identifier') identifier: string, @Param('number') number: string) {
     return this.service.findPublicDocument(identifier.toUpperCase(), parseInt(number, 10));
   }
 }

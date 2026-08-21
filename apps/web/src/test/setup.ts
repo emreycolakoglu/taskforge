@@ -15,7 +15,7 @@ if (!Element.prototype.scrollIntoView) {
 
 // jsdom does not implement matchMedia, which the sidebar's useIsMobile hook
 // calls on mount. Default to "not mobile" so the desktop sidebar renders.
-if (typeof window.matchMedia === "undefined") {
+if (typeof window.matchMedia === 'undefined') {
   window.matchMedia = (query: string) =>
     ({
       matches: false,
@@ -30,7 +30,7 @@ if (typeof window.matchMedia === "undefined") {
 }
 
 // cmdk observes its list with ResizeObserver, which jsdom does not provide.
-if (typeof globalThis.ResizeObserver === "undefined") {
+if (typeof globalThis.ResizeObserver === 'undefined') {
   globalThis.ResizeObserver = class {
     observe() {}
     unobserve() {}

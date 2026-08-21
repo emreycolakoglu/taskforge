@@ -2,7 +2,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { PublicService } from './public.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { createTestPrisma, seedBoard, seedTask, seedLabel, seedUser, seedComment, seedDocument } from '../../test/setup';
+import {
+  createTestPrisma,
+  seedBoard,
+  seedTask,
+  seedLabel,
+  seedUser,
+  seedComment,
+  seedDocument,
+} from '../../test/setup';
 
 describe('PublicService', () => {
   let service: PublicService;
@@ -174,7 +182,11 @@ describe('PublicService', () => {
   describe('findPublicDocument', () => {
     it('returns a published document', async () => {
       const task = await seedTask(prisma, board.statuses[0].id, { title: 'Host task' });
-      const doc = await seedDocument(prisma, task.id, { title: 'Published doc', body: '# Hello', isPublic: true });
+      const doc = await seedDocument(prisma, task.id, {
+        title: 'Published doc',
+        body: '# Hello',
+        isPublic: true,
+      });
       const result = await service.findPublicDocument(board.identifier, doc.number);
       expect(result.title).toBe('Published doc');
       expect(result.body).toBe('# Hello');
@@ -186,15 +198,21 @@ describe('PublicService', () => {
     it('404s for a document that exists but is not published', async () => {
       const task = await seedTask(prisma, board.statuses[0].id);
       const doc = await seedDocument(prisma, task.id, { isPublic: false });
-      await expect(service.findPublicDocument(board.identifier, doc.number)).rejects.toThrow(NotFoundException);
+      await expect(service.findPublicDocument(board.identifier, doc.number)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('404s for a document number that does not exist', async () => {
-      await expect(service.findPublicDocument(board.identifier, 9999)).rejects.toThrow(NotFoundException);
+      await expect(service.findPublicDocument(board.identifier, 9999)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('404s for a non-integer document number', async () => {
-      await expect(service.findPublicDocument(board.identifier, NaN)).rejects.toThrow(NotFoundException);
+      await expect(service.findPublicDocument(board.identifier, NaN)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('omits the board object and task metadata', async () => {

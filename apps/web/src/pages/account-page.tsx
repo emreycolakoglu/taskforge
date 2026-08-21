@@ -28,20 +28,22 @@ export function AccountPage() {
     try {
       await updateUser({ displayName });
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success("Name updated");
+      toast.success('Name updated');
     } catch (err) {
-      toast.error("Failed to update name", { description: err instanceof Error ? err.message : 'Unknown error' });
+      toast.error('Failed to update name', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
     }
   };
 
   const handlePasswordUpdate = async (e: FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmNewPassword) {
-      toast.error("Passwords do not match");
+      toast.error('Passwords do not match');
       return;
     }
     if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      toast.error('Password must be at least 6 characters');
       return;
     }
     try {
@@ -50,9 +52,11 @@ export function AccountPage() {
       setNewPassword('');
       setConfirmNewPassword('');
       queryClient.invalidateQueries({ queryKey: ['users'] });
-      toast.success("Password updated");
+      toast.success('Password updated');
     } catch (err) {
-      toast.error("Failed to update password", { description: err instanceof Error ? err.message : 'Unknown error' });
+      toast.error('Failed to update password', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
     }
   };
 
@@ -61,10 +65,10 @@ export function AccountPage() {
       onSuccess: (res) => {
         const url = `${window.location.origin}/signup/${res.token}`;
         navigator.clipboard.writeText(url);
-        toast.success("Invite link copied to clipboard", { description: url });
+        toast.success('Invite link copied to clipboard', { description: url });
       },
       onError: (err) => {
-        toast.error("Failed to create invite", { description: err.message });
+        toast.error('Failed to create invite', { description: err.message });
       },
     });
   };
@@ -73,9 +77,11 @@ export function AccountPage() {
     try {
       const res = await api.auth.createBotToken();
       await navigator.clipboard.writeText(res.token);
-      toast.success("Bot token created", { description: res.token });
+      toast.success('Bot token created', { description: res.token });
     } catch (err) {
-      toast.error("Failed to create bot token", { description: err instanceof Error ? err.message : 'Unknown error' });
+      toast.error('Failed to create bot token', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
     }
   };
 
@@ -83,9 +89,7 @@ export function AccountPage() {
     <div className="h-full overflow-y-auto bg-background p-6 space-y-6">
       <div>
         <h1 className="text-lg font-medium tracking-tight text-foreground">Account</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Manage your profile and settings
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">Manage your profile and settings</p>
       </div>
 
       {/* Profile info */}
@@ -96,8 +100,14 @@ export function AccountPage() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-col gap-2 text-sm">
-            <div><span className="text-muted-foreground">Email:</span> <span className="text-foreground">{user.email}</span></div>
-            <div><span className="text-muted-foreground">Role:</span> <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>{user.role}</Badge></div>
+            <div>
+              <span className="text-muted-foreground">Email:</span>{' '}
+              <span className="text-foreground">{user.email}</span>
+            </div>
+            <div>
+              <span className="text-muted-foreground">Role:</span>{' '}
+              <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>{user.role}</Badge>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -119,7 +129,9 @@ export function AccountPage() {
                 required
               />
             </div>
-            <Button type="submit" className="w-fit">Save Name</Button>
+            <Button type="submit" className="w-fit">
+              Save Name
+            </Button>
           </form>
         </CardContent>
       </Card>
@@ -162,7 +174,9 @@ export function AccountPage() {
                 required
               />
             </div>
-            <Button type="submit" className="w-fit">Update Password</Button>
+            <Button type="submit" className="w-fit">
+              Update Password
+            </Button>
           </form>
         </CardContent>
       </Card>
@@ -179,9 +193,7 @@ export function AccountPage() {
               <Button onClick={handleInvite} disabled={createInvite.isPending}>
                 Copy Invite Link
               </Button>
-              <Button onClick={handleBotToken}>
-                Create Bot Token
-              </Button>
+              <Button onClick={handleBotToken}>Create Bot Token</Button>
             </div>
           </CardContent>
         </Card>

@@ -1,17 +1,17 @@
-import { Bell, BellOff } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { useSubscription, useSubscribe, useUnsubscribe } from '@/hooks/use-subscriptions'
+import { Bell, BellOff } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { useSubscription, useSubscribe, useUnsubscribe } from '@/hooks/use-subscriptions';
 
 interface SubscribeButtonProps {
-  taskId: string
+  taskId: string;
 }
 
 export function SubscribeButton({ taskId }: SubscribeButtonProps) {
-  const { data } = useSubscription(taskId)
-  const subscribe = useSubscribe()
-  const unsubscribe = useUnsubscribe()
+  const { data } = useSubscription(taskId);
+  const subscribe = useSubscribe();
+  const unsubscribe = useUnsubscribe();
 
-  const subscribed = data?.subscribed ?? false
+  const subscribed = data?.subscribed ?? false;
 
   return (
     <Button
@@ -33,5 +33,5 @@ export function SubscribeButton({ taskId }: SubscribeButtonProps) {
         </>
       )}
     </Button>
-  )
+  );
 }

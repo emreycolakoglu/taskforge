@@ -8,11 +8,7 @@ import { APP_GUARD } from '@nestjs/core';
 @Module({
   imports: [],
   controllers: [AuthController],
-  providers: [
-    AuthService,
-    SessionCleanupService,
-    { provide: APP_GUARD, useClass: AuthGuard },
-  ],
+  providers: [AuthService, SessionCleanupService, { provide: APP_GUARD, useClass: AuthGuard }],
   exports: [AuthService],
 })
 export class AuthModule {}

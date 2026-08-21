@@ -9,7 +9,13 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { DocumentsModule } from '../documents/documents.module';
 
 @Module({
-  imports: [EventsModule, RelationsModule, SubscriptionsModule, NotificationsModule, DocumentsModule],
+  imports: [
+    EventsModule,
+    RelationsModule,
+    SubscriptionsModule,
+    NotificationsModule,
+    DocumentsModule,
+  ],
   controllers: [McpTransportController],
   providers: [McpService, McpServerFactory],
   exports: [McpService],

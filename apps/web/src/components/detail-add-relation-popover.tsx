@@ -5,9 +5,9 @@
  * task itself). Presentation and search live in the shared picker.
  */
 
-import { useMemo } from "react";
-import { TaskPickerPopover } from "./task-picker-popover";
-import type { Task } from "@/types";
+import { useMemo } from 'react';
+import { TaskPickerPopover } from './task-picker-popover';
+import type { Task } from '@/types';
 
 interface DetailAddRelationPopoverProps {
   boardTasks: Task[];

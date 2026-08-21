@@ -144,7 +144,8 @@ export class McpTransportController {
     if (process.env.MCP_REQUIRE_ORIGIN === '0') return true;
     const origin = req.headers.origin;
     if (!origin) return true;
-    const allowed = (process.env.MCP_ALLOWED_ORIGINS?.split(',').map(s => s.trim()) ?? DEFAULT_ALLOWED_ORIGINS);
+    const allowed =
+      process.env.MCP_ALLOWED_ORIGINS?.split(',').map((s) => s.trim()) ?? DEFAULT_ALLOWED_ORIGINS;
     if (!allowed.includes(origin)) {
       sendJsonError(res, 403, 'Origin not allowed');
       return false;

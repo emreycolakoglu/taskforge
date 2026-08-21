@@ -298,11 +298,10 @@ Example Component Prompts:
 
   /* Typography — Font Families */
   --font-inter-variable:
-    "Inter Variable", ui-sans-serif, system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    'Inter Variable', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, sans-serif;
   --font-berkeley-mono:
-    "Berkeley Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    monospace;
+    'Berkeley Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Typography — Scale */
   --text-micro-sm: 12px;
@@ -391,8 +390,8 @@ Example Component Prompts:
   --shadow-subtle-5: rgba(0, 0, 0, 0.33) 0px 0px 0px 1px;
   --shadow-subtle-6:
     rgba(255, 255, 255, 0.03) 0px 0px 0px 1px inset,
-    rgba(255, 255, 255, 0.04) 0px 1px 0px 0px inset,
-    rgba(0, 0, 0, 0.6) 0px 0px 0px 1px, rgba(0, 0, 0, 0.1) 0px 4px 4px 0px;
+    rgba(255, 255, 255, 0.04) 0px 1px 0px 0px inset, rgba(0, 0, 0, 0.6) 0px 0px 0px 1px,
+    rgba(0, 0, 0, 0.1) 0px 4px 4px 0px;
 
   /* Surfaces */
   --surface-canvas: #08090a;
@@ -426,11 +425,10 @@ Example Component Prompts:
 
   /* Typography */
   --font-inter-variable:
-    "Inter Variable", ui-sans-serif, system-ui, -apple-system,
-    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    'Inter Variable', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    Roboto, sans-serif;
   --font-berkeley-mono:
-    "Berkeley Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
-    monospace;
+    'Berkeley Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
   /* Typography — Scale */
   --text-micro-sm: 12px;
@@ -498,7 +496,7 @@ Example Component Prompts:
   --shadow-subtle-5: rgba(0, 0, 0, 0.33) 0px 0px 0px 1px;
   --shadow-subtle-6:
     rgba(255, 255, 255, 0.03) 0px 0px 0px 1px inset,
-    rgba(255, 255, 255, 0.04) 0px 1px 0px 0px inset,
-    rgba(0, 0, 0, 0.6) 0px 0px 0px 1px, rgba(0, 0, 0, 0.1) 0px 4px 4px 0px;
+    rgba(255, 255, 255, 0.04) 0px 1px 0px 0px inset, rgba(0, 0, 0, 0.6) 0px 0px 0px 1px,
+    rgba(0, 0, 0, 0.1) 0px 4px 4px 0px;
 }
 ```

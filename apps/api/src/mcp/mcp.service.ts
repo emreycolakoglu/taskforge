@@ -78,20 +78,48 @@ export class McpService {
       let result: any;
 
       switch (resource) {
-        case 'boards': result = await this.handleBoards(action, req.params, user); break;
-        case 'statuses': result = await this.handleStatuses(action, req.params, user); break;
-        case 'tasks': result = await this.handleTasks(action, req.params, user); break;
-        case 'task': result = await this.handleTasks(action, req.params, user); break;
-        case 'comments': result = await this.handleComments(action, req.params, user); break;
-        case 'labels': result = await this.handleLabels(action, req.params); break;
-        case 'activity': result = await this.handleActivity(action, req.params); break;
-        case 'relations': result = await this.handleRelations(action, req.params, user); break;
-        case 'inbox': result = await this.handleInbox(action, req.params, user); break;
-        case 'notifications': result = await this.handleNotifications(action, req.params, user); break;
-        case 'members': result = await this.handleMembers(action, req.params, user); break;
-        case 'documents': result = await this.handleDocuments(action, req.params, user); break;
+        case 'boards':
+          result = await this.handleBoards(action, req.params, user);
+          break;
+        case 'statuses':
+          result = await this.handleStatuses(action, req.params, user);
+          break;
+        case 'tasks':
+          result = await this.handleTasks(action, req.params, user);
+          break;
+        case 'task':
+          result = await this.handleTasks(action, req.params, user);
+          break;
+        case 'comments':
+          result = await this.handleComments(action, req.params, user);
+          break;
+        case 'labels':
+          result = await this.handleLabels(action, req.params);
+          break;
+        case 'activity':
+          result = await this.handleActivity(action, req.params);
+          break;
+        case 'relations':
+          result = await this.handleRelations(action, req.params, user);
+          break;
+        case 'inbox':
+          result = await this.handleInbox(action, req.params, user);
+          break;
+        case 'notifications':
+          result = await this.handleNotifications(action, req.params, user);
+          break;
+        case 'members':
+          result = await this.handleMembers(action, req.params, user);
+          break;
+        case 'documents':
+          result = await this.handleDocuments(action, req.params, user);
+          break;
         default:
-          return { jsonrpc: '2.0', id: req.id, error: { code: -32601, message: `Method not found: ${req.method}` } };
+          return {
+            jsonrpc: '2.0',
+            id: req.id,
+            error: { code: -32601, message: `Method not found: ${req.method}` },
+          };
       }
 
       return { jsonrpc: '2.0', id: req.id, result };
@@ -115,7 +143,10 @@ export class McpService {
         return this.prisma.board.findUnique({
           where: { id: params.id },
           include: {
-            statuses: { orderBy: { position: 'asc' }, include: { tasks: { orderBy: { position: 'asc' } } } },
+            statuses: {
+              orderBy: { position: 'asc' },
+              include: { tasks: { orderBy: { position: 'asc' } } },
+            },
             labels: true,
           },
         });
@@ -223,20 +254,27 @@ export class McpService {
       case 'toggle_done': {
         const target = await this.prisma.status.findUniqueOrThrow({ where: { id: params.id } });
         await this.prisma.$transaction(async (tx) => {
-          const prevDone = await tx.status.findFirst({ where: { boardId: target.boardId, isDone: true } });
+          const prevDone = await tx.status.findFirst({
+            where: { boardId: target.boardId, isDone: true },
+          });
           if (prevDone && prevDone.id !== params.id) {
             await tx.status.update({ where: { id: prevDone.id }, data: { isDone: false } });
             await tx.task.updateMany({ where: { statusId: prevDone.id }, data: { doneAt: null } });
           }
           await tx.status.update({ where: { id: params.id }, data: { isDone: true } });
-          await tx.task.updateMany({ where: { statusId: params.id, doneAt: null }, data: { doneAt: new Date() } });
+          await tx.task.updateMany({
+            where: { statusId: params.id, doneAt: null },
+            data: { doneAt: new Date() },
+          });
         });
         const status = await this.prisma.status.findUniqueOrThrow({ where: { id: params.id } });
         this.events.emit('status:doneToggled', status, target.boardId);
         return status;
       }
       case 'unset_done': {
-        const done = await this.prisma.status.findFirst({ where: { boardId: params.boardId, isDone: true } });
+        const done = await this.prisma.status.findFirst({
+          where: { boardId: params.boardId, isDone: true },
+        });
         if (!done) return { unset: true };
         await this.prisma.$transaction(async (tx) => {
           await tx.status.update({ where: { id: done.id }, data: { isDone: false } });
@@ -294,7 +332,14 @@ export class McpService {
               orderBy: { position: 'asc' },
               include: { board: { select: { identifier: true } } },
             },
-            parent: { select: { id: true, number: true, title: true, board: { select: { identifier: true } } } },
+            parent: {
+              select: {
+                id: true,
+                number: true,
+                title: true,
+                board: { select: { identifier: true } },
+              },
+            },
             _count: { select: { comments: true, relationsTo: { where: { type: 'blocks' } } } },
           },
         });
@@ -310,7 +355,11 @@ export class McpService {
               board: { identifier: { equals: prefix.toUpperCase() } },
               number: parseInt(numStr, 10),
             },
-            include: { status: { include: { board: true } }, board: { select: { identifier: true } }, labels: { include: { label: true } } },
+            include: {
+              status: { include: { board: true } },
+              board: { select: { identifier: true } },
+              labels: { include: { label: true } },
+            },
             take: 20,
             orderBy: { updatedAt: 'desc' },
           });
@@ -324,7 +373,11 @@ export class McpService {
               { description: { contains: params.query } },
             ],
           },
-          include: { status: { include: { board: true } }, board: { select: { identifier: true } }, labels: { include: { label: true } } },
+          include: {
+            status: { include: { board: true } },
+            board: { select: { identifier: true } },
+            labels: { include: { label: true } },
+          },
           take: 20,
           orderBy: { updatedAt: 'desc' },
         });
@@ -333,7 +386,9 @@ export class McpService {
       case 'create': {
         // Sub-task validation (C2, C3, C4). C1/C5 impossible pre-create.
         if (params.parentId) {
-          const status = await this.prisma.status.findUniqueOrThrow({ where: { id: params.statusId } });
+          const status = await this.prisma.status.findUniqueOrThrow({
+            where: { id: params.statusId },
+          });
           await validateParent(this.prisma, params.parentId, { boardId: status.boardId });
         }
         const task = await this.prisma.$transaction(async (tx) => {
@@ -372,11 +427,21 @@ export class McpService {
                 ? { create: params.labelIds.map((id: string) => ({ labelId: id })) }
                 : undefined,
             },
-            include: { labels: { include: { label: true } }, status: { include: { board: true } }, board: { select: { identifier: true } } },
+            include: {
+              labels: { include: { label: true } },
+              status: { include: { board: true } },
+              board: { select: { identifier: true } },
+            },
           });
         });
         await this.prisma.activity.create({
-          data: { taskId: task.id, actorId, actor, action: 'created', detail: JSON.stringify({ title: task.title, parentId: params.parentId ?? null }) },
+          data: {
+            taskId: task.id,
+            actorId,
+            actor,
+            action: 'created',
+            detail: JSON.stringify({ title: task.title, parentId: params.parentId ?? null }),
+          },
         });
         this.events.emit('task:created', task, task.status?.boardId);
         return withTaskNumber(task);
@@ -397,7 +462,10 @@ export class McpService {
         // Sub-task validation (C1-C5). parentId: null is always allowed (un-nest).
         let parentChanged = false;
         if (params.parentId !== undefined) {
-          await validateParent(this.prisma, params.parentId, { taskId: params.id, boardId: existing.boardId });
+          await validateParent(this.prisma, params.parentId, {
+            taskId: params.id,
+            boardId: existing.boardId,
+          });
           data.parentId = params.parentId;
           parentChanged = true;
         }
@@ -414,7 +482,11 @@ export class McpService {
         const task = await this.prisma.task.update({
           where: { id: params.id },
           data,
-          include: { labels: { include: { label: true } }, status: { include: { board: true } }, board: { select: { identifier: true } } },
+          include: {
+            labels: { include: { label: true } },
+            status: { include: { board: true } },
+            board: { select: { identifier: true } },
+          },
         });
 
         const changes: string[] = [];
@@ -423,7 +495,8 @@ export class McpService {
           const newStatus = await this.prisma.status.findUnique({ where: { id: params.statusId } });
           changes.push(`moved to ${newStatus?.name}`);
         }
-        if (params.assigneeId && params.assigneeId !== existing.assigneeId) changes.push(`assigned to ${params.assigneeId}`);
+        if (params.assigneeId && params.assigneeId !== existing.assigneeId)
+          changes.push(`assigned to ${params.assigneeId}`);
         if (parentChanged) {
           if (params.parentId === null) changes.push('un-nested from parent');
           else changes.push(`set parent: ${params.parentId}`);
@@ -431,7 +504,13 @@ export class McpService {
 
         if (changes.length > 0) {
           await this.prisma.activity.create({
-            data: { taskId: params.id, actorId, actor, action: 'updated', detail: JSON.stringify({ changes }) },
+            data: {
+              taskId: params.id,
+              actorId,
+              actor,
+              action: 'updated',
+              detail: JSON.stringify({ changes }),
+            },
           });
         }
 
@@ -444,10 +523,14 @@ export class McpService {
           where: { statusId: params.statusId },
           _max: { position: true },
         });
-        const targetStatus = await this.prisma.status.findUniqueOrThrow({ where: { id: params.statusId } });
-        const sourceStatus = await this.prisma.status.findUnique({ where: { id: existing.statusId } });
+        const targetStatus = await this.prisma.status.findUniqueOrThrow({
+          where: { id: params.statusId },
+        });
+        const sourceStatus = await this.prisma.status.findUnique({
+          where: { id: existing.statusId },
+        });
         const now = new Date();
-        const doneAt = targetStatus.isDone ? now : (sourceStatus?.isDone ? null : undefined);
+        const doneAt = targetStatus.isDone ? now : sourceStatus?.isDone ? null : undefined;
 
         const data: any = {
           statusId: params.statusId,
@@ -458,11 +541,20 @@ export class McpService {
         const task = await this.prisma.task.update({
           where: { id: params.id },
           data,
-          include: { status: { include: { board: true } }, board: { select: { identifier: true } } },
+          include: {
+            status: { include: { board: true } },
+            board: { select: { identifier: true } },
+          },
         });
         const newStatus = await this.prisma.status.findUnique({ where: { id: params.statusId } });
         await this.prisma.activity.create({
-          data: { taskId: params.id, actorId, actor, action: 'moved', detail: JSON.stringify({ to: newStatus?.name }) },
+          data: {
+            taskId: params.id,
+            actorId,
+            actor,
+            action: 'moved',
+            detail: JSON.stringify({ to: newStatus?.name }),
+          },
         });
         this.events.emit('task:moved', task, task.status?.boardId);
         return withTaskNumber(task);
@@ -507,7 +599,13 @@ export class McpService {
           data: { taskId: params.taskId, authorId: actorId, author: authorName, body: params.body },
         });
         await this.prisma.activity.create({
-          data: { taskId: params.taskId, actorId, actor: authorName, action: 'commented', detail: JSON.stringify({ commentId: comment.id }) },
+          data: {
+            taskId: params.taskId,
+            actorId,
+            actor: authorName,
+            action: 'commented',
+            detail: JSON.stringify({ commentId: comment.id }),
+          },
         });
         const task = await this.prisma.task.findUnique({
           where: { id: params.taskId },
@@ -727,7 +825,10 @@ export class McpService {
         if (params.taskId) where.taskId = params.taskId;
         const docs = await this.prisma.document.findMany({
           where,
-          include: { board: { select: { identifier: true } }, task: { select: { id: true, number: true, title: true } } },
+          include: {
+            board: { select: { identifier: true } },
+            task: { select: { id: true, number: true, title: true } },
+          },
           orderBy: { createdAt: 'desc' },
           take: params.limit || 100,
         });
@@ -739,13 +840,24 @@ export class McpService {
       case 'get': {
         const doc = await this.prisma.document.findUnique({
           where: { id: params.id },
-          include: { board: { select: { identifier: true } }, task: { select: { id: true, number: true, title: true } } },
+          include: {
+            board: { select: { identifier: true } },
+            task: { select: { id: true, number: true, title: true } },
+          },
         });
         if (!doc) throw new Error('Document not found');
-        return { ...doc, taskNumber: `${doc.board.identifier}-${doc.task.number}`, docNumber: `D-${doc.number}` };
+        return {
+          ...doc,
+          taskNumber: `${doc.board.identifier}-${doc.task.number}`,
+          docNumber: `D-${doc.number}`,
+        };
       }
       case 'create': {
-        const doc = await this.documents.create(params.taskId, { title: params.title, body: params.body }, { id: actorId, displayName: actor });
+        const doc = await this.documents.create(
+          params.taskId,
+          { title: params.title, body: params.body },
+          { id: actorId, displayName: actor },
+        );
         return doc;
       }
       case 'update': {

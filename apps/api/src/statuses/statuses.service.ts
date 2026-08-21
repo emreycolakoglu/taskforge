@@ -55,7 +55,10 @@ export class StatusesService {
       this.prisma.status.update({ where: { id: item.id }, data: { position: item.position } }),
     );
     const result = await this.prisma.$transaction(updates);
-    const boardId = dto.items.length > 0 ? (await this.prisma.status.findUnique({ where: { id: dto.items[0].id } }))?.boardId : undefined;
+    const boardId =
+      dto.items.length > 0
+        ? (await this.prisma.status.findUnique({ where: { id: dto.items[0].id } }))?.boardId
+        : undefined;
     this.events.emit('status:reordered', result, boardId);
     return result;
   }

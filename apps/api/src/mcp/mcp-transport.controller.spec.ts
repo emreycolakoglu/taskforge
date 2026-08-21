@@ -32,7 +32,9 @@ function parseSseMessages(body: string): any[] {
       else if (line.startsWith('data:')) data += line.slice(5).trim();
     }
     if (data) {
-      try { events.push({ event: eventName, payload: JSON.parse(data) }); } catch {}
+      try {
+        events.push({ event: eventName, payload: JSON.parse(data) });
+      } catch {}
     }
   }
   return events;
@@ -93,17 +95,26 @@ function call(
         chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(String(chunk)));
       }
       const bodyText = Buffer.concat(chunks).toString('utf-8');
-      const contentType = writtenHeaders['content-type'] || (res.getHeader('content-type') as string) || '';
+      const contentType =
+        writtenHeaders['content-type'] || (res.getHeader('content-type') as string) || '';
       let json: any = null;
       if (contentType.includes('text/event-stream') || bodyText.startsWith('event:')) {
         const events = parseSseMessages(bodyText);
-        const messageEvent = events.find(e => e.event === 'message');
+        const messageEvent = events.find((e) => e.event === 'message');
         json = messageEvent?.payload ?? null;
       } else {
-        try { json = JSON.parse(bodyText); } catch {}
+        try {
+          json = JSON.parse(bodyText);
+        } catch {}
       }
       const sessionId = writtenHeaders['mcp-session-id'];
-      resolve({ status: res.statusCode, headers: { ...writtenHeaders, ...(res.getHeaders() as any) }, body: bodyText, json, sessionId });
+      resolve({
+        status: res.statusCode,
+        headers: { ...writtenHeaders, ...(res.getHeaders() as any) },
+        body: bodyText,
+        json,
+        sessionId,
+      });
       return res;
     };
 
@@ -129,7 +140,14 @@ describe('McpTransportController', () => {
     const relations = new RelationsService(prisma as any, events);
     const subscriptions = new SubscriptionsService(prisma as any);
     const notifications = new NotificationsService(prisma as any, events);
-    const mcpService = new McpService(prisma as any, events, relations, subscriptions, notifications, new DocumentsService(prisma as any, events));
+    const mcpService = new McpService(
+      prisma as any,
+      events,
+      relations,
+      subscriptions,
+      notifications,
+      new DocumentsService(prisma as any, events),
+    );
     const factory = new McpServerFactory(mcpService);
     controller = new McpTransportController(factory);
     process.env.MCP_REQUIRE_ORIGIN = '0';
@@ -175,7 +193,11 @@ describe('McpTransportController', () => {
       jsonrpc: '2.0',
       id: 1,
       method: 'initialize',
-      params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1.0' } },
+      params: {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 'test', version: '1.0' },
+      },
     });
     expect(r.status).toBe(200);
     expect(r.sessionId).toBeDefined();
@@ -188,7 +210,11 @@ describe('McpTransportController', () => {
       jsonrpc: '2.0',
       id: 1,
       method: 'initialize',
-      params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1.0' } },
+      params: {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 'test', version: '1.0' },
+      },
     });
     const sid = init.sessionId!;
     const r = await post({ jsonrpc: '2.0', method: 'notifications/initialized' }, sid);
@@ -201,7 +227,11 @@ describe('McpTransportController', () => {
       jsonrpc: '2.0',
       id: 1,
       method: 'initialize',
-      params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1.0' } },
+      params: {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 'test', version: '1.0' },
+      },
     });
     const sid = init.sessionId!;
     const r = await post({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }, sid);
@@ -215,26 +245,39 @@ describe('McpTransportController', () => {
       jsonrpc: '2.0',
       id: 1,
       method: 'initialize',
-      params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1.0' } },
+      params: {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 'test', version: '1.0' },
+      },
     });
     const sid = init.sessionId!;
 
-    const create = await post({
-      jsonrpc: '2.0',
-      id: 2,
-      method: 'tools/call',
-      params: { name: 'boards_create', arguments: { name: 'Mcp Board', slug: 'mcp-board', identifier: 'MCP' } },
-    }, sid);
+    const create = await post(
+      {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: {
+          name: 'boards_create',
+          arguments: { name: 'Mcp Board', slug: 'mcp-board', identifier: 'MCP' },
+        },
+      },
+      sid,
+    );
     expect(create.status).toBe(200);
     const created = JSON.parse(create.json.result.content[0].text);
     expect(created.name).toBe('Mcp Board');
 
-    const list = await post({
-      jsonrpc: '2.0',
-      id: 3,
-      method: 'tools/call',
-      params: { name: 'boards_list', arguments: {} },
-    }, sid);
+    const list = await post(
+      {
+        jsonrpc: '2.0',
+        id: 3,
+        method: 'tools/call',
+        params: { name: 'boards_list', arguments: {} },
+      },
+      sid,
+    );
     const boards = JSON.parse(list.json.result.content[0].text);
     expect(boards.some((b: any) => b.name === 'Mcp Board')).toBe(true);
   });
@@ -244,16 +287,26 @@ describe('McpTransportController', () => {
       jsonrpc: '2.0',
       id: 1,
       method: 'initialize',
-      params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1.0' } },
+      params: {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 'test', version: '1.0' },
+      },
     });
     const sid = init.sessionId!;
 
-    await post({
-      jsonrpc: '2.0',
-      id: 2,
-      method: 'tools/call',
-      params: { name: 'tasks_create', arguments: { statusId: board.statuses[0].id, title: 'Transport test task' } },
-    }, sid);
+    await post(
+      {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: {
+          name: 'tasks_create',
+          arguments: { statusId: board.statuses[0].id, title: 'Transport test task' },
+        },
+      },
+      sid,
+    );
 
     const activity = await prisma.activity.findFirst({ where: { action: 'created' } });
     expect(activity?.actorId).toBe(user.id);
@@ -261,7 +314,10 @@ describe('McpTransportController', () => {
   });
 
   it('unknown session id → 404', async () => {
-    const r = await post({ jsonrpc: '2.0', id: 9, method: 'tools/list', params: {} }, 'nonexistent-session-id');
+    const r = await post(
+      { jsonrpc: '2.0', id: 9, method: 'tools/list', params: {} },
+      'nonexistent-session-id',
+    );
     expect(r.status).toBe(404);
   });
 
@@ -275,7 +331,11 @@ describe('McpTransportController', () => {
       jsonrpc: '2.0',
       id: 1,
       method: 'initialize',
-      params: { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '1.0' } },
+      params: {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 'test', version: '1.0' },
+      },
     });
     const sid = init.sessionId!;
 

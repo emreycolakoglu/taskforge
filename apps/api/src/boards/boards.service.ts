@@ -32,7 +32,10 @@ export class BoardsService {
     const board = await this.prisma.board.findUnique({
       where: { id },
       include: {
-        statuses: { orderBy: { position: 'asc' }, include: { _count: { select: { tasks: true } } } },
+        statuses: {
+          orderBy: { position: 'asc' },
+          include: { _count: { select: { tasks: true } } },
+        },
         labels: true,
         members: true,
       },

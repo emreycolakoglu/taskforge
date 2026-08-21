@@ -2,7 +2,13 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { SubscriptionsController } from './subscriptions.controller';
 import { SubscriptionsService } from './subscriptions.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { createTestPrisma, seedBoard, seedTask, seedUser, seedSubscription } from '../../test/setup';
+import {
+  createTestPrisma,
+  seedBoard,
+  seedTask,
+  seedUser,
+  seedSubscription,
+} from '../../test/setup';
 
 describe('SubscriptionsController', () => {
   let controller: SubscriptionsController;
@@ -21,7 +27,9 @@ describe('SubscriptionsController', () => {
     controller = module.get<SubscriptionsController>(SubscriptionsController);
   });
 
-  afterAll(async () => { await prisma.$disconnect(); });
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
 
   beforeEach(async () => {
     board = await seedBoard(prisma);

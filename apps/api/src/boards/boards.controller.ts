@@ -13,13 +13,19 @@ export class BoardsController {
   constructor(private readonly service: BoardsService) {}
 
   @Get()
-  findAll() { return this.service.findAll(); }
+  findAll() {
+    return this.service.findAll();
+  }
 
   @Get(':id')
-  findOne(@Param('id') id: string) { return this.service.findOne(id); }
+  findOne(@Param('id') id: string) {
+    return this.service.findOne(id);
+  }
 
   @Get(':id/full')
-  findFull(@Param('id') id: string) { return this.service.findFull(id); }
+  findFull(@Param('id') id: string) {
+    return this.service.findFull(id);
+  }
 
   @Post()
   create(@Body() dto: CreateBoardDto, @Req() req: Request) {

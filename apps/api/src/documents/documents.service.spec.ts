@@ -66,7 +66,7 @@ describe('DocumentsService', () => {
   describe('findByTask', () => {
     it('returns docs newest first, no body', async () => {
       await seedDocument(prisma, task.id, { title: 'One' });
-      await new Promise(r => setTimeout(r, 5));
+      await new Promise((r) => setTimeout(r, 5));
       await seedDocument(prisma, task.id, { title: 'Two' });
       const docs = await service.findByTask(task.id);
       expect(docs).toHaveLength(2);
@@ -104,7 +104,9 @@ describe('DocumentsService', () => {
 
     it('writes doc_created activity on the task', async () => {
       await service.create(task.id, { title: 'Spec' }, user);
-      const activity = await prisma.activity.findFirst({ where: { taskId: task.id, action: 'doc_created' } });
+      const activity = await prisma.activity.findFirst({
+        where: { taskId: task.id, action: 'doc_created' },
+      });
       expect(activity).toBeDefined();
       expect(activity!.actorId).toBe(user.id);
     });
@@ -122,7 +124,9 @@ describe('DocumentsService', () => {
       const doc = await seedDocument(prisma, task.id, { title: 'Stable' });
       await service.update(doc.id, { title: 'Stable' }, user); // no-op
       await service.update(doc.id, { title: 'Changed' }, user);
-      const count = await prisma.activity.count({ where: { taskId: task.id, action: 'doc_updated' } });
+      const count = await prisma.activity.count({
+        where: { taskId: task.id, action: 'doc_updated' },
+      });
       expect(count).toBe(1);
     });
 
@@ -137,7 +141,9 @@ describe('DocumentsService', () => {
       await service.remove(doc.id, user);
       const remaining = await prisma.document.findMany({ where: { taskId: task.id } });
       expect(remaining).toHaveLength(0);
-      const activity = await prisma.activity.findFirst({ where: { taskId: task.id, action: 'doc_deleted' } });
+      const activity = await prisma.activity.findFirst({
+        where: { taskId: task.id, action: 'doc_deleted' },
+      });
       expect(activity).toBeDefined();
     });
   });
@@ -151,7 +157,9 @@ describe('DocumentsService', () => {
       await service.setPublic(doc.id, false, user);
       const privateDoc = await prisma.document.findUniqueOrThrow({ where: { id: doc.id } });
       expect(privateDoc.isPublic).toBe(false);
-      const pubActivities = await prisma.activity.count({ where: { taskId: task.id, action: 'published' } });
+      const pubActivities = await prisma.activity.count({
+        where: { taskId: task.id, action: 'published' },
+      });
       expect(pubActivities).toBe(1);
     });
   });

@@ -7,20 +7,20 @@
  * design.md: the only Lime on screen is the publish CTA; title/body keep the
  * Quiet action treatment. Delete is a destructive ghost in the header menu.
  */
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, Trash2 } from 'lucide-react';
 import {
   useDocument,
   useUpdateDocument,
   useDeleteDocument,
   useSetDocumentPublic,
-} from "@/hooks/use-documents";
-import { MarkdownEditor } from "@/components/markdown";
-import { createAutosaver, type Autosaver } from "@/lib/autosave";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+} from '@/hooks/use-documents';
+import { MarkdownEditor } from '@/components/markdown';
+import { createAutosaver, type Autosaver } from '@/lib/autosave';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,8 +31,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-import { toast } from "sonner";
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
 
 const AUTOSAVE_DELAY_MS = 1000;
 
@@ -44,11 +44,11 @@ export function DocumentEditorPage() {
   const deleteDocument = useDeleteDocument();
   const setPublic = useSetDocumentPublic();
 
-  const [title, setTitle] = useState(doc?.title ?? "");
+  const [title, setTitle] = useState(doc?.title ?? '');
   const titleFocusedRef = useRef(false);
   useEffect(() => {
     if (titleFocusedRef.current) return;
-    setTitle(doc?.title ?? "");
+    setTitle(doc?.title ?? '');
   }, [doc?.title]);
 
   const docRef = useRef(doc);
@@ -93,24 +93,24 @@ export function DocumentEditorPage() {
       isPublic: !d.isPublic,
     });
     if (d.isPublic) {
-      toast.success("Document is no longer public", {
-        description: "The public link now shows a not-found page.",
+      toast.success('Document is no longer public', {
+        description: 'The public link now shows a not-found page.',
       });
       return;
     }
     if (!d.boardIdentifier) {
-      toast.error("Could not build the public link", {
-        description: "This document is missing its board identifier.",
+      toast.error('Could not build the public link', {
+        description: 'This document is missing its board identifier.',
       });
       return;
     }
     const url = `${window.location.origin}/public/docs/${d.boardIdentifier}/${d.number}`;
     navigator.clipboard.writeText(url).then(
       () =>
-        toast.success("Document published", {
-          description: "Public link copied to clipboard",
+        toast.success('Document published', {
+          description: 'Public link copied to clipboard',
         }),
-      () => toast.success("Document published", { description: url }),
+      () => toast.success('Document published', { description: url }),
     );
   }, [setPublic]);
 
@@ -146,9 +146,7 @@ export function DocumentEditorPage() {
               Back to task
             </Link>
           </Button>
-          <span className="font-mono text-xs text-foreground">
-            {doc.docNumber}
-          </span>
+          <span className="font-mono text-xs text-foreground">{doc.docNumber}</span>
           {doc.taskNumber && (
             <Link
               to={`/board/${boardId}/task/${doc.taskId}`}
@@ -157,24 +155,17 @@ export function DocumentEditorPage() {
               {doc.taskNumber}
             </Link>
           )}
-          <Badge
-            variant="outline"
-            className="shrink-0 text-[10px] border-indigo/40 text-indigo"
-          >
-            {doc.isPublic ? "published" : "private"}
+          <Badge variant="outline" className="shrink-0 text-[10px] border-indigo/40 text-indigo">
+            {doc.isPublic ? 'published' : 'private'}
           </Badge>
         </div>
         <div className="flex items-center gap-1 shrink-0">
           <Button
             size="sm"
             onClick={handlePublish}
-            title={
-              doc.isPublic
-                ? "Make private"
-                : "Publish a public copy of this document"
-            }
+            title={doc.isPublic ? 'Make private' : 'Publish a public copy of this document'}
           >
-            {doc.isPublic ? "Make private" : "Publish"}
+            {doc.isPublic ? 'Make private' : 'Publish'}
           </Button>
           <AlertDialog>
             <AlertDialogTrigger asChild>
@@ -191,15 +182,12 @@ export function DocumentEditorPage() {
               <AlertDialogHeader>
                 <AlertDialogTitle>Delete document?</AlertDialogTitle>
                 <AlertDialogDescription>
-                  "{doc.title}" will be permanently removed. This action cannot
-                  be undone.
+                  "{doc.title}" will be permanently removed. This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>
-                  Delete
-                </AlertDialogAction>
+                <AlertDialogAction onClick={handleDelete}>Delete</AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

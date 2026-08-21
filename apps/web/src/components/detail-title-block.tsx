@@ -7,10 +7,10 @@
  * (Linear pattern). Parent reference line below: "Sub-issue of TF-267".
  */
 
-import { useState } from "react";
-import { PriorityIcon } from "./priority-icons";
-import { Input } from "@/components/ui/input";
-import type { Task } from "@/types";
+import { useState } from 'react';
+import { PriorityIcon } from './priority-icons';
+import { Input } from '@/components/ui/input';
+import type { Task } from '@/types';
 
 interface DetailTitleBlockProps {
   task: Task;
@@ -18,11 +18,7 @@ interface DetailTitleBlockProps {
   onNavigateParent: (id: string) => void;
 }
 
-export function DetailTitleBlock({
-  task,
-  onSaveTitle,
-  onNavigateParent,
-}: DetailTitleBlockProps) {
+export function DetailTitleBlock({ task, onSaveTitle, onNavigateParent }: DetailTitleBlockProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(task.title);
 
@@ -61,8 +57,8 @@ export function DetailTitleBlock({
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={(e) => {
-              if (e.key === "Enter") commit();
-              if (e.key === "Escape") cancel();
+              if (e.key === 'Enter') commit();
+              if (e.key === 'Escape') cancel();
             }}
             className="flex-1 h-auto -mx-2 px-2 py-1 text-[24px] font-medium tracking-tight"
           />
@@ -77,7 +73,7 @@ export function DetailTitleBlock({
       </div>
       {task.parent && parentNumber && (
         <p className="text-xs text-muted-foreground pl-6">
-          Sub-issue of{" "}
+          Sub-issue of{' '}
           <button
             className="font-mono text-muted-foreground hover:text-foreground hover:underline"
             onClick={() => onNavigateParent(task.parent!.id)}

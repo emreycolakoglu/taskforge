@@ -1,4 +1,26 @@
-import { API_BASE, Board, Status, Task, TaskLabel, Comment, Label, User, AuthStatus, OnboardRequest, AuthResponse, InviteTokenResponse, Invite, Settings, RelationType, RelationEntry, TaskRelations, Notification, TaskSubscriptionState, Member, Document } from '../types';
+import {
+  API_BASE,
+  Board,
+  Status,
+  Task,
+  TaskLabel,
+  Comment,
+  Label,
+  User,
+  AuthStatus,
+  OnboardRequest,
+  AuthResponse,
+  InviteTokenResponse,
+  Invite,
+  Settings,
+  RelationType,
+  RelationEntry,
+  TaskRelations,
+  Notification,
+  TaskSubscriptionState,
+  Member,
+  Document,
+} from '../types';
 
 const TOKEN_KEY = 'taskforge_token';
 
@@ -58,23 +80,25 @@ export const api = {
     onboard: (data: OnboardRequest) =>
       request<AuthResponse>('/auth/onboard', { method: 'POST', body: JSON.stringify(data) }),
     login: (email: string, password: string) =>
-      request<AuthResponse>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+      request<AuthResponse>('/auth/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      }),
     logout: () => request<{ success: boolean }>('/auth/logout', { method: 'POST' }),
     signup: (token: string, data: { email: string; password: string; displayName: string }) =>
-      request<AuthResponse>(`/auth/signup/${token}`, { method: 'POST', body: JSON.stringify(data) }),
+      request<AuthResponse>(`/auth/signup/${token}`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     me: () => request<User>('/auth/me'),
     updateUser: (data: { displayName?: string; currentPassword?: string; newPassword?: string }) =>
       request<User>('/auth/me', { method: 'PATCH', body: JSON.stringify(data) }),
-    createInvite: () =>
-      request<InviteTokenResponse>('/auth/invite', { method: 'POST' }),
-    createBotToken: () =>
-      request<InviteTokenResponse>('/auth/bot-token', { method: 'POST' }),
-    users: () =>
-      request<User[]>('/auth/users'),
+    createInvite: () => request<InviteTokenResponse>('/auth/invite', { method: 'POST' }),
+    createBotToken: () => request<InviteTokenResponse>('/auth/bot-token', { method: 'POST' }),
+    users: () => request<User[]>('/auth/users'),
     deleteUser: (id: string) =>
       request<{ success: boolean }>(`/auth/users/${id}`, { method: 'DELETE' }),
-    invites: () =>
-      request<Invite[]>('/auth/invites'),
+    invites: () => request<Invite[]>('/auth/invites'),
     revokeInvite: (id: string) =>
       request<{ success: boolean }>(`/auth/invites/${id}`, { method: 'DELETE' }),
   },
@@ -103,15 +127,19 @@ export const api = {
   // Statuses
   statuses: {
     list: (boardId: string) => request<Status[]>(`/statuses/board/${boardId}`),
-    create: (data: { boardId: string; name: string; position?: number; color?: string; wipLimit?: number }) =>
-      request<Status>('/statuses', { method: 'POST', body: JSON.stringify(data) }),
+    create: (data: {
+      boardId: string;
+      name: string;
+      position?: number;
+      color?: string;
+      wipLimit?: number;
+    }) => request<Status>('/statuses', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Status>) =>
       request<Status>(`/statuses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     reorder: (items: { id: string; position: number }[]) =>
       request<Status[]>('/statuses/reorder', { method: 'PUT', body: JSON.stringify({ items }) }),
     delete: (id: string) => request<void>(`/statuses/${id}`, { method: 'DELETE' }),
-    toggleDone: (id: string) =>
-      request<Status>(`/statuses/${id}/toggle-done`, { method: 'POST' }),
+    toggleDone: (id: string) => request<Status>(`/statuses/${id}/toggle-done`, { method: 'POST' }),
     unsetDone: (boardId: string) =>
       request<{ unset: boolean }>(`/statuses/board/${boardId}/unset-done`, { method: 'POST' }),
   },
@@ -125,7 +153,10 @@ export const api = {
       const qs = params.toString();
       return request<Task[]>(`/tasks/board/${boardId}${qs ? `?${qs}` : ''}`);
     },
-    listByStatus: (statusId: string, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }) => {
+    listByStatus: (
+      statusId: string,
+      opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string },
+    ) => {
       const params = new URLSearchParams();
       if (opts?.include) params.set('include', opts.include);
       if (opts?.parentId !== undefined) params.set('parentId', opts.parentId);
@@ -134,8 +165,15 @@ export const api = {
     },
     get: (id: string) => request<Task>(`/tasks/${id}`),
     search: (q: string) => request<Task[]>(`/tasks/search?q=${encodeURIComponent(q)}`),
-    create: (data: { statusId: string; title: string; description?: string; priority?: string; assigneeId?: string | null; labelIds?: string[]; parentId?: string | null }) =>
-      request<Task>('/tasks', { method: 'POST', body: JSON.stringify(data) }),
+    create: (data: {
+      statusId: string;
+      title: string;
+      description?: string;
+      priority?: string;
+      assigneeId?: string | null;
+      labelIds?: string[];
+      parentId?: string | null;
+    }) => request<Task>('/tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Task>) =>
       request<Task>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     move: (id: string, data: { statusId: string; position?: number }) =>
@@ -163,7 +201,10 @@ export const api = {
     listByTask: (taskId: string) => request<Document[]>(`/tasks/${taskId}/documents`),
     get: (id: string) => request<Document>(`/documents/${id}`),
     create: (taskId: string, data: { title: string; body?: string }) =>
-      request<Document>(`/tasks/${taskId}/documents`, { method: 'POST', body: JSON.stringify(data) }),
+      request<Document>(`/tasks/${taskId}/documents`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     update: (id: string, data: { title?: string; body?: string }) =>
       request<Document>(`/documents/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/documents/${id}`, { method: 'DELETE' }),
@@ -188,17 +229,27 @@ export const api = {
   // Relations
   relations: {
     list: (taskId: string) => request<TaskRelations>(`/tasks/${taskId}/relations`),
-    create: (taskId: string, data: { otherTaskId: string; type: RelationType; direction?: 'source' | 'target' }) =>
-      request<RelationEntry>(`/tasks/${taskId}/relations`, { method: 'POST', body: JSON.stringify(data) }),
+    create: (
+      taskId: string,
+      data: { otherTaskId: string; type: RelationType; direction?: 'source' | 'target' },
+    ) =>
+      request<RelationEntry>(`/tasks/${taskId}/relations`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
     delete: (taskId: string, relationId: string) =>
-      request<{ deleted: boolean }>(`/tasks/${taskId}/relations/${relationId}`, { method: 'DELETE' }),
+      request<{ deleted: boolean }>(`/tasks/${taskId}/relations/${relationId}`, {
+        method: 'DELETE',
+      }),
   },
 
   // Subscriptions
   subscriptions: {
     get: (taskId: string) => request<TaskSubscriptionState>(`/tasks/${taskId}/subscription`),
-    create: (taskId: string) => request<TaskSubscriptionState>(`/tasks/${taskId}/subscription`, { method: 'POST' }),
-    delete: (taskId: string) => request<TaskSubscriptionState>(`/tasks/${taskId}/subscription`, { method: 'DELETE' }),
+    create: (taskId: string) =>
+      request<TaskSubscriptionState>(`/tasks/${taskId}/subscription`, { method: 'POST' }),
+    delete: (taskId: string) =>
+      request<TaskSubscriptionState>(`/tasks/${taskId}/subscription`, { method: 'DELETE' }),
   },
 
   // Notifications
@@ -206,7 +257,8 @@ export const api = {
     list: (filter?: 'unread' | 'all') =>
       request<Notification[]>(`/notifications${filter ? `?filter=${filter}` : ''}`),
     unreadCount: () => request<{ count: number }>('/notifications/unread-count'),
-    markRead: (id: string) => request<{ read: boolean }>(`/notifications/${id}/read`, { method: 'POST' }),
+    markRead: (id: string) =>
+      request<{ read: boolean }>(`/notifications/${id}/read`, { method: 'POST' }),
     markAllRead: () => request<{ updated: number }>('/notifications/read-all', { method: 'POST' }),
   },
 
@@ -217,10 +269,8 @@ export const api = {
       request<Member>(`/boards/${boardId}/members`, { method: 'POST', body: JSON.stringify(data) }),
     remove: (boardId: string, userId: string) =>
       request<void>(`/boards/${boardId}/members/${userId}`, { method: 'DELETE' }),
-    join: (boardId: string) =>
-      request<Member>(`/boards/${boardId}/join`, { method: 'POST' }),
-    leave: (boardId: string) =>
-      request<void>(`/boards/${boardId}/leave`, { method: 'POST' }),
+    join: (boardId: string) => request<Member>(`/boards/${boardId}/join`, { method: 'POST' }),
+    leave: (boardId: string) => request<void>(`/boards/${boardId}/leave`, { method: 'POST' }),
   },
 
   // MCP

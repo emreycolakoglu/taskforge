@@ -7,21 +7,21 @@
  * No Lime anywhere here — all muted/Graphite per design.md.
  */
 
-import { Plus, X, SlidersHorizontal } from 'lucide-react'
-import type { Label } from '@/types'
-import type { FilterState } from '@/hooks/use-board-view-state'
-import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { LabelOptionList } from './label-option-list'
-import { cn } from '@/lib/utils'
+import { Plus, X, SlidersHorizontal } from 'lucide-react';
+import type { Label } from '@/types';
+import type { FilterState } from '@/hooks/use-board-view-state';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { LabelOptionList } from './label-option-list';
+import { cn } from '@/lib/utils';
 
 interface FilterChipsBarProps {
-  filters: FilterState
-  labels: Label[]
-  onToggleLabel: (labelId: string) => void
-  onRemoveLabel: (labelId: string) => void
-  onClear: () => void
+  filters: FilterState;
+  labels: Label[];
+  onToggleLabel: (labelId: string) => void;
+  onRemoveLabel: (labelId: string) => void;
+  onClear: () => void;
 }
 
 export function FilterChipsBar({
@@ -31,8 +31,8 @@ export function FilterChipsBar({
   onRemoveLabel,
   onClear,
 }: FilterChipsBarProps) {
-  const activeLabels = labels.filter((l) => filters.labelIds.includes(l.id))
-  const hasFilters = activeLabels.length > 0
+  const activeLabels = labels.filter((l) => filters.labelIds.includes(l.id));
+  const hasFilters = activeLabels.length > 0;
 
   return (
     <div className="flex h-9 items-center gap-2 px-6 border-b border-border bg-background shrink-0">
@@ -46,10 +46,7 @@ export function FilterChipsBar({
             'inline-flex items-center gap-1 rounded-sm border-border px-2 py-0.5 text-xs text-muted-foreground',
           )}
         >
-          <span
-            className="size-2 rounded-sm shrink-0"
-            style={{ backgroundColor: label.color }}
-          />
+          <span className="size-2 rounded-sm shrink-0" style={{ backgroundColor: label.color }} />
           {label.name}
           <button
             type="button"
@@ -96,5 +93,5 @@ export function FilterChipsBar({
         </Button>
       )}
     </div>
-  )
+  );
 }

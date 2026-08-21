@@ -31,19 +31,19 @@ Direct pushes to `main` are fine for solo development — no PR required. Just m
 
 ## Commands
 
-| What               | Command                                                                 |
-| ------------------ | ----------------------------------------------------------------------- |
-| Dev (both apps)    | `pnpm dev`                                                              |
-| Build all          | `pnpm build`                                                            |
-| Lint all           | `pnpm lint`                                                             |
-| API tests (Jest)   | `pnpm --filter @taskforge/api test`                                     |
-| Single API test    | `pnpm --filter @taskforge/api test -- --testPathPattern=boards.service` |
-| Web tests (Vitest) | `pnpm --filter @taskforge/web test`                                     |
-| Single web test    | `cd apps/web && npx vitest run src/hooks/api.test.ts`                   |
-| Prisma generate    | `pnpm db:generate`                                                      |
-| Prisma migrate     | `pnpm db:migrate` (use `-- --name <desc>` to create new migrations)     |
-| Docker build       | `pnpm docker:build`                                                      |
-| Regenerate PWA icons | `pnpm --filter @taskforge/web icons`                                  |
+| What                 | Command                                                                 |
+| -------------------- | ----------------------------------------------------------------------- |
+| Dev (both apps)      | `pnpm dev`                                                              |
+| Build all            | `pnpm build`                                                            |
+| Lint all             | `pnpm lint`                                                             |
+| API tests (Jest)     | `pnpm --filter @taskforge/api test`                                     |
+| Single API test      | `pnpm --filter @taskforge/api test -- --testPathPattern=boards.service` |
+| Web tests (Vitest)   | `pnpm --filter @taskforge/web test`                                     |
+| Single web test      | `cd apps/web && npx vitest run src/hooks/api.test.ts`                   |
+| Prisma generate      | `pnpm db:generate`                                                      |
+| Prisma migrate       | `pnpm db:migrate` (use `-- --name <desc>` to create new migrations)     |
+| Docker build         | `pnpm docker:build`                                                     |
+| Regenerate PWA icons | `pnpm --filter @taskforge/web icons`                                    |
 
 ## CI/CD
 
@@ -61,7 +61,7 @@ Schema migrations run automatically on container startup via `apps/api/docker-en
 - **API `strict: false`** — the NestJS app deliberately does not use TypeScript strict mode (decorator metadata requires it). Do not add `strict: true` to `apps/api/tsconfig.json`.
 - **API is CommonJS, Web is ESM** — module resolution differs. Don't copy import patterns between apps.
 - **PrismaModule is `@Global()`** — no need to import it into feature modules.
-- **Authentication is global and on by default** — `AuthModule` binds `AuthGuard` as an `APP_GUARD`, so *every* route requires an `Authorization: Bearer <token>` matching a live `Session` row unless it carries `@Public()`. Tokens are opaque `crypto.randomUUID()` session tokens (not JWTs); passwords are bcrypt cost 12. `@Admin()` gates admin-only routes on `user.role`. The public surface is small and deliberate: `auth/status`, `auth/onboard`, `auth/login`, `auth/signup/:token`, two settings routes, and `public/tasks/:identifier/:number`.
+- **Authentication is global and on by default** — `AuthModule` binds `AuthGuard` as an `APP_GUARD`, so _every_ route requires an `Authorization: Bearer <token>` matching a live `Session` row unless it carries `@Public()`. Tokens are opaque `crypto.randomUUID()` session tokens (not JWTs); passwords are bcrypt cost 12. `@Admin()` gates admin-only routes on `user.role`. The public surface is small and deliberate: `auth/status`, `auth/onboard`, `auth/login`, `auth/signup/:token`, two settings routes, and `public/tasks/:identifier/:number`.
 - **There is no per-board authorization** — the `Member` model exists with `admin`/`member`/`viewer` roles but **nothing reads it**. Any authenticated user can read and write any board, task, comment, or label. Auth here is authentication-only. Don't assume board scoping exists; if you need it, it has to be built.
 - **No ESLint config file** — lint scripts reference `eslint` but it's not installed in either app. `pnpm lint` will fail. CI does not run lint.
 - **The web build does NOT typecheck** — `@taskforge/web`'s `build` script is bare `vite build`, which only transpiles. A passing build proves nothing about types. Run `cd apps/web && npx tsc --noEmit` explicitly. Note it currently reports **3 pre-existing errors** (in `kanban-board.tsx`, `ui/dropdown-menu.tsx`, `use-labels.ts`) — check the count hasn't grown rather than expecting zero.
@@ -103,17 +103,17 @@ The web UI follows the Linear "midnight command deck" design system — dark-onl
 
 A task can be published to a read-only page reachable without a session. The model is **publication, not a secret link**: the URL is the task's real identity (`/public/TFG/123`), so it is enumerable on purpose, and un-publishing means the page 404s from that moment on — it does not rotate the address.
 
-- **Toggle**: `PUT`/`DELETE /api/tasks/:id/publish` → `TasksService.setPublic`. Deliberately *not* a field on `UpdateTaskDto`, because `update()`'s activity diff uses truthy checks (`if (dto.title && …)`) and would silently fail to log `isPublic: false` — and because a DTO field would let MCP's generic `tasks_update` publish a task as a side effect. Writes `published`/`unpublished` Activity rows. Rejects bot sessions (`session.bot`).
+- **Toggle**: `PUT`/`DELETE /api/tasks/:id/publish` → `TasksService.setPublic`. Deliberately _not_ a field on `UpdateTaskDto`, because `update()`'s activity diff uses truthy checks (`if (dto.title && …)`) and would silently fail to log `isPublic: false` — and because a DTO field would let MCP's generic `tasks_update` publish a task as a side effect. Writes `published`/`unpublished` Activity rows. Rejects bot sessions (`session.bot`).
 - **Read**: `GET /api/public/tasks/:identifier/:number` → `PublicService`, marked `@Public()`. Hand-built `select` — **never** `include` — so `assignee.email`, `role` and the nested board can't ride along. Returns 404 for both "no such task" and "not published", so the two are indistinguishable.
 - **Payload is curated**: taskNumber, title, description, status, priority, labels, comments, assignee display name. Activity, sub-tasks, parent and relations are omitted **by design** — publishing one task must not disclose the titles of tasks nobody published.
-- **Frontend**: `pages/public-task-page.tsx`, mounted in `app.tsx` *above* `AuthProvider` (not exempted from inside it) so no redirect, `/auth/status` call, or `SidebarLayout` can touch it. It fetches through `hooks/public-api.ts`, never `hooks/api.ts` — the shared client clears the token and redirects to `/login` on any 401, which would log a signed-in colleague out just for opening a public link.
+- **Frontend**: `pages/public-task-page.tsx`, mounted in `app.tsx` _above_ `AuthProvider` (not exempted from inside it) so no redirect, `/auth/status` call, or `SidebarLayout` can touch it. It fetches through `hooks/public-api.ts`, never `hooks/api.ts` — the shared client clears the token and redirects to `/login` on any 401, which would log a signed-in colleague out just for opening a public link.
 - **Not indexed**: `index.html` carries `<meta name="robots" content="noindex, nofollow">` and `public/robots.txt` disallows everything. Enumeration takes intent; a search hit takes none.
 
 ## Installable PWA
 
 The web app is installable — "Install app" on desktop/Android, "Add to Home Screen" on iOS. Wired with `vite-plugin-pwa` (`generateSW` mode) in `apps/web/vite.config.ts`; the manifest itself lives in `apps/web/src/pwa/manifest.ts`.
 
-- **Manifest lives in `src/`, not next to the vite config**, so `tsc` and vitest can both see it. `src/pwa/manifest.test.ts` asserts Chrome's installability rules and that every icon `src` resolves to a real file — renaming the art without re-running the icon script breaks installation *silently* (the app still builds and loads, it just stops offering "Install").
+- **Manifest lives in `src/`, not next to the vite config**, so `tsc` and vitest can both see it. `src/pwa/manifest.test.ts` asserts Chrome's installability rules and that every icon `src` resolves to a real file — renaming the art without re-running the icon script breaks installation _silently_ (the app still builds and loads, it just stops offering "Install").
 - **`apps/web/assets/pwa/` is the icon source of truth; `apps/web/public/` is generated output.** The art is delivered as raster at every shipped size, so `pnpm --filter @taskforge/web icons` just copies each master to its served path (`scripts/generate-icons.mjs` holds the mapping). Replace a master and re-run; never hand-edit the copies under `public/`, they get overwritten. PNG rather than SVG because iOS home-screen icons and Android launcher tiles require raster. There is no longer an SVG favicon — `index.html` points at `/favicon.ico` plus the 192 PNG.
 - **`icon-*.png` vs `icon-*-maskable.png`** — the maskable art is full-bleed with no corner radius, because the launcher crops it to its own shape and supplies the rounding; its glyph stays inside the 80%-diameter safe zone. `apple-touch-icon.png` is a third master at 180px, full-bleed for the same reason: iOS composites transparency against black, so rounded-corner art would get black slivers around the squircle.
 - **The service worker precaches the app shell only. Do not add `runtimeCaching` for `/api`.** Every route is behind a session token and boards are shared between users, so caching responses would park another user's task data in Cache Storage, where logout does not reach it.

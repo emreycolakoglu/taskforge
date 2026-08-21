@@ -11,34 +11,34 @@
  * - Comment bodies render as markdown, not literal source
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen } from "@testing-library/react";
-import { DetailComments } from "./detail-comments";
-import type { Comment } from "@/types";
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { DetailComments } from './detail-comments';
+import type { Comment } from '@/types';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
 
 let mockUser: { id: string; role: string } | null = {
-  id: "user-1",
-  role: "member",
+  id: 'user-1',
+  role: 'member',
 };
 
-vi.mock("@/contexts/auth-context", () => ({
+vi.mock('@/contexts/auth-context', () => ({
   useAuth: () => ({ user: mockUser }),
 }));
 
-vi.mock("sonner", () => ({
+vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
 function makeComment(overrides: Partial<Comment> = {}): Comment {
   return {
-    id: "c1",
-    taskId: "t1",
-    author: "Alice",
-    authorId: "user-1",
-    body: "Looks good",
-    createdAt: "2026-01-01T00:00:00Z",
+    id: 'c1',
+    taskId: 't1',
+    author: 'Alice',
+    authorId: 'user-1',
+    body: 'Looks good',
+    createdAt: '2026-01-01T00:00:00Z',
     ...overrides,
   };
 }
@@ -59,82 +59,68 @@ function renderComments(
   );
 }
 
-describe("DetailComments — delete feature (TFG-8)", () => {
+describe('DetailComments — delete feature (TFG-8)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Reset mockUser to default (non-admin member)
-    mockUser = { id: "user-1", role: "member" };
+    mockUser = { id: 'user-1', role: 'member' };
   });
 
-  it("does not show delete button when onDelete is not provided", () => {
+  it('does not show delete button when onDelete is not provided', () => {
     const comment = makeComment();
-    render(
-      <DetailComments
-        comments={[comment]}
-        onSubmit={vi.fn()}
-        formatTimestamp={vi.fn()}
-      />,
-    );
-    expect(screen.queryByLabelText("Comment actions")).not.toBeInTheDocument();
+    render(<DetailComments comments={[comment]} onSubmit={vi.fn()} formatTimestamp={vi.fn()} />);
+    expect(screen.queryByLabelText('Comment actions')).not.toBeInTheDocument();
   });
 
   it("does not show delete button for other user's comments (non-admin)", () => {
-    const comment = makeComment({ authorId: "other-user" });
+    const comment = makeComment({ authorId: 'other-user' });
     renderComments([comment], vi.fn());
-    expect(screen.queryByLabelText("Comment actions")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Comment actions')).not.toBeInTheDocument();
   });
 
   it("renders delete action for user's own comments", () => {
-    const comment = makeComment({ authorId: "user-1" });
+    const comment = makeComment({ authorId: 'user-1' });
     renderComments([comment], vi.fn());
-    expect(screen.getByLabelText("Comment actions")).toBeInTheDocument();
+    expect(screen.getByLabelText('Comment actions')).toBeInTheDocument();
   });
 
-  it("renders delete action for any comment when user is admin", () => {
-    const comment = makeComment({ authorId: "other-user" });
-    renderComments(
-      [comment],
-      vi.fn(),
-      { id: "admin-1", role: "admin" },
-    );
-    expect(screen.getByLabelText("Comment actions")).toBeInTheDocument();
+  it('renders delete action for any comment when user is admin', () => {
+    const comment = makeComment({ authorId: 'other-user' });
+    renderComments([comment], vi.fn(), { id: 'admin-1', role: 'admin' });
+    expect(screen.getByLabelText('Comment actions')).toBeInTheDocument();
   });
 
-  it("renders delete action for anonymous (authorId null) comments when admin", () => {
-    const comment = makeComment({ authorId: null, author: "system" });
-    renderComments(
-      [comment],
-      vi.fn(),
-      { id: "admin-1", role: "admin" },
-    );
-    expect(screen.getByLabelText("Comment actions")).toBeInTheDocument();
+  it('renders delete action for anonymous (authorId null) comments when admin', () => {
+    const comment = makeComment({ authorId: null, author: 'system' });
+    renderComments([comment], vi.fn(), { id: 'admin-1', role: 'admin' });
+    expect(screen.getByLabelText('Comment actions')).toBeInTheDocument();
   });
 
-  it("does not render delete action for anonymous comments when non-admin", () => {
-    const comment = makeComment({ authorId: null, author: "system" });
+  it('does not render delete action for anonymous comments when non-admin', () => {
+    const comment = makeComment({ authorId: null, author: 'system' });
     renderComments([comment], vi.fn());
-    expect(screen.queryByLabelText("Comment actions")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Comment actions')).not.toBeInTheDocument();
   });
 
-  it("renders the body as markdown once the editor chunk loads", async () => {
-    const comment = makeComment({ body: "**bold** and [link](https://x.com)" });
+  it('renders the body as markdown once the editor chunk loads', async () => {
+    const comment = makeComment({ body: '**bold** and [link](https://x.com)' });
     renderComments([comment]);
 
     // The lazy MarkdownEditor resolves asynchronously; before it does, the
     // skeleton shows the raw source.
-    const strong = await screen.findByText("bold");
-    expect(strong.tagName).toBe("STRONG");
+    const strong = await screen.findByText('bold');
+    expect(strong.tagName).toBe('STRONG');
 
-    const link = screen.getByRole("link", { name: "link" });
-    expect(link).toHaveAttribute("href", "https://x.com");
+    const link = screen.getByRole('link', { name: 'link' });
+    expect(link).toHaveAttribute('href', 'https://x.com');
     expect(screen.queryByText(/\*\*bold\*\*/)).not.toBeInTheDocument();
   });
 
-  it("delete button has mobile-visible (opacity-100) and desktop-hover (md:opacity-0) classes", () => {
-    const comment = makeComment({ authorId: "user-1" });
+  it('delete button has mobile-visible (opacity-100) and desktop-hover (md:opacity-0) classes', () => {
+    const comment = makeComment({ authorId: 'user-1' });
     renderComments([comment], vi.fn());
-    const btn = screen.getByLabelText("Comment actions");
-    expect(btn.className).toContain("opacity-100");
-    expect(btn.className).toContain("md:opacity-0");
+    const btn = screen.getByLabelText('Comment actions');
+    expect(btn.className).toContain('opacity-100');
+    expect(btn.className).toContain('md:opacity-0');
   });
 });

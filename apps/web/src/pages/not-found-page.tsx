@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom'
-import { Home, FileQuestion } from 'lucide-react'
-import { Button } from '@/components/ui/button'
+import { Link } from 'react-router-dom';
+import { Home, FileQuestion } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 /** 404 page — shown for any undefined route */
 export function NotFoundPage() {
@@ -20,5 +20,5 @@ export function NotFoundPage() {
         </Link>
       </Button>
     </div>
-  )
+  );
 }

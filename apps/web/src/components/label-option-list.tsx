@@ -8,9 +8,9 @@
  * propagation so it is safe to mount inside a clickable task card.
  */
 
-import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
-import type { Label } from "@/types";
+import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
+import type { Label } from '@/types';
 
 interface LabelOptionListProps {
   labels: Label[];
@@ -25,7 +25,7 @@ export function LabelOptionList({
   isSelected,
   onToggle,
   isPending,
-  emptyText = "No labels on this board",
+  emptyText = 'No labels on this board',
 }: LabelOptionListProps) {
   if (labels.length === 0) {
     return <p className="py-1 text-xs text-muted-foreground">{emptyText}</p>;
@@ -40,8 +40,8 @@ export function LabelOptionList({
             key={label.id}
             onClick={(e) => e.stopPropagation()}
             className={cn(
-              "flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-accent",
-              pending && "pointer-events-none opacity-50",
+              'flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-accent',
+              pending && 'pointer-events-none opacity-50',
             )}
           >
             <Checkbox
@@ -49,10 +49,7 @@ export function LabelOptionList({
               disabled={pending}
               onCheckedChange={() => onToggle(label.id)}
             />
-            <span
-              className="size-3 shrink-0 rounded-sm"
-              style={{ backgroundColor: label.color }}
-            />
+            <span className="size-3 shrink-0 rounded-sm" style={{ backgroundColor: label.color }} />
             <span className="truncate">{label.name}</span>
           </label>
         );

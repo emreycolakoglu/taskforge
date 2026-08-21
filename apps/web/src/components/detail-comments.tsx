@@ -17,10 +17,10 @@
  * via AlertDialog — "Bu yorumu silmek istediğine emin misin?" — no preview.
  */
 
-import { useState } from 'react'
-import { MessageSquare, MoreHorizontal, Trash2 } from 'lucide-react'
-import { Textarea } from '@/components/ui/textarea'
-import { Button } from '@/components/ui/button'
+import { useState } from 'react';
+import { MessageSquare, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -31,40 +31,45 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
+} from '@/components/ui/alert-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { MarkdownEditor } from '@/components/markdown'
-import { useAuth } from '@/contexts/auth-context'
-import type { Comment } from '@/types'
+} from '@/components/ui/dropdown-menu';
+import { MarkdownEditor } from '@/components/markdown';
+import { useAuth } from '@/contexts/auth-context';
+import type { Comment } from '@/types';
 
 interface DetailCommentsProps {
-  comments: Comment[]
-  onSubmit: (body: string) => void
-  onDelete?: (commentId: string) => void
-  formatTimestamp: (ts: string) => string
+  comments: Comment[];
+  onSubmit: (body: string) => void;
+  onDelete?: (commentId: string) => void;
+  formatTimestamp: (ts: string) => string;
 }
 
-export function DetailComments({ comments, onSubmit, onDelete, formatTimestamp }: DetailCommentsProps) {
-  const [text, setText] = useState('')
-  const { user } = useAuth()
+export function DetailComments({
+  comments,
+  onSubmit,
+  onDelete,
+  formatTimestamp,
+}: DetailCommentsProps) {
+  const [text, setText] = useState('');
+  const { user } = useAuth();
 
   const submit = () => {
-    if (!text.trim()) return
-    onSubmit(text.trim())
-    setText('')
-  }
+    if (!text.trim()) return;
+    onSubmit(text.trim());
+    setText('');
+  };
 
   const canDelete = (c: Comment) => {
-    if (!user || !onDelete) return false
+    if (!user || !onDelete) return false;
     // Anonymous comment (authorId null) — only admin
-    if (!c.authorId) return user.role === 'admin'
-    return c.authorId === user.id || user.role === 'admin'
-  }
+    if (!c.authorId) return user.role === 'admin';
+    return c.authorId === user.id || user.role === 'admin';
+  };
 
   return (
     <section id="comments" className="space-y-3">
@@ -80,20 +85,15 @@ export function DetailComments({ comments, onSubmit, onDelete, formatTimestamp }
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault()
-              submit()
+              e.preventDefault();
+              submit();
             }
           }}
           rows={2}
           placeholder="Add a comment…"
         />
         <div>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={submit}
-            disabled={!text.trim()}
-          >
+          <Button size="sm" variant="outline" onClick={submit} disabled={!text.trim()}>
             Submit comment
           </Button>
         </div>
@@ -139,11 +139,7 @@ export function DetailComments({ comments, onSubmit, onDelete, formatTimestamp }
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction
-                        onClick={() => onDelete!(c.id)}
-                      >
-                        Delete
-                      </AlertDialogAction>
+                      <AlertDialogAction onClick={() => onDelete!(c.id)}>Delete</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
@@ -157,5 +153,5 @@ export function DetailComments({ comments, onSubmit, onDelete, formatTimestamp }
         )}
       </div>
     </section>
-  )
+  );
 }

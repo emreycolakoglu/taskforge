@@ -14,7 +14,9 @@ export class CommentsController {
   constructor(private readonly service: CommentsService) {}
 
   @Get('task/:taskId')
-  findByTask(@Param('taskId') taskId: string) { return this.service.findByTask(taskId); }
+  findByTask(@Param('taskId') taskId: string) {
+    return this.service.findByTask(taskId);
+  }
 
   @Post()
   create(@Body() dto: CreateCommentDto, @Req() req: Request) {

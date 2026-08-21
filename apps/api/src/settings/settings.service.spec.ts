@@ -98,7 +98,9 @@ describe('SettingsService', () => {
     });
 
     it('should throw ConflictException when no settings exist', async () => {
-      await expect(service.updateSettings({ title: 'New Title' })).rejects.toThrow(ConflictException);
+      await expect(service.updateSettings({ title: 'New Title' })).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 });

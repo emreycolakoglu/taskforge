@@ -13,7 +13,13 @@ export function useTaskRelations(taskId: string) {
 export function useCreateRelation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ taskId, boardId, otherTaskId, type, direction }: {
+    mutationFn: ({
+      taskId,
+      boardId,
+      otherTaskId,
+      type,
+      direction,
+    }: {
       taskId: string;
       boardId: string;
       otherTaskId: string;
@@ -35,7 +41,11 @@ export function useCreateRelation() {
 export function useRemoveRelation() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ taskId, boardId, relationId }: {
+    mutationFn: ({
+      taskId,
+      boardId,
+      relationId,
+    }: {
       taskId: string;
       boardId: string;
       relationId: string;

@@ -10,18 +10,18 @@
  * design.md: w-[260px], bg-secondary, border-l, independent ScrollArea.
  */
 
-import { ScrollArea } from "@/components/ui/scroll-area";
-import type { Board, RelationType, Task, TaskRelations, User } from "@/types";
-import { Calendar } from "lucide-react";
-import { DetailAssigneeSelect } from "./detail-assignee-select";
-import { DetailGroup } from "./detail-group";
-import { DetailGroupTitle } from "./detail-group-title";
-import { DetailPrioritySelect } from "./detail-priority-select";
-import { DetailPropertyRow } from "./detail-property-row";
-import { DetailStatusSelect } from "./detail-status-select";
-import { LabelManager } from "./label-manager";
-import { LabelPill } from "./label-pill";
-import { DetailRelations } from "./detail-relations";
+import { ScrollArea } from '@/components/ui/scroll-area';
+import type { Board, RelationType, Task, TaskRelations, User } from '@/types';
+import { Calendar } from 'lucide-react';
+import { DetailAssigneeSelect } from './detail-assignee-select';
+import { DetailGroup } from './detail-group';
+import { DetailGroupTitle } from './detail-group-title';
+import { DetailPrioritySelect } from './detail-priority-select';
+import { DetailPropertyRow } from './detail-property-row';
+import { DetailStatusSelect } from './detail-status-select';
+import { LabelManager } from './label-manager';
+import { LabelPill } from './label-pill';
+import { DetailRelations } from './detail-relations';
 
 interface DetailPropertiesSidebarProps {
   task: Task;
@@ -30,11 +30,7 @@ interface DetailPropertiesSidebarProps {
   boardTasks: Task[];
   relations: TaskRelations | undefined;
   onUpdate: (data: Partial<Task>) => void;
-  onAddRelation: (
-    otherTaskId: string,
-    type: RelationType,
-    direction?: "source" | "target",
-  ) => void;
+  onAddRelation: (otherTaskId: string, type: RelationType, direction?: 'source' | 'target') => void;
   onRemoveRelation: (relationId: string) => void;
   onNavigate: (id: string) => void;
   onScrollTo: (anchor: string) => void;

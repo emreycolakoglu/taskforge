@@ -12,13 +12,13 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import { Board, Task } from "@/types";
-import { ReactElement } from "react";
-import { ProgressIcon } from "@/components/progress-icon";
+} from '@/components/ui/select';
+import { Board, Task } from '@/types';
+import { ReactElement } from 'react';
+import { ProgressIcon } from '@/components/progress-icon';
 
 const TRIGGER_CLASS =
-  "h-8 w-auto gap-1.5 border-0 bg-transparent px-2 py-1 text-muted-foreground shadow-none hover:bg-accent hover:text-foreground [&>span]:flex [&>span]:items-center [&>span]:gap-1.5 [&_svg]:size-4";
+  'h-8 w-auto gap-1.5 border-0 bg-transparent px-2 py-1 text-muted-foreground shadow-none hover:bg-accent hover:text-foreground [&>span]:flex [&>span]:items-center [&>span]:gap-1.5 [&_svg]:size-4';
 
 interface DetailStatusSelectProps {
   task: Task;

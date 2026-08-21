@@ -15,12 +15,12 @@ export function useCreateComment() {
     mutationFn: (data: { taskId: string; author: string; body: string }) =>
       api.comments.create(data),
     onSuccess: (_data, variables) => {
-      toast.success("Comment added");
+      toast.success('Comment added');
       queryClient.invalidateQueries({ queryKey: ['comments', variables.taskId] });
       queryClient.invalidateQueries({ queryKey: ['tasks', variables.taskId] });
     },
     onError: (error) => {
-      toast.error("Failed to create comment", { description: error.message });
+      toast.error('Failed to create comment', { description: error.message });
     },
   });
 }
@@ -28,15 +28,14 @@ export function useCreateComment() {
 export function useDeleteComment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, taskId }: { id: string; taskId: string }) =>
-      api.comments.delete(id),
+    mutationFn: ({ id, taskId }: { id: string; taskId: string }) => api.comments.delete(id),
     onSuccess: (_data, variables) => {
-      toast.success("Comment deleted");
+      toast.success('Comment deleted');
       queryClient.invalidateQueries({ queryKey: ['comments', variables.taskId] });
       queryClient.invalidateQueries({ queryKey: ['tasks', variables.taskId] });
     },
     onError: (error) => {
-      toast.error("Failed to delete comment", { description: error.message });
+      toast.error('Failed to delete comment', { description: error.message });
     },
   });
 }

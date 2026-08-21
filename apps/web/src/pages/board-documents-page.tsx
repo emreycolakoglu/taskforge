@@ -1,12 +1,12 @@
-import { useNavigate } from "react-router-dom";
-import { FileText, Plus } from "lucide-react";
-import { useState } from "react";
-import { useBoardFull } from "@/hooks/use-boards";
-import { useDocumentsByBoard, useCreateDocument } from "@/hooks/use-documents";
-import { useParams } from "react-router-dom";
-import { toast } from "sonner";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useNavigate } from 'react-router-dom';
+import { FileText, Plus } from 'lucide-react';
+import { useState } from 'react';
+import { useBoardFull } from '@/hooks/use-boards';
+import { useDocumentsByBoard, useCreateDocument } from '@/hooks/use-documents';
+import { useParams } from 'react-router-dom';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 /**
  * BoardDocumentsPage — per-board document index at /board/:boardId/docs.
@@ -23,8 +23,8 @@ export function BoardDocumentsPage() {
   const { data: documents = [] } = useDocumentsByBoard(boardId!);
   const createDocument = useCreateDocument();
   const [creating, setCreating] = useState(false);
-  const [title, setTitle] = useState("");
-  const [taskId, setTaskId] = useState("");
+  const [title, setTitle] = useState('');
+  const [taskId, setTaskId] = useState('');
 
   const handleCreate = async () => {
     if (!title.trim() || !taskId) return;
@@ -35,22 +35,22 @@ export function BoardDocumentsPage() {
         title: title.trim(),
       });
       setCreating(false);
-      setTitle("");
-      setTaskId("");
+      setTitle('');
+      setTaskId('');
       navigate(`/board/${boardId}/doc/${doc.id}`);
     } catch {
       // Keep the form open so the user can correct and retry.
-      toast.error("Failed to create document", {
-        description: "Please try again.",
+      toast.error('Failed to create document', {
+        description: 'Please try again.',
       });
     }
   };
 
   const formatTimestamp = (ts: string) =>
     new Date(ts).toLocaleDateString(undefined, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
     });
 
   return (
@@ -58,11 +58,9 @@ export function BoardDocumentsPage() {
       <header className="shrink-0 border-b border-border px-4 sm:px-6 py-4 flex items-center justify-between">
         <div>
           <h1 className="text-lg font-medium tracking-tight text-foreground">
-            {board?.icon ?? "⭐"} {board?.name ?? "Board"} — Documents
+            {board?.icon ?? '⭐'} {board?.name ?? 'Board'} — Documents
           </h1>
-          <p className="text-sm text-muted-foreground">
-            All documents on this board
-          </p>
+          <p className="text-sm text-muted-foreground">All documents on this board</p>
         </div>
         <Button onClick={() => setCreating((v) => !v)}>
           <Plus className="size-4 mr-2" />
@@ -102,11 +100,7 @@ export function BoardDocumentsPage() {
               >
                 Create
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setCreating(false)}
-              >
+              <Button size="sm" variant="outline" onClick={() => setCreating(false)}>
                 Cancel
               </Button>
             </div>
@@ -116,12 +110,8 @@ export function BoardDocumentsPage() {
         {documents.length === 0 && !creating ? (
           <div className="flex flex-col items-center justify-center py-20 text-center">
             <FileText className="h-12 w-12 text-muted-foreground" />
-            <h2 className="mt-4 text-lg font-medium text-foreground">
-              No documents yet
-            </h2>
-            <p className="text-sm text-muted-foreground">
-              Create one to capture notes on a task.
-            </p>
+            <h2 className="mt-4 text-lg font-medium text-foreground">No documents yet</h2>
+            <p className="text-sm text-muted-foreground">Create one to capture notes on a task.</p>
           </div>
         ) : (
           <div className="space-y-1">
@@ -135,9 +125,7 @@ export function BoardDocumentsPage() {
                 <span className="font-mono text-xs text-muted-foreground shrink-0">
                   {doc.docNumber}
                 </span>
-                <span className="flex-1 truncate text-sm text-foreground">
-                  {doc.title}
-                </span>
+                <span className="flex-1 truncate text-sm text-foreground">{doc.title}</span>
                 {doc.taskNumber && (
                   <span className="font-mono text-xs text-muted-foreground shrink-0">
                     {doc.taskNumber}
@@ -147,7 +135,7 @@ export function BoardDocumentsPage() {
                   {formatTimestamp(doc.updatedAt)}
                 </span>
                 <span className="font-mono text-[10px] text-muted-foreground shrink-0">
-                  {doc.isPublic ? "published" : "private"}
+                  {doc.isPublic ? 'published' : 'private'}
                 </span>
               </button>
             ))}

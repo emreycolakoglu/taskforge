@@ -8,34 +8,40 @@
  * arguably a second screen, so Lime is permitted here).
  */
 
-import { useState, useEffect } from 'react'
-import type { Status, Task, User } from '@/types'
+import { useState, useEffect } from 'react';
+import type { Status, Task, User } from '@/types';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { MarkdownEditor } from '@/components/markdown'
-import { Button } from '@/components/ui/button'
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { MarkdownEditor } from '@/components/markdown';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectTrigger,
   SelectContent,
   SelectItem,
   SelectValue,
-} from '@/components/ui/select'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+} from '@/components/ui/select';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface CreateTaskDialogProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  statuses: Status[]
-  users: User[]
-  defaultStatusId?: string
-  onSubmit: (data: { title: string; description?: string; statusId: string; priority: Task['priority']; assigneeId?: string | null }) => void
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  statuses: Status[];
+  users: User[];
+  defaultStatusId?: string;
+  onSubmit: (data: {
+    title: string;
+    description?: string;
+    statusId: string;
+    priority: Task['priority'];
+    assigneeId?: string | null;
+  }) => void;
 }
 
 const PRIORITIES: { value: Task['priority']; label: string }[] = [
@@ -43,7 +49,7 @@ const PRIORITIES: { value: Task['priority']; label: string }[] = [
   { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
   { value: 'urgent', label: 'Urgent' },
-]
+];
 
 export function CreateTaskDialog({
   open,
@@ -53,35 +59,35 @@ export function CreateTaskDialog({
   defaultStatusId,
   onSubmit,
 }: CreateTaskDialogProps) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [statusId, setStatusId] = useState(defaultStatusId ?? statuses[0]?.id ?? '')
-  const [priority, setPriority] = useState<Task['priority']>('medium')
-  const [assigneeId, setAssigneeId] = useState<string | null>(null)
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [statusId, setStatusId] = useState(defaultStatusId ?? statuses[0]?.id ?? '');
+  const [priority, setPriority] = useState<Task['priority']>('medium');
+  const [assigneeId, setAssigneeId] = useState<string | null>(null);
 
   useEffect(() => {
     if (open) {
-      setTitle('')
-      setDescription('')
-      setStatusId(defaultStatusId ?? statuses[0]?.id ?? '')
-      setPriority('medium')
-      setAssigneeId(null)
+      setTitle('');
+      setDescription('');
+      setStatusId(defaultStatusId ?? statuses[0]?.id ?? '');
+      setPriority('medium');
+      setAssigneeId(null);
     }
-  }, [open, defaultStatusId, statuses])
+  }, [open, defaultStatusId, statuses]);
 
   const handleSubmit = () => {
-    if (!title.trim() || !statusId) return
+    if (!title.trim() || !statusId) return;
     onSubmit({
       title: title.trim(),
       description: description.trim() ? description.trim() : undefined,
       statusId,
       priority,
       assigneeId,
-    })
-    onOpenChange(false)
-  }
+    });
+    onOpenChange(false);
+  };
 
-  const selectedUser = users.find((u) => u.id === assigneeId) ?? null
+  const selectedUser = users.find((u) => u.id === assigneeId) ?? null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -94,7 +100,12 @@ export function CreateTaskDialog({
             autoFocus
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleSubmit() } }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                handleSubmit();
+              }
+            }}
             placeholder="Issue title..."
           />
           <div className="min-h-20 max-h-56 overflow-y-auto w-full rounded-md border border-border bg-input px-3 py-2 text-sm shadow-subtle-2 transition-colors duration-150 focus-within:ring-2 focus-within:ring-ring">
@@ -111,7 +122,9 @@ export function CreateTaskDialog({
               </SelectTrigger>
               <SelectContent>
                 {statuses.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -121,7 +134,9 @@ export function CreateTaskDialog({
               </SelectTrigger>
               <SelectContent>
                 {PRIORITIES.map((p) => (
-                  <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
+                  <SelectItem key={p.value} value={p.value}>
+                    {p.label}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -133,9 +148,7 @@ export function CreateTaskDialog({
             <SelectTrigger className="flex-1">
               <Avatar className="size-5 border-0">
                 <AvatarFallback className="text-[9px] font-semibold bg-muted text-muted-foreground">
-                  {selectedUser
-                    ? selectedUser.displayName.charAt(0).toUpperCase()
-                    : '+'}
+                  {selectedUser ? selectedUser.displayName.charAt(0).toUpperCase() : '+'}
                 </AvatarFallback>
               </Avatar>
               <SelectValue placeholder="Assignee" />
@@ -158,10 +171,12 @@ export function CreateTaskDialog({
           </Select>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
           <Button onClick={handleSubmit}>Create issue</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

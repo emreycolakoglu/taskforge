@@ -20,12 +20,18 @@ describe('NotificationsController', () => {
     events = new EventsService();
     const module: TestingModule = await Test.createTestingModule({
       controllers: [NotificationsController],
-      providers: [NotificationsService, { provide: PrismaService, useValue: prisma }, { provide: EventsService, useValue: events }],
+      providers: [
+        NotificationsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: EventsService, useValue: events },
+      ],
     }).compile();
     controller = module.get<NotificationsController>(NotificationsController);
   });
 
-  afterAll(async () => { await prisma.$disconnect(); });
+  afterAll(async () => {
+    await prisma.$disconnect();
+  });
 
   beforeEach(async () => {
     board = await seedBoard(prisma);
@@ -35,10 +41,22 @@ describe('NotificationsController', () => {
     req = { user: { id: user.id, displayName: user.displayName } };
     await prisma.taskSubscription.create({ data: { taskId: task.id, userId: user.id } });
     const activity = await prisma.activity.create({
-      data: { taskId: task.id, actorId: other.id, actor: other.displayName, action: 'commented', detail: '{}' },
+      data: {
+        taskId: task.id,
+        actorId: other.id,
+        actor: other.displayName,
+        action: 'commented',
+        detail: '{}',
+      },
     });
     await prisma.notification.create({
-      data: { userId: user.id, taskId: task.id, activityId: activity.id, action: 'commented', summary: 'Other commented' },
+      data: {
+        userId: user.id,
+        taskId: task.id,
+        activityId: activity.id,
+        action: 'commented',
+        summary: 'Other commented',
+      },
     });
   });
 

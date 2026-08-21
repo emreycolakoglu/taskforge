@@ -59,7 +59,9 @@ describe('EventsGateway', () => {
       // Advance past the 5-second deadline
       jest.advanceTimersByTime(5001);
 
-      expect(client.emit).toHaveBeenCalledWith('auth_error', { message: 'Authentication required within 5 seconds' });
+      expect(client.emit).toHaveBeenCalledWith('auth_error', {
+        message: 'Authentication required within 5 seconds',
+      });
       expect(client.disconnect).toHaveBeenCalledWith(true);
     });
 
@@ -101,7 +103,12 @@ describe('EventsGateway', () => {
 
   describe('handleAuth', () => {
     it('should authenticate a client with a valid token', async () => {
-      const user = { id: 'user-1', displayName: 'Test User', role: 'member', email: 'test@example.com' };
+      const user = {
+        id: 'user-1',
+        displayName: 'Test User',
+        role: 'member',
+        email: 'test@example.com',
+      };
       mockAuthService.validateSession.mockResolvedValue(user);
       const client = createMockSocket();
 
@@ -115,7 +122,12 @@ describe('EventsGateway', () => {
     });
 
     it('should join board room when boardId is provided in auth message', async () => {
-      const user = { id: 'user-1', displayName: 'Test User', role: 'member', email: 'test@example.com' };
+      const user = {
+        id: 'user-1',
+        displayName: 'Test User',
+        role: 'member',
+        email: 'test@example.com',
+      };
       mockAuthService.validateSession.mockResolvedValue(user);
       const client = createMockSocket();
 
@@ -132,12 +144,19 @@ describe('EventsGateway', () => {
       gateway.handleConnection(client);
       await gateway.handleAuth(client, { token: 'bad-token' });
 
-      expect(client.emit).toHaveBeenCalledWith('auth_error', { message: 'Invalid or expired token' });
+      expect(client.emit).toHaveBeenCalledWith('auth_error', {
+        message: 'Invalid or expired token',
+      });
       expect(client.disconnect).toHaveBeenCalledWith(true);
     });
 
     it('should clear auth timeout after successful authentication', async () => {
-      const user = { id: 'user-1', displayName: 'Test User', role: 'member', email: 'test@example.com' };
+      const user = {
+        id: 'user-1',
+        displayName: 'Test User',
+        role: 'member',
+        email: 'test@example.com',
+      };
       mockAuthService.validateSession.mockResolvedValue(user);
       const client = createMockSocket();
 

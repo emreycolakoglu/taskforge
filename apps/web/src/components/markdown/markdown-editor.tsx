@@ -16,25 +16,25 @@
  * model (see the description-markdown plan, Q7).
  */
 
-import { useEffect, useRef } from 'react'
-import { useEditor, EditorContent } from '@tiptap/react'
-import { BubbleMenu } from '@tiptap/react/menus'
-import { Bold, Italic, Strikethrough, Code, Link2 } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { createMarkdownExtensions, getMarkdown, sanitizeHref } from './markdown-extensions'
-import { shouldSyncExternalValue } from './sync-guard'
+import { useEffect, useRef } from 'react';
+import { useEditor, EditorContent } from '@tiptap/react';
+import { BubbleMenu } from '@tiptap/react/menus';
+import { Bold, Italic, Strikethrough, Code, Link2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { createMarkdownExtensions, getMarkdown, sanitizeHref } from './markdown-extensions';
+import { shouldSyncExternalValue } from './sync-guard';
 
 export interface MarkdownEditorProps {
   /** Markdown source. Also the external-sync source (guarded while focused). */
-  value: string
-  editable?: boolean
-  autoFocus?: boolean
-  placeholder?: string
-  className?: string
+  value: string;
+  editable?: boolean;
+  autoFocus?: boolean;
+  placeholder?: string;
+  className?: string;
   /** Fires on every edit with the serialized markdown. */
-  onChange?: (markdown: string) => void
+  onChange?: (markdown: string) => void;
   /** Fires on blur with the serialized markdown (used to flush autosave). */
-  onBlur?: (markdown: string) => void
+  onBlur?: (markdown: string) => void;
 }
 
 export default function MarkdownEditor({
@@ -47,10 +47,10 @@ export default function MarkdownEditor({
   onBlur,
 }: MarkdownEditorProps) {
   // Refs keep the editor instance stable across handler-identity changes.
-  const onChangeRef = useRef(onChange)
-  const onBlurRef = useRef(onBlur)
-  onChangeRef.current = onChange
-  onBlurRef.current = onBlur
+  const onChangeRef = useRef(onChange);
+  const onBlurRef = useRef(onBlur);
+  onChangeRef.current = onChange;
+  onBlurRef.current = onBlur;
 
   const editor = useEditor({
     editable,
@@ -67,19 +67,19 @@ export default function MarkdownEditor({
       },
     },
     onUpdate: ({ editor }) => {
-      if (editor.isDestroyed) return
-      onChangeRef.current?.(getMarkdown(editor))
+      if (editor.isDestroyed) return;
+      onChangeRef.current?.(getMarkdown(editor));
     },
     onBlur: ({ editor }) => {
-      if (editor.isDestroyed) return
-      onBlurRef.current?.(getMarkdown(editor))
+      if (editor.isDestroyed) return;
+      onBlurRef.current?.(getMarkdown(editor));
     },
-  })
+  });
 
   // Keep `editable` in sync if it changes after mount.
   useEffect(() => {
-    editor?.setEditable(editable)
-  }, [editor, editable])
+    editor?.setEditable(editable);
+  }, [editor, editable]);
 
   // Remote-update guard: only pull external `value` into the editor when the
   // user is not actively editing, and only when it actually differs from what
@@ -88,30 +88,30 @@ export default function MarkdownEditor({
     // Under React.StrictMode the double-mount can hand us a destroyed editor
     // (storage torn down) before the live instance settles — touching its
     // storage would throw. Skip; the effect re-runs once a live editor arrives.
-    if (!editor || editor.isDestroyed) return
-    const current = getMarkdown(editor)
+    if (!editor || editor.isDestroyed) return;
+    const current = getMarkdown(editor);
     if (shouldSyncExternalValue({ isFocused: editor.isFocused, current, incoming: value })) {
-      editor.commands.setContent(value, { emitUpdate: false })
+      editor.commands.setContent(value, { emitUpdate: false });
     }
-  }, [editor, value])
+  }, [editor, value]);
 
   const toggleLink = () => {
-    if (!editor) return
+    if (!editor) return;
     if (editor.isActive('link')) {
-      editor.chain().focus().unsetLink().run()
-      return
+      editor.chain().focus().unsetLink().run();
+      return;
     }
-    const input = window.prompt('Link URL')
-    if (input === null) return
-    const href = sanitizeHref(input)
+    const input = window.prompt('Link URL');
+    if (input === null) return;
+    const href = sanitizeHref(input);
     if (!href) {
-      editor.chain().focus().unsetLink().run()
-      return
+      editor.chain().focus().unsetLink().run();
+      return;
     }
-    editor.chain().focus().setLink({ href }).run()
-  }
+    editor.chain().focus().setLink({ href }).run();
+  };
 
-  if (!editor) return null
+  if (!editor) return null;
 
   return (
     <>
@@ -155,14 +155,14 @@ export default function MarkdownEditor({
       )}
       <EditorContent editor={editor} className={className} />
     </>
-  )
+  );
 }
 
 interface MarkButtonProps {
-  label: string
-  active: boolean
-  onClick: () => void
-  children: React.ReactNode
+  label: string;
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
 }
 
 function MarkButton({ label, active, onClick, children }: MarkButtonProps) {
@@ -181,5 +181,5 @@ function MarkButton({ label, active, onClick, children }: MarkButtonProps) {
     >
       {children}
     </button>
-  )
+  );
 }

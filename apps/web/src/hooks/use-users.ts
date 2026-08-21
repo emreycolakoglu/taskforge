@@ -14,11 +14,11 @@ export function useDeleteUser() {
   return useMutation({
     mutationFn: (id: string) => api.auth.deleteUser(id),
     onSuccess: () => {
-      toast.success("User deleted");
+      toast.success('User deleted');
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
     onError: (error) => {
-      toast.error("Failed to delete user", { description: error.message });
+      toast.error('Failed to delete user', { description: error.message });
     },
   });
 }
@@ -35,11 +35,11 @@ export function useCreateInvite() {
   return useMutation({
     mutationFn: () => api.auth.createInvite(),
     onSuccess: () => {
-      toast.success("Invite created");
+      toast.success('Invite created');
       queryClient.invalidateQueries({ queryKey: ['invites'] });
     },
     onError: (error) => {
-      toast.error("Failed to create invite", { description: error.message });
+      toast.error('Failed to create invite', { description: error.message });
     },
   });
 }
@@ -49,11 +49,11 @@ export function useRevokeInvite() {
   return useMutation({
     mutationFn: (id: string) => api.auth.revokeInvite(id),
     onSuccess: () => {
-      toast.success("Invite revoked");
+      toast.success('Invite revoked');
       queryClient.invalidateQueries({ queryKey: ['invites'] });
     },
     onError: (error) => {
-      toast.error("Failed to revoke invite", { description: error.message });
+      toast.error('Failed to revoke invite', { description: error.message });
     },
   });
 }

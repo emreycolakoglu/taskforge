@@ -18,21 +18,13 @@ export class MembersController {
   }
 
   @Post()
-  add(
-    @Param('boardId') boardId: string,
-    @Body() dto: AddMemberDto,
-    @Req() req: Request,
-  ) {
+  add(@Param('boardId') boardId: string, @Body() dto: AddMemberDto, @Req() req: Request) {
     const user = (req as any).user as AuthedUser;
     return this.service.addMember(boardId, user.id, dto.userId, dto.role);
   }
 
   @Delete(':userId')
-  remove(
-    @Param('boardId') boardId: string,
-    @Param('userId') userId: string,
-    @Req() req: Request,
-  ) {
+  remove(@Param('boardId') boardId: string, @Param('userId') userId: string, @Req() req: Request) {
     const user = (req as any).user as AuthedUser;
     return this.service.removeMember(boardId, user.id, userId);
   }

@@ -6,14 +6,14 @@
  * Graphite hover affordance. Avoids repeating the row layout 8 times.
  */
 
-import type { ReactNode } from 'react'
-import { cn } from '@/lib/utils'
+import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
 interface DetailPropertyRowProps {
-  label: string
-  children: ReactNode
-  onClick?: () => void
-  className?: string
+  label: string;
+  children: ReactNode;
+  onClick?: () => void;
+  className?: string;
 }
 
 export function DetailPropertyRow({ label, children, onClick, className }: DetailPropertyRowProps) {
@@ -31,5 +31,5 @@ export function DetailPropertyRow({ label, children, onClick, className }: Detai
         {children}
       </div>
     </div>
-  )
+  );
 }

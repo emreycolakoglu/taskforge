@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { DetailBreadcrumbBar } from "./detail-breadcrumb-bar";
-import { SidebarProvider } from "@/components/ui/sidebar";
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { DetailBreadcrumbBar } from './detail-breadcrumb-bar';
+import { SidebarProvider } from '@/components/ui/sidebar';
 
 const writeText = vi.fn().mockResolvedValue(undefined);
 
-vi.mock("sonner", () => ({
+vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
 
@@ -31,7 +31,7 @@ function renderBar(overrides: Partial<Parameters<typeof DetailBreadcrumbBar>[0]>
 }
 
 async function openActionsMenu() {
-  await userEvent.click(screen.getByRole("button", { name: "Task actions" }));
+  await userEvent.click(screen.getByRole('button', { name: 'Task actions' }));
 }
 
 beforeEach(() => {
@@ -39,64 +39,60 @@ beforeEach(() => {
   Object.assign(navigator, { clipboard: { writeText } });
 });
 
-describe("DetailBreadcrumbBar — public sharing", () => {
-  it("does not show the Public badge for a private task", () => {
+describe('DetailBreadcrumbBar — public sharing', () => {
+  it('does not show the Public badge for a private task', () => {
     renderBar({ isPublic: false });
-    expect(screen.queryByText("Public")).not.toBeInTheDocument();
+    expect(screen.queryByText('Public')).not.toBeInTheDocument();
   });
 
-  it("shows the Public badge for a published task", () => {
+  it('shows the Public badge for a published task', () => {
     renderBar({ isPublic: true });
-    expect(screen.getByText("Public")).toBeInTheDocument();
+    expect(screen.getByText('Public')).toBeInTheDocument();
   });
 
-  it("offers Make public for a private task", async () => {
+  it('offers Make public for a private task', async () => {
     renderBar({ isPublic: false });
     await openActionsMenu();
-    expect(screen.getByText("Make public")).toBeInTheDocument();
-    expect(screen.queryByText("Make private")).not.toBeInTheDocument();
-    expect(screen.queryByText("Copy public link")).not.toBeInTheDocument();
+    expect(screen.getByText('Make public')).toBeInTheDocument();
+    expect(screen.queryByText('Make private')).not.toBeInTheDocument();
+    expect(screen.queryByText('Copy public link')).not.toBeInTheDocument();
   });
 
-  it("offers Make private and Copy public link for a published task", async () => {
+  it('offers Make private and Copy public link for a published task', async () => {
     renderBar({ isPublic: true });
     await openActionsMenu();
-    expect(screen.getByText("Make private")).toBeInTheDocument();
-    expect(screen.getByText("Copy public link")).toBeInTheDocument();
-    expect(screen.queryByText("Make public")).not.toBeInTheDocument();
+    expect(screen.getByText('Make private')).toBeInTheDocument();
+    expect(screen.getByText('Copy public link')).toBeInTheDocument();
+    expect(screen.queryByText('Make public')).not.toBeInTheDocument();
   });
 
-  it("publishes and copies the public URL in one click", async () => {
+  it('publishes and copies the public URL in one click', async () => {
     const { onSetPublic } = renderBar({ isPublic: false });
     await openActionsMenu();
-    await userEvent.click(screen.getByText("Make public"));
+    await userEvent.click(screen.getByText('Make public'));
 
     expect(onSetPublic).toHaveBeenCalledWith(true);
     await waitFor(() =>
-      expect(writeText).toHaveBeenCalledWith(
-        `${window.location.origin}/public/TF/123`,
-      ),
+      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/public/TF/123`),
     );
   });
 
-  it("unpublishes without copying anything", async () => {
+  it('unpublishes without copying anything', async () => {
     const { onSetPublic } = renderBar({ isPublic: true });
     await openActionsMenu();
-    await userEvent.click(screen.getByText("Make private"));
+    await userEvent.click(screen.getByText('Make private'));
 
     expect(onSetPublic).toHaveBeenCalledWith(false);
     expect(writeText).not.toHaveBeenCalled();
   });
 
-  it("copies the public URL derived from the task number, not the current page URL", async () => {
-    renderBar({ isPublic: true, taskNumber: "ABC-7" });
+  it('copies the public URL derived from the task number, not the current page URL', async () => {
+    renderBar({ isPublic: true, taskNumber: 'ABC-7' });
     await openActionsMenu();
-    await userEvent.click(screen.getByText("Copy public link"));
+    await userEvent.click(screen.getByText('Copy public link'));
 
     await waitFor(() =>
-      expect(writeText).toHaveBeenCalledWith(
-        `${window.location.origin}/public/ABC/7`,
-      ),
+      expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/public/ABC/7`),
     );
   });
 });

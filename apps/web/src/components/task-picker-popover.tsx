@@ -7,18 +7,18 @@
  * and existing-parent exclusions are the caller's concern, not this component's.
  */
 
-import { useState } from "react";
-import { Plus } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Button } from "@/components/ui/button";
+import { useState } from 'react';
+import { Plus } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Button } from '@/components/ui/button';
 import {
   Command,
   CommandInput,
   CommandList,
   CommandEmpty,
   CommandItem,
-} from "@/components/ui/command";
-import type { Task } from "@/types";
+} from '@/components/ui/command';
+import type { Task } from '@/types';
 
 interface TaskPickerPopoverProps {
   tasks: Task[];
@@ -31,7 +31,7 @@ export function TaskPickerPopover({
   tasks,
   onSelect,
   triggerLabel,
-  placeholder = "Search tasks…",
+  placeholder = 'Search tasks…',
 }: TaskPickerPopoverProps) {
   const [open, setOpen] = useState(false);
 
@@ -55,7 +55,7 @@ export function TaskPickerPopover({
             {tasks.map((t) => (
               <CommandItem
                 key={t.id}
-                value={`${t.taskNumber ?? ""} ${t.title}`}
+                value={`${t.taskNumber ?? ''} ${t.title}`}
                 onSelect={() => {
                   onSelect(t.id);
                   setOpen(false);

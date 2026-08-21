@@ -7,35 +7,35 @@
  * this component stays presentational. The `+` footer holds the inline quick-add.
  */
 
-import type { ReactNode } from 'react'
-import { MoreHorizontal, Plus } from 'lucide-react'
-import type { Status } from '@/types'
-import { Button } from '@/components/ui/button'
-import { ProgressIcon } from '@/components/progress-icon'
+import type { ReactNode } from 'react';
+import { MoreHorizontal, Plus } from 'lucide-react';
+import type { Status } from '@/types';
+import { Button } from '@/components/ui/button';
+import { ProgressIcon } from '@/components/progress-icon';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { cn } from '@/lib/utils'
+} from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 
 interface BoardColumnProps {
-  status: Status
-  taskCount: number
-  isAdding: boolean
-  onAddTask: () => void
-  onDeleteStatus: () => void
-  onEditStatus: () => void
+  status: Status;
+  taskCount: number;
+  isAdding: boolean;
+  onAddTask: () => void;
+  onDeleteStatus: () => void;
+  onEditStatus: () => void;
   /** Droppable ref + props from the parent Droppable (DnD lives in kanban-board.tsx). */
   droppableProvided?: {
-    innerRef: (el: HTMLElement | null) => void
-    droppableProps: Record<string, unknown>
-    placeholder: ReactNode
-  }
-  isDraggingOver?: boolean
-  children: ReactNode
+    innerRef: (el: HTMLElement | null) => void;
+    droppableProps: Record<string, unknown>;
+    placeholder: ReactNode;
+  };
+  isDraggingOver?: boolean;
+  children: ReactNode;
 }
 
 export function BoardColumn({
@@ -78,11 +78,12 @@ export function BoardColumn({
                 <Plus className="size-4 mr-2" />
                 Add task
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={onEditStatus}>
-                Edit status
-              </DropdownMenuItem>
+              <DropdownMenuItem onClick={onEditStatus}>Edit status</DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-destructive focus:text-destructive" onClick={onDeleteStatus}>
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onClick={onDeleteStatus}
+              >
                 Delete status
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -119,5 +120,5 @@ export function BoardColumn({
         )}
       </div>
     </div>
-  )
+  );
 }

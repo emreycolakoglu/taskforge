@@ -61,9 +61,8 @@ describe('useSocket', () => {
 
     // Find the 'connect' handler registered on the socket
     const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
-    const connectHandler = calls.find(
-      (call) => call[0] === 'connect',
-    )?.[1] as (() => void) | undefined;
+    const connectHandler = calls.find((call) => call[0] === 'connect')?.[1] as
+      (() => void) | undefined;
 
     expect(connectHandler).toBeDefined();
 
@@ -85,9 +84,8 @@ describe('useSocket', () => {
     renderHook(() => useSocket());
 
     const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
-    const connectHandler = calls.find(
-      (call) => call[0] === 'connect',
-    )?.[1] as (() => void) | undefined;
+    const connectHandler = calls.find((call) => call[0] === 'connect')?.[1] as
+      (() => void) | undefined;
 
     mockSocket.connected = true;
     act(() => {
@@ -106,9 +104,8 @@ describe('useSocket', () => {
     renderHook(() => useSocket('board-1'));
 
     const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
-    const connectHandler = calls.find(
-      (call) => call[0] === 'connect',
-    )?.[1] as (() => void) | undefined;
+    const connectHandler = calls.find((call) => call[0] === 'connect')?.[1] as
+      (() => void) | undefined;
 
     act(() => {
       connectHandler!();
@@ -118,10 +115,9 @@ describe('useSocket', () => {
   });
 
   it('should reuse the singleton socket across renders', () => {
-    const { rerender } = renderHook(
-      ({ boardId }: { boardId?: string }) => useSocket(boardId),
-      { initialProps: { boardId: 'board-1' } },
-    );
+    const { rerender } = renderHook(({ boardId }: { boardId?: string }) => useSocket(boardId), {
+      initialProps: { boardId: 'board-1' },
+    });
 
     const callsAfterMount = vi.mocked(io).mock.calls.length;
     expect(callsAfterMount).toBeGreaterThanOrEqual(1);
@@ -135,10 +131,9 @@ describe('useSocket', () => {
   it('should emit auth with new boardId when boardId changes and socket is connected', () => {
     mockGetToken.mockReturnValue('my-token');
 
-    const { rerender } = renderHook(
-      ({ boardId }: { boardId?: string }) => useSocket(boardId),
-      { initialProps: { boardId: 'board-1' } },
-    );
+    const { rerender } = renderHook(({ boardId }: { boardId?: string }) => useSocket(boardId), {
+      initialProps: { boardId: 'board-1' },
+    });
 
     // Clear the auth emit from initial connect
     mockSocket.emit.mockClear();
@@ -156,10 +151,9 @@ describe('useSocket', () => {
   it('should not emit auth on boardId change when socket is not connected', () => {
     mockGetToken.mockReturnValue('my-token');
 
-    const { rerender } = renderHook(
-      ({ boardId }: { boardId?: string }) => useSocket(boardId),
-      { initialProps: { boardId: 'board-1' } },
-    );
+    const { rerender } = renderHook(({ boardId }: { boardId?: string }) => useSocket(boardId), {
+      initialProps: { boardId: 'board-1' },
+    });
 
     mockSocket.emit.mockClear();
     mockSocket.connected = false;
@@ -185,9 +179,7 @@ describe('useSocket', () => {
     renderHook(() => useSocket());
 
     const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
-    const authErrorHandler = calls.find(
-      (call) => call[0] === 'auth_error',
-    )?.[1];
+    const authErrorHandler = calls.find((call) => call[0] === 'auth_error')?.[1];
 
     expect(authErrorHandler).toBeDefined();
   });
@@ -211,7 +203,8 @@ describe('useSocket', () => {
     renderHook(() => useSocket());
 
     const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
-    const notifHandler = calls.find((c) => c[0] === 'notification:created')?.[1] as ((data: unknown) => void) | undefined;
+    const notifHandler = calls.find((c) => c[0] === 'notification:created')?.[1] as
+      ((data: unknown) => void) | undefined;
     expect(notifHandler).toBeDefined();
 
     mockQueryClient.invalidateQueries.mockClear();
@@ -220,38 +213,54 @@ describe('useSocket', () => {
     });
 
     expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications'] });
-    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications', 'unread-count'] });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['notifications', 'unread-count'],
+    });
   });
 
-  it("invalidates document queries on document:created", () => {
+  it('invalidates document queries on document:created', () => {
     renderHook(() => useSocket());
     const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
-    const docHandler = calls.find((c) => c[0] === "document:created")?.[1] as ((data: unknown) => void) | undefined;
+    const docHandler = calls.find((c) => c[0] === 'document:created')?.[1] as
+      ((data: unknown) => void) | undefined;
     expect(docHandler).toBeDefined();
 
     mockQueryClient.invalidateQueries.mockClear();
     act(() => {
-      docHandler!({ id: "d1", boardId: "b1", taskId: "t1" });
+      docHandler!({ id: 'd1', boardId: 'b1', taskId: 't1' });
     });
 
-    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["documents", "d1"] });
-    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["documents", "board", "b1"] });
-    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["documents", "task", "t1"] });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['documents', 'd1'],
+    });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['documents', 'board', 'b1'],
+    });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['documents', 'task', 't1'],
+    });
   });
 
-  it("invalidates document queries on document:deleted", () => {
+  it('invalidates document queries on document:deleted', () => {
     renderHook(() => useSocket());
     const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
-    const docHandler = calls.find((c) => c[0] === "document:deleted")?.[1] as ((data: unknown) => void) | undefined;
+    const docHandler = calls.find((c) => c[0] === 'document:deleted')?.[1] as
+      ((data: unknown) => void) | undefined;
     expect(docHandler).toBeDefined();
 
     mockQueryClient.invalidateQueries.mockClear();
     act(() => {
-      docHandler!({ id: "d1", boardId: "b1", taskId: "t1" });
+      docHandler!({ id: 'd1', boardId: 'b1', taskId: 't1' });
     });
 
-    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["documents", "d1"] });
-    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["documents", "board", "b1"] });
-    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["documents", "task", "t1"] });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['documents', 'd1'],
+    });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['documents', 'board', 'b1'],
+    });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['documents', 'task', 't1'],
+    });
   });
 });

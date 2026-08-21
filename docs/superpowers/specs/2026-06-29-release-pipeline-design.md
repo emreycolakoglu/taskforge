@@ -67,12 +67,14 @@ Triggers: `push` to `main` only.
 Two jobs:
 
 **`bump-version`** (`ubuntu-latest`, default `GITHUB_TOKEN`):
+
 1. Checkout with `fetch-tags: true` and `fetch-depth: 0`.
 2. Compute next version: if `git describe --tags --abbrev=0` fails (no tags), use `1.0.0`; else fetch the last tag, bump patch (with minor/major rollover on overflow), strip leading `v`.
 3. `git tag v$NEXT && git push origin v$NEXT`.
 4. Expose `NEXT_VERSION` and `SHORT_SHA` via `$GITHUB_ENV`.
 
 **`docker`** (`ubuntu-latest`, `needs: bump-version`):
+
 1. Checkout.
 2. Set up QEMU (`docker/setup-qemu-action`).
 3. Set up Docker Buildx (`docker/setup-buildx-action`).

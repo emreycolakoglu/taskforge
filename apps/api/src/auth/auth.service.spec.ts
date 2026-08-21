@@ -2,7 +2,12 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { createTestPrisma, seedBoard } from '../../test/setup';
-import { ConflictException, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  UnauthorizedException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -57,7 +62,13 @@ describe('AuthService', () => {
 
       // Create a task to verify it remains unassigned (no auto-claim)
       await prisma.task.create({
-        data: { statusId: status.id, boardId: board.id, number: 1, title: 'Unassigned task', position: 0 },
+        data: {
+          statusId: status.id,
+          boardId: board.id,
+          number: 1,
+          title: 'Unassigned task',
+          position: 0,
+        },
       });
 
       const result = await service.onboard({
@@ -170,11 +181,15 @@ describe('AuthService', () => {
         },
       });
 
-      await expect(service.login('user2@example.com', 'wrong')).rejects.toThrow(UnauthorizedException);
+      await expect(service.login('user2@example.com', 'wrong')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw UnauthorizedException for non-existent user', async () => {
-      await expect(service.login('nobody@example.com', 'password')).rejects.toThrow(UnauthorizedException);
+      await expect(service.login('nobody@example.com', 'password')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should normalize email to lowercase', async () => {
@@ -428,7 +443,8 @@ describe('AuthService', () => {
       const session = await prisma.session.findUnique({ where: { token: result.token } });
       expect(session!.bot).toBe(true);
       // 365 days should be roughly a year from now
-      const daysUntilExpiry = (new Date(session!.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+      const daysUntilExpiry =
+        (new Date(session!.expiresAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
       expect(daysUntilExpiry).toBeGreaterThan(360);
       expect(daysUntilExpiry).toBeLessThan(370);
     });
@@ -500,9 +516,9 @@ describe('AuthService', () => {
         },
       });
 
-      await expect(
-        service.updateUser(user.id, { newPassword: 'newpassword' }),
-      ).rejects.toThrow(BadRequestException);
+      await expect(service.updateUser(user.id, { newPassword: 'newpassword' })).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -527,9 +543,9 @@ describe('AuthService', () => {
 
       const users = await service.findAllUsers();
       expect(users).toHaveLength(2);
-      expect(users.every(u => !(u as any).passwordHash)).toBe(true);
-      expect(users.map(u => u.email).sort()).toEqual(['alice@example.com', 'bob@example.com']);
-      expect(users.map(u => u.displayName).sort()).toEqual(['Alice', 'Bob']);
+      expect(users.every((u) => !(u as any).passwordHash)).toBe(true);
+      expect(users.map((u) => u.email).sort()).toEqual(['alice@example.com', 'bob@example.com']);
+      expect(users.map((u) => u.displayName).sort()).toEqual(['Alice', 'Bob']);
     });
   });
 
@@ -537,15 +553,31 @@ describe('AuthService', () => {
     it('should delete a user and cascade their sessions and memberships', async () => {
       const board = await seedBoard(prisma);
       const admin = await prisma.user.create({
-        data: { email: 'del-admin@example.com', passwordHash: 'hash', displayName: 'Del Admin', role: 'admin' },
+        data: {
+          email: 'del-admin@example.com',
+          passwordHash: 'hash',
+          displayName: 'Del Admin',
+          role: 'admin',
+        },
       });
       const target = await prisma.user.create({
-        data: { email: 'target@example.com', passwordHash: 'hash', displayName: 'Target', role: 'member' },
+        data: {
+          email: 'target@example.com',
+          passwordHash: 'hash',
+          displayName: 'Target',
+          role: 'member',
+        },
       });
       await prisma.session.create({
-        data: { token: 'target-session', userId: target.id, expiresAt: new Date(Date.now() + 1000) },
+        data: {
+          token: 'target-session',
+          userId: target.id,
+          expiresAt: new Date(Date.now() + 1000),
+        },
       });
-      await prisma.member.create({ data: { boardId: board.id, userId: target.id, role: 'member' } });
+      await prisma.member.create({
+        data: { boardId: board.id, userId: target.id, role: 'member' },
+      });
 
       await service.deleteUser(target.id, admin.id);
 
@@ -557,13 +589,30 @@ describe('AuthService', () => {
     it('should null out authored comments and task assignment rather than delete them', async () => {
       const board = await seedBoard(prisma);
       const admin = await prisma.user.create({
-        data: { email: 'del-admin2@example.com', passwordHash: 'hash', displayName: 'Del Admin 2', role: 'admin' },
+        data: {
+          email: 'del-admin2@example.com',
+          passwordHash: 'hash',
+          displayName: 'Del Admin 2',
+          role: 'admin',
+        },
       });
       const target = await prisma.user.create({
-        data: { email: 'target2@example.com', passwordHash: 'hash', displayName: 'Target 2', role: 'member' },
+        data: {
+          email: 'target2@example.com',
+          passwordHash: 'hash',
+          displayName: 'Target 2',
+          role: 'member',
+        },
       });
       const task = await prisma.task.create({
-        data: { statusId: board.statuses[0].id, boardId: board.id, number: 1, title: 'Task', position: 0, assigneeId: target.id },
+        data: {
+          statusId: board.statuses[0].id,
+          boardId: board.id,
+          number: 1,
+          title: 'Task',
+          position: 0,
+          assigneeId: target.id,
+        },
       });
       const comment = await prisma.comment.create({
         data: { taskId: task.id, authorId: target.id, author: 'Target 2', body: 'hello' },
@@ -579,34 +628,66 @@ describe('AuthService', () => {
 
     it('should throw BadRequestException when deleting your own account', async () => {
       const admin = await prisma.user.create({
-        data: { email: 'self@example.com', passwordHash: 'hash', displayName: 'Self', role: 'admin' },
+        data: {
+          email: 'self@example.com',
+          passwordHash: 'hash',
+          displayName: 'Self',
+          role: 'admin',
+        },
       });
       await expect(service.deleteUser(admin.id, admin.id)).rejects.toThrow(BadRequestException);
     });
 
     it('should throw NotFoundException for a nonexistent user', async () => {
       const admin = await prisma.user.create({
-        data: { email: 'nf-admin@example.com', passwordHash: 'hash', displayName: 'NF Admin', role: 'admin' },
+        data: {
+          email: 'nf-admin@example.com',
+          passwordHash: 'hash',
+          displayName: 'NF Admin',
+          role: 'admin',
+        },
       });
-      await expect(service.deleteUser('nonexistent-id', admin.id)).rejects.toThrow(NotFoundException);
+      await expect(service.deleteUser('nonexistent-id', admin.id)).rejects.toThrow(
+        NotFoundException,
+      );
     });
 
     it('should throw BadRequestException when deleting the last admin', async () => {
       const admin = await prisma.user.create({
-        data: { email: 'only-admin@example.com', passwordHash: 'hash', displayName: 'Only Admin', role: 'admin' },
+        data: {
+          email: 'only-admin@example.com',
+          passwordHash: 'hash',
+          displayName: 'Only Admin',
+          role: 'admin',
+        },
       });
       const requester = await prisma.user.create({
-        data: { email: 'member-req@example.com', passwordHash: 'hash', displayName: 'Member Req', role: 'member' },
+        data: {
+          email: 'member-req@example.com',
+          passwordHash: 'hash',
+          displayName: 'Member Req',
+          role: 'member',
+        },
       });
       await expect(service.deleteUser(admin.id, requester.id)).rejects.toThrow(BadRequestException);
     });
 
     it('should allow deleting an admin when another admin remains', async () => {
       const admin1 = await prisma.user.create({
-        data: { email: 'admin1@example.com', passwordHash: 'hash', displayName: 'Admin One', role: 'admin' },
+        data: {
+          email: 'admin1@example.com',
+          passwordHash: 'hash',
+          displayName: 'Admin One',
+          role: 'admin',
+        },
       });
       const admin2 = await prisma.user.create({
-        data: { email: 'admin2@example.com', passwordHash: 'hash', displayName: 'Admin Two', role: 'admin' },
+        data: {
+          email: 'admin2@example.com',
+          passwordHash: 'hash',
+          displayName: 'Admin Two',
+          role: 'admin',
+        },
       });
       await service.deleteUser(admin2.id, admin1.id);
       expect(await prisma.user.findUnique({ where: { id: admin2.id } })).toBeNull();

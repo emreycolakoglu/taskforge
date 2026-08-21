@@ -9,14 +9,14 @@ Let users subscribe to tasks and receive notifications about relevant changes (c
 
 ## Decisions (from brainstorming)
 
-| Decision | Choice |
-|---|---|
-| Notification triggers | Comments + status changes only (incl. archived). Title/description/move/label/relation edits do not notify. |
-| Auto-subscribe | Creator only, at task creation (when a logged-in user is present). Assigning does NOT auto-subscribe. |
-| Read state | `readAt` timestamp + unread badge count on sidebar Inbox icon. |
-| Right column | Inline task detail rendered inside the inbox (not a navigation away). |
-| Self-actions | The actor of the change does not receive a notification for their own action. |
-| MCP coverage | Full — `task_subscribe`, `task_unsubscribe`, `inbox_list`, `notifications_mark_read`. |
+| Decision                | Choice                                                                                                                         |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| Notification triggers   | Comments + status changes only (incl. archived). Title/description/move/label/relation edits do not notify.                    |
+| Auto-subscribe          | Creator only, at task creation (when a logged-in user is present). Assigning does NOT auto-subscribe.                          |
+| Read state              | `readAt` timestamp + unread badge count on sidebar Inbox icon.                                                                 |
+| Right column            | Inline task detail rendered inside the inbox (not a navigation away).                                                          |
+| Self-actions            | The actor of the change does not receive a notification for their own action.                                                  |
+| MCP coverage            | Full — `task_subscribe`, `task_unsubscribe`, `inbox_list`, `notifications_mark_read`.                                          |
 | Generation architecture | Activity-driven fan-out (Approach A). `NotificationsService` is called synchronously right after each activity row is created. |
 
 ## Data Model
@@ -103,6 +103,7 @@ notificationsService.dispatchFromActivity(activity)   ← new
 ### Notify filter
 
 `isNotifying(activity)` returns true iff:
+
 - `activity.action === 'commented'`, OR
 - `activity.action === 'updated'` AND the parsed `detail.changes` array contains a line starting with `status:`, OR
 - `activity.action === 'archived'` (archived is treated as a status change).
@@ -135,20 +136,20 @@ Single SQLite DB, local/trusted-network app, low volume. A synchronous `createMa
 
 ### REST — `subscriptions` module
 
-| Method | Path | Action |
-|---|---|---|
+| Method   | Path                              | Action                                     |
+| -------- | --------------------------------- | ------------------------------------------ |
 | `POST`   | `/api/tasks/:taskId/subscription` | Subscribe current user (idempotent upsert) |
-| `DELETE` | `/api/tasks/:taskId/subscription` | Unsubscribe current user |
-| `GET`    | `/api/tasks/:taskId/subscription` | `{ subscribed: boolean }` |
+| `DELETE` | `/api/tasks/:taskId/subscription` | Unsubscribe current user                   |
+| `GET`    | `/api/tasks/:taskId/subscription` | `{ subscribed: boolean }`                  |
 
 ### REST — `notifications` module
 
-| Method | Path | Action |
-|---|---|---|
-| `GET`    | `/api/notifications?filter=unread\|all` | Paginated list, newest first. Default `all`. Includes `taskId`, `taskNumber`, `summary`, `readAt`, `createdAt` |
-| `GET`    | `/api/notifications/unread-count` | `{ count: number }` |
-| `POST`   | `/api/notifications/:id/read` | Mark one notification read |
-| `POST`   | `/api/notifications/read-all` | Mark all current user's notifications read |
+| Method | Path                                    | Action                                                                                                         |
+| ------ | --------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `GET`  | `/api/notifications?filter=unread\|all` | Paginated list, newest first. Default `all`. Includes `taskId`, `taskNumber`, `summary`, `readAt`, `createdAt` |
+| `GET`  | `/api/notifications/unread-count`       | `{ count: number }`                                                                                            |
+| `POST` | `/api/notifications/:id/read`           | Mark one notification read                                                                                     |
+| `POST` | `/api/notifications/read-all`           | Mark all current user's notifications read                                                                     |
 
 All controllers reuse the existing `@CurrentUser` auth guard. No new auth code.
 
@@ -156,12 +157,12 @@ All controllers reuse the existing `@CurrentUser` auth guard. No new auth code.
 
 Added to `tool-definitions.ts` and `mcp.service.ts`:
 
-| Tool name | Args | Returns |
-|---|---|---|
-| `task_subscribe`           | `taskId`                              | `{ subscribed: true }` |
-| `task_unsubscribe`         | `taskId`                              | `{ subscribed: false }` |
-| `inbox_list`               | `filter?: 'unread'\|'all'`, `limit?: number` | `Notification[]` |
-| `notifications_mark_read`  | `id?` (omit = mark all)               | `{ updated: number }` |
+| Tool name                 | Args                                         | Returns                 |
+| ------------------------- | -------------------------------------------- | ----------------------- |
+| `task_subscribe`          | `taskId`                                     | `{ subscribed: true }`  |
+| `task_unsubscribe`        | `taskId`                                     | `{ subscribed: false }` |
+| `inbox_list`              | `filter?: 'unread'\|'all'`, `limit?: number` | `Notification[]`        |
+| `notifications_mark_read` | `id?` (omit = mark all)                      | `{ updated: number }`   |
 
 Routed via the existing `resource_action` pattern. The MCP session's authed user is the subscriber/recipient.
 
@@ -178,10 +179,10 @@ Add a **per-user room** `user:<userId>` alongside the existing `board:<boardId>`
 
 ### Routing
 
-| Path | Layout |
-|---|---|
-| `/inbox` | Sidebar + notification list + empty state on right ("Select a notification") |
-| `/inbox/:notificationId` | Sidebar + notification list + inline task detail on right |
+| Path                     | Layout                                                                       |
+| ------------------------ | ---------------------------------------------------------------------------- |
+| `/inbox`                 | Sidebar + notification list + empty state on right ("Select a notification") |
+| `/inbox/:notificationId` | Sidebar + notification list + inline task detail on right                    |
 
 The disabled "Inbox" nav item in `PRIMARY_NAV` becomes enabled with `to: "/inbox"` and gains a live unread badge.
 
@@ -206,6 +207,7 @@ The disabled "Inbox" nav item in `PRIMARY_NAV` becomes enabled with `to: "/inbox
 ### Mark-as-read behavior
 
 Clicking a notification in the list:
+
 1. Sets it as selected (local state).
 2. Calls `POST /api/notifications/:id/read` (idempotent — setting `readAt` again is a no-op).
 3. Optimistically updates the `['notifications']` and `['notifications', 'unread-count']` query caches.
@@ -216,6 +218,7 @@ A "Mark all read" button lives at the top of the notification list.
 ### Subscribe button — TaskDetailView properties sidebar
 
 A new `SubscribeButton` row in `DetailPropertiesSidebar`, placed above the Status row. States:
+
 - **Subscribed:** filled outline button "Subscribed" with a Bell icon; click → `DELETE /api/tasks/:taskId/subscription`.
 - **Not subscribed:** ghost button "Subscribe"; click → `POST /api/tasks/:taskId/subscription`.
 - Queries `GET /api/tasks/:taskId/subscription` on mount; optimistically updates on click.
@@ -233,12 +236,14 @@ Following existing conventions: API tests are integration tests against a real t
 ### API tests
 
 **`subscriptions.service.spec.ts`** (new in `apps/api/src/subscriptions/`):
+
 - subscribe creates a row; duplicate subscribe is idempotent (upsert, no error)
 - unsubscribe deletes the row; missing row is a no-op
 - cascade: deleting the task removes subscriptions; deleting the user removes subscriptions
 - `getSubscription` returns `{ subscribed: boolean }`
 
 **`notifications.service.spec.ts`** (new):
+
 - `dispatchFromActivity` creates one notification per subscriber, excluding the actor
 - filter: `commented` notifies; `updated` with `status:` in detail notifies; `updated` with only title change does not; `archived` notifies; `created`/`moved` do not
 - no subscribers → no notifications, no error
@@ -247,11 +252,13 @@ Following existing conventions: API tests are integration tests against a real t
 - `unreadCount` counts only `readAt IS NULL` for the user
 
 **`subscriptions.controller.spec.ts`** / **`notifications.controller.spec.ts`**:
+
 - POST/DELETE subscription endpoints require auth, return expected shapes
 - GET notifications respects `filter=unread` vs `all`
 - `read-all` endpoint marks the user's notifications read
 
 **Extend `tasks.service.spec.ts` / `comments.service.spec.ts`:**
+
 - creating a task subscribes the creator (assert `TaskSubscription` row exists)
 - commenting on a task with a non-actor subscriber creates a `Notification` row
 - the actor's own comment does not create a notification for themselves
@@ -259,18 +266,21 @@ Following existing conventions: API tests are integration tests against a real t
 ### MCP tests
 
 **Extend `mcp.service.spec.ts`:**
+
 - `task_subscribe` / `task_unsubscribe` / `inbox_list` / `notifications_mark_read` route correctly and operate on the session's authed user
 - `notifications_mark_read` with no `id` marks all read
 
 ### Web tests
 
 **Extend `hooks/api.test.ts`** (mocks `global.fetch`):
+
 - `api.subscribeTask(taskId)` → `POST /api/tasks/:id/subscription`
 - `api.unsubscribeTask(taskId)` → `DELETE ...`
 - `api.getSubscription(taskId)` → `GET ...`
 - `api.listNotifications({ filter })`, `api.markRead(id)`, `api.markAllRead()`, `api.getUnreadCount()`
 
 **Extend `use-socket.test.ts`:**
+
 - `'notification:created'` event invalidates `['notifications']` and `['notifications', 'unread-count']` query keys
 
 No new component tests (`.test.tsx`) — consistent with the repo's current lack of them, per `AGENTS.md`.
@@ -278,6 +288,7 @@ No new component tests (`.test.tsx`) — consistent with the repo's current lack
 ## Scope Boundaries
 
 **In scope:**
+
 - Schema migration for `TaskSubscription` and `Notification`
 - `SubscriptionsModule`, `NotificationsModule` (service + controller + DTOs)
 - Notification fan-out integrated into `TasksService` and `CommentsService`
@@ -291,6 +302,7 @@ No new component tests (`.test.tsx`) — consistent with the repo's current lack
 - Tests per the plan above
 
 **Out of scope (future work):**
+
 - Email/digest delivery
 - Per-board subscription defaults
 - @mention parsing (only explicit subscribe matters here)

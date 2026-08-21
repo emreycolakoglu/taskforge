@@ -16,12 +16,12 @@ export function useCreateLabel() {
     mutationFn: ({ boardId, ...data }: { boardId: string; name: string; color?: string }) =>
       api.labels.create(boardId, data),
     onSuccess: (_data, variables) => {
-      toast.success("Label created");
+      toast.success('Label created');
       queryClient.invalidateQueries({ queryKey: ['labels', variables.boardId] });
       queryClient.invalidateQueries({ queryKey: ['boards', variables.boardId, 'full'] });
     },
     onError: (error) => {
-      toast.error("Failed to create label", { description: error.message });
+      toast.error('Failed to create label', { description: error.message });
     },
   });
 }
@@ -32,12 +32,12 @@ export function useUpdateLabel() {
     mutationFn: ({ id, data, boardId }: { id: string; data: Partial<Label>; boardId: string }) =>
       api.labels.update(id, data),
     onSuccess: (_data, variables) => {
-      toast.success("Label updated");
+      toast.success('Label updated');
       queryClient.invalidateQueries({ queryKey: ['labels', variables.boardId] });
       queryClient.invalidateQueries({ queryKey: ['boards', variables.boardId, 'full'] });
     },
     onError: (error) => {
-      toast.error("Failed to update label", { description: error.message });
+      toast.error('Failed to update label', { description: error.message });
     },
   });
 }
@@ -45,15 +45,14 @@ export function useUpdateLabel() {
 export function useDeleteLabel() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, boardId }: { id: string; boardId: string }) =>
-      api.labels.delete(id),
+    mutationFn: ({ id, boardId }: { id: string; boardId: string }) => api.labels.delete(id),
     onSuccess: (_data, variables) => {
-      toast.success("Label deleted");
+      toast.success('Label deleted');
       queryClient.invalidateQueries({ queryKey: ['labels', variables.boardId] });
       queryClient.invalidateQueries({ queryKey: ['boards', variables.boardId, 'full'] });
     },
     onError: (error) => {
-      toast.error("Failed to delete label", { description: error.message });
+      toast.error('Failed to delete label', { description: error.message });
     },
   });
 }

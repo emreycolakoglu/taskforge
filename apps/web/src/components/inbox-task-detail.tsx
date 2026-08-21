@@ -1,23 +1,23 @@
-import { Link } from 'react-router-dom'
-import { ExternalLink, Loader2 } from 'lucide-react'
-import { useTask } from '@/hooks/use-tasks'
-import { TaskDetailView } from '@/components/task-detail-view'
-import type { Notification } from '@/types'
+import { Link } from 'react-router-dom';
+import { ExternalLink, Loader2 } from 'lucide-react';
+import { useTask } from '@/hooks/use-tasks';
+import { TaskDetailView } from '@/components/task-detail-view';
+import type { Notification } from '@/types';
 
 interface InboxTaskDetailProps {
-  notification: Notification
-  onNavigateTask: (id: string) => void
+  notification: Notification;
+  onNavigateTask: (id: string) => void;
 }
 
 export function InboxTaskDetail({ notification, onNavigateTask }: InboxTaskDetailProps) {
-  const { data: task, isLoading } = useTask(notification.taskId)
+  const { data: task, isLoading } = useTask(notification.taskId);
 
   if (isLoading || !task) {
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground">
         <Loader2 className="size-4 animate-spin" />
       </div>
-    )
+    );
   }
 
   return (
@@ -38,5 +38,5 @@ export function InboxTaskDetail({ notification, onNavigateTask }: InboxTaskDetai
         onNavigateTask={onNavigateTask}
       />
     </div>
-  )
+  );
 }

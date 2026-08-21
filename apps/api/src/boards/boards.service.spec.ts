@@ -3,7 +3,14 @@ import { BoardsService } from './boards.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { LabelsService } from '../labels/labels.service';
-import { createTestPrisma, seedBoard, seedTask, seedLabel, seedComment, seedUser } from '../../test/setup';
+import {
+  createTestPrisma,
+  seedBoard,
+  seedTask,
+  seedLabel,
+  seedComment,
+  seedUser,
+} from '../../test/setup';
 
 describe('BoardsService', () => {
   let service: BoardsService;
@@ -14,7 +21,12 @@ describe('BoardsService', () => {
     const events = new EventsService();
     const labelsService = new LabelsService(prisma, events);
     const module: TestingModule = await Test.createTestingModule({
-      providers: [BoardsService, { provide: PrismaService, useValue: prisma }, { provide: EventsService, useValue: events }, { provide: LabelsService, useValue: labelsService }],
+      providers: [
+        BoardsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: EventsService, useValue: events },
+        { provide: LabelsService, useValue: labelsService },
+      ],
     }).compile();
     service = module.get<BoardsService>(BoardsService);
   });
@@ -54,7 +66,9 @@ describe('BoardsService', () => {
     it('should include members array so the frontend can detect membership', async () => {
       const seeded = await seedBoard(prisma);
       const member = await seedUser(prisma);
-      await prisma.member.create({ data: { boardId: seeded.id, userId: member.id, role: 'member' } });
+      await prisma.member.create({
+        data: { boardId: seeded.id, userId: member.id, role: 'member' },
+      });
       const boards = await service.findAll();
       const board = boards.find((b: any) => b.id === seeded.id);
       expect(board).toBeDefined();
@@ -106,7 +120,12 @@ describe('BoardsService', () => {
       const found = tasks.find((t: any) => t.id === task.id);
 
       expect(found).toBeDefined();
-      expect(found.assignee).toMatchObject({ id: user.id, email: user.email, displayName: user.displayName, role: user.role });
+      expect(found.assignee).toMatchObject({
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role,
+      });
       expect(found._count).toEqual({ comments: 1, relationsTo: 0 });
       expect(found.labels).toHaveLength(1);
       expect(found.labels[0].label).toBeDefined();
@@ -130,18 +149,32 @@ describe('BoardsService', () => {
 
   describe('create', () => {
     it('should create a board with 5 default statuses, Done isDone=true', async () => {
-      const board = await service.create({ name: 'New Board', slug: 'new-board', identifier: 'NEW' });
+      const board = await service.create({
+        name: 'New Board',
+        slug: 'new-board',
+        identifier: 'NEW',
+      });
       expect(board.name).toBe('New Board');
       expect(board.slug).toBe('new-board');
       expect(board.identifier).toBe('NEW');
       expect(board.statuses).toHaveLength(5);
       const statuses = board.statuses;
-      expect(statuses.map((s: any) => s.name)).toEqual(['Backlog', 'To Do', 'In Progress', 'Review', 'Done']);
+      expect(statuses.map((s: any) => s.name)).toEqual([
+        'Backlog',
+        'To Do',
+        'In Progress',
+        'Review',
+        'Done',
+      ]);
       expect(statuses.find((s: any) => s.name === 'Done').isDone).toBe(true);
     });
 
     it('should create a board with 5 default labels', async () => {
-      const board = await service.create({ name: 'Label Board', slug: 'label-board', identifier: 'LBL' });
+      const board = await service.create({
+        name: 'Label Board',
+        slug: 'label-board',
+        identifier: 'LBL',
+      });
       const labels = await prisma.label.findMany({ where: { boardId: board.id } });
       expect(labels).toHaveLength(5);
       const labelNames = labels.map((l) => l.name);
@@ -163,17 +196,30 @@ describe('BoardsService', () => {
     });
 
     it('should normalize identifier to uppercase', async () => {
-      const board = await service.create({ name: 'Lower Board', slug: 'lower-board', identifier: 'low' });
+      const board = await service.create({
+        name: 'Lower Board',
+        slug: 'lower-board',
+        identifier: 'low',
+      });
       expect(board.identifier).toBe('LOW');
     });
 
     it('should default icon to ⭐ when not provided', async () => {
-      const board = await service.create({ name: 'Icon Board', slug: 'icon-board', identifier: 'ICN' });
+      const board = await service.create({
+        name: 'Icon Board',
+        slug: 'icon-board',
+        identifier: 'ICN',
+      });
       expect(board.icon).toBe('⭐');
     });
 
     it('should accept custom icon', async () => {
-      const board = await service.create({ name: 'Rocket', slug: 'rocket', identifier: 'RCK', icon: '🚀' });
+      const board = await service.create({
+        name: 'Rocket',
+        slug: 'rocket',
+        identifier: 'RCK',
+        icon: '🚀',
+      });
       expect(board.icon).toBe('🚀');
     });
   });
@@ -183,20 +229,34 @@ describe('BoardsService', () => {
       const seeded = await seedBoard(prisma);
       const admin = await seedUser(prisma);
       await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
-      const updated = await service.update(seeded.id, { name: 'Updated Board' }, { id: admin.id, displayName: admin.displayName });
+      const updated = await service.update(
+        seeded.id,
+        { name: 'Updated Board' },
+        { id: admin.id, displayName: admin.displayName },
+      );
       expect(updated.name).toBe('Updated Board');
     });
 
     it('should throw on non-existent board', async () => {
       const admin = await seedUser(prisma);
-      await expect(service.update('nonexistent', { name: 'X' }, { id: admin.id, displayName: admin.displayName })).rejects.toThrow('Board not found');
+      await expect(
+        service.update(
+          'nonexistent',
+          { name: 'X' },
+          { id: admin.id, displayName: admin.displayName },
+        ),
+      ).rejects.toThrow('Board not found');
     });
 
     it('should update board icon', async () => {
       const seeded = await seedBoard(prisma);
       const admin = await seedUser(prisma);
       await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
-      const updated = await service.update(seeded.id, { icon: '🔥' }, { id: admin.id, displayName: admin.displayName });
+      const updated = await service.update(
+        seeded.id,
+        { icon: '🔥' },
+        { id: admin.id, displayName: admin.displayName },
+      );
       expect(updated.icon).toBe('🔥');
     });
 
@@ -205,9 +265,15 @@ describe('BoardsService', () => {
       const admin = await seedUser(prisma);
       const member = await seedUser(prisma);
       await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
-      await prisma.member.create({ data: { boardId: seeded.id, userId: member.id, role: 'member' } });
+      await prisma.member.create({
+        data: { boardId: seeded.id, userId: member.id, role: 'member' },
+      });
       await expect(
-        service.update(seeded.id, { name: 'Hack' }, { id: member.id, displayName: member.displayName }),
+        service.update(
+          seeded.id,
+          { name: 'Hack' },
+          { id: member.id, displayName: member.displayName },
+        ),
       ).rejects.toThrow('Only board admins can perform this action');
     });
 
@@ -215,13 +281,19 @@ describe('BoardsService', () => {
       const seeded = await seedBoard(prisma);
       const admin = await seedUser(prisma);
       await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
-      await expect(service.update(seeded.id, { name: 'X' })).rejects.toThrow('Admin access required');
+      await expect(service.update(seeded.id, { name: 'X' })).rejects.toThrow(
+        'Admin access required',
+      );
     });
 
     it('should allow update on legacy board with no admin members', async () => {
       const seeded = await seedBoard(prisma);
       const user = await seedUser(prisma);
-      const updated = await service.update(seeded.id, { name: 'Legacy' }, { id: user.id, displayName: user.displayName });
+      const updated = await service.update(
+        seeded.id,
+        { name: 'Legacy' },
+        { id: user.id, displayName: user.displayName },
+      );
       expect(updated.name).toBe('Legacy');
     });
   });
@@ -249,7 +321,9 @@ describe('BoardsService', () => {
       const admin = await seedUser(prisma);
       const member = await seedUser(prisma);
       await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
-      await prisma.member.create({ data: { boardId: seeded.id, userId: member.id, role: 'member' } });
+      await prisma.member.create({
+        data: { boardId: seeded.id, userId: member.id, role: 'member' },
+      });
       await expect(
         service.remove(seeded.id, { id: member.id, displayName: member.displayName }),
       ).rejects.toThrow('Only board admins can perform this action');

@@ -26,9 +26,11 @@
 ### Task 1: CI workflow
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 
 **Interfaces:**
+
 - Consumes: `package.json` (`packageManager: pnpm@10.12.1`), `turbo.json` (`lint`, `build` tasks), `apps/api/package.json` (`test`, `prisma:generate`), `apps/web/package.json` (`test`).
 - Produces: A workflow named `ci` that runs on `pull_request` and `push` to `main`. Later tasks do not depend on outputs from this workflow, but `release.yml` (Task 2) triggers on the same `push` event and runs in parallel — CI passing is not a hard gate for release in GitHub Actions unless wired with `workflow_run`. Per the spec, both run on push to main; release.yml is independent.
 
@@ -98,9 +100,11 @@ git commit -m "ci: add lint/test/docker-build workflow for PRs and main"
 ### Task 2: Release workflow — bump-version job
 
 **Files:**
+
 - Create: `.github/workflows/release.yml`
 
 **Interfaces:**
+
 - Consumes: git tag history (must fetch tags with `fetch-depth: 0`).
 - Produces: `$GITHUB_ENV` with `NEXT_VERSION` (e.g. `1.0.0`, no `v` prefix) and `SHORT_SHA` (first 7 chars of HEAD) for the downstream `docker` job in Task 3. Also pushes a `vX.Y.Z` tag to the repo.
 
@@ -181,9 +185,11 @@ git commit -m "ci: add release workflow with semver bump job"
 ### Task 3: Release workflow — docker build & push job
 
 **Files:**
+
 - Modify: `.github/workflows/release.yml` (append a second job)
 
 **Interfaces:**
+
 - Consumes: `bump-version.outputs.next_version` (e.g. `1.0.0`) and `bump-version.outputs.short_sha` (first 7 chars of HEAD) from Task 2. Secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` from repo settings (Task 4).
 - Produces: Five Docker Hub image tags under `emreyc/taskforge`: `:latest`, `:X.Y.Z`, `:X.Y`, `:X`, `:sha-<short>`.
 
@@ -192,50 +198,50 @@ git commit -m "ci: add release workflow with semver bump job"
 Edit `.github/workflows/release.yml` and append this job at the same indentation level as `bump-version:` (i.e. two spaces under `jobs:`), separated by a blank line:
 
 ```yaml
-  docker:
-    needs: bump-version
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - uses: actions/checkout@v4
+docker:
+  needs: bump-version
+  runs-on: ubuntu-latest
+  permissions:
+    contents: read
+    packages: write
+  steps:
+    - uses: actions/checkout@v4
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
 
-      - name: Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+    - name: Login to Docker Hub
+      uses: docker/login-action@v3
+      with:
+        username: ${{ secrets.DOCKERHUB_USERNAME }}
+        password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Derive tag variants
-        id: tags
-        env:
-          NEXT_VERSION: ${{ needs.bump-version.outputs.next_version }}
-        run: |
-          set -euo pipefail
-          MAJOR=$(echo "$NEXT_VERSION" | cut -d. -f1)
-          MINOR=$(echo "$NEXT_VERSION" | cut -d. -f1,2)
-          echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
-          echo "minor=$MINOR" >> "$GITHUB_OUTPUT"
+    - name: Derive tag variants
+      id: tags
+      env:
+        NEXT_VERSION: ${{ needs.bump-version.outputs.next_version }}
+      run: |
+        set -euo pipefail
+        MAJOR=$(echo "$NEXT_VERSION" | cut -d. -f1)
+        MINOR=$(echo "$NEXT_VERSION" | cut -d. -f1,2)
+        echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
+        echo "minor=$MINOR" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            emreyc/taskforge:latest
-            emreyc/taskforge:${{ needs.bump-version.outputs.next_version }}
-            emreyc/taskforge:${{ steps.tags.outputs.minor }}
-            emreyc/taskforge:${{ steps.tags.outputs.major }}
-            emreyc/taskforge:sha-${{ needs.bump-version.outputs.short_sha }}
+    - name: Build and push
+      uses: docker/build-push-action@v6
+      with:
+        context: .
+        platforms: linux/amd64,linux/arm64
+        push: true
+        tags: |
+          emreyc/taskforge:latest
+          emreyc/taskforge:${{ needs.bump-version.outputs.next_version }}
+          emreyc/taskforge:${{ steps.tags.outputs.minor }}
+          emreyc/taskforge:${{ steps.tags.outputs.major }}
+          emreyc/taskforge:sha-${{ needs.bump-version.outputs.short_sha }}
 ```
 
 The `Derive tag variants` step splits `1.2.3` into `1` (major) and `1.2` (minor) so the five tag lines cover `latest`, full semver, minor, major, and sha.
@@ -257,9 +263,11 @@ git commit -m "ci: add multi-arch docker build and push to release workflow"
 ### Task 4: Docker Hub and GitHub secrets setup (manual, no code)
 
 **Files:**
+
 - None (account configuration on hub.docker.com and github.com).
 
 **Interfaces:**
+
 - Consumes: the workflow from Tasks 2–3 which reads `secrets.DOCKERHUB_USERNAME` and `secrets.DOCKERHUB_TOKEN`.
 - Produces: working credentials for the `docker` job's login step.
 
@@ -304,9 +312,11 @@ On the same settings page, confirm both `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKE
 ### Task 5: First release — push workflows to main and verify
 
 **Files:**
+
 - None (verification only).
 
 **Interfaces:**
+
 - Consumes: `.github/workflows/ci.yml` (Task 1), `.github/workflows/release.yml` (Tasks 2–3), secrets from Task 4.
 - Produces: a `vX.Y.Z` git tag, five Docker Hub image tags, and a green workflow run in the Actions tab.
 
@@ -355,6 +365,7 @@ docker run --rm -p 3000:3000 emreyc/taskforge:latest
 ```
 
 In another terminal:
+
 ```bash
 curl http://localhost:3000/api/boards
 ```
@@ -364,6 +375,7 @@ Expected: a JSON response (empty array `[]` for a fresh DB, or whatever the API 
 - [ ] **Step 7: Verify a second push bumps the version**
 
 Make a trivial change (e.g. add a line to `README.md`), commit, and push:
+
 ```bash
 git commit --allow-empty -m "test: trigger a second release"
 git push origin main
@@ -372,9 +384,11 @@ git push origin main
 Then check the Actions tab again. The new `release` run should print `Next version: v1.0.1` and push `v1.0.1`. Docker Hub should now show `latest`, `1.0.1`, `1.0`, `1`, and `sha-<new-short-sha>` — note `1.0` and `1` now point at the `1.0.1` manifest, and `1.0.0` remains as a historical pin.
 
 Clean up the test commit if you want:
+
 ```bash
 git reset --hard HEAD~1 && git push --force-with-lease origin main
 ```
+
 (Note: this does not delete the `v1.0.1` tag or the Docker Hub tags — they are permanent. If you want to remove the tag: `git push origin :refs/tags/v1.0.1` and delete the tags from Docker Hub UI.)
 
 ---

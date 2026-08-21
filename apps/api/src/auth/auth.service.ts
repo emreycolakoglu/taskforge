@@ -1,4 +1,10 @@
-import { Injectable, ConflictException, UnauthorizedException, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  ConflictException,
+  UnauthorizedException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
@@ -241,7 +247,14 @@ export class AuthService {
 
   async findAllUsers() {
     return this.prisma.user.findMany({
-      select: { id: true, email: true, displayName: true, role: true, createdAt: true, updatedAt: true },
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: { displayName: 'asc' },
     });
   }
@@ -253,7 +266,7 @@ export class AuthService {
     });
 
     const now = new Date();
-    return invites.map(invite => ({
+    return invites.map((invite) => ({
       id: invite.id,
       token: invite.token,
       createdBy: invite.createdBy,
@@ -277,5 +290,4 @@ export class AuthService {
     }
     await this.prisma.inviteToken.delete({ where: { id } });
   }
-
 }

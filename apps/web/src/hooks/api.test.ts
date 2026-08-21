@@ -5,9 +5,15 @@ const localStorageMock = (() => {
   let store: Record<string, string> = {};
   return {
     getItem: vi.fn((key: string) => store[key] ?? null),
-    setItem: vi.fn((key: string, value: string) => { store[key] = value; }),
-    removeItem: vi.fn((key: string) => { delete store[key]; }),
-    clear: vi.fn(() => { store = {}; }),
+    setItem: vi.fn((key: string, value: string) => {
+      store[key] = value;
+    }),
+    removeItem: vi.fn((key: string) => {
+      delete store[key];
+    }),
+    clear: vi.fn(() => {
+      store = {};
+    }),
   };
 })();
 Object.defineProperty(globalThis, 'localStorage', { value: localStorageMock });
@@ -32,9 +38,12 @@ describe('api', () => {
     const { api } = await import('./api');
     const result = await api.boards.list();
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/boards', expect.objectContaining({
-      headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-    }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/boards',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      }),
+    );
     expect(result).toEqual(boards);
   });
 
@@ -48,12 +57,15 @@ describe('api', () => {
     const { api } = await import('./api');
     await api.boards.list();
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/boards', expect.objectContaining({
-      headers: expect.objectContaining({
-        'Authorization': 'Bearer test-token',
-        'Content-Type': 'application/json',
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/boards',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer test-token',
+          'Content-Type': 'application/json',
+        }),
       }),
-    }));
+    );
   });
 
   it('should make POST request to create board', async () => {
@@ -64,7 +76,11 @@ describe('api', () => {
     });
 
     const { api } = await import('./api');
-    const result = await api.boards.create({ name: 'New Board', slug: 'new-board', identifier: 'NB' });
+    const result = await api.boards.create({
+      name: 'New Board',
+      slug: 'new-board',
+      identifier: 'NB',
+    });
 
     expect(mockFetch).toHaveBeenCalledWith('/api/boards', {
       method: 'POST',
@@ -165,7 +181,10 @@ describe('api', () => {
   });
 
   it('should make auth.login request', async () => {
-    const response = { user: { id: '1', email: 'a@b.c' }, session: { token: 'tok', expiresAt: '2026-01-01' } };
+    const response = {
+      user: { id: '1', email: 'a@b.c' },
+      session: { token: 'tok', expiresAt: '2026-01-01' },
+    };
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(response),
@@ -174,15 +193,21 @@ describe('api', () => {
     const { api } = await import('./api');
     const result = await api.auth.login('a@b.c', 'password');
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/auth/login', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ email: 'a@b.c', password: 'password' }),
-    }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/auth/login',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ email: 'a@b.c', password: 'password' }),
+      }),
+    );
     expect(result.session.token).toBe('tok');
   });
 
   it('should make auth.onboard request', async () => {
-    const response = { user: { id: '1', email: 'a@b.c' }, session: { token: 'tok', expiresAt: '2026-01-01' } };
+    const response = {
+      user: { id: '1', email: 'a@b.c' },
+      session: { token: 'tok', expiresAt: '2026-01-01' },
+    };
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(response),
@@ -196,14 +221,25 @@ describe('api', () => {
       title: 'My Forge',
     });
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/auth/onboard', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ email: 'a@b.c', password: 'password', displayName: 'Admin', title: 'My Forge' }),
-    }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/auth/onboard',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({
+          email: 'a@b.c',
+          password: 'password',
+          displayName: 'Admin',
+          title: 'My Forge',
+        }),
+      }),
+    );
   });
 
   it('should make auth.signup request', async () => {
-    const response = { user: { id: '2', email: 'b@c.d' }, session: { token: 'tok2', expiresAt: '2026-01-01' } };
+    const response = {
+      user: { id: '2', email: 'b@c.d' },
+      session: { token: 'tok2', expiresAt: '2026-01-01' },
+    };
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(response),
@@ -216,10 +252,13 @@ describe('api', () => {
       displayName: 'Member',
     });
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/auth/signup/invite-token', expect.objectContaining({
-      method: 'POST',
-      body: JSON.stringify({ email: 'b@c.d', password: 'password', displayName: 'Member' }),
-    }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/auth/signup/invite-token',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ email: 'b@c.d', password: 'password', displayName: 'Member' }),
+      }),
+    );
   });
 
   it('should make auth.me request', async () => {
@@ -244,9 +283,12 @@ describe('api', () => {
     const { api } = await import('./api');
     const result = await api.auth.updateUser({ displayName: 'New Name' });
     expect(result.displayName).toBe('New Name');
-    expect(mockFetch).toHaveBeenCalledWith('/api/auth/me', expect.objectContaining({
-      method: 'PATCH',
-    }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/auth/me',
+      expect.objectContaining({
+        method: 'PATCH',
+      }),
+    );
   });
 
   it('should make settings.getInitialized request', async () => {
@@ -312,7 +354,9 @@ describe('api', () => {
     });
 
     const { api } = await import('./api');
-    const result = await api.mcp({ method: 'boards_list', params: {}, id: 1 }) as { result: unknown[] };
+    const result = (await api.mcp({ method: 'boards_list', params: {}, id: 1 })) as {
+      result: unknown[];
+    };
 
     expect(mockFetch).toHaveBeenCalledWith('/api/mcp', {
       method: 'POST',
@@ -329,12 +373,20 @@ describe('api', () => {
     });
 
     const { api } = await import('./api');
-    const result = await api.tasks.reorder([{ id: 't1', position: 1 }, { id: 't2', position: 0 }]);
+    const result = await api.tasks.reorder([
+      { id: 't1', position: 1 },
+      { id: 't2', position: 0 },
+    ]);
 
     expect(mockFetch).toHaveBeenCalledWith('/api/tasks/reorder', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: [{ id: 't1', position: 1 }, { id: 't2', position: 0 }] }),
+      body: JSON.stringify({
+        items: [
+          { id: 't1', position: 1 },
+          { id: 't2', position: 0 },
+        ],
+      }),
     });
   });
 
@@ -353,8 +405,22 @@ describe('api', () => {
 
   it('should make auth.users request', async () => {
     const users = [
-      { id: 'u1', email: 'a@b.c', displayName: 'Alice', role: 'admin', createdAt: '2026-01-01', updatedAt: '2026-01-01' },
-      { id: 'u2', email: 'b@c.d', displayName: 'Bob', role: 'member', createdAt: '2026-01-02', updatedAt: '2026-01-02' },
+      {
+        id: 'u1',
+        email: 'a@b.c',
+        displayName: 'Alice',
+        role: 'admin',
+        createdAt: '2026-01-01',
+        updatedAt: '2026-01-01',
+      },
+      {
+        id: 'u2',
+        email: 'b@c.d',
+        displayName: 'Bob',
+        role: 'member',
+        createdAt: '2026-01-02',
+        updatedAt: '2026-01-02',
+      },
     ];
     mockFetch.mockResolvedValueOnce({
       ok: true,
@@ -370,7 +436,16 @@ describe('api', () => {
   });
 
   it('should make GET request to list labels for a board', async () => {
-    const labels = [{ id: 'lb1', boardId: 'b1', name: 'bug', color: '#EF4444', createdAt: '2026-01-01', updatedAt: '2026-01-01' }];
+    const labels = [
+      {
+        id: 'lb1',
+        boardId: 'b1',
+        name: 'bug',
+        color: '#EF4444',
+        createdAt: '2026-01-01',
+        updatedAt: '2026-01-01',
+      },
+    ];
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(labels),
@@ -379,14 +454,24 @@ describe('api', () => {
     const { api } = await import('./api');
     const result = await api.labels.list('b1');
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/boards/b1/labels', expect.objectContaining({
-      headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-    }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/boards/b1/labels',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      }),
+    );
     expect(result).toEqual(labels);
   });
 
   it('should make POST request to create a label', async () => {
-    const newLabel = { id: 'lb1', boardId: 'b1', name: 'bug', color: '#EF4444', createdAt: '2026-01-01', updatedAt: '2026-01-01' };
+    const newLabel = {
+      id: 'lb1',
+      boardId: 'b1',
+      name: 'bug',
+      color: '#EF4444',
+      createdAt: '2026-01-01',
+      updatedAt: '2026-01-01',
+    };
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(newLabel),
@@ -404,7 +489,14 @@ describe('api', () => {
   });
 
   it('should make PATCH request to update a label', async () => {
-    const updated = { id: 'lb1', boardId: 'b1', name: 'feature', color: '#22C55E', createdAt: '2026-01-01', updatedAt: '2026-01-02' };
+    const updated = {
+      id: 'lb1',
+      boardId: 'b1',
+      name: 'feature',
+      color: '#22C55E',
+      createdAt: '2026-01-01',
+      updatedAt: '2026-01-02',
+    };
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(updated),
@@ -437,7 +529,19 @@ describe('api', () => {
   });
 
   it('should make POST request to attach a label to a task', async () => {
-    const taskLabel = { taskId: 't1', labelId: 'lb1', assignedAt: '2026-01-01T00:00:00Z', label: { id: 'lb1', boardId: 'b1', name: 'bug', color: '#EF4444', createdAt: '2026-01-01', updatedAt: '2026-01-01' } };
+    const taskLabel = {
+      taskId: 't1',
+      labelId: 'lb1',
+      assignedAt: '2026-01-01T00:00:00Z',
+      label: {
+        id: 'lb1',
+        boardId: 'b1',
+        name: 'bug',
+        color: '#EF4444',
+        createdAt: '2026-01-01',
+        updatedAt: '2026-01-01',
+      },
+    };
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(taskLabel),
@@ -568,21 +672,32 @@ describe('api', () => {
     const { api } = await import('./api');
     const result = await api.relations.list('t1');
 
-    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/relations', expect.objectContaining({
-      headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
-    }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/tasks/t1/relations',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'Content-Type': 'application/json' }),
+      }),
+    );
     expect(result.taskId).toBe('t1');
   });
 
   it('api.relations.create(taskId, {...}) → POST with correct body', async () => {
-    const entry = { relationId: 'r1', type: 'blocks', task: { id: 't2', taskNumber: 'TF-2', title: 'Other' } };
+    const entry = {
+      relationId: 'r1',
+      type: 'blocks',
+      task: { id: 't2', taskNumber: 'TF-2', title: 'Other' },
+    };
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(entry),
     });
 
     const { api } = await import('./api');
-    const result = await api.relations.create('t1', { otherTaskId: 't2', type: 'blocks', direction: 'source' });
+    const result = await api.relations.create('t1', {
+      otherTaskId: 't2',
+      type: 'blocks',
+      direction: 'source',
+    });
 
     expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/relations', {
       method: 'POST',
@@ -611,7 +726,10 @@ describe('api', () => {
   // ─── Subscriptions + Notifications ──────────────────────────────────────────
 
   it('api.subscriptions.get → GET /tasks/<id>/subscription', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ subscribed: true }) });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ subscribed: true }),
+    });
     const { api } = await import('./api');
     const result = await api.subscriptions.get('t1');
     expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/subscription', expect.any(Object));
@@ -619,18 +737,30 @@ describe('api', () => {
   });
 
   it('api.subscriptions.create → POST /tasks/<id>/subscription', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ subscribed: true }) });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ subscribed: true }),
+    });
     const { api } = await import('./api');
     const result = await api.subscriptions.create('t1');
-    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/subscription', expect.objectContaining({ method: 'POST' }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/tasks/t1/subscription',
+      expect.objectContaining({ method: 'POST' }),
+    );
     expect(result.subscribed).toBe(true);
   });
 
   it('api.subscriptions.delete → DELETE /tasks/<id>/subscription', async () => {
-    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ subscribed: false }) });
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve({ subscribed: false }),
+    });
     const { api } = await import('./api');
     const result = await api.subscriptions.delete('t1');
-    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/t1/subscription', expect.objectContaining({ method: 'DELETE' }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/tasks/t1/subscription',
+      expect.objectContaining({ method: 'DELETE' }),
+    );
     expect(result.subscribed).toBe(false);
   });
 
@@ -660,7 +790,10 @@ describe('api', () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ read: true }) });
     const { api } = await import('./api');
     const result = await api.notifications.markRead('n1');
-    expect(mockFetch).toHaveBeenCalledWith('/api/notifications/n1/read', expect.objectContaining({ method: 'POST' }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/notifications/n1/read',
+      expect.objectContaining({ method: 'POST' }),
+    );
     expect(result.read).toBe(true);
   });
 
@@ -668,7 +801,10 @@ describe('api', () => {
     mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ updated: 5 }) });
     const { api } = await import('./api');
     const result = await api.notifications.markAllRead();
-    expect(mockFetch).toHaveBeenCalledWith('/api/notifications/read-all', expect.objectContaining({ method: 'POST' }));
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/notifications/read-all',
+      expect.objectContaining({ method: 'POST' }),
+    );
     expect(result.updated).toBe(5);
   });
 });

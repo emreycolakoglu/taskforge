@@ -38,6 +38,7 @@ From the visible text + aria-labels, Linear's task detail page is:
 ```
 
 Key Linear structural facts:
+
 - **Two-column layout**: main content (flex-1, scrolls) + right properties sidebar (~240–280px, fixed, scrolls independently).
 - **Breadcrumb row** sits above the title, separate from the title. Contains: team › project/list › `DEV-6` identifier + title, plus prev/next item count (`2/669`), and a row of icon actions (back, prev, next, options ⋯, copy ID, copy URL, favorite ★).
 - **Title** is large, editable inline, sits below the breadcrumb. The task identifier (`DEV-6`) is NOT in the title — it's in the breadcrumb row, in mono.
@@ -76,6 +77,7 @@ Key Linear structural facts:
 Current header crams back button + task number + editable title + prev/next into one row. Linear splits this into a **breadcrumb row** (identifier + nav actions) and lets the **title** live in the main column below.
 
 New `detail-breadcrumb-bar.tsx`:
+
 - Left: back chevron → breadcrumb text `Board name › List name › TF-730` (board name from `useBoardFull`, list name from `board.lists.find`). The current `task.taskNumber` in mono. Truncated with `truncate`.
 - Center/right: prev/next item buttons (`ChevronLeft`/`ChevronRight`) + `2/669`-style position indicator (mono, muted) + an actions `DropdownMenu` (⋯) with Copy ID, Copy URL, Favorite (Favorite/Subscribe are out of scope functionally — see §6 — but the ⋯ menu can hold Copy ID/URL which are client-side).
 - **No title here.** Title moves to main column.
@@ -112,6 +114,7 @@ New `detail-breadcrumb-bar.tsx`:
 Flat list of property rows, no card chrome, hairline dividers between groups. Each row is `flex items-center justify-between gap-3 py-2` with a muted label left and a control/value right.
 
 **Group 1 — Status & ownership** (top, no divider above):
+
 - **Status** — `Select` (existing). Options: Active / Done / Archived. Render value with a status dot (Emerald for done, Slate for active, Fog for archived) inline in the trigger.
 - **Priority** — `Select` (existing) replacing the current 4-button row. Options: Low / Medium / High / Urgent, each with the priority SVG icon prefix. Rationale: the current 4-button row uses Crimson/Indigo tinted fills (`bg-[#eb5757]/10`) which is a bright-fill pattern design.md discourages on chrome; a Select with icon-prefixed options is quieter and matches Linear.
 - **Assignee** — `Select` (existing). Options: Unassigned + users. Show avatar initial in trigger.
@@ -120,6 +123,7 @@ Flat list of property rows, no card chrome, hairline dividers between groups. Ea
 **Divider** (`Separator`).
 
 **Group 2 — Organization**:
+
 - **List** — read-only value with `ListChecks` icon + list name. (Moving tasks between lists is done on the board via drag; detail page shows it read-only — matches Linear where the list/column is shown but not edited here.)
 - **Parent** — if `task.parent`: link row (mono number + title, clickable). If no parent: `+ Set parent` opening a `Popover` with task search (reuse the relation-add pattern).
 - **Sub-issues** — count + `N sub-issues` link that scrolls to the sub-issues section in the main column (anchor). Not a full list here — Linear keeps the list in the main column.
@@ -127,6 +131,7 @@ Flat list of property rows, no card chrome, hairline dividers between groups. Ea
 **Divider**.
 
 **Group 3 — Relations summary**:
+
 - **Blocking** — `N` count or `None`, clickable to scroll to relations section.
 - **Blocked by** — `N` count or `None`.
 - **Related** — `N` count or `None`.
@@ -134,6 +139,7 @@ Flat list of property rows, no card chrome, hairline dividers between groups. Ea
 **Divider**.
 
 **Group 4 — Dates** (muted, mono):
+
 - **Created** — `Clock` icon + mono timestamp.
 - **Updated** — `Clock` icon + mono timestamp.
 - **Due date** — if `task.dueDate`: `Calendar` icon + mono date. If none: omit (don't show empty).
@@ -264,20 +270,20 @@ All new components live in `apps/web/src/components/` with kebab-case filenames.
 
 Linear's saved view vs design.md. **design.md wins every conflict.**
 
-| # | Where | Linear does | design.md requires | Resolution |
-|---|-------|-------------|--------------------|------------|
-| 1 | Priority indicator | Crimson `#eb5757` filled dots/tints on buttons (`bg-[#eb5757]/10`) | No bright fills on chrome; Crimson is an outline accent only | Priority shown as a **monochrome SVG icon** with Crimson/Indigo stroke color only — no tinted background fills. The 4-button priority row becomes a `Select` with icon-prefixed options. |
-| 2 | Status colors | Linear uses a palette of status colors (blue, purple, etc.) | Palette is Lime + Indigo + Emerald/Crimson/Cyan only — no new accent colors | Status dot uses only Emerald (done), Slate (active), Fog (archived). No blue/purple. |
-| 3 | Card fills | Linear issue rows use subtle elevated fills | No bright fills on cards — Obsidian/Charcoal with 1px Graphite inset border + soft drop shadow | All rows use `bg-card` (Obsidian) + `border-border` (Graphite) + `rounded-md`. Depth from border, not fill. |
-| 4 | Gradients | Linear uses subtle gradients on some surfaces | No gradients on UI surfaces | Flat colors only. |
-| 5 | Font weight | Linear uses weight 510/590 | Inter weights cap at 590, never 700+ | Use `font-medium` (510) for emphasis, `font-semibold` (590) sparingly for avatars/author names. Never `font-bold`. |
-| 6 | Primary CTA | Linear's detail page has no single obvious Lime CTA (the "Submit comment" is a subtle button) | One rationed Acid Lime CTA per screen, never decorative | The detail page has **no Lime CTA** — there is no primary creation action on the detail view. Save/Submit buttons use `variant="outline"` or `variant="ghost"`. Lime is reserved for the board's "New Issue" button. This is compliant: "one CTA per screen" and the detail screen's primary action is navigation/edit, not creation. |
-| 7 | Borders on hover | Linear highlights rows with colored borders on hover | Border-defined edges; no colored hover borders | Hover uses `bg-accent/30` (Graphite) — no border color change to a chromatic color. Current `hover:border-foreground/20` on task-card is acceptable (monochrome). |
-| 8 | Mono font | Linear uses Berkeley Mono | JetBrains Mono is the substitute | Use `font-mono` (already mapped to JetBrains Mono in `index.css`). |
-| 9 | Property row labels | Linear uses sentence-case labels in the sidebar | design.md doesn't mandate case for sidebar labels; uppercase tracking-wider is for section headings | Sidebar property labels: `text-xs text-muted-foreground` sentence case (e.g. "Status", "Assignee"). Main-column section headings: `uppercase tracking-wider`. |
-| 10 | Sidebar background | Linear sidebar is the same canvas as content | Sidebar uses `bg-secondary` (Charcoal) per existing tokens | Right sidebar `bg-secondary` `border-l border-border` — matches the board header bar pattern. |
-| 11 | Comment cards | Linear renders comments as flat timeline rows | design.md: no bright fills; border-defined cards are allowed but flat is fine | Comments as flat rows with `border-b border-border` — no card chrome. Matches Linear and is quieter. |
-| 12 | Section heading weight | Linear uses weight 510 for small headings | Inter 510 for UI emphasis | `font-medium` on all section headings. |
+| #   | Where                  | Linear does                                                                                   | design.md requires                                                                                  | Resolution                                                                                                                                                                                                                                                                                                                            |
+| --- | ---------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | Priority indicator     | Crimson `#eb5757` filled dots/tints on buttons (`bg-[#eb5757]/10`)                            | No bright fills on chrome; Crimson is an outline accent only                                        | Priority shown as a **monochrome SVG icon** with Crimson/Indigo stroke color only — no tinted background fills. The 4-button priority row becomes a `Select` with icon-prefixed options.                                                                                                                                              |
+| 2   | Status colors          | Linear uses a palette of status colors (blue, purple, etc.)                                   | Palette is Lime + Indigo + Emerald/Crimson/Cyan only — no new accent colors                         | Status dot uses only Emerald (done), Slate (active), Fog (archived). No blue/purple.                                                                                                                                                                                                                                                  |
+| 3   | Card fills             | Linear issue rows use subtle elevated fills                                                   | No bright fills on cards — Obsidian/Charcoal with 1px Graphite inset border + soft drop shadow      | All rows use `bg-card` (Obsidian) + `border-border` (Graphite) + `rounded-md`. Depth from border, not fill.                                                                                                                                                                                                                           |
+| 4   | Gradients              | Linear uses subtle gradients on some surfaces                                                 | No gradients on UI surfaces                                                                         | Flat colors only.                                                                                                                                                                                                                                                                                                                     |
+| 5   | Font weight            | Linear uses weight 510/590                                                                    | Inter weights cap at 590, never 700+                                                                | Use `font-medium` (510) for emphasis, `font-semibold` (590) sparingly for avatars/author names. Never `font-bold`.                                                                                                                                                                                                                    |
+| 6   | Primary CTA            | Linear's detail page has no single obvious Lime CTA (the "Submit comment" is a subtle button) | One rationed Acid Lime CTA per screen, never decorative                                             | The detail page has **no Lime CTA** — there is no primary creation action on the detail view. Save/Submit buttons use `variant="outline"` or `variant="ghost"`. Lime is reserved for the board's "New Issue" button. This is compliant: "one CTA per screen" and the detail screen's primary action is navigation/edit, not creation. |
+| 7   | Borders on hover       | Linear highlights rows with colored borders on hover                                          | Border-defined edges; no colored hover borders                                                      | Hover uses `bg-accent/30` (Graphite) — no border color change to a chromatic color. Current `hover:border-foreground/20` on task-card is acceptable (monochrome).                                                                                                                                                                     |
+| 8   | Mono font              | Linear uses Berkeley Mono                                                                     | JetBrains Mono is the substitute                                                                    | Use `font-mono` (already mapped to JetBrains Mono in `index.css`).                                                                                                                                                                                                                                                                    |
+| 9   | Property row labels    | Linear uses sentence-case labels in the sidebar                                               | design.md doesn't mandate case for sidebar labels; uppercase tracking-wider is for section headings | Sidebar property labels: `text-xs text-muted-foreground` sentence case (e.g. "Status", "Assignee"). Main-column section headings: `uppercase tracking-wider`.                                                                                                                                                                         |
+| 10  | Sidebar background     | Linear sidebar is the same canvas as content                                                  | Sidebar uses `bg-secondary` (Charcoal) per existing tokens                                          | Right sidebar `bg-secondary` `border-l border-border` — matches the board header bar pattern.                                                                                                                                                                                                                                         |
+| 11  | Comment cards          | Linear renders comments as flat timeline rows                                                 | design.md: no bright fills; border-defined cards are allowed but flat is fine                       | Comments as flat rows with `border-b border-border` — no card chrome. Matches Linear and is quieter.                                                                                                                                                                                                                                  |
+| 12  | Section heading weight | Linear uses weight 510 for small headings                                                     | Inter 510 for UI emphasis                                                                           | `font-medium` on all section headings.                                                                                                                                                                                                                                                                                                |
 
 ---
 
@@ -286,12 +292,14 @@ Linear's saved view vs design.md. **design.md wins every conflict.**
 **No new hooks. No API changes. No type changes.** The refactor is purely presentational.
 
 What's reused as-is:
+
 - `useTask`, `useBoardFull`, `useComments`, `useUsers`, `useLabels`, `useTasksByBoard`, `useTaskRelations` — reads.
 - `useUpdateTask`, `useCreateComment`, `useCreateRelation`, `useRemoveRelation`, `useCreateTask` — writes.
 - `api.tasks.update` already accepts `Partial<Task>` including `status`, `priority`, `assigneeId`, `parentId`, `title`, `description`, `dueDate`. No new fields.
 - `TaskRelations` type already has `blocking`, `blockedBy`, `relatedTo`.
 
 Client-side only / out of scope (no data work):
+
 - **Copy ID / Copy URL** in the breadcrumb ⋯ menu — client-side `navigator.clipboard.writeText`. No API.
 - **Subscribe / Favorite** actions (Linear has them) — **out of scope**, no backend. The ⋯ menu will omit these.
 - **Project** property (Linear shows "Project: Add to project") — **out of scope**, TaskForge has no projects. Omit from sidebar.
@@ -324,44 +332,53 @@ Client-side only / out of scope (no data work):
 Each step ends with a verification gate: `pnpm --filter @taskforge/web exec tsc --noEmit` (typecheck) + `pnpm --filter @taskforge/web exec eslint src` (lint). Run both before moving on. Tests at the end.
 
 ### Step 1 — Extract shared priority icons
+
 - Create `components/priority-icons.tsx` with the 4 SVG components from `task-card.tsx`.
 - Update `task-card.tsx` to import from `priority-icons.tsx`.
 - **Verify**: typecheck + lint + `pnpm --filter @taskforge/web test` (existing tests pass).
 
 ### Step 2 — Sidebar property components
+
 - Create `detail-status-select.tsx`, `detail-priority-select.tsx`, `detail-assignee-select.tsx`, `detail-property-row.tsx`.
 - These are leaf components with no page dependencies — easy to verify in isolation.
 - **Verify**: typecheck + lint.
 
 ### Step 3 — Add-relation / add-parent popovers
+
 - Create `detail-add-relation-popover.tsx`, `detail-add-parent-popover.tsx`.
 - **Verify**: typecheck + lint.
 
 ### Step 4 — Main column sections
+
 - Create `detail-title-block.tsx`, `detail-description-editor.tsx`, `detail-sub-issues.tsx`, `detail-relations.tsx`, `detail-activity.tsx`, `detail-comments.tsx`.
 - Each is self-contained, takes props, renders. No page wiring yet.
 - **Verify**: typecheck + lint.
 
 ### Step 5 — Breadcrumb bar
+
 - Create `detail-breadcrumb-bar.tsx`.
 - **Verify**: typecheck + lint.
 
 ### Step 6 — Properties sidebar
+
 - Create `detail-properties-sidebar.tsx` composing the Step 2 components + `LabelManager` + `LabelPill` + `Separator`.
 - **Verify**: typecheck + lint.
 
 ### Step 7 — Rewrite `task-detail-page.tsx`
+
 - Replace the 843-line file with the thin orchestrator composing Steps 4–6.
 - Wire all hooks and handlers.
 - Add `id` attributes to main-column sections for sidebar anchor links; wire `onScrollTo` via `document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })`.
 - **Verify**: typecheck + lint + manual smoke (run `pnpm dev`, open a task, edit title/description/status/priority/assignee/labels, add a comment, add/remove a relation, add a sub-task, navigate prev/next).
 
 ### Step 8 — Tests
+
 - The existing web tests are API-client tests (`api.test.ts`) and a socket test — they don't cover the detail page. No component tests exist in the repo (per AGENTS.md: "No component tests (`.test.tsx`) exist yet").
 - **Do not add component tests in this refactor** — out of scope per §6 and the repo has no component test harness. If the coder wants to, optional: add a `task-detail-page.test.tsx` mocking hooks with `vi.mock` and asserting sections render. Mark as optional.
 - **Verify**: `pnpm --filter @taskforge/web test` passes (existing tests unaffected).
 
 ### Final verification gate
+
 - `pnpm --filter @taskforge/web exec tsc --noEmit` — paste last 15 lines.
 - `pnpm --filter @taskforge/web exec eslint src` — paste last 15 lines.
 - `pnpm --filter @taskforge/web test` — paste last 15 lines.

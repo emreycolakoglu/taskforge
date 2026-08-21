@@ -21,10 +21,11 @@ export function createTestPrisma(): PrismaClient {
   // Push schema to the temp DB
   const schemaPath = join(__dirname, '..', 'prisma', 'schema.prisma');
   try {
-    execSync(
-      `npx prisma db push --skip-generate --accept-data-loss --schema="${schemaPath}"`,
-      { env: { ...process.env, DATABASE_URL: url }, stdio: 'pipe', cwd: join(__dirname, '..') },
-    );
+    execSync(`npx prisma db push --skip-generate --accept-data-loss --schema="${schemaPath}"`, {
+      env: { ...process.env, DATABASE_URL: url },
+      stdio: 'pipe',
+      cwd: join(__dirname, '..'),
+    });
   } catch (e: any) {
     console.error('Failed to push schema:', e.stderr?.toString() || e.message);
     throw e;
@@ -40,10 +41,14 @@ export async function seedBoard(prisma: PrismaClient) {
   const id = randomUUID().slice(0, 8);
   // Generate a unique 3-letter uppercase identifier using the random id.
   // Map hex digits to letters: 0→A, 1→B, ... f→P
-  const identifier = id.slice(0, 3).split('').map(c => {
-    const n = parseInt(c, 16);
-    return String.fromCharCode(65 + n);
-  }).join('');
+  const identifier = id
+    .slice(0, 3)
+    .split('')
+    .map((c) => {
+      const n = parseInt(c, 16);
+      return String.fromCharCode(65 + n);
+    })
+    .join('');
   const board = await prisma.board.create({
     data: {
       name: `Test Board ${id}`,
@@ -78,8 +83,18 @@ export async function seedLabel(prisma: PrismaClient, boardId: string) {
  * Seed a task in a status. Derives boardId from the status and auto-increments number.
  * Also updates the board's nextTaskNum counter.
  */
-export async function seedTask(prisma: PrismaClient, statusId: string, overrides: Record<string, any> = {}) {
-  const { assigneeId, boardId: overrideBoardId, number: overrideNumber, parentId, ...rest } = overrides;
+export async function seedTask(
+  prisma: PrismaClient,
+  statusId: string,
+  overrides: Record<string, any> = {},
+) {
+  const {
+    assigneeId,
+    boardId: overrideBoardId,
+    number: overrideNumber,
+    parentId,
+    ...rest
+  } = overrides;
   let boardId = overrideBoardId;
   if (!boardId) {
     const status = await prisma.status.findUniqueOrThrow({ where: { id: statusId } });
@@ -127,7 +142,11 @@ async function getNextTaskNumber(prisma: PrismaClient, boardId: string): Promise
 /**
  * Seed a comment on a task.
  */
-export async function seedComment(prisma: PrismaClient, taskId: string, overrides: Record<string, any> = {}) {
+export async function seedComment(
+  prisma: PrismaClient,
+  taskId: string,
+  overrides: Record<string, any> = {},
+) {
   return prisma.comment.create({
     data: {
       taskId,
@@ -141,8 +160,15 @@ export async function seedComment(prisma: PrismaClient, taskId: string, override
 /**
  * Seed a document on a task. Derives boardId from the task.
  */
-export async function seedDocument(prisma: PrismaClient, taskId: string, overrides: Record<string, any> = {}) {
-  const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId }, select: { boardId: true } });
+export async function seedDocument(
+  prisma: PrismaClient,
+  taskId: string,
+  overrides: Record<string, any> = {},
+) {
+  const task = await prisma.task.findUniqueOrThrow({
+    where: { id: taskId },
+    select: { boardId: true },
+  });
   const board = await prisma.board.findUniqueOrThrow({ where: { id: task.boardId } });
   const number = overrides.number ?? board.nextDocNum;
   const doc = await prisma.document.create({
@@ -172,9 +198,10 @@ export async function seedRelation(
   toTaskId: string,
   type: 'blocks' | 'related_to',
 ) {
-  const [a, b] = type === 'related_to' && fromTaskId > toTaskId
-    ? [toTaskId, fromTaskId]
-    : [fromTaskId, toTaskId];
+  const [a, b] =
+    type === 'related_to' && fromTaskId > toTaskId
+      ? [toTaskId, fromTaskId]
+      : [fromTaskId, toTaskId];
   return prisma.taskRelation.create({ data: { type, fromTaskId: a, toTaskId: b } });
 }
 
@@ -208,8 +235,13 @@ export async function seedSubscription(prisma: PrismaClient, taskId: string, use
  */
 export async function seedNotification(
   prisma: PrismaClient,
-  { userId, taskId, activityId, action = 'commented', summary = 'test summary' }:
-  { userId: string; taskId: string; activityId: string; action?: string; summary?: string },
+  {
+    userId,
+    taskId,
+    activityId,
+    action = 'commented',
+    summary = 'test summary',
+  }: { userId: string; taskId: string; activityId: string; action?: string; summary?: string },
 ) {
   return prisma.notification.create({
     data: { userId, taskId, activityId, action, summary },

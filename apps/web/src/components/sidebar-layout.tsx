@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { useEffect, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import {
   ListChecks,
   Settings,
@@ -11,19 +11,15 @@ import {
   Plus,
   Inbox,
   LayoutGrid,
-} from "lucide-react";
+} from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Collapsible,
-  CollapsibleTrigger,
-  CollapsibleContent,
-} from "@/components/ui/collapsible";
+} from '@/components/ui/dropdown-menu';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import {
   Sidebar,
   SidebarContent,
@@ -41,14 +37,14 @@ import {
   SidebarProvider,
   SidebarRail,
   useSidebar,
-} from "@/components/ui/sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/contexts/auth-context";
-import { useBoards } from "@/hooks/use-boards";
-import { useUnreadCount } from "@/hooks/use-notifications";
-import { useSocket } from "@/hooks/use-socket";
-import { CreateBoardDialog } from "@/components/create-board-dialog";
-import { CommandPalette } from "@/components/command-palette";
+} from '@/components/ui/sidebar';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useAuth } from '@/contexts/auth-context';
+import { useBoards } from '@/hooks/use-boards';
+import { useUnreadCount } from '@/hooks/use-notifications';
+import { useSocket } from '@/hooks/use-socket';
+import { CreateBoardDialog } from '@/components/create-board-dialog';
+import { CommandPalette } from '@/components/command-palette';
 
 interface SidebarLayoutProps {
   children: React.ReactNode;
@@ -57,9 +53,9 @@ interface SidebarLayoutProps {
 // Primary nav vocabulary mirrors Linear. Both routes exist today; placeholder
 // destinations were removed. No backend features are implied.
 const PRIMARY_NAV = [
-  { label: "Inbox", icon: Inbox, to: "/inbox" },
-  { label: "My Issues", icon: ListChecks, to: "/tasks" },
-  { label: "Boards", icon: LayoutGrid, to: "/boards" },
+  { label: 'Inbox', icon: Inbox, to: '/inbox' },
+  { label: 'My Issues', icon: ListChecks, to: '/tasks' },
+  { label: 'Boards', icon: LayoutGrid, to: '/boards' },
 ];
 
 /**
@@ -106,9 +102,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
     return true;
   });
 
-  const avatarLetter = user?.displayName
-    ? user.displayName.charAt(0).toUpperCase()
-    : "T";
+  const avatarLetter = user?.displayName ? user.displayName.charAt(0).toUpperCase() : 'T';
 
   return (
     <SidebarProvider className="h-svh overflow-hidden">
@@ -135,21 +129,17 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                   const isActive = location.pathname === item.to;
                   return (
                     <SidebarMenuItem key={item.label}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={isActive}
-                        tooltip={item.label}
-                      >
+                      <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
                         <Link
                           to={item.to}
                           aria-label={item.label}
-                          aria-current={isActive ? "page" : undefined}
+                          aria-current={isActive ? 'page' : undefined}
                         >
                           <item.icon />
                           <span>{item.label}</span>
                         </Link>
                       </SidebarMenuButton>
-                      {item.label === "Inbox" && unreadCount > 0 && (
+                      {item.label === 'Inbox' && unreadCount > 0 && (
                         <SidebarMenuBadge className="bg-primary text-primary-foreground">
                           {unreadCount}
                         </SidebarMenuBadge>
@@ -195,13 +185,9 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                   ) : (
                     <SidebarMenu>
                       {memberBoards?.map((board) => {
-                        const issuesActive =
-                          location.pathname === `/board/${board.id}`;
-                        const settingsActive =
-                          location.pathname ===
-                          `/board/${board.id}/settings`;
-                        const boardActive =
-                          issuesActive || settingsActive;
+                        const issuesActive = location.pathname === `/board/${board.id}`;
+                        const settingsActive = location.pathname === `/board/${board.id}/settings`;
+                        const boardActive = issuesActive || settingsActive;
                         return (
                           <Collapsible
                             key={board.id}
@@ -211,18 +197,24 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                             <SidebarMenuItem>
                               <div className="flex items-center">
                                 <CollapsibleTrigger asChild>
-                                  <SidebarMenuButton className="w-auto shrink-0 px-1" tooltip={board.name}>
+                                  <SidebarMenuButton
+                                    className="w-auto shrink-0 px-1"
+                                    tooltip={board.name}
+                                  >
                                     <ChevronRight className="size-3 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                                   </SidebarMenuButton>
                                 </CollapsibleTrigger>
-                                <SidebarMenuButton asChild isActive={issuesActive} tooltip={board.name} className="flex-1">
+                                <SidebarMenuButton
+                                  asChild
+                                  isActive={issuesActive}
+                                  tooltip={board.name}
+                                  className="flex-1"
+                                >
                                   <Link to={`/board/${board.id}`}>
                                     <span className="text-base leading-none">
-                                      {board.icon ?? "⭐"}
+                                      {board.icon ?? '⭐'}
                                     </span>
-                                    <span className="truncate">
-                                      {board.name}
-                                    </span>
+                                    <span className="truncate">{board.name}</span>
                                   </Link>
                                 </SidebarMenuButton>
                               </div>
@@ -234,11 +226,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                                     size="sm"
                                     className="pl-2"
                                   >
-                                    <Link
-                                      to={`/board/${board.id}/settings`}
-                                    >
-                                      Settings
-                                    </Link>
+                                    <Link to={`/board/${board.id}/settings`}>Settings</Link>
                                   </SidebarMenuButton>
                                 </div>
                               </CollapsibleContent>
@@ -247,9 +235,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                         );
                       })}
                       {(!memberBoards || memberBoards.length === 0) && (
-                        <p className="px-3 py-2 text-xs text-muted-foreground">
-                          No boards yet
-                        </p>
+                        <p className="px-3 py-2 text-xs text-muted-foreground">No boards yet</p>
                       )}
                     </SidebarMenu>
                   )}
@@ -265,16 +251,12 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
-                isActive={location.pathname.startsWith("/settings")}
+                isActive={location.pathname.startsWith('/settings')}
                 tooltip="Settings"
               >
                 <Link
                   to="/settings"
-                  aria-current={
-                    location.pathname.startsWith("/settings")
-                      ? "page"
-                      : undefined
-                  }
+                  aria-current={location.pathname.startsWith('/settings') ? 'page' : undefined}
                 >
                   <Settings />
                   <span>Settings</span>
@@ -290,9 +272,7 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                       <span className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-secondary-foreground text-[11px] font-semibold">
                         {avatarLetter}
                       </span>
-                      <span className="truncate text-foreground">
-                        {user.displayName}
-                      </span>
+                      <span className="truncate text-foreground">{user.displayName}</span>
                     </SidebarMenuButton>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent side="right" align="end">
@@ -338,12 +318,12 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
 /** Footer toggle — collapses/expands the rail with a state-aware aria-label. */
 function CollapseToggle() {
   const { state, toggleSidebar } = useSidebar();
-  const collapsed = state === "collapsed";
+  const collapsed = state === 'collapsed';
   return (
     <SidebarMenuButton
       onClick={toggleSidebar}
-      tooltip={collapsed ? "Expand" : undefined}
-      aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+      tooltip={collapsed ? 'Expand' : undefined}
+      aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
     >
       {collapsed ? <PanelLeft /> : <PanelLeftClose />}
       <span>Collapse</span>

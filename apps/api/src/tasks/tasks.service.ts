@@ -23,7 +23,10 @@ export function withTaskNumber(task: any): any {
  *   - include='sub'  → only tasks that have a parent
  *   - parentId=<id>   → only children of that parent
  */
-function applyParentFilter(where: any, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }): void {
+function applyParentFilter(
+  where: any,
+  opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string },
+): void {
   if (!opts) return;
   if (opts.parentId !== undefined) {
     where.parentId = opts.parentId;
@@ -84,7 +87,10 @@ export class TasksService {
     private notifications: NotificationsService,
   ) {}
 
-  async findByBoard(boardId: string, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }) {
+  async findByBoard(
+    boardId: string,
+    opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string },
+  ) {
     const where: any = {
       status: { boardId },
     };
@@ -103,7 +109,10 @@ export class TasksService {
     return tasks.map(withTaskNumber);
   }
 
-  async findByStatus(statusId: string, opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string }) {
+  async findByStatus(
+    statusId: string,
+    opts?: { include?: 'all' | 'top' | 'sub'; parentId?: string },
+  ) {
     const where: any = { statusId };
     applyParentFilter(where, opts);
     const tasks = await this.prisma.task.findMany({
@@ -143,10 +152,7 @@ export class TasksService {
 
     const results = await this.prisma.task.findMany({
       where: {
-        OR: [
-          { title: { contains: query } },
-          { description: { contains: query } },
-        ],
+        OR: [{ title: { contains: query } }, { description: { contains: query } }],
       },
       include: {
         status: { include: { board: true } },
@@ -174,7 +180,9 @@ export class TasksService {
           orderBy: { position: 'asc' },
           include: { board: { select: { identifier: true } } },
         },
-        parent: { select: { id: true, number: true, title: true, board: { select: { identifier: true } } } },
+        parent: {
+          select: { id: true, number: true, title: true, board: { select: { identifier: true } } },
+        },
         _count: { select: { comments: true, relationsTo: { where: { type: 'blocks' } } } },
       },
     });
@@ -300,12 +308,14 @@ export class TasksService {
 
     // Log activity
     const detail: string[] = [];
-    if (dto.title && dto.title !== existing.title) detail.push(`title: "${existing.title}" → "${dto.title}"`);
+    if (dto.title && dto.title !== existing.title)
+      detail.push(`title: "${existing.title}" → "${dto.title}"`);
     if (dto.statusId && dto.statusId !== existing.statusId) {
       const newStatus = await this.prisma.status.findUnique({ where: { id: dto.statusId } });
       detail.push(`moved to "${newStatus?.name}"`);
     }
-    if (dto.assigneeId && dto.assigneeId !== existing.assigneeId) detail.push(`assigned to ${dto.assigneeId}`);
+    if (dto.assigneeId && dto.assigneeId !== existing.assigneeId)
+      detail.push(`assigned to ${dto.assigneeId}`);
     if (parentChanged) {
       if (dto.parentId === null) detail.push('un-nested from parent');
       else detail.push(`set parent: ${dto.parentId}`);
@@ -335,10 +345,12 @@ export class TasksService {
       _max: { position: true },
     });
 
-    const targetStatus = await this.prisma.status.findUniqueOrThrow({ where: { id: dto.statusId } });
+    const targetStatus = await this.prisma.status.findUniqueOrThrow({
+      where: { id: dto.statusId },
+    });
     const sourceStatus = await this.prisma.status.findUnique({ where: { id: existing.statusId } });
     const now = new Date();
-    const doneAt = targetStatus.isDone ? now : (sourceStatus?.isDone ? null : undefined);
+    const doneAt = targetStatus.isDone ? now : sourceStatus?.isDone ? null : undefined;
 
     const data: any = {
       statusId: dto.statusId,
@@ -364,7 +376,11 @@ export class TasksService {
         actorId: user?.id ?? null,
         actor: user?.displayName ?? 'system',
         action: 'moved',
-        detail: JSON.stringify({ from: existing.statusId, to: dto.statusId, statusName: newStatus?.name }),
+        detail: JSON.stringify({
+          from: existing.statusId,
+          to: dto.statusId,
+          statusName: newStatus?.name,
+        }),
       },
     });
     await this.notifications.dispatchFromActivity(activity);

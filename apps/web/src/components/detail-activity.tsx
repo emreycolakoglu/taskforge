@@ -6,27 +6,29 @@
  * when activity.length > 5.
  */
 
-import { Activity } from 'lucide-react'
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from '@/components/ui/collapsible'
-import { Button } from '@/components/ui/button'
-import type { Activity as ActivityType } from '@/types'
+import { Activity } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
+import type { Activity as ActivityType } from '@/types';
 
 interface DetailActivityProps {
-  activity: ActivityType[]
-  formatTimestamp: (ts: string) => string
+  activity: ActivityType[];
+  formatTimestamp: (ts: string) => string;
 }
 
-const VISIBLE_COUNT = 5
+const VISIBLE_COUNT = 5;
 
-function ActivityRow({ a, formatTimestamp }: { a: ActivityType; formatTimestamp: (ts: string) => string }) {
-  let extra = ''
+function ActivityRow({
+  a,
+  formatTimestamp,
+}: {
+  a: ActivityType;
+  formatTimestamp: (ts: string) => string;
+}) {
+  let extra = '';
   if (a.detail) {
     try {
-      const d = JSON.parse(a.detail)
+      const d = JSON.parse(a.detail);
       extra = d.changes
         ? ` — ${d.changes.join(', ')}`
         : d.to
@@ -35,9 +37,9 @@ function ActivityRow({ a, formatTimestamp }: { a: ActivityType; formatTimestamp:
             ? ` → ${d.statusName}`
             : d.listName
               ? ` → ${d.listName}`
-              : ''
+              : '';
     } catch {
-      extra = ''
+      extra = '';
     }
   }
 
@@ -57,14 +59,14 @@ function ActivityRow({ a, formatTimestamp }: { a: ActivityType; formatTimestamp:
         </span>
       </div>
     </div>
-  )
+  );
 }
 
 export function DetailActivity({ activity, formatTimestamp }: DetailActivityProps) {
-  if (activity.length === 0) return null
+  if (activity.length === 0) return null;
 
-  const visible = activity.slice(0, VISIBLE_COUNT)
-  const hidden = activity.slice(VISIBLE_COUNT)
+  const visible = activity.slice(0, VISIBLE_COUNT);
+  const hidden = activity.slice(VISIBLE_COUNT);
 
   return (
     <section id="activity" className="space-y-2">
@@ -84,7 +86,11 @@ export function DetailActivity({ activity, formatTimestamp }: DetailActivityProp
               ))}
             </CollapsibleContent>
             <CollapsibleTrigger asChild>
-              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground hover:text-foreground mt-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs text-muted-foreground hover:text-foreground mt-1"
+              >
                 <CollapsibleContextLabel count={hidden.length} />
               </Button>
             </CollapsibleTrigger>
@@ -92,10 +98,10 @@ export function DetailActivity({ activity, formatTimestamp }: DetailActivityProp
         )}
       </div>
     </section>
-  )
+  );
 }
 
 /** Renders the "Show N more events…" label; uses Collapsible context internally. */
 function CollapsibleContextLabel({ count }: { count: number }) {
-  return <span>Show {count} more events…</span>
+  return <span>Show {count} more events…</span>;
 }

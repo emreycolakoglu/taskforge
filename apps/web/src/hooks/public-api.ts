@@ -21,7 +21,9 @@ export class PublicTaskNotFoundError extends Error {
 }
 
 export async function fetchPublicTask(identifier: string, number: string): Promise<PublicTask> {
-  const res = await fetch(`${API_BASE}/public/tasks/${encodeURIComponent(identifier)}/${encodeURIComponent(number)}`);
+  const res = await fetch(
+    `${API_BASE}/public/tasks/${encodeURIComponent(identifier)}/${encodeURIComponent(number)}`,
+  );
 
   // The API returns 404 both for "no such task" and "not published" — the two are
   // deliberately indistinguishable, so there is nothing to tell apart here either.
@@ -38,8 +40,13 @@ export class PublicDocumentNotFoundError extends Error {
   }
 }
 
-export async function fetchPublicDocument(identifier: string, number: string): Promise<PublicDocument> {
-  const res = await fetch(`${API_BASE}/public/docs/${encodeURIComponent(identifier)}/${encodeURIComponent(number)}`);
+export async function fetchPublicDocument(
+  identifier: string,
+  number: string,
+): Promise<PublicDocument> {
+  const res = await fetch(
+    `${API_BASE}/public/docs/${encodeURIComponent(identifier)}/${encodeURIComponent(number)}`,
+  );
   if (res.status === 404) throw new PublicDocumentNotFoundError();
   if (!res.ok) throw new Error(await res.text());
   return res.json();

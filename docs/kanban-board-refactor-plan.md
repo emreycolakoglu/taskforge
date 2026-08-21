@@ -163,7 +163,7 @@ Keep inline in `task-card.tsx` (no new files — they're single-use):
 - **shadcn primitives:** `Dialog`/`DialogContent`/`DialogHeader`/`DialogTitle`, `Input`, `Select`/`SelectTrigger`/`SelectContent`/`SelectItem`, `Button`, `Label`.
 - **Props:** `{ open; onOpenChange; boardId; lists: List[]; defaultListId? }`.
 - **Fields:** title (`Input`, autofocus, Enter submits), list (`Select`), priority (`Select`: low/medium/high/urgent). No description here (keep fast).
-- **Styling:** `DialogContent` default (Charcoal popover). Submit button = Lime `Button` (this is the modal's primary CTA — permitted; the modal is a focused conversion moment, and the header CTA is the *page's* CTA. **[NON-BLOCKING]** if this feels like two lime CTAs on one screen, make the dialog submit button `variant="default"` lime and the header CTA `variant="outline"` — but design.md says one lime CTA *per screen*, and a modal is arguably a second screen. Default: lime in dialog.)
+- **Styling:** `DialogContent` default (Charcoal popover). Submit button = Lime `Button` (this is the modal's primary CTA — permitted; the modal is a focused conversion moment, and the header CTA is the _page's_ CTA. **[NON-BLOCKING]** if this feels like two lime CTAs on one screen, make the dialog submit button `variant="default"` lime and the header CTA `variant="outline"` — but design.md says one lime CTA _per screen_, and a modal is arguably a second screen. Default: lime in dialog.)
 
 ---
 
@@ -171,8 +171,8 @@ Keep inline in `task-card.tsx` (no new files — they're single-use):
 
 Components needed but **not** currently installed:
 
-| Component | Why | Install |
-|---|---|---|
+| Component     | Why                                                                                                       | Install                             |
+| ------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------- |
 | `collapsible` | Sidebar `Favorites`/`BOARDS` collapsible sections (replaces the ad-hoc `boardsCollapsed` state + chevron) | `npx shadcn@latest add collapsible` |
 
 Everything else is already installed: `dialog`, `select`, `dropdown-menu`, `popover`, `badge`, `avatar`, `tooltip`, `toggle-group`, `button`, `input`, `scroll-area`, `separator`, `tabs`.
@@ -183,18 +183,18 @@ Everything else is already installed: `dialog`, `select`, `dropdown-menu`, `popo
 
 ## 4. Design.md Conflict Register
 
-| # | What Linear does | What design.md requires | Resolution |
-|---|---|---|---|
-| 1 | View tabs use an active **filled light-gray pill** (`data-active` styled) | One Lime CTA per screen; nav active states use Lime *or* muted accent | Active view tab = `bg-accent text-foreground` (Graphite), **not** Lime. Lime reserved for `New Issue` CTA only. |
-| 2 | Board columns are **borderless** on the canvas (separated by whitespace only) | Cards/panels get depth from 1px inset Graphite border + soft shadow, not fills | Keep `border border-border` on columns (design.md wins). Linear's borderless look relies on a lighter canvas; our Onyx needs the edge definition. |
-| 3 | Linear status icons use a **dashed progress ring** with `#e2e2e2` stroke | No new accent colors; palette is Lime + Indigo + semantic only | Status dot = `list.color` (user-defined, already supported). For the ring icon, use `text-muted-foreground` stroke, not `#e2e2e2`. |
-| 4 | Linear issue IDs use **Berkeley Mono** | JetBrains Mono (`--font-mono`) is the substitute | Use `font-mono` (already wired to JetBrains Mono in `index.css`). |
-| 5 | Linear uses **Inter Variable weight 510** for titles | Weights cap at 590; 510 is allowed | Use `font-medium` (500) for titles — 510 isn't a Tailwind step. Acceptable per design.md (cap is a maximum, not a requirement). |
-| 6 | Linear `Create new issue` is an **icon-only** button in the sidebar header | One filled Lime CTA per screen | Put the Lime `New Issue` CTA in the **board header** (text + icon), not the sidebar. The sidebar's `Create new issue` becomes a ghost icon (no lime). |
-| 7 | Linear cards have **no visible border** (subtle bg shift on hover) | No bright fills; border-defined edges | Cards keep `border border-border` + `hover:border-foreground/20`. design.md wins. |
-| 8 | Linear column count is a plain number | Mono for IDs/numbers | Count = `font-mono text-xs text-muted-foreground`. Compliant. |
-| 9 | Linear uses `lch()` colors throughout | design.md tokens are hex | Use our hex tokens (`--color-*` / Tailwind `text-*`/`bg-*`). Never paste `lch()` values. |
-| 10 | Linear sidebar nav has `Inbox`/`Pulse`/`Initiatives`/`Projects`/`Views` as real features | We have no backend for these | Render as disabled placeholder links (muted, tooltip "Coming soon"). Don't build backend. |
+| #   | What Linear does                                                                         | What design.md requires                                                        | Resolution                                                                                                                                            |
+| --- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | View tabs use an active **filled light-gray pill** (`data-active` styled)                | One Lime CTA per screen; nav active states use Lime _or_ muted accent          | Active view tab = `bg-accent text-foreground` (Graphite), **not** Lime. Lime reserved for `New Issue` CTA only.                                       |
+| 2   | Board columns are **borderless** on the canvas (separated by whitespace only)            | Cards/panels get depth from 1px inset Graphite border + soft shadow, not fills | Keep `border border-border` on columns (design.md wins). Linear's borderless look relies on a lighter canvas; our Onyx needs the edge definition.     |
+| 3   | Linear status icons use a **dashed progress ring** with `#e2e2e2` stroke                 | No new accent colors; palette is Lime + Indigo + semantic only                 | Status dot = `list.color` (user-defined, already supported). For the ring icon, use `text-muted-foreground` stroke, not `#e2e2e2`.                    |
+| 4   | Linear issue IDs use **Berkeley Mono**                                                   | JetBrains Mono (`--font-mono`) is the substitute                               | Use `font-mono` (already wired to JetBrains Mono in `index.css`).                                                                                     |
+| 5   | Linear uses **Inter Variable weight 510** for titles                                     | Weights cap at 590; 510 is allowed                                             | Use `font-medium` (500) for titles — 510 isn't a Tailwind step. Acceptable per design.md (cap is a maximum, not a requirement).                       |
+| 6   | Linear `Create new issue` is an **icon-only** button in the sidebar header               | One filled Lime CTA per screen                                                 | Put the Lime `New Issue` CTA in the **board header** (text + icon), not the sidebar. The sidebar's `Create new issue` becomes a ghost icon (no lime). |
+| 7   | Linear cards have **no visible border** (subtle bg shift on hover)                       | No bright fills; border-defined edges                                          | Cards keep `border border-border` + `hover:border-foreground/20`. design.md wins.                                                                     |
+| 8   | Linear column count is a plain number                                                    | Mono for IDs/numbers                                                           | Count = `font-mono text-xs text-muted-foreground`. Compliant.                                                                                         |
+| 9   | Linear uses `lch()` colors throughout                                                    | design.md tokens are hex                                                       | Use our hex tokens (`--color-*` / Tailwind `text-*`/`bg-*`). Never paste `lch()` values.                                                              |
+| 10  | Linear sidebar nav has `Inbox`/`Pulse`/`Initiatives`/`Projects`/`Views` as real features | We have no backend for these                                                   | Render as disabled placeholder links (muted, tooltip "Coming soon"). Don't build backend.                                                             |
 
 ---
 
@@ -214,7 +214,7 @@ Everything else is already installed: `dialog`, `select`, `dropdown-menu`, `popo
 
 - **Task detail page** (`task-detail-page.tsx`) — untouched.
 - **MCP / REST API / Prisma schema** — no changes.
-- **Drag-and-drop mechanics** — `@hello-pangea/dnd` `DragDropContext`/`Droppable`/`Draggable` stay. The `DragDropContext` remains at the `kanban-board.tsx` top level; `Droppable` wraps each `BoardColumn` body; `Draggable` wraps each `TaskCard`. Only the *visual* wrappers move — DnD logic (`handleDragEnd`, reorder/move API calls) is unchanged.
+- **Drag-and-drop mechanics** — `@hello-pangea/dnd` `DragDropContext`/`Droppable`/`Draggable` stay. The `DragDropContext` remains at the `kanban-board.tsx` top level; `Droppable` wraps each `BoardColumn` body; `Draggable` wraps each `TaskCard`. Only the _visual_ wrappers move — DnD logic (`handleDragEnd`, reorder/move API calls) is unchanged.
 - **Board settings page** — untouched.
 - **Auth/onboarding pages** — untouched.
 - **List edit/create UX beyond the column menu** — no inline rename; editing lists stays in board settings.
@@ -229,10 +229,12 @@ Everything else is already installed: `dialog`, `select`, `dropdown-menu`, `popo
 Each step ends with a verification gate: `pnpm --filter @taskforge/web test` (Vitest) + `pnpm --filter @taskforge/web build` (tsc + vite). Paste output.
 
 ### Step 0 — Install missing primitive
+
 - `npx shadcn@latest add collapsapsible` (in `apps/web`).
 - Verify: `ls apps/web/src/components/ui/collapsible.tsx`.
 
 ### Step 1 — Sidebar restructure (`sidebar-layout.tsx`)
+
 - Add `Collapsible` for `BOARDS` section (replace `boardsCollapsed` state).
 - Add primary nav placeholders (`Inbox`/`Pulse`/`Workspace`/`Initiatives`/`Projects`/`Views`/`More`) as disabled ghost links with tooltips.
 - Add `Favorites` collapsible section with "Assigned to me" link.
@@ -241,18 +243,21 @@ Each step ends with a verification gate: `pnpm --filter @taskforge/web test` (Vi
 - **Gate:** build + `sidebar-layout.test.tsx` (update if it asserts on the old nav structure).
 
 ### Step 2 — Extract `board-header-bar.tsx`
+
 - New component. Wire into `kanban-board.tsx` replacing the `header` block.
 - Move `viewMode` state into `use-board-view-state.ts`; header consumes it.
 - `New Issue` CTA opens `create-task-dialog.tsx` (stub for now — wire in Step 5).
 - **Gate:** build + tests.
 
 ### Step 3 — Extract `filter-chips-bar.tsx` + `use-board-view-state.ts`
+
 - Move `activeLabelIds` state into the view-state hook.
 - Replace the always-on label-pill bar with conditional `FilterChipsBar`.
 - `+ Add filter` popover with label checkboxes.
 - **Gate:** build + tests.
 
 ### Step 4 — Extract `board-column.tsx`
+
 - Move column JSX out of `kanban-board.tsx`.
 - Column menu (`DropdownMenu`) with Add/Delete.
 - `+` footer with inline quick-add (`CreateTaskModal` refactored to single-line).
@@ -262,6 +267,7 @@ Each step ends with a verification gate: `pnpm --filter @taskforge/web test` (Vi
 - **Gate:** build + tests + manual DnD check.
 
 ### Step 5 — Rewrite `task-card.tsx`
+
 - Single-row compact layout per §2.5.
 - Move sub-task `+` onto the card via `onAddSubTask` prop.
 - Use `Avatar`/`AvatarFallback` for assignee.
@@ -269,18 +275,21 @@ Each step ends with a verification gate: `pnpm --filter @taskforge/web test` (Vi
 - **Gate:** build + tests. Verify no lime anywhere on the card.
 
 ### Step 6 — `create-task-dialog.tsx`
+
 - Full dialog with title/list/priority selectors.
 - Wire to `useCreateTask`.
 - Replace the ad-hoc sub-task overlay with `Dialog`.
 - **Gate:** build + tests.
 
 ### Step 7 — Token compliance sweep
+
 - Grep for hardcoded hex colors in touched files (`rg '#[0-9a-fA-F]{6}' apps/web/src/components/{board-header-bar,board-column,task-card,filter-chips-bar,create-task-dialog}.tsx apps/web/src/components/sidebar-layout.tsx`). Replace with tokens unless it's an accepted deviation (priority Crimson/Indigo, label user-colors).
 - Verify no `font-bold`/`font-extrabold` (weight >590) in new code.
 - Verify no gradients.
 - **Gate:** `pnpm --filter @taskforge/web lint` + build + full test suite.
 
 ### Step 8 — Final verification
+
 - `pnpm --filter @taskforge/web build`
 - `pnpm --filter @taskforge/web test`
 - `pnpm --filter @taskforge/web lint`

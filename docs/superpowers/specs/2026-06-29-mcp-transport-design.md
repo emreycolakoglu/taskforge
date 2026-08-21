@@ -33,32 +33,36 @@ The error that prompted this work:
 ## Existing System (relevant parts)
 
 ### `apps/api/src/mcp/`
+
 - `mcp.controller.ts` — `@Controller('api/mcp')` with `@Post()` and `@Post('jsonrpc')`, both calling `mcp.handleRequest(body, user)`. Reads `req.user` set by `AuthGuard`.
 - `mcp.service.ts` — `handleRequest(req: McpRequest, user?: AuthUser): Promise<McpResponse>`. Splits `req.method` on `_` into `[resource, action]` and dispatches to `handleBoards/handleLists/handleTasks/handleComments/handleLabels/handleActivity/handleRelations`. Returns `{jsonrpc: '2.0', id, result}` or `{jsonrpc: '2.0', id, error: {code, message}}`. Already attributes actions via `actorInfo(user)` → `actorId`/`actor` on `Activity` and `Comment`.
 - `mcp.service.spec.ts` — integration tests using `createTestPrisma()`, covering the `resource_action` surface.
 - `mcp.module.ts` — imports nothing special; just declares controller + service.
 
 ### `apps/api/src/auth/`
+
 - `auth.guard.ts` — global guard (`APP_GUARD` in `auth.module.ts`). Validates `Authorization: Bearer <token>` against `prisma.session.findUnique`, checks expiry/revocation, sets `request.user` (User without `passwordHash`) and `request.session`. `@Public()` decorator opts out.
 - `auth.service.ts:179 createBotToken(adminId)` — issues a 365-day `Session` with `bot: true`, tied to the admin user. `POST /api/auth/bot-token` (admin-only) returns `{id, token, expiresAt}`.
 - Bot token = a `Session` row. The guard treats it identically to a human session. `req.user` is the user the bot acts on behalf of.
 
 ### `apps/api/src/main.ts`
+
 - CORS enabled (`origin: '*'` by default). The Streamable HTTP spec requires `Origin` header validation for DNS-rebinding protection; this is handled in the new controller (see Security).
 - SPA fallback middleware skips `/api` and `/ws` paths; new MCP routes under `/api/mcp` bypass the fallback already. No `main.ts` change needed.
 
 ### Tool surface (existing `resource_action` methods)
+
 Extracted from `mcp.service.ts`. Each becomes one MCP tool:
 
-| Resource   | Actions                                     |
-| ---------- | ------------------------------------------- |
-| boards     | list, get, create, delete                    |
-| lists      | list, create, update, delete                 |
-| tasks      | list, get, search, create, update, move, delete |
-| comments   | list, create                                 |
-| labels     | list, create, delete                         |
-| activity   | list                                         |
-| relations  | list, create, delete                         |
+| Resource  | Actions                                         |
+| --------- | ----------------------------------------------- |
+| boards    | list, get, create, delete                       |
+| lists     | list, create, update, delete                    |
+| tasks     | list, get, search, create, update, move, delete |
+| comments  | list, create                                    |
+| labels    | list, create, delete                            |
+| activity  | list                                            |
+| relations | list, create, delete                            |
 
 Total: 24 tools. Tool names map 1:1 to existing `method` strings (`boards_create` → tool name `boards_create`).
 
@@ -101,6 +105,7 @@ One transport type, one session store. Streamable HTTP is the only transport.
 Replaces `McpController`. All routes are authed (no `@Public()` — the global `AuthGuard` already protects them, and `req.user` is populated before the handler runs).
 
 **Stateful session store** (in-memory `Map` on the controller instance):
+
 - `streamableSessions: Map<string, { transport: StreamableHTTPServerTransport; server: McpServer; user: AuthUser }>`
 
 Single-process app, no horizontal scaling, no auth-relevant state in the session beyond caching the authenticated `user` — acceptable. Process restart drops sessions; clients reconnect and re-`initialize`.
@@ -133,20 +138,24 @@ export class McpServerFactory {
     );
 
     for (const def of TOOL_DEFINITIONS) {
-      server.registerTool(def.name, {
-        title: def.title,
-        description: def.description,
-        inputSchema: def.inputSchema,   // ZodRawShape
-      }, async (args) => {
-        const response = await this.mcpService.handleRequest(
-          { method: def.name, params: args, id: 'mcp' },
-          user,
-        );
-        if (response.error) {
-          return { content: [{ type: 'text', text: response.error.message }], isError: true };
-        }
-        return { content: [{ type: 'text', text: JSON.stringify(response.result) }] };
-      });
+      server.registerTool(
+        def.name,
+        {
+          title: def.title,
+          description: def.description,
+          inputSchema: def.inputSchema, // ZodRawShape
+        },
+        async (args) => {
+          const response = await this.mcpService.handleRequest(
+            { method: def.name, params: args, id: 'mcp' },
+            user,
+          );
+          if (response.error) {
+            return { content: [{ type: 'text', text: response.error.message }], isError: true };
+          }
+          return { content: [{ type: 'text', text: JSON.stringify(response.result) }] };
+        },
+      );
     }
 
     return server;
@@ -181,6 +190,7 @@ Add `@modelcontextprotocol/sdk` (pinned to `^1.29.0`) to `apps/api/dependencies`
 ### Data Flow
 
 **Initialization (Streamable HTTP):**
+
 1. Client `POST /api/mcp` with `Accept: application/json, text/event-stream`, body `{"jsonrpc":"2.0","id":1,"method":"initialize","params":{...}}`, `Authorization: Bearer <bot-token>`.
 2. `AuthGuard` validates token, sets `req.user`.
 3. `McpTransportController.handlePost` sees no `Mcp-Session-Id`, body method is `initialize`. Creates `StreamableHTTPServerTransport` + `McpServer` (with `req.user` captured). `server.connect(transport)`. Stores session. Calls `transport.handleRequest(req, res, body)`.
@@ -188,6 +198,7 @@ Add `@modelcontextprotocol/sdk` (pinned to `^1.29.0`) to `apps/api/dependencies`
 5. Client sends `POST /api/mcp` `notifications/initialized` with the session id → `202 Accepted`.
 
 **Tool call:**
+
 1. Client `POST /api/mcp` `{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"boards_create","arguments":{"name":"X","slug":"x"}}}` with `Mcp-Session-Id`.
 2. `AuthGuard` validates token.
 3. Controller looks up session, calls `transport.handleRequest(req, res, body)`.
@@ -242,16 +253,16 @@ None at design time. Tool input schemas are intentionally permissive; refinement
 
 ## File Manifest
 
-| Path | Change |
-| ---- | ------ |
-| `apps/api/package.json` | Add `@modelcontextprotocol/sdk` dependency |
-| `apps/api/src/mcp/mcp-transport.controller.ts` | **New** — replaces `mcp.controller.ts` |
-| `apps/api/src/mcp/mcp-server.factory.ts` | **New** — builds `McpServer` with tool registration |
-| `apps/api/src/mcp/tool-definitions.ts` | **New** — tool name/description/schema table |
-| `apps/api/src/mcp/mcp.controller.ts` | **Delete** |
-| `apps/api/src/mcp/mcp.module.ts` | Edit — swap controller, add factory provider |
-| `apps/api/src/mcp/mcp.service.ts` | **No change** |
-| `apps/api/src/mcp/mcp.service.spec.ts` | **No change** |
-| `apps/api/src/mcp/mcp-transport.controller.spec.ts` | **New** — integration tests |
-| `apps/api/src/mcp/mcp-server.factory.spec.ts` | **New** — unit test |
-| `AGENTS.md` | **Not in this scope** — separate doc commit for stale auth line |
+| Path                                                | Change                                                          |
+| --------------------------------------------------- | --------------------------------------------------------------- |
+| `apps/api/package.json`                             | Add `@modelcontextprotocol/sdk` dependency                      |
+| `apps/api/src/mcp/mcp-transport.controller.ts`      | **New** — replaces `mcp.controller.ts`                          |
+| `apps/api/src/mcp/mcp-server.factory.ts`            | **New** — builds `McpServer` with tool registration             |
+| `apps/api/src/mcp/tool-definitions.ts`              | **New** — tool name/description/schema table                    |
+| `apps/api/src/mcp/mcp.controller.ts`                | **Delete**                                                      |
+| `apps/api/src/mcp/mcp.module.ts`                    | Edit — swap controller, add factory provider                    |
+| `apps/api/src/mcp/mcp.service.ts`                   | **No change**                                                   |
+| `apps/api/src/mcp/mcp.service.spec.ts`              | **No change**                                                   |
+| `apps/api/src/mcp/mcp-transport.controller.spec.ts` | **New** — integration tests                                     |
+| `apps/api/src/mcp/mcp-server.factory.spec.ts`       | **New** — unit test                                             |
+| `AGENTS.md`                                         | **Not in this scope** — separate doc commit for stale auth line |

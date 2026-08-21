@@ -31,7 +31,9 @@ export class DocumentsService {
       },
       orderBy: { updatedAt: 'desc' },
     });
-    return docs.map(({ body, ...d }) => withDocNumber({ ...d, taskNumber: `${d.board?.identifier ?? ''}-${d.task?.number}` }));
+    return docs.map(({ body, ...d }) =>
+      withDocNumber({ ...d, taskNumber: `${d.board?.identifier ?? ''}-${d.task?.number}` }),
+    );
   }
 
   async findByTask(taskId: string) {
@@ -153,7 +155,11 @@ export class DocumentsService {
       },
     });
 
-    this.events.emit('document:deleted', { id, boardId: doc.boardId, taskId: doc.taskId }, doc.boardId);
+    this.events.emit(
+      'document:deleted',
+      { id, boardId: doc.boardId, taskId: doc.taskId },
+      doc.boardId,
+    );
   }
 
   async setPublic(id: string, isPublic: boolean, user?: { id: string; displayName: string }) {

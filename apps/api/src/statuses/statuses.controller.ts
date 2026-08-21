@@ -13,10 +13,14 @@ export class StatusesController {
   constructor(private readonly service: StatusesService) {}
 
   @Get('board/:boardId')
-  findByBoard(@Param('boardId') boardId: string) { return this.service.findByBoard(boardId); }
+  findByBoard(@Param('boardId') boardId: string) {
+    return this.service.findByBoard(boardId);
+  }
 
   @Get(':id')
-  findOne(@Param('id') id: string) { return this.service.findOne(id); }
+  findOne(@Param('id') id: string) {
+    return this.service.findOne(id);
+  }
 
   @Post()
   create(@Body() dto: CreateStatusDto, @Req() req: Request) {
@@ -25,7 +29,9 @@ export class StatusesController {
   }
 
   @Put('reorder')
-  reorder(@Body() dto: ReorderStatusesDto) { return this.service.reorder(dto); }
+  reorder(@Body() dto: ReorderStatusesDto) {
+    return this.service.reorder(dto);
+  }
 
   @Put(':id')
   update(@Param('id') id: string, @Body() dto: UpdateStatusDto, @Req() req: Request) {

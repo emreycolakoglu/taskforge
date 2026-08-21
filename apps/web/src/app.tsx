@@ -1,25 +1,25 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider } from "@/contexts/auth-context";
-import { SidebarLayout } from "@/components/sidebar-layout";
-import { HomePage } from "@/pages/home-page";
-import { TasksPage } from "@/pages/tasks-page";
-import { SettingsPage } from "@/pages/settings-page";
-import { AccountPage } from "@/pages/account-page";
-import { NotFoundPage } from "@/pages/not-found-page";
-import { OnboardingPage } from "@/pages/onboarding-page";
-import { LoginPage } from "@/pages/login-page";
-import { SignupPage } from "@/pages/signup-page";
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Toaster } from '@/components/ui/sonner';
+import { AuthProvider } from '@/contexts/auth-context';
+import { SidebarLayout } from '@/components/sidebar-layout';
+import { HomePage } from '@/pages/home-page';
+import { TasksPage } from '@/pages/tasks-page';
+import { SettingsPage } from '@/pages/settings-page';
+import { AccountPage } from '@/pages/account-page';
+import { NotFoundPage } from '@/pages/not-found-page';
+import { OnboardingPage } from '@/pages/onboarding-page';
+import { LoginPage } from '@/pages/login-page';
+import { SignupPage } from '@/pages/signup-page';
 
-import { KanbanBoard } from "@/components/kanban-board";
-import { BoardSettingsPage } from "@/pages/board-settings-page";
-import { BoardDocumentsPage } from "@/pages/board-documents-page";
-import { DocumentEditorPage } from "@/pages/document-editor-page";
-import { BoardsPage } from "@/pages/boards-page";
-import { TaskDetailPage } from "@/pages/task-detail-page";
-import { InboxPage } from "@/pages/inbox-page";
-import { PublicTaskPage } from "@/pages/public-task-page";
-import { PublicDocumentPage } from "@/pages/public-document-page";
+import { KanbanBoard } from '@/components/kanban-board';
+import { BoardSettingsPage } from '@/pages/board-settings-page';
+import { BoardDocumentsPage } from '@/pages/board-documents-page';
+import { DocumentEditorPage } from '@/pages/document-editor-page';
+import { BoardsPage } from '@/pages/boards-page';
+import { TaskDetailPage } from '@/pages/task-detail-page';
+import { InboxPage } from '@/pages/inbox-page';
+import { PublicTaskPage } from '@/pages/public-task-page';
+import { PublicDocumentPage } from '@/pages/public-document-page';
 
 /**
  * The authenticated app. Everything here sits under AuthProvider, whose init
@@ -165,14 +165,8 @@ export function App() {
       <Toaster richColors />
       <BrowserRouter>
         <Routes>
-          <Route
-            path="/public/:identifier/:number"
-            element={<PublicTaskPage />}
-          />
-          <Route
-            path="/public/docs/:identifier/:number"
-            element={<PublicDocumentPage />}
-          />
+          <Route path="/public/:identifier/:number" element={<PublicTaskPage />} />
+          <Route path="/public/docs/:identifier/:number" element={<PublicDocumentPage />} />
           <Route path="*" element={<AuthedRoutes />} />
         </Routes>
       </BrowserRouter>

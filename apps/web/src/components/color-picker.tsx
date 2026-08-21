@@ -1,9 +1,9 @@
-import { PREDEFINED_COLORS } from '@/lib/constants'
-import { cn } from '@/lib/utils'
+import { PREDEFINED_COLORS } from '@/lib/constants';
+import { cn } from '@/lib/utils';
 
 interface ColorPickerProps {
-  value: string
-  onChange: (color: string) => void
+  value: string;
+  onChange: (color: string) => void;
 }
 
 export function ColorPicker({ value, onChange }: ColorPickerProps) {
@@ -16,14 +16,12 @@ export function ColorPicker({ value, onChange }: ColorPickerProps) {
           onClick={() => onChange(color)}
           className={cn(
             'w-7 h-7 rounded-md cursor-pointer border-2 transition-all',
-            value === color
-              ? 'border-foreground'
-              : 'border-transparent hover:scale-105'
+            value === color ? 'border-foreground' : 'border-transparent hover:scale-105',
           )}
           style={{ backgroundColor: color }}
           aria-label={`Select color ${color}`}
         />
       ))}
     </div>
-  )
+  );
 }
