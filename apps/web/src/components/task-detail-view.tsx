@@ -22,7 +22,11 @@ import {
   useRemoveRelation,
 } from "@/hooks/use-relations";
 import { useBoardFull } from "@/hooks/use-boards";
-import { useComments, useCreateComment, useDeleteComment } from "@/hooks/use-comments";
+import {
+  useComments,
+  useCreateComment,
+  useDeleteComment,
+} from "@/hooks/use-comments";
 import { useUsers } from "@/hooks/use-users";
 import { useLabels } from "@/hooks/use-labels";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -31,6 +35,7 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { DetailTitleBlock } from "@/components/detail-title-block";
 import { DetailDescriptionEditor } from "@/components/detail-description-editor";
 import { DetailSubIssues } from "@/components/detail-sub-issues";
+import { DetailDocuments } from "@/components/detail-documents";
 import { DetailActivity } from "@/components/detail-activity";
 import { DetailComments } from "@/components/detail-comments";
 import { DetailPropertiesSidebar } from "@/components/detail-properties-sidebar";
@@ -193,8 +198,12 @@ export function TaskDetailView({
             boardId={boardId}
             onNavigate={navigateToTask}
             onCreateSubTask={handleCreateSubTask}
-            onAddRelation={(otherTaskId) => handleAddRelation(otherTaskId, 'related_to')}
+            onAddRelation={(otherTaskId) =>
+              handleAddRelation(otherTaskId, "related_to")
+            }
           />
+
+          <DetailDocuments taskId={task.id} boardId={boardId} />
 
           <DetailActivity
             activity={task.activity ?? []}

@@ -132,6 +132,11 @@ vi.mock("@/hooks/use-labels", () => ({
   useLabels: () => ({ data: mockBoard.labels }),
 }));
 
+vi.mock("@/hooks/use-documents", () => ({
+  useDocumentsByTask: () => ({ data: [] }),
+  useCreateDocument: () => ({ mutateAsync: vi.fn() }),
+}));
+
 function renderPage(route = "/board/board-1/task/task-1") {
   const queryClient = new QueryClient();
   return render(
