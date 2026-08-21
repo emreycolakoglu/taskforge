@@ -4,6 +4,7 @@ import { EventsService } from '../events/events.service';
 import { RelationsService } from '../relations/relations.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { DocumentsService } from '../documents/documents.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { TOOL_NAMES } from './tool-definitions';
@@ -20,7 +21,7 @@ describe('McpServerFactory', () => {
     const relations = new RelationsService(prisma as any, events);
     const subscriptions = new SubscriptionsService(prisma as any);
     const notifications = new NotificationsService(prisma as any, events);
-    const mcpService = new McpService(prisma as any, events, relations, subscriptions, notifications);
+    const mcpService = new McpService(prisma as any, events, relations, subscriptions, notifications, new DocumentsService(prisma as any, events));
     factory = new McpServerFactory(mcpService);
   });
 

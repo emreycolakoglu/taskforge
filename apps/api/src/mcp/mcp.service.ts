@@ -4,6 +4,7 @@ import { EventsService } from '../events/events.service';
 import { RelationsService } from '../relations/relations.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { DocumentsService } from '../documents/documents.service';
 
 function withTaskNumber(task: any): any {
   const identifier = task.board?.identifier ?? task.status?.board?.identifier;
@@ -66,6 +67,7 @@ export class McpService {
     private relations: RelationsService,
     private subscriptions: SubscriptionsService,
     private notifications: NotificationsService,
+    private documents: DocumentsService,
   ) {}
 
   async handleRequest(req: McpRequest, user?: AuthUser): Promise<McpResponse> {
@@ -87,6 +89,7 @@ export class McpService {
         case 'inbox': result = await this.handleInbox(action, req.params, user); break;
         case 'notifications': result = await this.handleNotifications(action, req.params, user); break;
         case 'members': result = await this.handleMembers(action, req.params, user); break;
+        case 'documents': result = await this.handleDocuments(action, req.params, user); break;
         default:
           return { jsonrpc: '2.0', id: req.id, error: { code: -32601, message: `Method not found: ${req.method}` } };
       }
@@ -711,6 +714,52 @@ export class McpService {
       }
       default:
         throw new Error(`Unknown action: members_${action}`);
+    }
+  }
+
+  private async handleDocuments(action: string, params: any, user?: AuthUser) {
+    const { actorId, actor } = this.actorInfo(user);
+
+    switch (action) {
+      case 'list': {
+        const where: any = {};
+        if (params.boardId) where.boardId = params.boardId;
+        if (params.taskId) where.taskId = params.taskId;
+        const docs = await this.prisma.document.findMany({
+          where,
+          include: { board: { select: { identifier: true } }, task: { select: { id: true, number: true, title: true } } },
+          orderBy: { createdAt: 'desc' },
+          take: params.limit || 100,
+        });
+        return docs.map((d: any) => {
+          const { body, ...rest } = d;
+          return { ...rest, docNumber: `D-${d.number}` };
+        });
+      }
+      case 'get': {
+        const doc = await this.prisma.document.findUnique({
+          where: { id: params.id },
+          include: { board: { select: { identifier: true } }, task: { select: { id: true, number: true, title: true } } },
+        });
+        if (!doc) throw new Error('Document not found');
+        return { ...doc, taskNumber: `${doc.board.identifier}-${doc.task.number}`, docNumber: `D-${doc.number}` };
+      }
+      case 'create': {
+        const doc = await this.documents.create(params.taskId, { title: params.title, body: params.body }, { id: actorId, displayName: actor });
+        return doc;
+      }
+      case 'update': {
+        const data: Record<string, any> = {};
+        if (params.title !== undefined) data.title = params.title;
+        if (params.body !== undefined) data.body = params.body;
+        return this.documents.update(params.id, data, { id: actorId, displayName: actor });
+      }
+      case 'delete': {
+        await this.documents.remove(params.id, { id: actorId, displayName: actor });
+        return { deleted: true };
+      }
+      default:
+        throw new Error(`Unknown action: documents_${action}`);
     }
   }
 

@@ -338,6 +338,50 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     description: 'Leave a board. Cannot leave if you are the last admin.',
     inputSchema: { boardId: idField('Board') },
   },
+
+  // documents
+  {
+    name: 'documents_list',
+    title: 'List documents',
+    description: 'List documents for a board or a task, newest first. Excludes bodies.',
+    inputSchema: {
+      boardId: optionalId('Board'),
+      taskId: optionalId('Task'),
+      limit: z.number().optional(),
+    },
+  },
+  {
+    name: 'documents_get',
+    title: 'Get document',
+    description: 'Get a single document with its full markdown body and linked task.',
+    inputSchema: { id: idField('Document') },
+  },
+  {
+    name: 'documents_create',
+    title: 'Create document',
+    description: 'Create a markdown document attached to a task.',
+    inputSchema: {
+      taskId: idField('Task'),
+      title: z.string(),
+      body: z.string().optional(),
+    },
+  },
+  {
+    name: 'documents_update',
+    title: 'Update document',
+    description: 'Update a document title or body.',
+    inputSchema: {
+      id: idField('Document'),
+      title: z.string().optional(),
+      body: z.string().optional(),
+    },
+  },
+  {
+    name: 'documents_delete',
+    title: 'Delete document',
+    description: 'Delete a document.',
+    inputSchema: { id: idField('Document') },
+  },
 ];
 
 export const TOOL_NAMES = TOOL_DEFINITIONS.map(t => t.name);

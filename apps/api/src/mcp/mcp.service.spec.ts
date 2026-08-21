@@ -5,7 +5,8 @@ import { EventsService } from '../events/events.service';
 import { RelationsService } from '../relations/relations.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { createTestPrisma, seedBoard, seedTask, seedLabel, seedComment, seedUser, seedRelation } from '../../test/setup';
+import { DocumentsService } from '../documents/documents.service';
+import { createTestPrisma, seedBoard, seedTask, seedLabel, seedComment, seedUser, seedRelation, seedDocument } from '../../test/setup';
 
 describe('McpService', () => {
   let service: McpService;
@@ -25,6 +26,7 @@ describe('McpService', () => {
         { provide: EventsService, useValue: events },
         { provide: SubscriptionsService, useValue: new SubscriptionsService(prisma) },
         { provide: NotificationsService, useValue: new NotificationsService(prisma, events) },
+        { provide: DocumentsService, useValue: new DocumentsService(prisma, events) },
       ],
     }).compile();
     service = module.get<McpService>(McpService);
@@ -46,6 +48,7 @@ describe('McpService', () => {
     await prisma.taskLabel.deleteMany();
     await prisma.activity.deleteMany();
     await prisma.comment.deleteMany();
+    await prisma.document.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
     await prisma.status.deleteMany();
@@ -750,6 +753,72 @@ describe('McpService', () => {
         id: 201,
       });
       expect(res.result.assigneeId).toBeNull();
+    });
+  });
+
+  // ─── Documents ───
+
+  describe('documents_create', () => {
+    it('creates a document with a board-level doc number', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const res = await service.handleRequest({
+        method: 'documents_create',
+        params: { taskId: task.id, title: 'Spec doc', body: 'body' },
+        id: 900,
+      }, user);
+      expect(res.result.title).toBe('Spec doc');
+      expect(res.result).toHaveProperty('docNumber');
+      expect(res.result.boardId).toBe(board.id);
+    });
+  });
+
+  describe('documents_list', () => {
+    it('lists by board without body', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      await seedDocument(prisma, task.id, { title: 'A', body: 'secret' });
+      const res = await service.handleRequest({ method: 'documents_list', params: { boardId: board.id }, id: 901 }, user);
+      expect(res.result).toHaveLength(1);
+      expect(res.result[0].title).toBe('A');
+      expect(res.result[0]).not.toHaveProperty('body');
+    });
+
+    it('lists by task', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      await seedDocument(prisma, task.id, { title: 'A' });
+      const res = await service.handleRequest({ method: 'documents_list', params: { taskId: task.id }, id: 902 }, user);
+      expect(res.result).toHaveLength(1);
+    });
+  });
+
+  describe('documents_get', () => {
+    it('returns the full body', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const doc = await seedDocument(prisma, task.id, { title: 'A', body: '**full**' });
+      const res = await service.handleRequest({ method: 'documents_get', params: { id: doc.id }, id: 903 }, user);
+      expect(res.result.body).toBe('**full**');
+      expect(res.result).toHaveProperty('taskNumber');
+    });
+  });
+
+  describe('documents_update', () => {
+    it('updates a document', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const doc = await seedDocument(prisma, task.id, { title: 'Old' });
+      const res = await service.handleRequest({
+        method: 'documents_update',
+        params: { id: doc.id, title: 'New' },
+        id: 904,
+      }, user);
+      expect(res.result.title).toBe('New');
+    });
+  });
+
+  describe('documents_delete', () => {
+    it('deletes a document', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const doc = await seedDocument(prisma, task.id);
+      const res = await service.handleRequest({ method: 'documents_delete', params: { id: doc.id }, id: 905 }, user);
+      expect(res.result.deleted).toBe(true);
     });
   });
 });
