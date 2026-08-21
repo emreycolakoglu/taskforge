@@ -86,6 +86,17 @@ export function useSocket(boardId?: string) {
       }
 
       if (
+        eventName === 'document:created' ||
+        eventName === 'document:updated' ||
+        eventName === 'document:deleted'
+      ) {
+        const doc = eventData as { id?: string; boardId?: string; taskId?: string };
+        if (doc.id) queryClient.invalidateQueries({ queryKey: ['documents', doc.id] });
+        if (doc.boardId) queryClient.invalidateQueries({ queryKey: ['documents', 'board', doc.boardId] });
+        if (doc.taskId) queryClient.invalidateQueries({ queryKey: ['documents', 'task', doc.taskId] });
+      }
+
+      if (
         eventName === 'label:created' ||
         eventName === 'label:updated' ||
         eventName === 'label:deleted'
@@ -135,6 +146,9 @@ export function useSocket(boardId?: string) {
       'task:moved',
       'comment:created',
       'comment:deleted',
+      'document:created',
+      'document:updated',
+      'document:deleted',
       'label:created',
       'label:updated',
       'label:deleted',

@@ -222,4 +222,20 @@ describe('useSocket', () => {
     expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications'] });
     expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['notifications', 'unread-count'] });
   });
+
+  it("invalidates document queries on document:created", () => {
+    renderHook(() => useSocket());
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const docHandler = calls.find((c) => c[0] === "document:created")?.[1] as ((data: unknown) => void) | undefined;
+    expect(docHandler).toBeDefined();
+
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => {
+      docHandler!({ id: "d1", boardId: "b1", taskId: "t1" });
+    });
+
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["documents", "d1"] });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["documents", "board", "b1"] });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["documents", "task", "t1"] });
+  });
 });
