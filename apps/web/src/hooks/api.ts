@@ -1,4 +1,4 @@
-import { API_BASE, Board, Status, Task, TaskLabel, Comment, Label, User, AuthStatus, OnboardRequest, AuthResponse, InviteTokenResponse, Invite, Settings, RelationType, RelationEntry, TaskRelations, Notification, TaskSubscriptionState, Member } from '../types';
+import { API_BASE, Board, Status, Task, TaskLabel, Comment, Label, User, AuthStatus, OnboardRequest, AuthResponse, InviteTokenResponse, Invite, Settings, RelationType, RelationEntry, TaskRelations, Notification, TaskSubscriptionState, Member, Document } from '../types';
 
 const TOKEN_KEY = 'taskforge_token';
 
@@ -155,6 +155,20 @@ export const api = {
     create: (data: { taskId: string; author: string; body: string }) =>
       request<Comment>('/comments', { method: 'POST', body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/comments/${id}`, { method: 'DELETE' }),
+  },
+
+  // Documents
+  documents: {
+    listByBoard: (boardId: string) => request<Document[]>(`/boards/${boardId}/documents`),
+    listByTask: (taskId: string) => request<Document[]>(`/tasks/${taskId}/documents`),
+    get: (id: string) => request<Document>(`/documents/${id}`),
+    create: (taskId: string, data: { title: string; body?: string }) =>
+      request<Document>(`/tasks/${taskId}/documents`, { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, data: { title?: string; body?: string }) =>
+      request<Document>(`/documents/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request<void>(`/documents/${id}`, { method: 'DELETE' }),
+    publish: (id: string) => request<Document>(`/documents/${id}/publish`, { method: 'PUT' }),
+    unpublish: (id: string) => request<Document>(`/documents/${id}/publish`, { method: 'DELETE' }),
   },
 
   // Labels

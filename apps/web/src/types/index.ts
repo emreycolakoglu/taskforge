@@ -186,6 +186,22 @@ export interface TaskSubscriptionState {
   subscribed: boolean;
 }
 
+export interface Document {
+  id: string;
+  boardId: string;
+  taskId: string;
+  number: number;
+  docNumber: string;
+  boardIdentifier?: string;
+  taskNumber?: string;
+  taskTitle?: string;
+  title: string;
+  body: string;
+  isPublic: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /**
  * The curated task shape served to unauthenticated visitors by
  * GET /api/public/tasks/:identifier/:number.
