@@ -139,6 +139,30 @@ export async function seedComment(prisma: PrismaClient, taskId: string, override
 }
 
 /**
+ * Seed a document on a task. Derives boardId from the task.
+ */
+export async function seedDocument(prisma: PrismaClient, taskId: string, overrides: Record<string, any> = {}) {
+  const task = await prisma.task.findUniqueOrThrow({ where: { id: taskId }, select: { boardId: true } });
+  const board = await prisma.board.findUniqueOrThrow({ where: { id: task.boardId } });
+  const number = overrides.number ?? board.nextDocNum;
+  const doc = await prisma.document.create({
+    data: {
+      boardId: task.boardId,
+      taskId,
+      number,
+      title: overrides.title || 'Test document',
+      body: overrides.body ?? '',
+      isPublic: overrides.isPublic ?? false,
+    },
+  });
+  await prisma.board.update({
+    where: { id: task.boardId },
+    data: { nextDocNum: Math.max(board.nextDocNum, number + 1) },
+  });
+  return doc;
+}
+
+/**
  * Seed a relation between two tasks. For "related_to", canonicalizes so
  * fromTaskId < toTaskId lexicographically (matches RelationsService).
  */

@@ -80,13 +80,15 @@ model Board {
   description String?
   icon        String?  @default("⭐")
   nextTaskNum Int      @default(1)
+  nextDocNum  Int      @default(1)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  statuses Status[]
-  labels   Label[]
-  members  Member[]
-  tasks    Task[]
+  statuses  Status[]
+  labels    Label[]
+  members   Member[]
+  tasks     Task[]
+  documents Document[]
 }
 
 model Status {
@@ -135,6 +137,7 @@ model Task {
   relationsTo    TaskRelation[] @relation("TaskRelationsTo")
   subscriptions  TaskSubscription[]
   notifications  Notification[]
+  documents      Document[]
 
   @@unique([boardId, number])
   @@index([boardId])
@@ -157,6 +160,26 @@ model TaskRelation {
   @@index([type])
   @@unique([type, fromTaskId, toTaskId])
   @@map("task_relations")
+}
+
+model Document {
+  id        String    @id @default(cuid())
+  boardId   String
+  taskId    String            // every document belongs to exactly one task
+  number    Int               // board-level counter: D-1, D-2, ...
+  title     String
+  body      String            // markdown, default ""
+  isPublic  Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  board  Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([boardId, number])
+  @@index([boardId])
+  @@index([taskId])
+  @@map("documents")
 }
 
 model Label {
