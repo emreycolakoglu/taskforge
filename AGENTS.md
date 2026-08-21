@@ -44,6 +44,12 @@ Direct pushes to `main` are fine for solo development — no PR required. Just m
 | Prisma migrate       | `pnpm db:migrate` (use `-- --name <desc>` to create new migrations)     |
 | Docker build         | `pnpm docker:build`                                                     |
 | Regenerate PWA icons | `pnpm --filter @taskforge/web icons`                                    |
+| Format all           | `pnpm format` (prettier --write .)                                      |
+| Check formatting     | `pnpm format:check` (prettier --check .)                                |
+
+## Formatting
+
+Prettier is the canonical formatter, configured in `.prettierrc.json` (single quotes, semicolons, trailing commas, print width 100). Run `pnpm format` before committing, or at least `pnpm format:check` to verify. `.prettierignore` excludes `node_modules`, build output, `apps/web/public` + `apps/web/assets` (generated PWA icons), `docs/task-detail` + `docs/task-board` (captured HTML/CSS artifacts), and `.hermes`. The whole repo is already formatted — keep it that way; do not hand-format around prettier.
 
 ## CI/CD
 
@@ -128,4 +134,4 @@ The web app is installable — "Install app" on desktop/Android, "Add to Home Sc
 - **API tests** create a real SQLite DB in a temp directory per run (`createTestPrisma()` in `apps/api/test/setup.ts`), apply schema via `prisma db push`. Tests are integration-level, not mocked unit tests. The test helper still uses `db push` (not `migrate deploy`) because it creates a fresh throwaway DB each time — `db push` is faster for that use case.
 - Each test file cleans all tables in `afterEach` (deleteMany in reverse dependency order).
 - Seed helpers: `seedBoard()`, `seedLabel()`, `seedTask()`, `seedComment()`, `seedRelation()`, `seedUser()`, `seedSubscription()`, `seedNotification()`.
-- **Web tests** (Vitest) mock `global.fetch` for API-client tests, and mock the `use-*` hook modules for component tests. Component tests (`.test.tsx`) exist — e.g. `pages/task-detail-page.test.tsx`, `components/detail-breadcrumb-bar.test.tsx`. When you add a hook to a module a component test mocks, add it to that `vi.mock` factory too or the suite fails with "No _ export is defined on the mock".
+- **Web tests** (Vitest) mock `global.fetch` for API-client tests, and mock the `use-*` hook modules for component tests. Component tests (`.test.tsx`) exist — e.g. `pages/task-detail-page.test.tsx`, `components/detail-breadcrumb-bar.test.tsx`. When you add a hook to a module a component test mocks, add it to that `vi.mock` factory too or the suite fails with "No \_ export is defined on the mock".
