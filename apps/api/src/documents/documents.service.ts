@@ -101,7 +101,10 @@ export class DocumentsService {
   }
 
   async update(id: string, dto: UpdateDocumentDto, user?: { id: string; displayName: string }) {
-    const existing = await this.prisma.document.findUnique({ where: { id } });
+    const existing = await this.prisma.document.findUnique({
+      where: { id },
+      include: { board: { select: { identifier: true } } },
+    });
     if (!existing) throw new NotFoundException('Document not found');
 
     const changes: Record<string, any> = {};
@@ -109,24 +112,24 @@ export class DocumentsService {
     if (dto.body !== undefined && dto.body !== existing.body) changes.body = dto.body;
     const changed = Object.keys(changes).length > 0;
 
+    if (!changed) return withDocNumber(existing);
+
     const doc = await this.prisma.document.update({
       where: { id },
       data: changes,
       include: { board: { select: { identifier: true } } },
     });
 
-    if (changed) {
-      const { actorId, actor } = this.actorInfo(user);
-      await this.prisma.activity.create({
-        data: {
-          taskId: existing.taskId,
-          actorId,
-          actor,
-          action: 'doc_updated',
-          detail: JSON.stringify({ title: doc.title }),
-        },
-      });
-    }
+    const { actorId, actor } = this.actorInfo(user);
+    await this.prisma.activity.create({
+      data: {
+        taskId: existing.taskId,
+        actorId,
+        actor,
+        action: 'doc_updated',
+        detail: JSON.stringify({ title: doc.title }),
+      },
+    });
 
     this.events.emit('document:updated', doc, doc.boardId);
     return withDocNumber(doc);
