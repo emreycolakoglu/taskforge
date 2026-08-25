@@ -421,6 +421,7 @@ export class McpService {
               priority: params.priority || 'medium',
               assigneeId: params.assigneeId ?? user?.id ?? null,
               dueDate: params.dueDate ? new Date(params.dueDate) : null,
+              estimate: params.estimate ?? null,
               metadata: params.metadata ? JSON.stringify(params.metadata) : null,
               parentId: params.parentId ?? null,
               labels: params.labelIds?.length
@@ -456,6 +457,7 @@ export class McpService {
         if (params.priority !== undefined) data.priority = params.priority;
         if (params.assigneeId !== undefined) data.assigneeId = params.assigneeId;
         if (params.dueDate !== undefined) data.dueDate = new Date(params.dueDate);
+        if (params.estimate !== undefined) data.estimate = params.estimate;
         if (params.statusId !== undefined) data.statusId = params.statusId;
         if (params.position !== undefined) data.position = params.position;
 

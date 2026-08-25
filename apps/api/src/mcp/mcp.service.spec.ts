@@ -401,6 +401,18 @@ describe('McpService', () => {
       expect(activity?.actorId).toBe(user.id);
       expect(activity?.actor).toBe(user.displayName);
     });
+
+    it('should create a task with an estimate', async () => {
+      const res = await service.handleRequest(
+        {
+          method: 'tasks_create',
+          params: { statusId: board.statuses[0].id, title: 'Estimated task', estimate: 3 },
+          id: 22,
+        },
+        user,
+      );
+      expect(res.result.estimate).toBe(3);
+    });
   });
 
   describe('tasks_update', () => {
@@ -424,6 +436,24 @@ describe('McpService', () => {
         user,
       );
       expect(res.error).toBeDefined();
+    });
+
+    it('should update a task estimate', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id, { estimate: 2 });
+      const res = await service.handleRequest(
+        { method: 'tasks_update', params: { id: task.id, estimate: 13 }, id: 23 },
+        user,
+      );
+      expect(res.result.estimate).toBe(13);
+    });
+
+    it('should clear a task estimate with null', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id, { estimate: 8 });
+      const res = await service.handleRequest(
+        { method: 'tasks_update', params: { id: task.id, estimate: null }, id: 24 },
+        user,
+      );
+      expect(res.result.estimate).toBeNull();
     });
   });
 
