@@ -49,6 +49,7 @@ export function useCreateTask() {
         position: 999999,
         priority: (variables as any).priority ?? 'medium',
         doneAt: null,
+        estimate: null,
         assigneeId: (variables as any).assigneeId ?? null,
         parentId: variables.parentId ?? null,
         createdAt: new Date().toISOString(),

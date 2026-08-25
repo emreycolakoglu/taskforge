@@ -41,6 +41,7 @@ export interface Task {
   assignee?: User | null;
   metadata?: string;
   dueDate?: string;
+  estimate?: number | null;
   parentId?: string | null;
   parent?: {
     id: string;

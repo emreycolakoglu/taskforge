@@ -86,6 +86,7 @@ export function TaskCard({
   const hasRow2 =
     !!parentTaskNumber ||
     visibleLabels.length > 0 ||
+    task.estimate != null ||
     (task._count && task._count.comments > 0) ||
     (task.blockedByCount != null && task.blockedByCount > 0);
 
@@ -170,6 +171,12 @@ export function TaskCard({
             >
               <BlockedIcon />
               {task.blockedByCount}
+            </span>
+          )}
+
+          {task.estimate != null && (
+            <span className="flex items-center gap-0.5 text-xs text-muted-foreground font-mono shrink-0">
+              {task.estimate} pts
             </span>
           )}
 
