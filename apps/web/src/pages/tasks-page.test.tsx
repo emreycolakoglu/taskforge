@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { BrowserRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SidebarProvider } from '@/components/ui/sidebar';
 import { TasksPage } from './tasks-page';
 
 // Mock the react-query hooks
@@ -37,7 +38,9 @@ function renderWithRouter(ui: React.ReactElement) {
   const queryClient = new QueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>{ui}</BrowserRouter>
+      <SidebarProvider>
+        <BrowserRouter>{ui}</BrowserRouter>
+      </SidebarProvider>
     </QueryClientProvider>,
   );
 }
@@ -50,7 +53,7 @@ describe('TasksPage', () => {
   it('renders the page heading and search input', () => {
     renderWithRouter(<TasksPage />);
 
-    expect(screen.getByText('Tasks')).toBeInTheDocument();
+    expect(screen.getByText('My Issues')).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/search tasks/i)).toBeInTheDocument();
   });
 

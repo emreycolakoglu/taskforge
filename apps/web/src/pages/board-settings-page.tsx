@@ -67,18 +67,20 @@ export function BoardSettingsPage() {
 
   return (
     <div className="flex flex-col h-full">
-      <header className="shrink-0 bg-secondary border-b border-border px-6 py-4 flex items-center gap-3">
+      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-secondary px-6">
         <Button
           variant="ghost"
           size="icon"
+          className="size-7 text-muted-foreground hover:text-foreground"
           aria-label="Back to board"
           onClick={() => navigate(`/board/${id}`)}
         >
-          <ArrowLeft className="size-5" />
+          <ArrowLeft className="size-4" />
         </Button>
-        <div>
-          <h1 className="text-lg font-medium tracking-tight text-foreground">{board.name}</h1>
-          <p className="text-sm text-muted-foreground">Board settings</p>
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-base leading-none">{board.icon ?? '⭐'}</span>
+          <h1 className="text-sm font-medium text-foreground truncate">{board.name}</h1>
+          <span className="text-sm text-muted-foreground">— Settings</span>
         </div>
       </header>
 

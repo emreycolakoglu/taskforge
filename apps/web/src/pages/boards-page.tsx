@@ -15,6 +15,7 @@ import { Plus, LogIn, LogOut, Columns3, Loader2 } from 'lucide-react';
 import { useBoards } from '@/hooks/use-boards';
 import { useJoinBoard, useLeaveBoard } from '@/hooks/use-members';
 import { useAuth } from '@/contexts/auth-context';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Card, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -49,13 +50,16 @@ export function BoardsPage() {
 
   return (
     <div className="flex flex-col h-full bg-background">
-      <header className="shrink-0 border-b border-border px-4 sm:px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-medium tracking-tight text-foreground">Boards</h1>
-          <p className="text-sm text-muted-foreground">All boards in the workspace</p>
+      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-secondary px-6">
+        <div className="flex items-center gap-2 min-w-0">
+          <SidebarTrigger
+            className="md:hidden text-muted-foreground hover:text-foreground"
+            aria-label="Toggle sidebar"
+          />
+          <h1 className="text-sm font-medium text-foreground truncate">Boards</h1>
         </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="size-4 mr-2" />
+        <Button size="sm" onClick={() => setShowCreate(true)}>
+          <Plus className="size-4 mr-1.5" />
           New Board
         </Button>
       </header>

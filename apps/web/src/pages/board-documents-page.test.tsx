@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SidebarProvider } from '@/components/ui/sidebar';
 import { BoardDocumentsPage } from './board-documents-page';
 
 vi.mock('@/hooks/use-documents', () => ({
@@ -30,9 +31,11 @@ function renderPage() {
   const queryClient = new QueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={['/board/b1/docs']}>
-        <BoardDocumentsPage />
-      </MemoryRouter>
+      <SidebarProvider>
+        <MemoryRouter initialEntries={['/board/b1/docs']}>
+          <BoardDocumentsPage />
+        </MemoryRouter>
+      </SidebarProvider>
     </QueryClientProvider>,
   );
 }

@@ -5,6 +5,7 @@ import { useBoardFull } from '@/hooks/use-boards';
 import { useDocumentsByBoard, useCreateDocument } from '@/hooks/use-documents';
 import { useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -55,15 +56,18 @@ export function BoardDocumentsPage() {
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <header className="shrink-0 border-b border-border px-4 sm:px-6 py-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-lg font-medium tracking-tight text-foreground">
+      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-secondary px-6">
+        <div className="flex items-center gap-2 min-w-0">
+          <SidebarTrigger
+            className="md:hidden text-muted-foreground hover:text-foreground"
+            aria-label="Toggle sidebar"
+          />
+          <h1 className="text-sm font-medium text-foreground truncate">
             {board?.icon ?? '⭐'} {board?.name ?? 'Board'} — Documents
           </h1>
-          <p className="text-sm text-muted-foreground">All documents on this board</p>
         </div>
-        <Button onClick={() => setCreating((v) => !v)}>
-          <Plus className="size-4 mr-2" />
+        <Button size="sm" onClick={() => setCreating((v) => !v)}>
+          <Plus className="size-4 mr-1.5" />
           New document
         </Button>
       </header>
