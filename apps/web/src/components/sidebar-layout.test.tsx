@@ -191,6 +191,29 @@ describe('SidebarLayout', () => {
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
+  it('renders a Docs link under an expanded board, above Settings', () => {
+    renderSidebar('/board/b1');
+
+    const docsLink = screen.getByRole('link', { name: 'Docs' });
+    expect(docsLink).toHaveAttribute('href', '/board/b1/docs');
+
+    const boardSettingsLink = screen
+      .getAllByRole('link', { name: 'Settings' })
+      .find((l) => l.getAttribute('href') === '/board/b1/settings');
+    expect(boardSettingsLink).toBeDefined();
+    expect(
+      docsLink.compareDocumentPosition(boardSettingsLink!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+  });
+
+  it('highlights the Docs link when on a board docs page', () => {
+    renderSidebar('/board/b1/docs');
+
+    const docsLink = screen.getByRole('link', { name: 'Docs' });
+    expect(docsLink).toHaveAttribute('href', '/board/b1/docs');
+    expect(docsLink.closest('[data-active="true"]')).not.toBeNull();
+  });
+
   it('renders user display name in bottom section', () => {
     renderSidebar();
 

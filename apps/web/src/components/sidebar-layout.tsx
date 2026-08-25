@@ -186,8 +186,11 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                     <SidebarMenu>
                       {memberBoards?.map((board) => {
                         const issuesActive = location.pathname === `/board/${board.id}`;
+                        const docsActive =
+                          location.pathname === `/board/${board.id}/docs` ||
+                          location.pathname.startsWith(`/board/${board.id}/doc/`);
                         const settingsActive = location.pathname === `/board/${board.id}/settings`;
-                        const boardActive = issuesActive || settingsActive;
+                        const boardActive = issuesActive || docsActive || settingsActive;
                         return (
                           <Collapsible
                             key={board.id}
@@ -220,6 +223,14 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                               </div>
                               <CollapsibleContent>
                                 <div className="ml-6 flex flex-col gap-0.5">
+                                  <SidebarMenuButton
+                                    asChild
+                                    isActive={docsActive}
+                                    size="sm"
+                                    className="pl-2"
+                                  >
+                                    <Link to={`/board/${board.id}/docs`}>Docs</Link>
+                                  </SidebarMenuButton>
                                   <SidebarMenuButton
                                     asChild
                                     isActive={settingsActive}
