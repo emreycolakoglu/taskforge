@@ -231,6 +231,7 @@ export class TasksService {
           priority: dto.priority ?? 'medium',
           assigneeId: dto.assigneeId ?? null,
           dueDate: dto.dueDate ? new Date(dto.dueDate) : null,
+          estimate: dto.estimate ?? null,
           metadata: dto.metadata ?? null,
           parentId: dto.parentId ?? null,
           labels: dto.labelIds?.length
@@ -273,6 +274,7 @@ export class TasksService {
     if (dto.priority !== undefined) changes.priority = dto.priority;
     if (dto.assigneeId !== undefined) changes.assigneeId = dto.assigneeId;
     if (dto.dueDate !== undefined) changes.dueDate = new Date(dto.dueDate);
+    if (dto.estimate !== undefined) changes.estimate = dto.estimate;
     if (dto.metadata !== undefined) changes.metadata = dto.metadata;
     if (dto.statusId !== undefined) changes.statusId = dto.statusId;
     if (dto.position !== undefined) changes.position = dto.position;
@@ -316,6 +318,13 @@ export class TasksService {
     }
     if (dto.assigneeId && dto.assigneeId !== existing.assigneeId)
       detail.push(`assigned to ${dto.assigneeId}`);
+    if (dto.estimate !== undefined && dto.estimate !== existing.estimate) {
+      detail.push(
+        dto.estimate === null
+          ? 'estimate cleared'
+          : `estimate: ${existing.estimate ?? 'unset'} → ${dto.estimate}`,
+      );
+    }
     if (parentChanged) {
       if (dto.parentId === null) detail.push('un-nested from parent');
       else detail.push(`set parent: ${dto.parentId}`);

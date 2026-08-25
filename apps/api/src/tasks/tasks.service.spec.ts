@@ -191,6 +191,14 @@ describe('TasksService', () => {
       expect(activity[0].actorId).toBeNull();
       expect(activity[0].actor).toBe('system');
     });
+
+    it('should create a task with an estimate', async () => {
+      const task = await service.create(
+        { statusId: board.statuses[0].id, title: 'Estimated', estimate: 3 },
+        user,
+      );
+      expect(task.estimate).toBe(3);
+    });
   });
 
   describe('update', () => {
@@ -219,6 +227,40 @@ describe('TasksService', () => {
       const activity = await prisma.activity.findMany({ where: { taskId: seeded.id } });
       expect(activity.some((a) => a.action === 'updated')).toBe(true);
       expect(activity.find((a) => a.action === 'updated')!.actorId).toBe(user.id);
+    });
+
+    it('should update task estimate', async () => {
+      const seeded = await seedTask(prisma, board.statuses[0].id);
+      const updated = await service.update(seeded.id, { estimate: 5 }, user);
+      expect(updated.estimate).toBe(5);
+    });
+
+    it('should clear task estimate with null', async () => {
+      const seeded = await seedTask(prisma, board.statuses[0].id, { estimate: 5 });
+      const updated = await service.update(seeded.id, { estimate: null }, user);
+      expect(updated.estimate).toBeNull();
+    });
+
+    it('should log estimate change in activity detail', async () => {
+      const seeded = await seedTask(prisma, board.statuses[0].id, { estimate: 2 });
+      await service.update(seeded.id, { estimate: 8 }, user);
+      const activity = await prisma.activity.findMany({ where: { taskId: seeded.id } });
+      const updated = activity.find((a: any) => a.action === 'updated');
+      expect(updated).toBeDefined();
+      expect(
+        JSON.parse(updated!.detail).changes.some((c: string) => c.includes('estimate: 2 → 8')),
+      ).toBe(true);
+    });
+
+    it('should log estimate clear in activity detail', async () => {
+      const seeded = await seedTask(prisma, board.statuses[0].id, { estimate: 5 });
+      await service.update(seeded.id, { estimate: null }, user);
+      const activity = await prisma.activity.findMany({ where: { taskId: seeded.id } });
+      const updated = activity.find((a: any) => a.action === 'updated');
+      expect(updated).toBeDefined();
+      expect(
+        JSON.parse(updated!.detail).changes.some((c: string) => c === 'estimate cleared'),
+      ).toBe(true);
     });
   });
 

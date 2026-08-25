@@ -113,6 +113,7 @@ export async function seedTask(
       priority: rest.priority || 'medium',
       assigneeId: assigneeId ?? null,
       doneAt: rest.doneAt ?? null,
+      estimate: rest.estimate ?? null,
       parentId: parentId ?? null,
       isPublic: rest.isPublic ?? false,
     },
