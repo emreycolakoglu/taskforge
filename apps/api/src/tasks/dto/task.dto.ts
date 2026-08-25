@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsArray, IsDateString } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsArray, IsDateString, Min } from 'class-validator';
 
 export class CreateTaskDto {
   @IsString()
@@ -26,6 +26,11 @@ export class CreateTaskDto {
   @IsOptional()
   @IsDateString()
   dueDate?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  estimate?: number;
 
   @IsOptional()
   @IsArray()
@@ -69,6 +74,11 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsDateString()
   dueDate?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  estimate?: number | null;
 
   @IsOptional()
   @IsArray()

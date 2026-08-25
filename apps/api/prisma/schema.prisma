@@ -120,6 +120,7 @@ model Task {
   dueDate     DateTime?
   assigneeId  String?
   metadata    String?
+  estimate    Float?    // effort estimate, freeform positive number
   parentId    String?
   isPublic    Boolean   @default(false)
   createdAt   DateTime  @default(now())
