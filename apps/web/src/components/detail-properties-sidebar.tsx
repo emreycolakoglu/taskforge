@@ -17,6 +17,7 @@ import { DetailAssigneeSelect } from './detail-assignee-select';
 import { DetailGroup } from './detail-group';
 import { DetailGroupTitle } from './detail-group-title';
 import { DetailPrioritySelect } from './detail-priority-select';
+import { DetailEstimateInput } from './detail-estimate-input';
 import { DetailPropertyRow } from './detail-property-row';
 import { DetailStatusSelect } from './detail-status-select';
 import { LabelManager } from './label-manager';
@@ -69,6 +70,11 @@ export function DetailPropertiesSidebar({
             <DetailPrioritySelect
               value={task.priority}
               onChange={(priority) => onUpdate({ priority })}
+            />
+
+            <DetailEstimateInput
+              value={task.estimate ?? null}
+              onChange={(estimate) => onUpdate({ estimate })}
             />
 
             <DetailAssigneeSelect
