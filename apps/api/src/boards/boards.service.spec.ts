@@ -87,7 +87,7 @@ describe('BoardsService', () => {
       const seeded = await seedBoard(prisma);
       const board = await service.findOne(seeded.id);
       expect(board.id).toBe(seeded.id);
-      expect(board.statuses).toHaveLength(5);
+      expect(board.statuses).toHaveLength(6);
       expect(board.labels).toEqual([]);
       expect(board.members).toEqual([]);
     });
@@ -97,7 +97,7 @@ describe('BoardsService', () => {
     it('should return board with nested tasks', async () => {
       const seeded = await seedBoard(prisma);
       const board = await service.findFull(seeded.id);
-      expect(board.statuses).toHaveLength(5);
+      expect(board.statuses).toHaveLength(6);
       for (const status of board.statuses) {
         expect(status).toHaveProperty('tasks');
         expect(Array.isArray(status.tasks)).toBe(true);
@@ -148,7 +148,7 @@ describe('BoardsService', () => {
   });
 
   describe('create', () => {
-    it('should create a board with 5 default statuses, Done isDone=true', async () => {
+    it('should create a board with 6 default statuses, Done.isDone=true, Duplicate.isDuplicate=true', async () => {
       const board = await service.create({
         name: 'New Board',
         slug: 'new-board',
@@ -157,7 +157,7 @@ describe('BoardsService', () => {
       expect(board.name).toBe('New Board');
       expect(board.slug).toBe('new-board');
       expect(board.identifier).toBe('NEW');
-      expect(board.statuses).toHaveLength(5);
+      expect(board.statuses).toHaveLength(6);
       const statuses = board.statuses;
       expect(statuses.map((s: any) => s.name)).toEqual([
         'Backlog',
@@ -165,8 +165,10 @@ describe('BoardsService', () => {
         'In Progress',
         'Review',
         'Done',
+        'Duplicate',
       ]);
       expect(statuses.find((s: any) => s.name === 'Done').isDone).toBe(true);
+      expect(statuses.find((s: any) => s.name === 'Duplicate').isDuplicate).toBe(true);
     });
 
     it('should create a board with 5 default labels', async () => {

@@ -119,7 +119,7 @@ describe('McpService', () => {
       );
       expect(res.result.name).toBe('MCP Board');
       expect(res.result.identifier).toBe('MCP');
-      expect(res.result.statuses).toHaveLength(5);
+      expect(res.result.statuses).toHaveLength(6);
     });
   });
 
@@ -177,7 +177,7 @@ describe('McpService', () => {
         { method: 'statuses_list', params: { boardId: board.id }, id: 5 },
         user,
       );
-      expect(res.result).toHaveLength(5);
+      expect(res.result).toHaveLength(6);
     });
   });
 

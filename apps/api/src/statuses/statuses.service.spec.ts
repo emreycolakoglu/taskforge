@@ -44,7 +44,7 @@ describe('StatusesService', () => {
   describe('findByBoard', () => {
     it('should return statuses ordered by position', async () => {
       const statuses = await service.findByBoard(board.id);
-      expect(statuses).toHaveLength(5);
+      expect(statuses).toHaveLength(6);
       expect(statuses[0].name).toBe('Backlog');
       expect(statuses[4].name).toBe('Done');
       expect(statuses[4].isDone).toBe(true);
@@ -72,7 +72,7 @@ describe('StatusesService', () => {
     it('should create a status at the end', async () => {
       const status = await service.create({ boardId: board.id, name: 'New Status' });
       expect(status.name).toBe('New Status');
-      expect(status.position).toBe(5);
+      expect(status.position).toBe(6);
       expect(status.isDone).toBe(false);
     });
 
@@ -107,11 +107,11 @@ describe('StatusesService', () => {
   describe('reorder', () => {
     it('should reorder statuses', async () => {
       const statuses = await service.findByBoard(board.id);
-      const items = statuses.map((s, i) => ({ id: s.id, position: 4 - i }));
+      const items = statuses.map((s, i) => ({ id: s.id, position: 5 - i }));
       await service.reorder({ items });
       const reordered = await service.findByBoard(board.id);
-      expect(reordered[0].id).toBe(statuses[4].id);
-      expect(reordered[4].id).toBe(statuses[0].id);
+      expect(reordered[0].id).toBe(statuses[5].id);
+      expect(reordered[5].id).toBe(statuses[0].id);
     });
   });
 

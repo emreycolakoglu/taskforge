@@ -62,6 +62,7 @@ export async function seedBoard(prisma: PrismaClient) {
           { name: 'In Progress', position: 2, color: '#f59e0b' },
           { name: 'Review', position: 3, color: '#8b5cf6' },
           { name: 'Done', position: 4, color: '#22c55e', isDone: true },
+          { name: 'Duplicate', position: 5, color: '#64748b', isDuplicate: true },
         ],
       },
     },
