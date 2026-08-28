@@ -173,6 +173,32 @@ describe('EventsGateway', () => {
       expect(client.data.boardId).toBeUndefined();
     });
 
+    it('should leave the previous user room when authenticated as a different user', async () => {
+      const firstUser = {
+        id: 'user-1',
+        displayName: 'First User',
+        role: 'member',
+        email: 'first@example.com',
+      };
+      const secondUser = {
+        id: 'user-2',
+        displayName: 'Second User',
+        role: 'member',
+        email: 'second@example.com',
+      };
+      mockAuthService.validateSession
+        .mockResolvedValueOnce(firstUser)
+        .mockResolvedValueOnce(secondUser);
+      const client = createMockSocket();
+
+      await gateway.handleAuth(client, { token: 'first-token' });
+      await gateway.handleAuth(client, { token: 'second-token' });
+
+      expect(client.leave).toHaveBeenCalledWith('user:user-1');
+      expect(client.join).toHaveBeenCalledWith('user:user-2');
+      expect(client.data.userId).toBe('user-2');
+    });
+
     it('should disconnect a client with an invalid token', async () => {
       mockAuthService.validateSession.mockResolvedValue(null);
       const client = createMockSocket();

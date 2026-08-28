@@ -6,19 +6,49 @@ import { getToken } from './api';
 // Module-level singleton: survives React StrictMode mount/unmount/remount cycle
 // and avoids EPIPE errors from rapid connect/disconnect cycles.
 let socket: Socket | null = null;
+const boardConsumers = new Map<symbol, string | undefined>();
+let activeBoardId: string | undefined | null = null;
+
+function desiredBoardId(): string | undefined {
+  let desired: string | undefined;
+  for (const boardId of boardConsumers.values()) {
+    if (boardId) desired = boardId;
+  }
+  return desired;
+}
+
+function syncBoardRoom() {
+  if (!socket?.connected) return;
+  const token = getToken();
+  if (!token) return;
+
+  const boardId = desiredBoardId();
+  if (boardId === activeBoardId) return;
+
+  socket.emit('auth', { token, boardId });
+  activeBoardId = boardId;
+}
+
+/** Disconnect the authenticated socket before switching sessions. */
+export function resetSocket() {
+  socket?.disconnect();
+  activeBoardId = null;
+}
 
 /** @internal Reset singleton for tests */
 export function _resetSocket() {
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-  }
+  resetSocket();
+  socket = null;
+  boardConsumers.clear();
 }
 
 export function useSocket(boardId?: string) {
   const queryClient = useQueryClient();
   const listenersRef = useRef<Map<string, Set<(data: unknown) => void>>>(new Map());
   const boardIdRef = useRef(boardId);
+  const consumerIdRef = useRef<symbol | null>(null);
+
+  if (!consumerIdRef.current) consumerIdRef.current = Symbol();
 
   boardIdRef.current = boardId;
 
@@ -32,18 +62,23 @@ export function useSocket(boardId?: string) {
 
   // Create or reuse the singleton socket
   useEffect(() => {
+    let created = false;
     if (!socket) {
       socket = io({
         path: '/ws/',
         transports: ['polling', 'websocket'],
       });
+      activeBoardId = null;
+      created = true;
     }
 
     const currentSocket = socket;
     const connectHandler = () => {
       const token = getToken();
       if (token) {
-        currentSocket.emit('auth', { token, boardId: boardIdRef.current });
+        const boardId = desiredBoardId();
+        currentSocket.emit('auth', { token, boardId });
+        activeBoardId = boardId;
       }
     };
     currentSocket.on('connect', connectHandler);
@@ -184,6 +219,8 @@ export function useSocket(boardId?: string) {
       currentSocket.on(eventType, handler);
     });
 
+    if (!created && !currentSocket.connected) currentSocket.connect();
+
     // Don't disconnect on StrictMode cleanup — the singleton persists
     return () => {
       eventTypes.forEach((eventType) => {
@@ -196,14 +233,21 @@ export function useSocket(boardId?: string) {
     };
   }, [queryClient]);
 
-  // Update the board room when boardId changes (without reconnecting)
+  // Track all consumers so an unscoped hook cannot clear a scoped board room.
   useEffect(() => {
-    if (socket && socket.connected) {
-      const token = getToken();
-      if (token) {
-        socket.emit('auth', { token, boardId });
-      }
-    }
+    const consumerId = consumerIdRef.current!;
+    boardConsumers.set(consumerId, boardIdRef.current);
+    syncBoardRoom();
+
+    return () => {
+      boardConsumers.delete(consumerId);
+      syncBoardRoom();
+    };
+  }, []);
+
+  useEffect(() => {
+    boardConsumers.set(consumerIdRef.current!, boardId);
+    syncBoardRoom();
   }, [boardId]);
 
   return { on };

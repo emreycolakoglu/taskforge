@@ -111,26 +111,34 @@ export class CommentsService {
       throw new ForbiddenException('You can only edit your own comments');
     }
 
-    await this.prisma.comment.updateMany({
-      where: { id, editedAt: null },
-      data: { editedAt: new Date() },
-    });
+    const normalized = await this.prisma.$transaction(async (tx) => {
+      await tx.comment.updateMany({
+        where: { id, editedAt: null },
+        data: { editedAt: new Date() },
+      });
 
-    const updated = await this.prisma.comment.update({
-      where: { id },
-      data: { body },
-      include: { reactions: { select: { userId: true, emoji: true } } },
-    });
-    const normalized = { ...updated, reactions: groupReactions(updated.reactions) };
+      await tx.comment.update({
+        where: { id },
+        data: { body },
+      });
 
-    await this.prisma.activity.create({
-      data: {
-        taskId: comment.taskId,
-        actorId: user.id,
-        actor: user.displayName,
-        action: 'comment_edited',
-        detail: JSON.stringify({ commentId: comment.id }),
-      },
+      const updated = await tx.comment.findUniqueOrThrow({
+        where: { id },
+        include: { reactions: { select: { userId: true, emoji: true } } },
+      });
+      const normalized = { ...updated, reactions: groupReactions(updated.reactions) };
+
+      await tx.activity.create({
+        data: {
+          taskId: comment.taskId,
+          actorId: user.id,
+          actor: user.displayName,
+          action: 'comment_edited',
+          detail: JSON.stringify({ commentId: comment.id }),
+        },
+      });
+
+      return normalized;
     });
 
     const task = await this.prisma.task.findUnique({

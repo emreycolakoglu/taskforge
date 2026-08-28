@@ -296,6 +296,32 @@ describe('CommentsService', () => {
       expect(activity[0].actorId).toBe(user.id);
     });
 
+    it('rolls back the comment update when comment_edited activity creation fails', async () => {
+      const comment = await service.create({ taskId: task.id, body: 'orig' }, user);
+      await prisma.$executeRawUnsafe(`
+        CREATE TRIGGER fail_comment_edited_activity
+        BEFORE INSERT ON "Activity"
+        WHEN NEW.action = 'comment_edited'
+        BEGIN
+          SELECT RAISE(ABORT, 'comment activity failure');
+        END;
+      `);
+
+      try {
+        await expect(service.update(comment.id, 'should roll back', user)).rejects.toThrow();
+      } finally {
+        await prisma.$executeRawUnsafe('DROP TRIGGER fail_comment_edited_activity');
+      }
+
+      const stored = await prisma.comment.findUnique({ where: { id: comment.id } });
+      expect(stored?.body).toBe('orig');
+      expect(stored?.editedAt).toBeNull();
+      const editedActivities = await prisma.activity.findMany({
+        where: { taskId: task.id, action: 'comment_edited' },
+      });
+      expect(editedActivities).toHaveLength(0);
+    });
+
     it('throws NotFound for a missing comment', async () => {
       await expect(service.update('nope', 'x', user)).rejects.toThrow('Comment not found');
     });

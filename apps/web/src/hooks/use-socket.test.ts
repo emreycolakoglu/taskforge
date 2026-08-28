@@ -8,6 +8,7 @@ const mockSocket = {
   off: vi.fn(),
   emit: vi.fn(),
   disconnect: vi.fn(),
+  connect: vi.fn(),
   connected: false,
 };
 
@@ -32,7 +33,7 @@ vi.mock('./api', () => ({
 
 // --- Import after mocks are hoisted ---
 
-import { useSocket, _resetSocket } from './use-socket';
+import { useSocket, _resetSocket, resetSocket } from './use-socket';
 import { io } from 'socket.io-client';
 
 describe('useSocket', () => {
@@ -163,6 +164,46 @@ describe('useSocket', () => {
       token: 'my-token',
       boardId: undefined,
     });
+  });
+
+  it('should not let an unscoped consumer override a scoped board room', () => {
+    mockGetToken.mockReturnValue('my-token');
+    mockSocket.connected = true;
+
+    renderHook(() => useSocket('board-1'));
+    mockSocket.emit.mockClear();
+
+    renderHook(() => useSocket());
+
+    expect(mockSocket.emit).not.toHaveBeenCalledWith('auth', {
+      token: 'my-token',
+      boardId: undefined,
+    });
+  });
+
+  it('should leave the scoped room when its last scoped consumer unmounts', () => {
+    mockGetToken.mockReturnValue('my-token');
+    mockSocket.connected = true;
+
+    renderHook(() => useSocket());
+    const scoped = renderHook(() => useSocket('board-1'));
+    mockSocket.emit.mockClear();
+
+    scoped.unmount();
+
+    expect(mockSocket.emit).toHaveBeenCalledWith('auth', {
+      token: 'my-token',
+      boardId: undefined,
+    });
+  });
+
+  it('should disconnect the singleton socket when reset for a new session', () => {
+    renderHook(() => useSocket());
+    mockSocket.disconnect.mockClear();
+
+    resetSocket();
+
+    expect(mockSocket.disconnect).toHaveBeenCalledTimes(1);
   });
 
   it('should not emit auth on boardId change when socket is not connected', () => {

@@ -72,14 +72,19 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
         this.authTimeouts.delete(client.id);
       }
 
+      const previousBoardId = client.data.boardId as string | undefined;
+      const previousUserId = client.data.userId as string | undefined;
+
       // Mark socket as authenticated
       client.data.authenticated = true;
       client.data.userId = user.id;
       client.data.user = user;
 
-      const previousBoardId = client.data.boardId as string | undefined;
       if (previousBoardId && previousBoardId !== data.boardId) {
         client.leave(`board:${previousBoardId}`);
+      }
+      if (previousUserId && previousUserId !== user.id) {
+        client.leave(`user:${previousUserId}`);
       }
       if (data.boardId) {
         client.join(`board:${data.boardId}`);

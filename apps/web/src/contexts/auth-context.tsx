@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, setToken, clearToken, getToken, setOnUnauthorized } from '@/hooks/api';
+import { resetSocket } from '@/hooks/use-socket';
 import type { User } from '@/types';
 
 interface AuthContextValue {
@@ -36,6 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setTokenState(null);
     clearToken();
+    resetSocket();
     navigate('/login', { replace: true });
   }, [navigate]);
 
@@ -79,6 +81,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {
           if (cancelled) return;
           clearToken();
+          resetSocket();
           setTokenState(null);
           if (!onSignupRoute) navigate('/login', { replace: true });
         }
@@ -104,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const logout = useCallback(async () => {
+    resetSocket();
     try {
       await api.auth.logout();
     } catch {
