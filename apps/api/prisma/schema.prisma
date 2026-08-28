@@ -21,6 +21,7 @@ model User {
   usedInvites    InviteToken[] @relation("UsedInvites")
   tasks          Task[]        @relation("TaskAssignee")
   comments       Comment[]     @relation("CommentAuthor")
+  reactions      CommentReaction[]
   activities     Activity[]    @relation("ActivityActor")
   members        Member[]
   subscriptions  TaskSubscription[]
@@ -213,13 +214,30 @@ model Comment {
   authorId  String?
   author    String
   body      String
+  editedAt  DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   task      Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
   authorRel User? @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  reactions CommentReaction[]
 
   @@index([authorId])
+}
+
+model CommentReaction {
+  id        String   @id @default(cuid())
+  commentId String
+  userId    String
+  emoji     String
+  createdAt DateTime @default(now())
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, userId, emoji])
+  @@index([commentId])
+  @@map("comment_reactions")
 }
 
 model Activity {
