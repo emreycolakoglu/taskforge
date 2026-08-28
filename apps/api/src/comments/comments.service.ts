@@ -94,7 +94,7 @@ export class CommentsService {
       },
     });
 
-    this.events.emit('comment:deleted', { id }, task?.status?.boardId);
+    this.events.emit('comment:deleted', { id, taskId: comment.taskId }, task?.status?.boardId);
   }
 
   async update(id: string, body: string, user?: { id: string; displayName: string; role: string }) {
@@ -111,12 +111,14 @@ export class CommentsService {
       throw new ForbiddenException('You can only edit your own comments');
     }
 
+    await this.prisma.comment.updateMany({
+      where: { id, editedAt: null },
+      data: { editedAt: new Date() },
+    });
+
     const updated = await this.prisma.comment.update({
       where: { id },
-      data: {
-        body,
-        editedAt: comment.editedAt ?? new Date(),
-      },
+      data: { body },
       include: { reactions: { select: { userId: true, emoji: true } } },
     });
     const normalized = { ...updated, reactions: groupReactions(updated.reactions) };

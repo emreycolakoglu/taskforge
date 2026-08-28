@@ -5,7 +5,7 @@ import { RelationsService } from '../relations/relations.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DocumentsService } from '../documents/documents.service';
-import { groupReactions, isValidReaction, toggleCommentReaction } from '../comments/reactions';
+import { CommentsService } from '../comments/comments.service';
 
 function withTaskNumber(task: any): any {
   const identifier = task.board?.identifier ?? task.status?.board?.identifier;
@@ -69,6 +69,7 @@ export class McpService {
     private subscriptions: SubscriptionsService,
     private notifications: NotificationsService,
     private documents: DocumentsService,
+    private comments: CommentsService,
   ) {}
 
   async handleRequest(req: McpRequest, user?: AuthUser): Promise<McpResponse> {
@@ -607,10 +608,7 @@ export class McpService {
 
     switch (action) {
       case 'list': {
-        return this.prisma.comment.findMany({
-          where: { taskId: params.taskId },
-          orderBy: { createdAt: 'desc' },
-        });
+        return this.comments.findByTask(params.taskId);
       }
       case 'create': {
         const comment = await this.prisma.comment.create({
@@ -658,74 +656,19 @@ export class McpService {
           },
         });
 
-        this.events.emit('comment:deleted', { id: params.id }, task?.status?.boardId);
+        this.events.emit(
+          'comment:deleted',
+          { id: params.id, taskId: comment.taskId },
+          task?.status?.boardId,
+        );
         return { success: true };
       }
       case 'update': {
-        const comment = await this.prisma.comment.findUnique({ where: { id: params.id } });
-        if (!comment) throw new Error('Comment not found');
-
-        const isAdmin = user?.role === 'admin';
-        const isAuthor = comment.authorId === actorId;
-        if (!isAuthor && !isAdmin) {
-          throw new Error('You can only edit your own comments');
-        }
-
-        const updated = await this.prisma.comment.update({
-          where: { id: params.id },
-          data: {
-            body: params.body,
-            editedAt: comment.editedAt ?? new Date(),
-          },
-          include: { reactions: { select: { userId: true, emoji: true } } },
-        });
-        const normalized = { ...updated, reactions: groupReactions(updated.reactions) };
-
-        await this.prisma.activity.create({
-          data: {
-            taskId: comment.taskId,
-            actorId,
-            actor: authorName,
-            action: 'comment_edited',
-            detail: JSON.stringify({ commentId: comment.id }),
-          },
-        });
-
-        const task = await this.prisma.task.findUnique({
-          where: { id: comment.taskId },
-          include: { status: { select: { boardId: true } } },
-        });
-        this.events.emit('comment:updated', normalized, task?.status?.boardId);
-        return normalized;
+        return this.comments.update(params.id, params.body, user);
       }
       case 'react': {
-        if (!isValidReaction(params.emoji)) {
-          throw new Error('Invalid reaction emoji');
-        }
-        const comment = await this.prisma.comment.findUnique({ where: { id: params.commentId } });
-        if (!comment) throw new Error('Comment not found');
-
-        const reaction = await toggleCommentReaction(
-          this.prisma,
-          params.commentId,
-          actorId!,
-          params.emoji,
-        );
-
-        const task = await this.prisma.task.findUnique({
-          where: { id: comment.taskId },
-          include: { status: { select: { boardId: true } } },
-        });
-        this.events.emit(
-          'comment:reaction:toggled',
-          {
-            commentId: params.commentId,
-            ...reaction,
-            taskId: comment.taskId,
-          },
-          task?.status?.boardId,
-        );
-        return reaction;
+        if (!user) throw new Error('Authentication required');
+        return this.comments.react(params.commentId, params.emoji, user);
       }
       default:
         throw new Error(`Unknown action: comments_${action}`);

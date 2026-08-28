@@ -42,6 +42,7 @@ describe('EventsGateway', () => {
       emit: jest.fn(),
       disconnect: jest.fn(),
       join: jest.fn(),
+      leave: jest.fn(),
       handshake: { query: {} },
       ...overrides,
     };
@@ -135,6 +136,41 @@ describe('EventsGateway', () => {
       await gateway.handleAuth(client, { token: 'valid-token', boardId: 'board-123' });
 
       expect(client.join).toHaveBeenCalledWith('board:board-123');
+    });
+
+    it('should leave the previous board room before joining a different one', async () => {
+      const user = {
+        id: 'user-1',
+        displayName: 'Test User',
+        role: 'member',
+        email: 'test@example.com',
+      };
+      mockAuthService.validateSession.mockResolvedValue(user);
+      const client = createMockSocket();
+
+      await gateway.handleAuth(client, { token: 'valid-token', boardId: 'board-old' });
+      await gateway.handleAuth(client, { token: 'valid-token', boardId: 'board-new' });
+
+      expect(client.leave).toHaveBeenCalledWith('board:board-old');
+      expect(client.join).toHaveBeenCalledWith('board:board-new');
+      expect(client.data.boardId).toBe('board-new');
+    });
+
+    it('should leave the previous board room when re-authenticated without a board', async () => {
+      const user = {
+        id: 'user-1',
+        displayName: 'Test User',
+        role: 'member',
+        email: 'test@example.com',
+      };
+      mockAuthService.validateSession.mockResolvedValue(user);
+      const client = createMockSocket();
+
+      await gateway.handleAuth(client, { token: 'valid-token', boardId: 'board-old' });
+      await gateway.handleAuth(client, { token: 'valid-token' });
+
+      expect(client.leave).toHaveBeenCalledWith('board:board-old');
+      expect(client.data.boardId).toBeUndefined();
     });
 
     it('should disconnect a client with an invalid token', async () => {

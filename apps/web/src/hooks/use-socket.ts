@@ -39,20 +39,24 @@ export function useSocket(boardId?: string) {
       });
     }
 
-    socket.on('connect', () => {
+    const currentSocket = socket;
+    const connectHandler = () => {
       const token = getToken();
       if (token) {
-        socket!.emit('auth', { token, boardId: boardIdRef.current });
+        currentSocket.emit('auth', { token, boardId: boardIdRef.current });
       }
-    });
+    };
+    currentSocket.on('connect', connectHandler);
 
-    socket.on('auth_error', () => {
+    const authErrorHandler = () => {
       console.error('WebSocket auth failed');
-    });
+    };
+    currentSocket.on('auth_error', authErrorHandler);
 
-    socket.on('auth_success', () => {
+    const authSuccessHandler = () => {
       // Authenticated successfully
-    });
+    };
+    currentSocket.on('auth_success', authSuccessHandler);
 
     const invalidateByEvent = (eventName: string, eventData: unknown) => {
       const bid = boardIdRef.current;
@@ -171,26 +175,30 @@ export function useSocket(boardId?: string) {
       'notification:created',
     ];
 
+    const eventHandlers = new Map<string, (data: unknown) => void>();
     eventTypes.forEach((eventType) => {
-      socket!.on(eventType, (data: unknown) => {
+      const handler = (data: unknown) => {
         invalidateByEvent(eventType, data);
-      });
+      };
+      eventHandlers.set(eventType, handler);
+      currentSocket.on(eventType, handler);
     });
 
     // Don't disconnect on StrictMode cleanup — the singleton persists
     return () => {
       eventTypes.forEach((eventType) => {
-        socket?.off(eventType);
+        const handler = eventHandlers.get(eventType);
+        if (handler) currentSocket.off(eventType, handler);
       });
-      socket?.off('connect');
-      socket?.off('auth_error');
-      socket?.off('auth_success');
+      currentSocket.off('connect', connectHandler);
+      currentSocket.off('auth_error', authErrorHandler);
+      currentSocket.off('auth_success', authSuccessHandler);
     };
   }, [queryClient]);
 
-  // Re-join board room when boardId changes (without reconnecting)
+  // Update the board room when boardId changes (without reconnecting)
   useEffect(() => {
-    if (socket && socket.connected && boardId) {
+    if (socket && socket.connected) {
       const token = getToken();
       if (token) {
         socket.emit('auth', { token, boardId });

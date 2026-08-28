@@ -6,6 +6,7 @@ import { RelationsService } from '../relations/relations.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DocumentsService } from '../documents/documents.service';
+import { CommentsService } from '../comments/comments.service';
 import {
   createTestPrisma,
   seedBoard,
@@ -31,6 +32,7 @@ describe('McpService', () => {
       providers: [
         McpService,
         RelationsService,
+        CommentsService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
         { provide: SubscriptionsService, useValue: new SubscriptionsService(prisma) },
@@ -570,6 +572,25 @@ describe('McpService', () => {
       );
       expect(res.result).toHaveLength(1);
     });
+
+    it('should return reactions grouped by emoji', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const comment = await seedComment(prisma, task.id);
+      const other = await seedUser(prisma, { displayName: 'Other' });
+      await prisma.commentReaction.createMany({
+        data: [
+          { commentId: comment.id, userId: user.id, emoji: '👍' },
+          { commentId: comment.id, userId: other.id, emoji: '👍' },
+        ],
+      });
+
+      const res = await service.handleRequest(
+        { method: 'comments_list', params: { taskId: task.id }, id: 211 },
+        user,
+      );
+
+      expect(res.result[0].reactions).toEqual([{ emoji: '👍', userIds: [user.id, other.id] }]);
+    });
   });
 
   describe('comments_create', () => {
@@ -659,6 +680,43 @@ describe('McpService', () => {
       );
       expect(res.error).toBeDefined();
       expect(res.error.message).toContain('only edit');
+    });
+
+    it('rejects an anonymous edit when no user is provided', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const comment = await seedComment(prisma, task.id, { authorId: null });
+
+      const res = await service.handleRequest({
+        method: 'comments_update',
+        params: { id: comment.id, body: 'anonymous edit' },
+        id: 32,
+      });
+
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('only edit');
+    });
+  });
+
+  describe('comments_delete', () => {
+    it('includes the task id in the deleted event payload', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const created = await service.handleRequest(
+        { method: 'comments_create', params: { taskId: task.id, body: 'delete me' }, id: 33 },
+        user,
+      );
+      const emitted: any[] = [];
+      const subscription = events.observe().subscribe((payload) => {
+        if (payload.event === 'comment:deleted') emitted.push(payload);
+      });
+
+      await service.handleRequest(
+        { method: 'comments_delete', params: { id: created.result.id }, id: 34 },
+        user,
+      );
+
+      subscription.unsubscribe();
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].data).toEqual({ id: created.result.id, taskId: task.id });
     });
   });
 

@@ -103,6 +103,20 @@ describe('CommentsService', () => {
       expect(comments).toHaveLength(0);
     });
 
+    it('should include the task id in the deleted event payload', async () => {
+      const comment = await seedComment(prisma, task.id);
+      const emitted: any[] = [];
+      const subscription = events.observe().subscribe((payload) => {
+        if (payload.event === 'comment:deleted') emitted.push(payload);
+      });
+
+      await service.remove(comment.id);
+
+      subscription.unsubscribe();
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].data).toEqual({ id: comment.id, taskId: task.id });
+    });
+
     it('should allow the author to delete their own comment', async () => {
       const comment = await service.create({ taskId: task.id, body: 'My comment' }, user);
       await service.remove(comment.id, user);
@@ -166,6 +180,38 @@ describe('CommentsService', () => {
       expect(updated.editedAt).not.toBeNull();
       const firstEditedAt = updated.editedAt;
       expect(firstEditedAt).toBeInstanceOf(Date);
+    });
+
+    it('uses one first-edit timestamp for concurrent edits', async () => {
+      const comment = await service.create({ taskId: task.id, body: 'Original' }, user);
+      const originalFindUnique = prisma.comment.findUnique.bind(prisma.comment) as any;
+      let readCount = 0;
+      let release!: () => void;
+      const bothRead = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      const findUniqueSpy = jest.spyOn(prisma.comment, 'findUnique').mockImplementation((async (
+        args: any,
+      ) => {
+        const result = await originalFindUnique(args);
+        readCount += 1;
+        if (readCount === 2) release();
+        await bothRead;
+        return result;
+      }) as any);
+
+      const results = await Promise.all([
+        service.update(comment.id, 'First concurrent edit', user),
+        service.update(comment.id, 'Second concurrent edit', user),
+      ]);
+
+      findUniqueSpy.mockRestore();
+      const editedAtValues = results.map((result) => result.editedAt);
+      expect(editedAtValues.every((editedAt) => editedAt instanceof Date)).toBe(true);
+      expect(editedAtValues[0]).toEqual(editedAtValues[1]);
+
+      const stored = await prisma.comment.findUnique({ where: { id: comment.id } });
+      expect(stored?.editedAt).toEqual(editedAtValues[0]);
     });
 
     it('keeps the first editedAt on subsequent edits', async () => {

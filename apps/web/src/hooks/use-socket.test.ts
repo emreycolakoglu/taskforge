@@ -148,6 +148,23 @@ describe('useSocket', () => {
     });
   });
 
+  it('should emit auth without a boardId when boardId changes to undefined', () => {
+    mockGetToken.mockReturnValue('my-token');
+
+    const { rerender } = renderHook(({ boardId }: { boardId?: string }) => useSocket(boardId), {
+      initialProps: { boardId: 'board-1' as string | undefined },
+    });
+
+    mockSocket.emit.mockClear();
+    mockSocket.connected = true;
+    rerender({ boardId: undefined });
+
+    expect(mockSocket.emit).toHaveBeenCalledWith('auth', {
+      token: 'my-token',
+      boardId: undefined,
+    });
+  });
+
   it('should not emit auth on boardId change when socket is not connected', () => {
     mockGetToken.mockReturnValue('my-token');
 
@@ -196,6 +213,23 @@ describe('useSocket', () => {
     expect(mockSocket.off).toHaveBeenCalled();
     // But should NOT have called .disconnect()
     expect(mockSocket.disconnect).not.toHaveBeenCalled();
+  });
+
+  it("should not remove another hook's event listeners on unmount", () => {
+    const first = renderHook(() => useSocket());
+    const second = renderHook(() => useSocket());
+    const commentHandlers = (mockSocket.on.mock.calls as Array<[string, ...unknown[]]>)
+      .filter((call) => call[0] === 'comment:created')
+      .map((call) => call[1]);
+
+    expect(commentHandlers).toHaveLength(2);
+    mockSocket.off.mockClear();
+    first.unmount();
+
+    expect(mockSocket.off).toHaveBeenCalledWith('comment:created', commentHandlers[0]);
+    expect(mockSocket.off).not.toHaveBeenCalledWith('comment:created', commentHandlers[1]);
+
+    second.unmount();
   });
 
   it('should invalidate notifications queries on notification:created event', () => {

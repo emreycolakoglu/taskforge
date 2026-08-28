@@ -77,10 +77,14 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
       client.data.userId = user.id;
       client.data.user = user;
 
-      // Join board room if boardId provided
+      const previousBoardId = client.data.boardId as string | undefined;
+      if (previousBoardId && previousBoardId !== data.boardId) {
+        client.leave(`board:${previousBoardId}`);
+      }
       if (data.boardId) {
         client.join(`board:${data.boardId}`);
       }
+      client.data.boardId = data.boardId;
 
       client.join(`user:${user.id}`);
 
