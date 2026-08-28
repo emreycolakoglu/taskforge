@@ -263,7 +263,7 @@ export class RelationsService {
 
   async delete(
     relationId: string,
-    _user?: { id: string; displayName: string },
+    user?: { id: string; displayName: string },
   ): Promise<{ deleted: boolean }> {
     const row = await this.prisma.taskRelation.findUnique({
       where: { id: relationId },
@@ -278,13 +278,27 @@ export class RelationsService {
       'relation:deleted',
       {
         relationId: row.id,
-        type: row.type as 'blocks' | 'related_to',
+        type: row.type as 'blocks' | 'related_to' | 'duplicate_of',
         fromTaskId: row.fromTaskId,
         toTaskId: row.toTaskId,
         boardId,
       } satisfies RelationEventPayload,
       boardId,
     );
+
+    // Deleting a duplicate_of relation is the only relation deletion worth
+    // surfacing in activity. The task's status is deliberately NOT restored.
+    if (row.type === 'duplicate_of') {
+      await this.prisma.activity.create({
+        data: {
+          taskId: row.fromTaskId,
+          actorId: user?.id ?? null,
+          actor: user?.displayName ?? 'system',
+          action: 'unmarked_duplicate',
+          detail: JSON.stringify({ canonicalTaskId: row.toTaskId }),
+        },
+      });
+    }
 
     return { deleted: true };
   }
@@ -309,7 +323,7 @@ export class RelationsService {
         'relation:deleted',
         {
           relationId: r.id,
-          type: r.type as 'blocks' | 'related_to',
+          type: r.type as 'blocks' | 'related_to' | 'duplicate_of',
           fromTaskId: r.fromTaskId,
           toTaskId: r.toTaskId,
           boardId: r.fromTask.boardId,

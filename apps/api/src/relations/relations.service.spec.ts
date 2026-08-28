@@ -349,4 +349,40 @@ describe('RelationsService', () => {
     expect(res.duplicateOf).toEqual([]);
     expect(res.duplicates).toEqual([]);
   });
+
+  it('27. delete a duplicate_of relation → unmarked_duplicate activity written; task status NOT restored', async () => {
+    const dupStatus = board.statuses.find((s) => s.isDuplicate)!;
+    const entry = await service.create(tA.id, {
+      otherTaskId: tB.id,
+      type: 'duplicate_of',
+      direction: 'source',
+    });
+    // Confirm the dup task was moved to Duplicate.
+    expect((await prisma.task.findUnique({ where: { id: tA.id } }))!.statusId).toBe(dupStatus.id);
+
+    await service.delete(entry.relationId, { id: 'u1', displayName: 'emre' });
+
+    // Activity written.
+    const activities = await prisma.activity.findMany({
+      where: { taskId: tA.id, action: 'unmarked_duplicate' },
+    });
+    expect(activities).toHaveLength(1);
+    expect(activities[0].actor).toBe('emre');
+
+    // Status NOT restored — still in Duplicate.
+    expect((await prisma.task.findUnique({ where: { id: tA.id } }))!.statusId).toBe(dupStatus.id);
+  });
+
+  it('28. delete a non-duplicate relation → no unmarked_duplicate activity', async () => {
+    const entry = await service.create(tA.id, {
+      otherTaskId: tB.id,
+      type: 'blocks',
+      direction: 'source',
+    });
+    await service.delete(entry.relationId);
+    const activities = await prisma.activity.findMany({
+      where: { action: 'unmarked_duplicate' },
+    });
+    expect(activities).toHaveLength(0);
+  });
 });
