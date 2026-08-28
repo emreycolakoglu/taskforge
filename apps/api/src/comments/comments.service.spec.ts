@@ -50,6 +50,7 @@ describe('CommentsService', () => {
     await prisma.taskSubscription.deleteMany();
     await prisma.taskLabel.deleteMany();
     await prisma.activity.deleteMany();
+    await prisma.commentReaction.deleteMany();
     await prisma.comment.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
@@ -154,6 +155,84 @@ describe('CommentsService', () => {
     });
   });
 
+  describe('update', () => {
+    it('allows the author to edit and stamps editedAt on first edit', async () => {
+      const comment = await service.create({ taskId: task.id, body: 'Original' }, user);
+      const before = comment.editedAt;
+      expect(before).toBeNull();
+
+      const updated = await service.update(comment.id, 'Edited body', user);
+      expect(updated.body).toBe('Edited body');
+      expect(updated.editedAt).not.toBeNull();
+      const firstEditedAt = updated.editedAt;
+      expect(firstEditedAt).toBeInstanceOf(Date);
+    });
+
+    it('keeps the first editedAt on subsequent edits', async () => {
+      const comment = await service.create({ taskId: task.id, body: 'v1' }, user);
+      const first = await service.update(comment.id, 'v2', user);
+      await new Promise((r) => setTimeout(r, 5));
+      const second = await service.update(comment.id, 'v3', user);
+      expect(second.body).toBe('v3');
+      expect(second.editedAt).toEqual(first.editedAt);
+    });
+
+    it('allows admin to edit any comment', async () => {
+      const admin = await seedUser(prisma, { displayName: 'Admin', role: 'admin' });
+      const comment = await service.create({ taskId: task.id, body: 'By user' }, user);
+      const updated = await service.update(comment.id, 'admin edit', {
+        id: admin.id,
+        displayName: admin.displayName,
+        role: 'admin',
+      });
+      expect(updated.body).toBe('admin edit');
+    });
+
+    it('forbids non-author non-admin from editing', async () => {
+      const other = await seedUser(prisma, { displayName: 'Other' });
+      const comment = await service.create({ taskId: task.id, body: 'mine' }, user);
+      await expect(
+        service.update(comment.id, 'hacked', {
+          id: other.id,
+          displayName: other.displayName,
+          role: other.role,
+        }),
+      ).rejects.toThrow('You can only edit your own comments');
+    });
+
+    it('forbids non-admin from editing anonymous comments', async () => {
+      const comment = await seedComment(prisma, task.id, { authorId: null, author: 'system' });
+      await expect(service.update(comment.id, 'edit', user)).rejects.toThrow(
+        'You can only edit your own comments',
+      );
+    });
+
+    it('allows admin to edit anonymous comments', async () => {
+      const admin = await seedUser(prisma, { displayName: 'Admin', role: 'admin' });
+      const comment = await seedComment(prisma, task.id, { authorId: null, author: 'system' });
+      const updated = await service.update(comment.id, 'admin anon edit', {
+        id: admin.id,
+        displayName: admin.displayName,
+        role: 'admin',
+      });
+      expect(updated.body).toBe('admin anon edit');
+    });
+
+    it('logs a comment_edited activity', async () => {
+      const comment = await service.create({ taskId: task.id, body: 'orig' }, user);
+      await service.update(comment.id, 'edited', user);
+      const activity = await prisma.activity.findMany({
+        where: { taskId: task.id, action: 'comment_edited' },
+      });
+      expect(activity).toHaveLength(1);
+      expect(activity[0].actorId).toBe(user.id);
+    });
+
+    it('throws NotFound for a missing comment', async () => {
+      await expect(service.update('nope', 'x', user)).rejects.toThrow('Comment not found');
+    });
+  });
+
   describe('notifications integration', () => {
     it('comment by actor notifies a non-actor subscriber', async () => {
       const subscriber = await seedUser(prisma, { displayName: 'Subscriber' });
@@ -170,6 +249,88 @@ describe('CommentsService', () => {
       await service.create({ taskId: task.id, body: 'Self comment' }, user);
       const notifs = await prisma.notification.findMany({ where: { userId: user.id } });
       expect(notifs).toHaveLength(0);
+    });
+  });
+
+  describe('react', () => {
+    it('toggles a reaction on and returns the emoji with userIds', async () => {
+      const comment = await service.create({ taskId: task.id, body: 'c' }, user);
+      const res = await service.react(comment.id, '👍', user);
+      expect(res.emoji).toBe('👍');
+      expect(res.userIds).toEqual([user.id]);
+    });
+
+    it('toggles a reaction off when called twice', async () => {
+      const comment = await service.create({ taskId: task.id, body: 'c' }, user);
+      await service.react(comment.id, '👍', user);
+      const res = await service.react(comment.id, '👍', user);
+      expect(res.emoji).toBe('👍');
+      expect(res.userIds).toEqual([]);
+    });
+
+    it('rejects an unknown emoji with 400', async () => {
+      const comment = await service.create({ taskId: task.id, body: 'c' }, user);
+      await expect(service.react(comment.id, '🦄', user)).rejects.toThrow('Invalid reaction emoji');
+    });
+
+    it('groups multiple users on the same emoji', async () => {
+      const other = await seedUser(prisma, { displayName: 'Other' });
+      const comment = await service.create({ taskId: task.id, body: 'c' }, user);
+      await service.react(comment.id, '👍', user);
+      await service.react(comment.id, '👍', {
+        id: other.id,
+        displayName: other.displayName,
+        role: other.role,
+      });
+      const res = await service.react(comment.id, '👍', user);
+      // user toggled off, other remains
+      expect(res.userIds).toEqual([other.id]);
+    });
+
+    it('does not create an activity entry', async () => {
+      const comment = await service.create({ taskId: task.id, body: 'c' }, user);
+      await service.react(comment.id, '👍', user);
+      const activity = await prisma.activity.findMany({
+        where: { taskId: task.id, action: 'comment_reacted' },
+      });
+      expect(activity).toHaveLength(0);
+    });
+
+    it('throws NotFound for a missing comment', async () => {
+      await expect(service.react('nope', '👍', user)).rejects.toThrow('Comment not found');
+    });
+  });
+
+  describe('findByTask reactions', () => {
+    it('includes grouped reactions per comment', async () => {
+      const other = await seedUser(prisma, { displayName: 'Other' });
+      const comment = await service.create({ taskId: task.id, body: 'c' }, user);
+      await service.react(comment.id, '👍', user);
+      await service.react(comment.id, '👍', {
+        id: other.id,
+        displayName: other.displayName,
+        role: other.role,
+      });
+      await service.react(comment.id, '🎉', user);
+
+      const comments = await service.findByTask(task.id);
+      expect(comments).toHaveLength(1);
+      const reactions = comments[0].reactions;
+      expect(reactions).toBeDefined();
+      // ordered by emoji ascending: 👍 before 🎉? UTF-16 code units: 🎉=U+1F389, 👍=U+1F44D
+      // 🎉 < 👍 lexicographically by surrogate pair, so 🎉 comes first.
+      const emojis = reactions!.map((r) => r.emoji);
+      expect(emojis).toEqual(['🎉', '👍']);
+      const thumbs = reactions!.find((r) => r.emoji === '👍');
+      expect(thumbs!.userIds).toHaveLength(2);
+      expect(thumbs!.userIds).toContain(user.id);
+      expect(thumbs!.userIds).toContain(other.id);
+    });
+
+    it('returns an empty reactions array for a comment with no reactions', async () => {
+      await service.create({ taskId: task.id, body: 'no reactions' }, user);
+      const comments = await service.findByTask(task.id);
+      expect(comments[0].reactions).toEqual([]);
     });
   });
 });
