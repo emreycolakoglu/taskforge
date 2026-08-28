@@ -126,7 +126,7 @@ describe('BoardsService', () => {
         displayName: user.displayName,
         role: user.role,
       });
-      expect(found._count).toEqual({ comments: 1, relationsTo: 0 });
+      expect(found._count).toEqual({ comments: 1, relationsTo: 0, relationsFrom: 0 });
       expect(found.labels).toHaveLength(1);
       expect(found.labels[0].label).toBeDefined();
       expect(found.taskNumber).toBe(`${seeded.identifier}-${task.number}`);
@@ -142,7 +142,7 @@ describe('BoardsService', () => {
 
       expect(found).toBeDefined();
       expect(found.assignee).toBeNull();
-      expect(found._count).toEqual({ comments: 0, relationsTo: 0 });
+      expect(found._count).toEqual({ comments: 0, relationsTo: 0, relationsFrom: 0 });
       expect(found.taskNumber).toBe(`${seeded.identifier}-${task.number}`);
     });
   });

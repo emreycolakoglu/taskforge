@@ -9,9 +9,11 @@ import { CreateTaskDto, UpdateTaskDto, MoveTaskDto, ReorderTasksDto } from './dt
 export function withTaskNumber(task: any): any {
   const identifier = task.board?.identifier ?? task.status?.board?.identifier;
   const blockedByCount = task._count?.relationsTo ?? 0;
+  const blockingCount = task._count?.relationsFrom ?? 0;
   return {
     ...task,
     blockedByCount,
+    blockingCount,
     taskNumber: identifier ? `${identifier}-${task.number}` : null,
   };
 }
@@ -102,7 +104,13 @@ export class TasksService {
         board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
-        _count: { select: { comments: true, relationsTo: { where: { type: 'blocks' } } } },
+        _count: {
+          select: {
+            comments: true,
+            relationsTo: { where: { type: 'blocks' } },
+            relationsFrom: { where: { type: 'blocks' } },
+          },
+        },
       },
       orderBy: { position: 'asc' },
     });
@@ -122,7 +130,13 @@ export class TasksService {
         board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
-        _count: { select: { comments: true, relationsTo: { where: { type: 'blocks' } } } },
+        _count: {
+          select: {
+            comments: true,
+            relationsTo: { where: { type: 'blocks' } },
+            relationsFrom: { where: { type: 'blocks' } },
+          },
+        },
       },
       orderBy: { position: 'asc' },
     });
@@ -183,7 +197,13 @@ export class TasksService {
         parent: {
           select: { id: true, number: true, title: true, board: { select: { identifier: true } } },
         },
-        _count: { select: { comments: true, relationsTo: { where: { type: 'blocks' } } } },
+        _count: {
+          select: {
+            comments: true,
+            relationsTo: { where: { type: 'blocks' } },
+            relationsFrom: { where: { type: 'blocks' } },
+          },
+        },
       },
     });
     if (!task) throw new NotFoundException('Task not found');

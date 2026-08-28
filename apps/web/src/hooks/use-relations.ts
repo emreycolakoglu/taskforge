@@ -3,10 +3,11 @@ import { toast } from 'sonner';
 import { api } from './api';
 import type { RelationType } from '../types';
 
-export function useTaskRelations(taskId: string) {
+export function useTaskRelations(taskId: string, opts?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['relations', taskId],
     queryFn: () => api.relations.list(taskId),
+    enabled: opts?.enabled ?? true,
   });
 }
 

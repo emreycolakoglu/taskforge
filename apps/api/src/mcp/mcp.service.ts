@@ -312,7 +312,13 @@ export class McpService {
             status: true,
             board: { select: { identifier: true } },
             labels: { include: { label: true } },
-            _count: { select: { comments: true, relationsTo: { where: { type: 'blocks' } } } },
+            _count: {
+              select: {
+                comments: true,
+                relationsTo: { where: { type: 'blocks' } },
+                relationsFrom: { where: { type: 'blocks' } },
+              },
+            },
           },
           orderBy: { position: 'asc' },
           take: params.limit || 100,
@@ -340,7 +346,13 @@ export class McpService {
                 board: { select: { identifier: true } },
               },
             },
-            _count: { select: { comments: true, relationsTo: { where: { type: 'blocks' } } } },
+            _count: {
+              select: {
+                comments: true,
+                relationsTo: { where: { type: 'blocks' } },
+                relationsFrom: { where: { type: 'blocks' } },
+              },
+            },
           },
         });
         if (!task) return null;

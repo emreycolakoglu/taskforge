@@ -61,6 +61,7 @@ export interface Task {
   activity?: Activity[];
   _count?: { comments: number };
   blockedByCount?: number;
+  blockingCount?: number;
   /** Frontend-only flag for optimistic rendering. Never set by the API. */
   isOptimistic?: boolean;
 }

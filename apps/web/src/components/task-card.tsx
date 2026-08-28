@@ -21,10 +21,12 @@
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/types';
 import { CircleSmallIcon, Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { BlockerPill } from './blocker-pill';
 import { LabelManager } from './label-manager';
 import { PriorityIcon } from './priority-icons';
 
@@ -36,21 +38,6 @@ function CommentIcon() {
         stroke="currentColor"
         strokeWidth="1.2"
         strokeLinejoin="round"
-      />
-    </svg>
-  );
-}
-
-// Blocked indicator — Crimson (#eb5757), per design.md semantic accent.
-function BlockedIcon() {
-  return (
-    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="7" cy="7" r="5" stroke="currentColor" strokeWidth="1.2" />
-      <path
-        d="M4.5 4.5l5 5M9.5 4.5l-5 5"
-        stroke="currentColor"
-        strokeWidth="1.2"
-        strokeLinecap="round"
       />
     </svg>
   );
@@ -88,7 +75,8 @@ export function TaskCard({
     visibleLabels.length > 0 ||
     task.estimate != null ||
     (task._count && task._count.comments > 0) ||
-    (task.blockedByCount != null && task.blockedByCount > 0);
+    (task.blockedByCount != null && task.blockedByCount > 0) ||
+    (task.blockingCount != null && task.blockingCount > 0);
 
   return (
     <div
@@ -164,20 +152,29 @@ export function TaskCard({
           )}
 
           {task.blockedByCount != null && task.blockedByCount > 0 && (
-            <span
-              className="flex items-center gap-0.5 text-xs text-destructive shrink-0"
-              title={`Blocked by ${task.blockedByCount} task(s)`}
-              aria-label={`Blocked by ${task.blockedByCount} task(s)`}
-            >
-              <BlockedIcon />
-              {task.blockedByCount}
-            </span>
+            <BlockerPill taskId={task.id} count={task.blockedByCount} direction="blockedBy" />
+          )}
+
+          {task.blockingCount != null && task.blockingCount > 0 && (
+            <BlockerPill taskId={task.id} count={task.blockingCount} direction="blocking" />
           )}
 
           {task.estimate != null && (
-            <span className="flex items-center gap-0.5 text-xs text-muted-foreground font-mono shrink-0">
-              {task.estimate} pts
-            </span>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    variant={'outline'}
+                    style={{ color: '#f7f8f8' }}
+                    className="shrink-0"
+                    aria-label={`Estimation: ${task.estimate}`}
+                  >
+                    {task.estimate}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="top">Estimation: {task.estimate}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
 
           {/* Label manager (+) — hover-revealed, far right */}

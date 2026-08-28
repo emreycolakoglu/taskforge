@@ -56,7 +56,13 @@ export class BoardsService {
               include: {
                 assignee: { select: { id: true, email: true, displayName: true, role: true } },
                 labels: { include: { label: true } },
-                _count: { select: { comments: true, relationsTo: { where: { type: 'blocks' } } } },
+                _count: {
+                  select: {
+                    comments: true,
+                    relationsTo: { where: { type: 'blocks' } },
+                    relationsFrom: { where: { type: 'blocks' } },
+                  },
+                },
                 board: { select: { identifier: true } },
               },
             },
