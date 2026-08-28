@@ -198,7 +198,7 @@ export async function seedRelation(
   prisma: PrismaClient,
   fromTaskId: string,
   toTaskId: string,
-  type: 'blocks' | 'related_to',
+  type: 'blocks' | 'related_to' | 'duplicate_of',
 ) {
   const [a, b] =
     type === 'related_to' && fromTaskId > toTaskId

@@ -11,7 +11,7 @@ import { CreateRelationDto } from './dto/relation.dto';
 
 export interface RelationEntry {
   relationId: string;
-  type: 'blocks' | 'related_to';
+  type: 'blocks' | 'related_to' | 'duplicate_of';
   task: { id: string; taskNumber: string; title: string };
 }
 
@@ -24,7 +24,7 @@ export interface TaskRelationsResponse {
 
 interface RelationEventPayload {
   relationId: string;
-  type: 'blocks' | 'related_to';
+  type: 'blocks' | 'related_to' | 'duplicate_of';
   fromTaskId: string;
   toTaskId: string;
   boardId: string;
