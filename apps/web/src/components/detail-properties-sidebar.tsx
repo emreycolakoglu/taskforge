@@ -64,7 +64,7 @@ export function DetailPropertiesSidebar({
                 <span key={r.relationId}>
                   {i > 0 && ', '}
                   <button
-                    className="font-mono text-primary hover:underline"
+                    className="font-mono text-foreground underline underline-offset-2 hover:text-muted-foreground"
                     onClick={() => onNavigate(r.task.id)}
                   >
                     {r.task.taskNumber}
