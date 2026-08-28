@@ -347,6 +347,37 @@ describe('api', () => {
     });
   });
 
+  it('should make PATCH request to update a comment', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ id: 'c1', body: 'edited' }),
+    } as Response);
+    const { api } = await import('./api');
+    const result = await api.comments.update('c1', 'edited');
+    expect(mockFetch).toHaveBeenCalledWith('/api/comments/c1', {
+      method: 'PATCH',
+      body: JSON.stringify({ body: 'edited' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(result.id).toBe('c1');
+  });
+
+  it('should make POST request to toggle a reaction', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ emoji: '👍', userIds: ['u1'] }),
+    } as Response);
+    const { api } = await import('./api');
+    const result = await api.comments.react('c1', '👍');
+    expect(mockFetch).toHaveBeenCalledWith('/api/comments/c1/reactions', {
+      method: 'POST',
+      body: JSON.stringify({ emoji: '👍' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(result.emoji).toBe('👍');
+    expect(result.userIds).toEqual(['u1']);
+  });
+
   it('should make POST request to MCP endpoint', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,

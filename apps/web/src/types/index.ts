@@ -99,12 +99,19 @@ export interface Label {
   updatedAt: string;
 }
 
+export interface CommentReaction {
+  emoji: string;
+  userIds: string[];
+}
+
 export interface Comment {
   id: string;
   taskId: string;
   author: string;
   authorId?: string | null;
   body: string;
+  editedAt?: string | null;
+  reactions?: CommentReaction[];
   createdAt: string;
 }
 

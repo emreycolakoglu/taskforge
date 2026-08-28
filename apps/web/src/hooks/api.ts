@@ -192,6 +192,13 @@ export const api = {
     list: (taskId: string) => request<Comment[]>(`/comments/task/${taskId}`),
     create: (data: { taskId: string; author: string; body: string }) =>
       request<Comment>('/comments', { method: 'POST', body: JSON.stringify(data) }),
+    update: (id: string, body: string) =>
+      request<Comment>(`/comments/${id}`, { method: 'PATCH', body: JSON.stringify({ body }) }),
+    react: (id: string, emoji: string) =>
+      request<{ emoji: string; userIds: string[] }>(`/comments/${id}/reactions`, {
+        method: 'POST',
+        body: JSON.stringify({ emoji }),
+      }),
     delete: (id: string) => request<void>(`/comments/${id}`, { method: 'DELETE' }),
   },
 
