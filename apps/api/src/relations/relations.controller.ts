@@ -1,6 +1,12 @@
-import { Controller, Get, Post, Delete, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Param, Body, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { RelationsService } from './relations.service';
 import { CreateRelationDto } from './dto/relation.dto';
+
+interface AuthedUser {
+  id: string;
+  displayName: string;
+}
 
 /**
  * Relations are scoped under a task for ergonomics, but deletion only needs the
@@ -17,12 +23,18 @@ export class RelationsController {
   }
 
   @Post()
-  create(@Param('taskId') taskId: string, @Body() dto: CreateRelationDto) {
-    return this.service.create(taskId, dto);
+  create(@Param('taskId') taskId: string, @Body() dto: CreateRelationDto, @Req() req: Request) {
+    const user = (req as any).user as AuthedUser | undefined;
+    return this.service.create(taskId, dto, user);
   }
 
   @Delete(':relationId')
-  remove(@Param('taskId') _taskId: string, @Param('relationId') relationId: string) {
-    return this.service.delete(relationId);
+  remove(
+    @Param('taskId') _taskId: string,
+    @Param('relationId') relationId: string,
+    @Req() req: Request,
+  ) {
+    const user = (req as any).user as AuthedUser | undefined;
+    return this.service.delete(relationId, user);
   }
 }

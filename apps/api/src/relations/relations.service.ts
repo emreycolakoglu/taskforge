@@ -20,6 +20,8 @@ export interface TaskRelationsResponse {
   blocking: RelationEntry[];
   blockedBy: RelationEntry[];
   relatedTo: RelationEntry[];
+  duplicateOf: RelationEntry[];
+  duplicates: RelationEntry[];
 }
 
 interface RelationEventPayload {
@@ -90,10 +92,14 @@ export class RelationsService {
       }
     }
 
-    return { taskId, blocking, blockedBy, relatedTo };
+    return { taskId, blocking, blockedBy, relatedTo, duplicateOf: [], duplicates: [] };
   }
 
-  async create(taskId: string, dto: CreateRelationDto): Promise<RelationEntry> {
+  async create(
+    taskId: string,
+    dto: CreateRelationDto,
+    user?: { id: string; displayName: string },
+  ): Promise<RelationEntry> {
     // 1. Self-reference
     if (dto.otherTaskId === taskId) {
       throw new BadRequestException('A task cannot be related to itself');
@@ -131,10 +137,12 @@ export class RelationsService {
     // 4. Type-specific normalization
     let fromTaskId: string;
     let toTaskId: string;
-    if (dto.type === 'blocks') {
+    if (dto.type === 'blocks' || dto.type === 'duplicate_of') {
       const direction = dto.direction ?? 'source';
-      // 'source' = URL task blocks other → {from: urlTask, to: other}
-      // 'target' = URL task blocked by other → {from: other, to: urlTask}
+      // 'source' = URL task is the source → {from: urlTask, to: other}
+      //   for blocks:    URL task blocks other
+      //   for duplicate: URL task is the duplicate of other
+      // 'target' = other is the source → {from: other, to: urlTask}
       if (direction === 'source') {
         fromTaskId = taskId;
         toTaskId = dto.otherTaskId;
@@ -150,6 +158,26 @@ export class RelationsService {
       } else {
         fromTaskId = dto.otherTaskId;
         toTaskId = taskId;
+      }
+    }
+
+    // 4b. duplicate_of guards: one canonical per dup + no circular chains
+    if (dto.type === 'duplicate_of') {
+      const dupId = fromTaskId;
+      const canonId = toTaskId;
+      const existingOutgoing = await this.prisma.taskRelation.findFirst({
+        where: { type: 'duplicate_of', fromTaskId: dupId },
+        select: { id: true },
+      });
+      if (existingOutgoing) {
+        throw new BadRequestException('Task is already marked as a duplicate');
+      }
+      const reverseEdge = await this.prisma.taskRelation.findFirst({
+        where: { type: 'duplicate_of', fromTaskId: canonId, toTaskId: dupId },
+        select: { id: true },
+      });
+      if (reverseEdge) {
+        throw new BadRequestException('This would create a circular duplicate chain');
       }
     }
 
@@ -181,6 +209,38 @@ export class RelationsService {
     };
     this.events.emit('relation:created', payload, boardId);
 
+    // duplicate_of: move the dup task into the board's Duplicate status, stamp doneAt,
+    // emit task:moved, and log a marked_duplicate activity. Done inline (not via
+    // TasksService.move) to avoid a circular module dependency.
+    if (dto.type === 'duplicate_of') {
+      const dupStatus = await this.prisma.status.findFirst({
+        where: { boardId, isDuplicate: true },
+      });
+      if (dupStatus) {
+        const now = new Date();
+        const movedTask = await this.prisma.task.update({
+          where: { id: fromTaskId },
+          data: { statusId: dupStatus.id, doneAt: now },
+          include: {
+            assignee: { select: { id: true, email: true, displayName: true, role: true } },
+            labels: { include: { label: true } },
+            status: { include: { board: true } },
+            board: { select: { identifier: true } },
+          },
+        });
+        this.events.emit('task:moved', movedTask, boardId);
+      }
+      await this.prisma.activity.create({
+        data: {
+          taskId: fromTaskId,
+          actorId: user?.id ?? null,
+          actor: user?.displayName ?? 'system',
+          action: 'marked_duplicate',
+          detail: JSON.stringify({ canonicalTaskId: toTaskId }),
+        },
+      });
+    }
+
     // Return a RelationEntry for the "other" task (from the URL task's perspective)
     const otherTaskNumber = other.board?.identifier
       ? `${other.board.identifier}-${other.number}`
@@ -192,7 +252,10 @@ export class RelationsService {
     };
   }
 
-  async delete(relationId: string): Promise<{ deleted: boolean }> {
+  async delete(
+    relationId: string,
+    _user?: { id: string; displayName: string },
+  ): Promise<{ deleted: boolean }> {
     const row = await this.prisma.taskRelation.findUnique({
       where: { id: relationId },
       include: { fromTask: { select: { boardId: true } } },

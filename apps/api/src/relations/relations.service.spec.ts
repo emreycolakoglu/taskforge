@@ -39,6 +39,9 @@ describe('RelationsService', () => {
 
   beforeEach(async () => {
     board = await seedBoard(prisma);
+    await prisma.user.create({
+      data: { id: 'u1', email: 'u1@test', passwordHash: 'x', displayName: 'emre' },
+    });
     tA = await seedTask(prisma, board.statuses[0].id, { title: 'A' });
     tB = await seedTask(prisma, board.statuses[0].id, { title: 'B' });
     tC = await seedTask(prisma, board.statuses[0].id, { title: 'C' });
@@ -56,6 +59,7 @@ describe('RelationsService', () => {
     await prisma.status.deleteMany();
     await prisma.member.deleteMany();
     await prisma.board.deleteMany();
+    await prisma.user.deleteMany();
   });
 
   // ─── create ──────────────────────────────────────────────────────────────
@@ -247,5 +251,79 @@ describe('RelationsService', () => {
       direction: 'source',
     });
     expect(entry.type).toBe('blocks');
+  });
+
+  // ─── duplicate_of ─────────────────────────────────────────────────────────
+
+  it('19. create duplicate_of (source) → URL task is duplicate of other; row {from: urlTask, to: other}; URL task moved to Duplicate status + doneAt stamped; marked_duplicate activity', async () => {
+    const dupStatus = board.statuses.find((s) => s.isDuplicate)!;
+    const entry = await service.create(
+      tA.id,
+      { otherTaskId: tB.id, type: 'duplicate_of', direction: 'source' },
+      { id: 'u1', displayName: 'emre' },
+    );
+    expect(entry.type).toBe('duplicate_of');
+    expect(entry.task.id).toBe(tB.id);
+
+    const row = await prisma.taskRelation.findFirst();
+    expect(row!.fromTaskId).toBe(tA.id);
+    expect(row!.toTaskId).toBe(tB.id);
+
+    const moved = await prisma.task.findUnique({ where: { id: tA.id } });
+    expect(moved!.statusId).toBe(dupStatus.id);
+    expect(moved!.doneAt).not.toBeNull();
+
+    const activity = await prisma.activity.findFirst({ where: { taskId: tA.id } });
+    expect(activity!.action).toBe('marked_duplicate');
+    expect(activity!.actor).toBe('emre');
+  });
+
+  it('20. create duplicate_of (target) → other is the duplicate; other task moved to Duplicate status; URL task untouched', async () => {
+    const dupStatus = board.statuses.find((s) => s.isDuplicate)!;
+    const entry = await service.create(
+      tA.id,
+      { otherTaskId: tB.id, type: 'duplicate_of', direction: 'target' },
+      { id: 'u1', displayName: 'emre' },
+    );
+    expect(entry.task.id).toBe(tB.id);
+    const row = await prisma.taskRelation.findFirst();
+    expect(row!.fromTaskId).toBe(tB.id);
+    expect(row!.toTaskId).toBe(tA.id);
+
+    const otherTask = await prisma.task.findUnique({ where: { id: tB.id } });
+    expect(otherTask!.statusId).toBe(dupStatus.id);
+    expect(otherTask!.doneAt).not.toBeNull();
+
+    const urlTask = await prisma.task.findUnique({ where: { id: tA.id } });
+    expect(urlTask!.statusId).toBe(board.statuses[0].id);
+  });
+
+  it('21. create duplicate_of self → BadRequestException', async () => {
+    await expect(
+      service.create(tA.id, { otherTaskId: tA.id, type: 'duplicate_of' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('22. create duplicate_of when URL task already has an outgoing duplicate_of → BadRequestException (one canonical per dup)', async () => {
+    await service.create(tA.id, { otherTaskId: tB.id, type: 'duplicate_of', direction: 'source' });
+    await expect(
+      service.create(tA.id, { otherTaskId: tC.id, type: 'duplicate_of', direction: 'source' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('23. create duplicate_of circular (A dup of B, then B dup of A) → BadRequestException', async () => {
+    await service.create(tA.id, { otherTaskId: tB.id, type: 'duplicate_of', direction: 'source' });
+    await expect(
+      service.create(tB.id, { otherTaskId: tA.id, type: 'duplicate_of', direction: 'source' }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('24. create duplicate_of emits task:moved for the dup task', async () => {
+    const emitSpy = jest.spyOn(events, 'emit');
+    await service.create(tA.id, { otherTaskId: tB.id, type: 'duplicate_of', direction: 'source' });
+    const movedEvents = emitSpy.mock.calls.filter((c) => c[0] === 'task:moved');
+    expect(movedEvents.length).toBe(1);
+    expect(movedEvents[0][1].id).toBe(tA.id);
+    emitSpy.mockRestore();
   });
 });
