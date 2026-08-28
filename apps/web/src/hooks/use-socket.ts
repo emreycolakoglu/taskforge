@@ -77,7 +77,12 @@ export function useSocket(boardId?: string) {
         }
       }
 
-      if (eventName === 'comment:created' || eventName === 'comment:deleted') {
+      if (
+        eventName === 'comment:created' ||
+        eventName === 'comment:deleted' ||
+        eventName === 'comment:updated' ||
+        eventName === 'comment:reaction:toggled'
+      ) {
         const comment = eventData as { taskId?: string };
         if (comment.taskId) {
           queryClient.invalidateQueries({ queryKey: ['comments', comment.taskId] });
@@ -148,6 +153,8 @@ export function useSocket(boardId?: string) {
       'task:moved',
       'comment:created',
       'comment:deleted',
+      'comment:updated',
+      'comment:reaction:toggled',
       'document:created',
       'document:updated',
       'document:deleted',
