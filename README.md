@@ -4,6 +4,8 @@
 
 TaskForge is a full-stack task management application with three interfaces — REST API, MCP Server (for AI agents), and a Kanban SPA — all running in a single NestJS backend. It's designed so that any MCP-compatible agent (Claude Code, Cursor, GitHub Copilot, etc.) can do everything a human can: create boards, move tasks, assign work, comment, search, and more.
 
+[![Docker Pulls](https://badgen.net/docker/pulls/emreyc/taskforge?icon=docker&label=pulls)](https://hub.docker.com/r/emreyc/taskforge/)
+
 ---
 
 ## Features
