@@ -67,6 +67,7 @@ export function DetailComments({
   const [text, setText] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState('');
+  const [reactPickerFor, setReactPickerFor] = useState<string | null>(null);
   const { user } = useAuth();
 
   const submit = () => {
@@ -255,7 +256,10 @@ export function DetailComments({
                       </button>
                     );
                   })}
-                  <Popover>
+                  <Popover
+                    open={reactPickerFor === c.id}
+                    onOpenChange={(open) => setReactPickerFor(open ? c.id : null)}
+                  >
                     <PopoverTrigger asChild>
                       <Button
                         variant="ghost"
@@ -272,7 +276,10 @@ export function DetailComments({
                           <button
                             key={emoji}
                             type="button"
-                            onClick={() => onReact(c.id, emoji)}
+                            onClick={() => {
+                              onReact(c.id, emoji);
+                              setReactPickerFor(null);
+                            }}
                             className="rounded p-1 text-base hover:bg-muted"
                             aria-label={`React with ${emoji}`}
                           >

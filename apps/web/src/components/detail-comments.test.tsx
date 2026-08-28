@@ -206,6 +206,7 @@ describe('DetailComments — delete feature (TFG-8)', () => {
     fireEvent.click(screen.getByLabelText('Add reaction'));
     fireEvent.click(screen.getByLabelText('React with 🎉'));
     expect(onReact).toHaveBeenCalledWith(comment.id, '🎉');
+    expect(screen.queryByLabelText('React with 🎉')).not.toBeInTheDocument();
   });
 
   it('highlights the chip the user has reacted on with border-primary/40', () => {
