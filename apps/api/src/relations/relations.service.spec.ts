@@ -326,4 +326,27 @@ describe('RelationsService', () => {
     expect(movedEvents[0][1].id).toBe(tA.id);
     emitSpy.mockRestore();
   });
+
+  it('25. list → groups duplicateOf (outgoing) and duplicates (incoming)', async () => {
+    // tA is a duplicate of tB; tC is a duplicate of tA.
+    await service.create(tA.id, { otherTaskId: tB.id, type: 'duplicate_of', direction: 'source' });
+    await service.create(tC.id, { otherTaskId: tA.id, type: 'duplicate_of', direction: 'source' });
+
+    const resA = await service.list(tA.id);
+    expect(resA.duplicateOf).toHaveLength(1);
+    expect(resA.duplicateOf[0].task.id).toBe(tB.id);
+    expect(resA.duplicates).toHaveLength(1);
+    expect(resA.duplicates[0].task.id).toBe(tC.id);
+
+    const resB = await service.list(tB.id);
+    expect(resB.duplicateOf).toEqual([]);
+    expect(resB.duplicates).toHaveLength(1);
+    expect(resB.duplicates[0].task.id).toBe(tA.id);
+  });
+
+  it('26. list with no duplicate relations → duplicateOf and duplicates are empty arrays', async () => {
+    const res = await service.list(tA.id);
+    expect(res.duplicateOf).toEqual([]);
+    expect(res.duplicates).toEqual([]);
+  });
 });

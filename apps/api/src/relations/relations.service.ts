@@ -63,7 +63,7 @@ export class RelationsService {
 
     const entry = (
       relId: string,
-      type: 'blocks' | 'related_to',
+      type: 'blocks' | 'related_to' | 'duplicate_of',
       t: { id: string; number: number; title: string; board: { identifier: string } | null },
     ): RelationEntry => ({
       relationId: relId,
@@ -78,6 +78,8 @@ export class RelationsService {
     const blocking: RelationEntry[] = [];
     const blockedBy: RelationEntry[] = [];
     const relatedTo: RelationEntry[] = [];
+    const duplicateOf: RelationEntry[] = [];
+    const duplicates: RelationEntry[] = [];
 
     for (const r of rows) {
       if (r.type === 'blocks') {
@@ -89,10 +91,17 @@ export class RelationsService {
       } else if (r.type === 'related_to') {
         const other = r.fromTaskId === taskId ? r.toTask : r.fromTask;
         relatedTo.push(entry(r.id, 'related_to', other));
+      } else if (r.type === 'duplicate_of') {
+        // fromTaskId = the duplicate, toTaskId = the canonical.
+        if (r.fromTaskId === taskId) {
+          duplicateOf.push(entry(r.id, 'duplicate_of', r.toTask));
+        } else {
+          duplicates.push(entry(r.id, 'duplicate_of', r.fromTask));
+        }
       }
     }
 
-    return { taskId, blocking, blockedBy, relatedTo, duplicateOf: [], duplicates: [] };
+    return { taskId, blocking, blockedBy, relatedTo, duplicateOf, duplicates };
   }
 
   async create(
