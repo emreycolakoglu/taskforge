@@ -199,6 +199,83 @@ describe('EventsGateway', () => {
       expect(client.data.userId).toBe('user-2');
     });
 
+    it('should ignore a stale auth completion after a newer auth request applies', async () => {
+      const firstUser = {
+        id: 'user-1',
+        displayName: 'First User',
+        role: 'member',
+        email: 'first@example.com',
+      };
+      const secondUser = {
+        id: 'user-2',
+        displayName: 'Second User',
+        role: 'member',
+        email: 'second@example.com',
+      };
+      let resolveFirst!: (user: typeof firstUser) => void;
+      const firstValidation = new Promise<typeof firstUser>((resolve) => {
+        resolveFirst = resolve;
+      });
+      mockAuthService.validateSession.mockImplementation((token: string) =>
+        token === 'first-token' ? firstValidation : Promise.resolve(secondUser),
+      );
+      const client = createMockSocket();
+
+      const firstAuth = gateway.handleAuth(client, {
+        token: 'first-token',
+        boardId: 'board-old',
+        revision: 1,
+      });
+      const secondAuth = gateway.handleAuth(client, {
+        token: 'second-token',
+        boardId: 'board-new',
+        revision: 2,
+      });
+
+      await secondAuth;
+      resolveFirst(firstUser);
+      await firstAuth;
+
+      expect(client.data.userId).toBe('user-2');
+      expect(client.data.boardId).toBe('board-new');
+      expect(client.join).toHaveBeenCalledWith('board:board-new');
+      expect(client.join).not.toHaveBeenCalledWith('board:board-old');
+      expect(client.join).toHaveBeenCalledWith('user:user-2');
+      expect(client.join).not.toHaveBeenCalledWith('user:user-1');
+      expect(client.emit).toHaveBeenCalledTimes(1);
+      expect(client.emit).toHaveBeenCalledWith('auth_success', { user: secondUser });
+    });
+
+    it('should ignore an auth completion after the socket disconnects', async () => {
+      const authenticatedUser = {
+        id: 'user-1',
+        displayName: 'Test User',
+        role: 'member',
+        email: 'test@example.com',
+      };
+      let resolveValidation!: (user: typeof authenticatedUser) => void;
+      const validation = new Promise<typeof authenticatedUser>((resolve) => {
+        resolveValidation = resolve;
+      });
+      mockAuthService.validateSession.mockReturnValue(validation);
+      const client = createMockSocket();
+
+      gateway.handleConnection(client);
+      const auth = gateway.handleAuth(client, {
+        token: 'valid-token',
+        boardId: 'board-123',
+        revision: 1,
+      });
+      gateway.handleDisconnect(client);
+
+      resolveValidation(authenticatedUser);
+      await auth;
+
+      expect(client.data.authenticated).not.toBe(true);
+      expect(client.join).not.toHaveBeenCalled();
+      expect(client.emit).not.toHaveBeenCalledWith('auth_success', { user: authenticatedUser });
+    });
+
     it('should disconnect a client with an invalid token', async () => {
       mockAuthService.validateSession.mockResolvedValue(null);
       const client = createMockSocket();

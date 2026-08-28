@@ -214,6 +214,7 @@ export function DetailComments({
                       }
                     }}
                     rows={3}
+                    aria-label="Edit comment"
                   />
                   <div className="flex gap-2">
                     <Button
@@ -246,7 +247,7 @@ export function DetailComments({
                         className={
                           'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs ' +
                           (mine
-                            ? 'border-primary/40 bg-muted'
+                            ? 'border-primary/40 bg-muted text-muted-foreground'
                             : 'border-border bg-muted text-muted-foreground')
                         }
                         aria-label={`${r.emoji} reaction, ${r.userIds.length} reactors`}

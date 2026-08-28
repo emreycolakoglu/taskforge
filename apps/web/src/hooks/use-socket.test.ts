@@ -8,6 +8,7 @@ const mockSocket = {
   off: vi.fn(),
   emit: vi.fn(),
   disconnect: vi.fn(),
+  removeAllListeners: vi.fn(),
   connect: vi.fn(),
   connected: false,
 };
@@ -73,10 +74,13 @@ describe('useSocket', () => {
       connectHandler!();
     });
 
-    expect(mockSocket.emit).toHaveBeenCalledWith('auth', {
-      token: 'test-token',
-      boardId: 'board-42',
-    });
+    expect(mockSocket.emit).toHaveBeenCalledWith(
+      'auth',
+      expect.objectContaining({
+        token: 'test-token',
+        boardId: 'board-42',
+      }),
+    );
   });
 
   it('should emit auth without boardId when boardId is undefined', () => {
@@ -93,10 +97,13 @@ describe('useSocket', () => {
       connectHandler!();
     });
 
-    expect(mockSocket.emit).toHaveBeenCalledWith('auth', {
-      token: 'test-token',
-      boardId: undefined,
-    });
+    expect(mockSocket.emit).toHaveBeenCalledWith(
+      'auth',
+      expect.objectContaining({
+        token: 'test-token',
+        boardId: undefined,
+      }),
+    );
   });
 
   it('should not emit auth when token is null', () => {
@@ -143,10 +150,13 @@ describe('useSocket', () => {
     // Rerender with a new boardId — should emit auth with the new boardId
     rerender({ boardId: 'board-2' });
 
-    expect(mockSocket.emit).toHaveBeenCalledWith('auth', {
-      token: 'my-token',
-      boardId: 'board-2',
-    });
+    expect(mockSocket.emit).toHaveBeenCalledWith(
+      'auth',
+      expect.objectContaining({
+        token: 'my-token',
+        boardId: 'board-2',
+      }),
+    );
   });
 
   it('should emit auth without a boardId when boardId changes to undefined', () => {
@@ -160,10 +170,13 @@ describe('useSocket', () => {
     mockSocket.connected = true;
     rerender({ boardId: undefined });
 
-    expect(mockSocket.emit).toHaveBeenCalledWith('auth', {
-      token: 'my-token',
-      boardId: undefined,
-    });
+    expect(mockSocket.emit).toHaveBeenCalledWith(
+      'auth',
+      expect.objectContaining({
+        token: 'my-token',
+        boardId: undefined,
+      }),
+    );
   });
 
   it('should not let an unscoped consumer override a scoped board room', () => {
@@ -175,10 +188,11 @@ describe('useSocket', () => {
 
     renderHook(() => useSocket());
 
-    expect(mockSocket.emit).not.toHaveBeenCalledWith('auth', {
-      token: 'my-token',
-      boardId: undefined,
-    });
+    expect(
+      mockSocket.emit.mock.calls.some(
+        ([event, data]) => event === 'auth' && data.boardId === undefined,
+      ),
+    ).toBe(false);
   });
 
   it('should leave the scoped room when its last scoped consumer unmounts', () => {
@@ -191,19 +205,76 @@ describe('useSocket', () => {
 
     scoped.unmount();
 
-    expect(mockSocket.emit).toHaveBeenCalledWith('auth', {
-      token: 'my-token',
-      boardId: undefined,
-    });
+    expect(mockSocket.emit).toHaveBeenCalledWith(
+      'auth',
+      expect.objectContaining({
+        token: 'my-token',
+        boardId: undefined,
+      }),
+    );
   });
 
   it('should disconnect the singleton socket when reset for a new session', () => {
     renderHook(() => useSocket());
     mockSocket.disconnect.mockClear();
+    mockSocket.removeAllListeners.mockClear();
 
     resetSocket();
 
     expect(mockSocket.disconnect).toHaveBeenCalledTimes(1);
+    expect(mockSocket.removeAllListeners).toHaveBeenCalledTimes(1);
+  });
+
+  it('should create a fresh socket after resetting the previous session', () => {
+    renderHook(() => useSocket());
+    resetSocket();
+
+    renderHook(() => useSocket());
+
+    expect(io).toHaveBeenCalledTimes(2);
+  });
+
+  it('should add a newer revision to every auth emission', () => {
+    mockGetToken.mockReturnValue('my-token');
+
+    const { rerender } = renderHook(({ boardId }: { boardId?: string }) => useSocket(boardId), {
+      initialProps: { boardId: 'board-1' },
+    });
+    const connectHandler = (mockSocket.on.mock.calls as Array<[string, ...unknown[]]>).find(
+      ([event]) => event === 'connect',
+    )?.[1] as (() => void) | undefined;
+
+    mockSocket.connected = true;
+    act(() => connectHandler!());
+    rerender({ boardId: 'board-2' });
+
+    const authMessages = mockSocket.emit.mock.calls
+      .filter(([event]) => event === 'auth')
+      .map(([, data]) => data as { revision: number });
+    expect(authMessages).toHaveLength(2);
+    expect(authMessages[0].revision).toBeLessThan(authMessages[1].revision);
+  });
+
+  it('should emit auth with a newer revision after reconnecting', () => {
+    mockGetToken.mockReturnValue('my-token');
+    renderHook(() => useSocket('board-1'));
+    const connectHandler = (mockSocket.on.mock.calls as Array<[string, ...unknown[]]>).find(
+      ([event]) => event === 'connect',
+    )?.[1] as (() => void) | undefined;
+
+    mockSocket.connected = true;
+    act(() => connectHandler!());
+    const firstRevision = (mockSocket.emit.mock.calls.at(-1)?.[1] as { revision: number }).revision;
+
+    mockSocket.emit.mockClear();
+    act(() => connectHandler!());
+
+    expect(mockSocket.emit).toHaveBeenCalledWith(
+      'auth',
+      expect.objectContaining({ boardId: 'board-1', revision: expect.any(Number) }),
+    );
+    const secondRevision = (mockSocket.emit.mock.calls[0][1] as { revision: number }).revision;
+    expect(secondRevision).toBeGreaterThan(firstRevision);
   });
 
   it('should not emit auth on boardId change when socket is not connected', () => {

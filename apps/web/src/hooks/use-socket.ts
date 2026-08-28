@@ -8,6 +8,7 @@ import { getToken } from './api';
 let socket: Socket | null = null;
 const boardConsumers = new Map<symbol, string | undefined>();
 let activeBoardId: string | undefined | null = null;
+let authRevision = 0;
 
 function desiredBoardId(): string | undefined {
   let desired: string | undefined;
@@ -15,6 +16,12 @@ function desiredBoardId(): string | undefined {
     if (boardId) desired = boardId;
   }
   return desired;
+}
+
+function emitAuth(token: string, boardId: string | undefined) {
+  if (!socket) return;
+  authRevision += 1;
+  socket.emit('auth', { token, boardId, revision: authRevision });
 }
 
 function syncBoardRoom() {
@@ -25,21 +32,23 @@ function syncBoardRoom() {
   const boardId = desiredBoardId();
   if (boardId === activeBoardId) return;
 
-  socket.emit('auth', { token, boardId });
+  emitAuth(token, boardId);
   activeBoardId = boardId;
 }
 
 /** Disconnect the authenticated socket before switching sessions. */
 export function resetSocket() {
+  authRevision += 1;
+  socket?.removeAllListeners();
   socket?.disconnect();
+  socket = null;
+  boardConsumers.clear();
   activeBoardId = null;
 }
 
 /** @internal Reset singleton for tests */
 export function _resetSocket() {
   resetSocket();
-  socket = null;
-  boardConsumers.clear();
 }
 
 export function useSocket(boardId?: string) {
@@ -77,7 +86,7 @@ export function useSocket(boardId?: string) {
       const token = getToken();
       if (token) {
         const boardId = desiredBoardId();
-        currentSocket.emit('auth', { token, boardId });
+        emitAuth(token, boardId);
         activeBoardId = boardId;
       }
     };

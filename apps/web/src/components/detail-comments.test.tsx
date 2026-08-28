@@ -157,6 +157,7 @@ describe('DetailComments — delete feature (TFG-8)', () => {
     await userEvent.click(screen.getByLabelText('Comment actions'));
     await userEvent.click(screen.getByText('Edit'));
     const textarea = screen.getByDisplayValue(comment.body) as HTMLTextAreaElement;
+    expect(textarea).toHaveAttribute('aria-label', 'Edit comment');
     fireEvent.change(textarea, { target: { value: 'updated body' } });
     fireEvent.click(screen.getByText('Save'));
     expect(onEdit).toHaveBeenCalledWith(comment.id, 'updated body');
@@ -217,5 +218,6 @@ describe('DetailComments — delete feature (TFG-8)', () => {
     renderComments([comment], undefined, undefined, undefined, vi.fn());
     const chip = screen.getByLabelText('👍 reaction, 1 reactors');
     expect(chip.className).toContain('border-primary/40');
+    expect(chip.className).toContain('text-muted-foreground');
   });
 });
