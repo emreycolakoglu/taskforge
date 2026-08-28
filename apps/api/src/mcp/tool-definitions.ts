@@ -227,6 +227,25 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       id: z.string(),
     },
   },
+  {
+    name: 'comments_update',
+    title: 'Update comment',
+    description: 'Edit a comment body. Only the author or an admin can edit.',
+    inputSchema: {
+      id: z.string(),
+      body: z.string(),
+    },
+  },
+  {
+    name: 'comments_react',
+    title: 'Toggle reaction',
+    description:
+      'Toggle an emoji reaction on a comment. Idempotent: reacting again removes it. Emoji must be in the curated allowlist.',
+    inputSchema: {
+      commentId: z.string(),
+      emoji: z.string(),
+    },
+  },
 
   // labels
   {

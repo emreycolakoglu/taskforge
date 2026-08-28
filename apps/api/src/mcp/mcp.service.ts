@@ -5,6 +5,7 @@ import { RelationsService } from '../relations/relations.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DocumentsService } from '../documents/documents.service';
+import { isValidReaction } from '../comments/reactions';
 
 function withTaskNumber(task: any): any {
   const identifier = task.board?.identifier ?? task.status?.board?.identifier;
@@ -659,6 +660,87 @@ export class McpService {
 
         this.events.emit('comment:deleted', { id: params.id }, task?.status?.boardId);
         return { success: true };
+      }
+      case 'update': {
+        const comment = await this.prisma.comment.findUnique({ where: { id: params.id } });
+        if (!comment) throw new Error('Comment not found');
+
+        const isAdmin = user?.role === 'admin';
+        const isAuthor = comment.authorId === actorId;
+        if (!isAuthor && !isAdmin) {
+          throw new Error('You can only edit your own comments');
+        }
+
+        const updated = await this.prisma.comment.update({
+          where: { id: params.id },
+          data: {
+            body: params.body,
+            editedAt: comment.editedAt ?? new Date(),
+          },
+          include: { reactions: { select: { userId: true, emoji: true } } },
+        });
+
+        await this.prisma.activity.create({
+          data: {
+            taskId: comment.taskId,
+            actorId,
+            actor: authorName,
+            action: 'comment_edited',
+            detail: JSON.stringify({ commentId: comment.id }),
+          },
+        });
+
+        const task = await this.prisma.task.findUnique({
+          where: { id: comment.taskId },
+          include: { status: { select: { boardId: true } } },
+        });
+        this.events.emit('comment:updated', updated, task?.status?.boardId);
+        return updated;
+      }
+      case 'react': {
+        if (!isValidReaction(params.emoji)) {
+          throw new Error('Invalid reaction emoji');
+        }
+        const comment = await this.prisma.comment.findUnique({ where: { id: params.commentId } });
+        if (!comment) throw new Error('Comment not found');
+
+        const existing = await this.prisma.commentReaction.findUnique({
+          where: {
+            commentId_userId_emoji: {
+              commentId: params.commentId,
+              userId: actorId!,
+              emoji: params.emoji,
+            },
+          },
+        });
+        if (existing) {
+          await this.prisma.commentReaction.delete({ where: { id: existing.id } });
+        } else {
+          await this.prisma.commentReaction.create({
+            data: { commentId: params.commentId, userId: actorId!, emoji: params.emoji },
+          });
+        }
+
+        const reactions = await this.prisma.commentReaction.findMany({
+          where: { commentId: params.commentId, emoji: params.emoji },
+          select: { userId: true },
+        });
+
+        const task = await this.prisma.task.findUnique({
+          where: { id: comment.taskId },
+          include: { status: { select: { boardId: true } } },
+        });
+        this.events.emit(
+          'comment:reaction:toggled',
+          {
+            commentId: params.commentId,
+            emoji: params.emoji,
+            userIds: reactions.map((r) => r.userId),
+            taskId: comment.taskId,
+          },
+          task?.status?.boardId,
+        );
+        return { emoji: params.emoji, userIds: reactions.map((r) => r.userId) };
       }
       default:
         throw new Error(`Unknown action: comments_${action}`);

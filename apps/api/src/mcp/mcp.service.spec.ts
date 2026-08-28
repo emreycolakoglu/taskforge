@@ -589,6 +589,101 @@ describe('McpService', () => {
     });
   });
 
+  describe('comments_update', () => {
+    it('edits a comment as the author', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const created = await service.handleRequest(
+        { method: 'comments_create', params: { taskId: task.id, body: 'orig' }, id: 30 },
+        user,
+      );
+      const res = await service.handleRequest(
+        {
+          method: 'comments_update',
+          params: { id: created.result.id, body: 'edited via MCP' },
+          id: 31,
+        },
+        user,
+      );
+      expect(res.result.body).toBe('edited via MCP');
+      expect(res.result.editedAt).not.toBeNull();
+    });
+
+    it('forbids editing another user comment (non-admin)', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const created = await service.handleRequest(
+        { method: 'comments_create', params: { taskId: task.id, body: 'mine' }, id: 30 },
+        user,
+      );
+      const other = await seedUser(prisma, { displayName: 'Other' });
+      const otherAuth = { id: other.id, displayName: other.displayName, role: other.role };
+      const res = await service.handleRequest(
+        {
+          method: 'comments_update',
+          params: { id: created.result.id, body: 'hacked' },
+          id: 31,
+        },
+        otherAuth,
+      );
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('only edit');
+    });
+  });
+
+  describe('comments_react', () => {
+    it('toggles a reaction on', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const created = await service.handleRequest(
+        { method: 'comments_create', params: { taskId: task.id, body: 'c' }, id: 30 },
+        user,
+      );
+      const res = await service.handleRequest(
+        {
+          method: 'comments_react',
+          params: { commentId: created.result.id, emoji: '👍' },
+          id: 31,
+        },
+        user,
+      );
+      expect(res.result.emoji).toBe('👍');
+      expect(res.result.userIds).toContain(user.id);
+    });
+
+    it('toggles a reaction off when called twice', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const created = await service.handleRequest(
+        { method: 'comments_create', params: { taskId: task.id, body: 'c' }, id: 30 },
+        user,
+      );
+      await service.handleRequest(
+        { method: 'comments_react', params: { commentId: created.result.id, emoji: '👍' }, id: 31 },
+        user,
+      );
+      const res = await service.handleRequest(
+        { method: 'comments_react', params: { commentId: created.result.id, emoji: '👍' }, id: 32 },
+        user,
+      );
+      expect(res.result.userIds).toEqual([]);
+    });
+
+    it('rejects an unknown emoji', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const created = await service.handleRequest(
+        { method: 'comments_create', params: { taskId: task.id, body: 'c' }, id: 30 },
+        user,
+      );
+      const res = await service.handleRequest(
+        {
+          method: 'comments_react',
+          params: { commentId: created.result.id, emoji: '🦄' },
+          id: 31,
+        },
+        user,
+      );
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('Invalid reaction emoji');
+    });
+  });
+
   // ─── Labels ───
 
   describe('labels_list', () => {
