@@ -23,6 +23,7 @@ import {
 import { useUsers } from '@/hooks/use-users';
 import { useLabels } from '@/hooks/use-labels';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useSocket } from '@/hooks/use-socket';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { DetailTitleBlock } from '@/components/detail-title-block';
@@ -58,6 +59,7 @@ export function TaskDetailView({
   const { data: users = [] } = useUsers();
   const { data: _labels = [] } = useLabels(boardId);
   const { data: boardTasks = [] } = useTasksByBoard(boardId);
+  useSocket(boardId);
 
   const updateTask = useUpdateTask();
   const createComment = useCreateComment();

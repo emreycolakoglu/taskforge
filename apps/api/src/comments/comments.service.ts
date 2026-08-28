@@ -8,7 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { CreateCommentDto } from './dto/comment.dto';
-import { isValidReaction } from './reactions';
+import { groupReactions, isValidReaction, toggleCommentReaction } from './reactions';
 
 @Injectable()
 export class CommentsService {
@@ -29,22 +29,8 @@ export class CommentsService {
 
     return comments.map((c) => ({
       ...c,
-      reactions: this.groupReactions(c.reactions),
+      reactions: groupReactions(c.reactions),
     }));
-  }
-
-  private groupReactions(
-    rows: { userId: string; emoji: string }[],
-  ): { emoji: string; userIds: string[] }[] {
-    const map = new Map<string, string[]>();
-    for (const r of rows) {
-      const list = map.get(r.emoji);
-      if (list) list.push(r.userId);
-      else map.set(r.emoji, [r.userId]);
-    }
-    return Array.from(map.entries())
-      .map(([emoji, userIds]) => ({ emoji, userIds }))
-      .sort((a, b) => (a.emoji < b.emoji ? -1 : a.emoji > b.emoji ? 1 : 0));
   }
 
   async create(dto: CreateCommentDto, user?: { id: string; displayName: string }) {
@@ -133,6 +119,7 @@ export class CommentsService {
       },
       include: { reactions: { select: { userId: true, emoji: true } } },
     });
+    const normalized = { ...updated, reactions: groupReactions(updated.reactions) };
 
     await this.prisma.activity.create({
       data: {
@@ -149,8 +136,8 @@ export class CommentsService {
       include: { status: { select: { boardId: true } } },
     });
 
-    this.events.emit('comment:updated', updated, task?.status?.boardId);
-    return updated;
+    this.events.emit('comment:updated', normalized, task?.status?.boardId);
+    return normalized;
   }
 
   async react(
@@ -165,22 +152,7 @@ export class CommentsService {
       throw new BadRequestException('Invalid reaction emoji');
     }
 
-    const existing = await this.prisma.commentReaction.findUnique({
-      where: { commentId_userId_emoji: { commentId, userId: user.id, emoji } },
-    });
-
-    if (existing) {
-      await this.prisma.commentReaction.delete({ where: { id: existing.id } });
-    } else {
-      await this.prisma.commentReaction.create({
-        data: { commentId, userId: user.id, emoji },
-      });
-    }
-
-    const reactions = await this.prisma.commentReaction.findMany({
-      where: { commentId, emoji },
-      select: { userId: true },
-    });
+    const reaction = await toggleCommentReaction(this.prisma, commentId, user.id, emoji);
 
     const task = await this.prisma.task.findUnique({
       where: { id: comment.taskId },
@@ -189,10 +161,10 @@ export class CommentsService {
 
     this.events.emit(
       'comment:reaction:toggled',
-      { commentId, emoji, userIds: reactions.map((r) => r.userId), taskId: comment.taskId },
+      { commentId, ...reaction, taskId: comment.taskId },
       task?.status?.boardId,
     );
 
-    return { emoji, userIds: reactions.map((r) => r.userId) };
+    return reaction;
   }
 }

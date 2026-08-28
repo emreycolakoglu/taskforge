@@ -608,6 +608,39 @@ describe('McpService', () => {
       expect(res.result.editedAt).not.toBeNull();
     });
 
+    it('returns and emits grouped reactions', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const created = await service.handleRequest(
+        { method: 'comments_create', params: { taskId: task.id, body: 'orig' }, id: 30 },
+        user,
+      );
+      const other = await seedUser(prisma, { displayName: 'Other' });
+      await prisma.commentReaction.createMany({
+        data: [
+          { commentId: created.result.id, userId: user.id, emoji: '👍' },
+          { commentId: created.result.id, userId: other.id, emoji: '👍' },
+        ],
+      });
+      const emitted: any[] = [];
+      const subscription = events.observe().subscribe((payload) => {
+        if (payload.event === 'comment:updated') emitted.push(payload);
+      });
+
+      const res = await service.handleRequest(
+        {
+          method: 'comments_update',
+          params: { id: created.result.id, body: 'edited via MCP' },
+          id: 31,
+        },
+        user,
+      );
+
+      subscription.unsubscribe();
+      expect(res.result.reactions).toEqual([{ emoji: '👍', userIds: [user.id, other.id] }]);
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].data.reactions).toEqual([{ emoji: '👍', userIds: [user.id, other.id] }]);
+    });
+
     it('forbids editing another user comment (non-admin)', async () => {
       const task = await seedTask(prisma, board.statuses[0].id);
       const created = await service.handleRequest(

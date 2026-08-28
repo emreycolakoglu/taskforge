@@ -218,6 +218,28 @@ describe('CommentsService', () => {
       expect(updated.body).toBe('admin anon edit');
     });
 
+    it('returns and emits grouped reactions when editing a comment', async () => {
+      const other = await seedUser(prisma, { displayName: 'Other' });
+      const comment = await service.create({ taskId: task.id, body: 'orig' }, user);
+      await prisma.commentReaction.createMany({
+        data: [
+          { commentId: comment.id, userId: user.id, emoji: '👍' },
+          { commentId: comment.id, userId: other.id, emoji: '👍' },
+        ],
+      });
+      const emitted: any[] = [];
+      const subscription = events.observe().subscribe((payload) => {
+        if (payload.event === 'comment:updated') emitted.push(payload);
+      });
+
+      const updated = await service.update(comment.id, 'edited', user);
+
+      subscription.unsubscribe();
+      expect(updated.reactions).toEqual([{ emoji: '👍', userIds: [user.id, other.id] }]);
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].data.reactions).toEqual([{ emoji: '👍', userIds: [user.id, other.id] }]);
+    });
+
     it('logs a comment_edited activity', async () => {
       const comment = await service.create({ taskId: task.id, body: 'orig' }, user);
       await service.update(comment.id, 'edited', user);
@@ -298,6 +320,22 @@ describe('CommentsService', () => {
 
     it('throws NotFound for a missing comment', async () => {
       await expect(service.react('nope', '👍', user)).rejects.toThrow('Comment not found');
+    });
+
+    it('serializes concurrent toggles for the same user and emoji', async () => {
+      const comment = await service.create({ taskId: task.id, body: 'c' }, user);
+
+      const results = await Promise.all([
+        service.react(comment.id, '👍', user),
+        service.react(comment.id, '👍', user),
+      ]);
+
+      expect(results.map((result) => result.userIds).sort((a, b) => a.length - b.length)).toEqual([
+        [],
+        [user.id],
+      ]);
+      const stored = await prisma.commentReaction.findMany({ where: { commentId: comment.id } });
+      expect(stored).toHaveLength(0);
     });
   });
 
