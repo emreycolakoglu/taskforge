@@ -12,7 +12,8 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { DetailComments } from './detail-comments';
 import type { Comment } from '@/types';
 
@@ -47,6 +48,8 @@ function renderComments(
   comments: Comment[],
   onDelete?: (id: string) => void,
   user: { id: string; role: string } | null = mockUser,
+  onEdit?: (id: string, body: string) => void,
+  onReact?: (commentId: string, emoji: string) => void,
 ) {
   mockUser = user;
   return render(
@@ -54,6 +57,8 @@ function renderComments(
       comments={comments}
       onSubmit={vi.fn()}
       onDelete={onDelete}
+      onEdit={onEdit}
+      onReact={onReact}
       formatTimestamp={(ts) => ts}
     />,
   );
@@ -122,5 +127,94 @@ describe('DetailComments — delete feature (TFG-8)', () => {
     const btn = screen.getByLabelText('Comment actions');
     expect(btn.className).toContain('opacity-100');
     expect(btn.className).toContain('md:opacity-0');
+  });
+
+  // ── Edit mode + edited indicator (TFG-32) ───────────────────────────────
+
+  it('renders "(edited)" indicator when editedAt is set', () => {
+    const comment = makeComment({ editedAt: '2026-01-02T00:00:00Z' });
+    renderComments([comment]);
+    expect(screen.getByText('(edited)')).toBeInTheDocument();
+  });
+
+  it('does not render "(edited)" when editedAt is null/undefined', () => {
+    const comment = makeComment();
+    renderComments([comment]);
+    expect(screen.queryByText('(edited)')).not.toBeInTheDocument();
+  });
+
+  it('shows an Edit action in the menu for the author', async () => {
+    const comment = makeComment({ authorId: 'user-1' });
+    renderComments([comment], vi.fn(), undefined, vi.fn());
+    await userEvent.click(screen.getByLabelText('Comment actions'));
+    expect(screen.getByText('Edit')).toBeInTheDocument();
+  });
+
+  it('calls onEdit when the Edit action is clicked and Save is pressed', async () => {
+    const comment = makeComment({ authorId: 'user-1' });
+    const onEdit = vi.fn();
+    renderComments([comment], vi.fn(), undefined, onEdit);
+    await userEvent.click(screen.getByLabelText('Comment actions'));
+    await userEvent.click(screen.getByText('Edit'));
+    const textarea = screen.getByDisplayValue(comment.body) as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: 'updated body' } });
+    fireEvent.click(screen.getByText('Save'));
+    expect(onEdit).toHaveBeenCalledWith(comment.id, 'updated body');
+  });
+
+  it('restores the original body when Cancel is pressed in edit mode', async () => {
+    const comment = makeComment({ authorId: 'user-1', body: 'original' });
+    const onEdit = vi.fn();
+    renderComments([comment], vi.fn(), undefined, onEdit);
+    await userEvent.click(screen.getByLabelText('Comment actions'));
+    await userEvent.click(screen.getByText('Edit'));
+    const textarea = screen.getByDisplayValue('original') as HTMLTextAreaElement;
+    fireEvent.change(textarea, { target: { value: 'changed' } });
+    fireEvent.click(screen.getByText('Cancel'));
+    expect(onEdit).not.toHaveBeenCalled();
+    expect(screen.queryByDisplayValue('changed')).not.toBeInTheDocument();
+  });
+
+  // ── Reactions (TFG-32) ──────────────────────────────────────────────────
+
+  it('renders reaction chips with counts', () => {
+    const comment = makeComment({
+      authorId: 'user-1',
+      reactions: [{ emoji: '👍', userIds: ['user-1', 'user-2'] }],
+    });
+    renderComments([comment], undefined, undefined, undefined, vi.fn());
+    const chip = screen.getByLabelText('👍 reaction, 2 reactors');
+    expect(chip).toBeInTheDocument();
+    expect(chip).toHaveTextContent('👍2');
+  });
+
+  it('calls onReact when an existing reaction chip is clicked', () => {
+    const comment = makeComment({
+      authorId: 'user-1',
+      reactions: [{ emoji: '👍', userIds: ['user-1'] }],
+    });
+    const onReact = vi.fn();
+    renderComments([comment], undefined, undefined, undefined, onReact);
+    fireEvent.click(screen.getByLabelText('👍 reaction, 1 reactors'));
+    expect(onReact).toHaveBeenCalledWith(comment.id, '👍');
+  });
+
+  it('opens the emoji picker and calls onReact on selection', () => {
+    const comment = makeComment({ authorId: 'user-1' });
+    const onReact = vi.fn();
+    renderComments([comment], undefined, undefined, undefined, onReact);
+    fireEvent.click(screen.getByLabelText('Add reaction'));
+    fireEvent.click(screen.getByLabelText('React with 🎉'));
+    expect(onReact).toHaveBeenCalledWith(comment.id, '🎉');
+  });
+
+  it('highlights the chip the user has reacted on with border-primary/40', () => {
+    const comment = makeComment({
+      authorId: 'user-1',
+      reactions: [{ emoji: '👍', userIds: ['user-1'] }],
+    });
+    renderComments([comment], undefined, undefined, undefined, vi.fn());
+    const chip = screen.getByLabelText('👍 reaction, 1 reactors');
+    expect(chip.className).toContain('border-primary/40');
   });
 });
