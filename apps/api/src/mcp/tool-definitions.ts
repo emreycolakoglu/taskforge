@@ -275,11 +275,11 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: 'relations_create',
     title: 'Create relation',
     description:
-      'Create a relation between two tasks. direction: "source" = URL task blocks other; "target" = URL task blocked by other. Defaults to "source".',
+      'Create a relation between two tasks. direction: "source" = URL task is the source; "target" = other is the source. For "blocks": source blocks other. For "duplicate_of": source is the duplicate of other (the canonical). Defaults to "source".',
     inputSchema: {
       taskId: idField('Task'),
       otherTaskId: idField('Other task'),
-      type: z.enum(['blocks', 'related_to']),
+      type: z.enum(['blocks', 'related_to', 'duplicate_of']),
       direction: z.enum(['source', 'target']).optional(),
     },
   },

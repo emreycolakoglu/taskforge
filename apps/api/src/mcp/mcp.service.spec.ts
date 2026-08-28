@@ -743,6 +743,32 @@ describe('McpService', () => {
       expect(row!.toTaskId).toBe(hi.id);
     });
 
+    it('relations_create with type=duplicate_of → URL task moved to Duplicate status; activity attributed to user', async () => {
+      const tA = await seedTask(prisma, board.statuses[0].id, { title: 'A' });
+      const tB = await seedTask(prisma, board.statuses[0].id, { title: 'B' });
+      const res = await service.handleRequest(
+        {
+          method: 'relations_create',
+          params: { taskId: tA.id, otherTaskId: tB.id, type: 'duplicate_of', direction: 'source' },
+          id: 410,
+        },
+        user,
+      );
+      expect(res.result.type).toBe('duplicate_of');
+      const row = await prisma.taskRelation.findFirst();
+      expect(row!.fromTaskId).toBe(tA.id);
+      expect(row!.toTaskId).toBe(tB.id);
+
+      const dupStatus = board.statuses.find((s) => s.isDuplicate)!;
+      const moved = await prisma.task.findUnique({ where: { id: tA.id } });
+      expect(moved!.statusId).toBe(dupStatus.id);
+      expect(moved!.doneAt).not.toBeNull();
+
+      const activity = await prisma.activity.findFirst({ where: { taskId: tA.id } });
+      expect(activity!.action).toBe('marked_duplicate');
+      expect(activity!.actor).toBe(user.displayName);
+    });
+
     it('relations_delete removes the relation', async () => {
       const tA = await seedTask(prisma, board.statuses[0].id, { title: 'A' });
       const tB = await seedTask(prisma, board.statuses[0].id, { title: 'B' });

@@ -709,18 +709,25 @@ export class McpService {
   }
 
   // Delegates to RelationsService — graph logic lives there, not inline.
-  private async handleRelations(action: string, params: any, _user?: AuthUser) {
+  private async handleRelations(action: string, params: any, user?: AuthUser) {
     switch (action) {
       case 'list':
         return this.relations.list(params.taskId);
       case 'create':
-        return this.relations.create(params.taskId, {
-          otherTaskId: params.otherTaskId,
-          type: params.type,
-          direction: params.direction,
-        });
+        return this.relations.create(
+          params.taskId,
+          {
+            otherTaskId: params.otherTaskId,
+            type: params.type,
+            direction: params.direction,
+          },
+          user ? { id: user.id, displayName: user.displayName } : undefined,
+        );
       case 'delete':
-        return this.relations.delete(params.relationId);
+        return this.relations.delete(
+          params.relationId,
+          user ? { id: user.id, displayName: user.displayName } : undefined,
+        );
       default:
         throw new Error(`Unknown action: relations_${action}`);
     }
