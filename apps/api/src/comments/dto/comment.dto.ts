@@ -15,3 +15,13 @@ export class CreateCommentDto {
   @IsString()
   body: string;
 }
+
+export class UpdateCommentDto {
+  @IsString()
+  body: string;
+}
+
+export class ReactDto {
+  @IsString()
+  emoji: string;
+}
