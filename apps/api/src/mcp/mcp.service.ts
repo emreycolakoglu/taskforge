@@ -545,7 +545,9 @@ export class McpService {
           where: { id: existing.statusId },
         });
         const now = new Date();
-        const doneAt = targetStatus.isDone ? now : sourceStatus?.isDone ? null : undefined;
+        const isClosedTarget = targetStatus.isDone || targetStatus.isDuplicate;
+        const wasClosedSource = sourceStatus?.isDone || sourceStatus?.isDuplicate;
+        const doneAt = isClosedTarget ? now : wasClosedSource ? null : undefined;
 
         const data: any = {
           statusId: params.statusId,

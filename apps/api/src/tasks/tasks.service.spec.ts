@@ -301,6 +301,20 @@ describe('TasksService', () => {
       const moved = await service.move(seeded.id, { statusId: board.statuses[1].id }, user);
       expect(moved.doneAt).toBeNull();
     });
+
+    it('moving into an isDuplicate status stamps doneAt', async () => {
+      const seeded = await seedTask(prisma, board.statuses[0].id);
+      const dupStatus = board.statuses.find((s) => s.isDuplicate)!;
+      const moved = await service.move(seeded.id, { statusId: dupStatus.id }, user);
+      expect(moved.doneAt).not.toBeNull();
+    });
+
+    it('moving out of an isDuplicate status clears doneAt', async () => {
+      const dupStatus = board.statuses.find((s) => s.isDuplicate)!;
+      const seeded = await seedTask(prisma, dupStatus.id, { doneAt: new Date() });
+      const moved = await service.move(seeded.id, { statusId: board.statuses[0].id }, user);
+      expect(moved.doneAt).toBeNull();
+    });
   });
 
   describe('reorder', () => {

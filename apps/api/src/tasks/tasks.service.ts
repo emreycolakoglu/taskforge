@@ -379,7 +379,9 @@ export class TasksService {
     });
     const sourceStatus = await this.prisma.status.findUnique({ where: { id: existing.statusId } });
     const now = new Date();
-    const doneAt = targetStatus.isDone ? now : sourceStatus?.isDone ? null : undefined;
+    const isClosedTarget = targetStatus.isDone || targetStatus.isDuplicate;
+    const wasClosedSource = sourceStatus?.isDone || sourceStatus?.isDuplicate;
+    const doneAt = isClosedTarget ? now : wasClosedSource ? null : undefined;
 
     const data: any = {
       statusId: dto.statusId,
