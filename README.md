@@ -10,22 +10,27 @@ TaskForge is a full-stack task management application with three interfaces — 
 
 - **Authentication** — Email/password login, session tokens, invite-only signup, bot tokens for agents, admin/member roles
 - **Onboarding** — First-run setup creates the admin account and instance title
-- **Kanban Board** — Drag-and-drop columns with Backlog → To Do → In Progress → Review → Done
-- **List View** — Table view for quick scanning across all lists
-- **Task Detail** — Edit title, description, priority, assignee, due date, labels; dedicated route per task
+- **Kanban Board** — Drag-and-drop columns with Backlog → To Do → In Progress → Review → Done → Duplicate
+- **List View** — Table view for quick scanning across all tasks
+- **Task Detail** — Edit title, description, priority, assignee, due date, estimate, labels; dedicated route per task
 - **Sub-tasks** — Nest tasks under a parent task
-- **Task Relations** — Link tasks with `blocks` / `related_to` relationships
+- **Task Relations** — Link tasks with `blocks` / `related_to` / `duplicate_of` relationships
+- **Duplicate Merge** — Mark a task as a duplicate of another; auto-moves it to a Duplicate status and stamps doneAt
 - **Per-board Task Numbers** — Each task gets a sequential board-scoped id (e.g. `TF-12`)
-- **Comments** — Threaded discussion on any task, attributed to the authenticated user
+- **Comments** — Discussion on any task, attributed to the authenticated user
+- **Documents** — Markdown documents attached to tasks, with publish/unpublish for public sharing
 - **Labels** — Color-coded tags per board, assignable to tasks
 - **Activity Log** — Full audit trail per task and per board
+- **Subscriptions & Notifications** — Subscribe to tasks; inbox with unread notifications for comments, mentions, and activity
+- **Public Sharing** — Publish tasks and documents to read-only public URLs (no auth required, noindex)
+- **Estimates** — Freeform numeric effort estimates on tasks
 - **Real-time Updates** — WebSocket events push changes to all connected clients instantly (auth-required)
 - **Full-text Search** — Search across task titles and descriptions, or by task number
 - **MCP Protocol** — AI agents connect via the Streamable HTTP transport to do everything humans can
 - **Priority System** — Low / Medium / High / Urgent with visual indicators
-- **WIP Limits** — Optional per-list work-in-progress limits
-- **Soft Delete** — Tasks archive instead of hard-deleting
+- **WIP Limits** — Optional per-status work-in-progress limits
 - **Single Container** — Everything (API + SPA + WebSocket) in one Docker image
+- **Installable PWA** — Install as a desktop/mobile app; cosmetic service worker (no offline caching)
 
 ---
 
@@ -84,15 +89,17 @@ Settings (singleton — instance title, onboarded flag)
 Board
   ├── identifier (3-letter prefix for task numbers, e.g. TF)
   ├── nextTaskNum (sequential counter)
-  ├── Lists (ordered by position)
-  │    ├── Tasks (ordered by position, board-scoped number)
-  │    │    ├── Comments (attributed to a User)
-  │    │    ├── Activity (audit log, attributed to a User)
-  │    │    ├── Labels (many-to-many via TaskLabel)
-  │    │    ├── Sub-tasks (self-relation via parentId)
-  │    │    └── Relations (blocks / related_to via TaskRelation)
-  │    └── WIP Limit (optional)
+  ├── Statuses (ordered by position; isDone/isDuplicate flags, WIP limit, progress %)
+  │    └── Tasks (ordered by position, board-scoped number)
+  │         ├── Comments (attributed to a User)
+  │         ├── Activity (audit log, attributed to a User)
+  │         ├── Labels (many-to-many via TaskLabel)
+  │         ├── Sub-tasks (self-relation via parentId)
+  │         ├── Relations (blocks / related_to / duplicate_of via TaskRelation)
+  │         ├── Documents (markdown, publishable to public URL)
+  │         └── Subscriptions (User → Task, drives notifications)
   ├── Labels (board-level)
+  ├── Documents (board-level)
   └── Members (board-level)
 ```
 
@@ -211,14 +218,14 @@ All endpoints are under `/api` and require a Bearer token (see [Authentication](
 
 ### Boards
 
-| Method   | Endpoint               | Description                                   |
-| -------- | ---------------------- | --------------------------------------------- |
-| `GET`    | `/api/boards`          | List all boards                               |
-| `GET`    | `/api/boards/:id`      | Get board with lists and labels               |
-| `GET`    | `/api/boards/:id/full` | Get board with lists, tasks, labels, members  |
-| `POST`   | `/api/boards`          | Create a board (auto-creates 5 default lists) |
-| `PUT`    | `/api/boards/:id`      | Update board name/slug/identifier/description |
-| `DELETE` | `/api/boards/:id`      | Delete board and all its data                 |
+| Method   | Endpoint               | Description                                      |
+| -------- | ---------------------- | ------------------------------------------------ |
+| `GET`    | `/api/boards`          | List all boards                                  |
+| `GET`    | `/api/boards/:id`      | Get board with statuses and labels               |
+| `GET`    | `/api/boards/:id/full` | Get board with statuses, tasks, labels, members  |
+| `POST`   | `/api/boards`          | Create a board (auto-creates 6 default statuses) |
+| `PUT`    | `/api/boards/:id`      | Update board name/slug/identifier/description    |
+| `DELETE` | `/api/boards/:id`      | Delete board and all its data                    |
 
 **Create a board:**
 
@@ -228,21 +235,23 @@ All endpoints are under `/api` and require a Bearer token (see [Authentication](
 
 > `identifier` is a 3-letter uppercase prefix used for per-board task numbers (e.g. `MYP-1`).
 
-### Lists
+### Statuses
 
-| Method   | Endpoint                    | Description                              |
-| -------- | --------------------------- | ---------------------------------------- |
-| `GET`    | `/api/lists/board/:boardId` | List all lists in a board                |
-| `GET`    | `/api/lists/:id`            | Get a single list                        |
-| `POST`   | `/api/lists`                | Create a list                            |
-| `PUT`    | `/api/lists/:id`            | Update list name/color/wipLimit/position |
-| `PUT`    | `/api/lists/reorder`        | Reorder lists                            |
-| `DELETE` | `/api/lists/:id`            | Delete list and its tasks                |
+| Method   | Endpoint                                  | Description                                         |
+| -------- | ----------------------------------------- | --------------------------------------------------- |
+| `GET`    | `/api/statuses/board/:boardId`            | List all statuses in a board (ordered by position)  |
+| `GET`    | `/api/statuses/:id`                       | Get a single status                                 |
+| `POST`   | `/api/statuses`                           | Create a status                                     |
+| `PUT`    | `/api/statuses/reorder`                   | Reorder statuses                                    |
+| `PUT`    | `/api/statuses/:id`                       | Update status name/color/wipLimit/position/progress |
+| `DELETE` | `/api/statuses/:id`                       | Delete status and its tasks                         |
+| `POST`   | `/api/statuses/:id/toggle-done`           | Set a status as the board's Done column             |
+| `POST`   | `/api/statuses/board/:boardId/unset-done` | Clear the board's Done column                       |
 
-**Create a list:**
+**Create a status:**
 
 ```json
-{ "boardId": "...", "name": "In Progress", "color": "#f59e0b", "wipLimit": 5 }
+{ "boardId": "...", "name": "In Progress", "color": "#f59e0b", "wipLimit": 5, "progress": 50 }
 ```
 
 ### Tasks
@@ -250,27 +259,30 @@ All endpoints are under `/api` and require a Bearer token (see [Authentication](
 | Method   | Endpoint                             | Description                                                            |
 | -------- | ------------------------------------ | ---------------------------------------------------------------------- |
 | `GET`    | `/api/tasks/board/:boardId`          | List tasks in a board (`?include=all\|top\|sub`, `?parentId=`)         |
-| `GET`    | `/api/tasks/list/:listId`            | List tasks in a specific list (same query params)                      |
+| `GET`    | `/api/tasks/status/:statusId`        | List tasks in a specific status (same query params)                    |
 | `GET`    | `/api/tasks/search?q=query`          | Full-text search across tasks (also matches task numbers like `TF-12`) |
 | `GET`    | `/api/tasks/:id`                     | Get task with comments, activity, labels, sub-tasks, relations         |
 | `POST`   | `/api/tasks`                         | Create a task                                                          |
 | `PUT`    | `/api/tasks/:id`                     | Update task fields                                                     |
-| `PUT`    | `/api/tasks/:id/move`                | Move task to another list                                              |
-| `PUT`    | `/api/tasks/reorder`                 | Reorder tasks within a list                                            |
+| `PUT`    | `/api/tasks/:id/move`                | Move task to another status                                            |
+| `PUT`    | `/api/tasks/reorder`                 | Reorder tasks within a status                                          |
 | `POST`   | `/api/tasks/:taskId/labels/:labelId` | Attach a label to a task                                               |
 | `DELETE` | `/api/tasks/:taskId/labels/:labelId` | Detach a label from a task                                             |
-| `DELETE` | `/api/tasks/:id`                     | Archive a task (soft delete)                                           |
+| `PUT`    | `/api/tasks/:id/publish`             | Publish a task to a public URL (rejects bot sessions)                  |
+| `DELETE` | `/api/tasks/:id/publish`             | Unpublish a task                                                       |
+| `DELETE` | `/api/tasks/:id`                     | Hard-delete a task (cleans up relations)                               |
 
 **Create a task:**
 
 ```json
 {
-  "listId": "...",
+  "statusId": "...",
   "title": "Implement login page",
   "description": "Add email/password and OAuth login",
   "priority": "high",
   "assigneeId": "user-id",
   "dueDate": "2026-07-01T00:00:00Z",
+  "estimate": 5,
   "parentId": "parent-task-id",
   "labelIds": ["label-id-1", "label-id-2"],
   "metadata": "any JSON string"
@@ -280,12 +292,12 @@ All endpoints are under `/api` and require a Bearer token (see [Authentication](
 **Move a task:**
 
 ```json
-{ "listId": "new-list-id", "position": 0 }
+{ "statusId": "new-status-id", "position": 0 }
 ```
 
 ### Task Relations
 
-Relations are scoped under a task. `blocks` is directed; `related_to` is undirected (canonicalized).
+Relations are scoped under a task. `blocks` and `duplicate_of` are directed; `related_to` is undirected (canonicalized).
 
 | Method   | Endpoint                                   | Description               |
 | -------- | ------------------------------------------ | ------------------------- |
@@ -296,10 +308,10 @@ Relations are scoped under a task. `blocks` is directed; `related_to` is undirec
 **Create a relation:**
 
 ```json
-{ "otherTaskId": "other-task-id", "type": "blocks", "direction": "source" }
+{ "otherTaskId": "other-task-id", "type": "duplicate_of", "direction": "source" }
 ```
 
-> `direction: "source"` means the path task blocks the other; `"target"` means the path task is blocked by the other. Defaults to `"source"`. Ignored for `related_to`.
+> `direction: "source"` means the path task is the source. For `blocks`: source blocks other. For `duplicate_of`: source is the duplicate of other (the canonical). `"target"` reverses. Defaults to `"source"`. Ignored for `related_to`.
 
 ### Comments
 
@@ -314,6 +326,21 @@ Relations are scoped under a task. `blocks` is directed; `related_to` is undirec
 ```json
 { "taskId": "...", "body": "Looks good to me!" }
 ```
+
+### Documents
+
+Documents are markdown documents attached to tasks, scoped to the task's board.
+
+| Method   | Endpoint                         | Description                        |
+| -------- | -------------------------------- | ---------------------------------- |
+| `GET`    | `/api/boards/:boardId/documents` | List documents on a board          |
+| `GET`    | `/api/tasks/:taskId/documents`   | List documents on a task           |
+| `POST`   | `/api/tasks/:taskId/documents`   | Create a document on a task        |
+| `GET`    | `/api/documents/:id`             | Get a document with its body       |
+| `PUT`    | `/api/documents/:id`             | Update document title or body      |
+| `DELETE` | `/api/documents/:id`             | Delete a document                  |
+| `PUT`    | `/api/documents/:id/publish`     | Publish a document to a public URL |
+| `DELETE` | `/api/documents/:id/publish`     | Unpublish a document               |
 
 ### Labels
 
@@ -338,6 +365,37 @@ Labels are nested under a board for creation/listing.
 | ------ | ------------------------------ | -------------------------------- |
 | `GET`  | `/api/activity/task/:taskId`   | Activity log for a task          |
 | `GET`  | `/api/activity/board/:boardId` | Activity log for an entire board |
+
+### Subscriptions & Notifications
+
+| Method   | Endpoint                          | Description                             |
+| -------- | --------------------------------- | --------------------------------------- |
+| `POST`   | `/api/tasks/:taskId/subscription` | Subscribe to a task (idempotent)        |
+| `DELETE` | `/api/tasks/:taskId/subscription` | Unsubscribe from a task                 |
+| `GET`    | `/api/tasks/:taskId/subscription` | Check if subscribed (`{ subscribed }`)  |
+| `GET`    | `/api/notifications`              | List inbox notifications (newest first) |
+| `GET`    | `/api/notifications/unread-count` | Get unread notification count           |
+| `POST`   | `/api/notifications/:id/read`     | Mark a single notification as read      |
+| `POST`   | `/api/notifications/read-all`     | Mark all notifications as read          |
+
+### Board Members
+
+| Method   | Endpoint                               | Description                            |
+| -------- | -------------------------------------- | -------------------------------------- |
+| `GET`    | `/api/boards/:boardId/members`         | List members of a board                |
+| `POST`   | `/api/boards/:boardId/members`         | Add a member (requires board admin)    |
+| `DELETE` | `/api/boards/:boardId/members/:userId` | Remove a member (requires board admin) |
+| `POST`   | `/api/boards/:boardId/join`            | Join a board as a member               |
+| `POST`   | `/api/boards/:boardId/leave`           | Leave a board                          |
+
+### Public Sharing
+
+Published tasks and documents are accessible at read-only public URLs without authentication.
+
+| Method | Endpoint                                | Description                                |
+| ------ | --------------------------------------- | ------------------------------------------ |
+| `GET`  | `/api/public/tasks/:identifier/:number` | Get a published task (public, no auth)     |
+| `GET`  | `/api/public/docs/:identifier/:number`  | Get a published document (public, no auth) |
 
 ---
 
@@ -380,33 +438,36 @@ The Streamable HTTP transport requires an `initialize` handshake that returns an
 
 #### Boards
 
-| Tool            | Params                                      | Description                                 |
-| --------------- | ------------------------------------------- | ------------------------------------------- |
-| `boards_list`   | `{}`                                        | List all boards with list and member counts |
-| `boards_get`    | `{ id }`                                    | Get board with lists, tasks, labels         |
-| `boards_create` | `{ name, slug, identifier?, description? }` | Create board with 5 default lists           |
-| `boards_delete` | `{ id }`                                    | Delete board                                |
+| Tool            | Params                                                   | Description                                   |
+| --------------- | -------------------------------------------------------- | --------------------------------------------- |
+| `boards_list`   | `{}`                                                     | List all boards with status and member counts |
+| `boards_get`    | `{ id }`                                                 | Get board with statuses, tasks, labels        |
+| `boards_create` | `{ name, slug, identifier?, description? }`              | Create board with 6 default statuses          |
+| `boards_update` | `{ id, name?, slug?, identifier?, description?, icon? }` | Update a board                                |
+| `boards_delete` | `{ id }`                                                 | Delete board                                  |
 
-#### Lists
+#### Statuses
 
-| Tool           | Params                                            | Description               |
-| -------------- | ------------------------------------------------- | ------------------------- |
-| `lists_list`   | `{ boardId }`                                     | List all lists in a board |
-| `lists_create` | `{ boardId, name, position?, color?, wipLimit? }` | Create a list             |
-| `lists_update` | `{ id, name?, color?, wipLimit? }`                | Update a list             |
-| `lists_delete` | `{ id }`                                          | Delete a list             |
+| Tool                   | Params                                                       | Description                             |
+| ---------------------- | ------------------------------------------------------------ | --------------------------------------- |
+| `statuses_list`        | `{ boardId }`                                                | List all statuses in a board            |
+| `statuses_create`      | `{ boardId, name, position?, color?, wipLimit?, progress? }` | Create a status                         |
+| `statuses_update`      | `{ id, name?, color?, wipLimit?, progress? }`                | Update a status                         |
+| `statuses_delete`      | `{ id }`                                                     | Delete a status and its tasks           |
+| `statuses_toggle_done` | `{ id }`                                                     | Set a status as the board's Done column |
+| `statuses_unset_done`  | `{ boardId }`                                                | Clear the board's Done column           |
 
 #### Tasks
 
-| Tool           | Params                                                                                                              | Description                                                    |
-| -------------- | ------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
-| `tasks_list`   | `{ boardId?, listId?, assigneeId?, status?, parentId?, include?, limit? }`                                          | List tasks with filters                                        |
-| `tasks_get`    | `{ id }`                                                                                                            | Get task with comments, activity, labels, sub-tasks, relations |
-| `tasks_search` | `{ query }`                                                                                                         | Full-text search or task-number lookup (e.g. `TF-12`)          |
-| `tasks_create` | `{ listId, title, description?, priority?, assigneeId?, dueDate?, parentId?, labelIds?, position?, metadata? }`     | Create a task (assignee defaults to caller)                    |
-| `tasks_update` | `{ id, title?, description?, priority?, status?, assigneeId?, dueDate?, listId?, position?, parentId?, labelIds? }` | Update a task (`parentId: null` un-nests)                      |
-| `tasks_move`   | `{ id, listId, position? }`                                                                                         | Move task to another list                                      |
-| `tasks_delete` | `{ id }`                                                                                                            | Archive a task                                                 |
+| Tool           | Params                                                                                                                           | Description                                                    |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| `tasks_list`   | `{ boardId?, statusId?, assigneeId?, status?, parentId?, include?, limit? }`                                                     | List tasks with filters                                        |
+| `tasks_get`    | `{ id }`                                                                                                                         | Get task with comments, activity, labels, sub-tasks, relations |
+| `tasks_search` | `{ query }`                                                                                                                      | Full-text search or task-number lookup (e.g. `TF-12`)          |
+| `tasks_create` | `{ statusId, title, description?, priority?, assigneeId?, dueDate?, estimate?, parentId?, labelIds?, position?, metadata? }`     | Create a task (assignee defaults to caller)                    |
+| `tasks_update` | `{ id, title?, description?, priority?, status?, assigneeId?, dueDate?, estimate?, statusId?, position?, parentId?, labelIds? }` | Update a task (`parentId: null` un-nests)                      |
+| `tasks_move`   | `{ id, statusId, position? }`                                                                                                    | Move task to another status                                    |
+| `tasks_delete` | `{ id }`                                                                                                                         | Hard-delete a task (cleans up relations)                       |
 
 #### Comments
 
@@ -429,13 +490,42 @@ The Streamable HTTP transport requires an `initialize` handshake that returns an
 | --------------- | ------------------------------- | ---------------- |
 | `activity_list` | `{ taskId?, boardId?, limit? }` | Get activity log |
 
+#### Documents
+
+| Tool               | Params                          | Description                          |
+| ------------------ | ------------------------------- | ------------------------------------ |
+| `documents_list`   | `{ boardId?, taskId?, limit? }` | List documents (board, task, or all) |
+| `documents_get`    | `{ id }`                        | Get a document with its body         |
+| `documents_create` | `{ taskId, title, body? }`      | Create a document on a task          |
+| `documents_update` | `{ id, title?, body? }`         | Update a document                    |
+| `documents_delete` | `{ id }`                        | Delete a document                    |
+
+#### Subscriptions & Notifications
+
+| Tool                      | Params                | Description                      |
+| ------------------------- | --------------------- | -------------------------------- |
+| `task_subscribe`          | `{ taskId }`          | Subscribe to a task (idempotent) |
+| `task_unsubscribe`        | `{ taskId }`          | Unsubscribe from a task          |
+| `inbox_list`              | `{ filter?, limit? }` | List inbox notifications         |
+| `notifications_mark_read` | `{ id? }`             | Mark notification(s) as read     |
+
+#### Members
+
+| Tool             | Params                       | Description                            |
+| ---------------- | ---------------------------- | -------------------------------------- |
+| `members_list`   | `{ boardId }`                | List members of a board                |
+| `members_add`    | `{ boardId, userId, role? }` | Add a member (requires board admin)    |
+| `members_remove` | `{ boardId, userId }`        | Remove a member (requires board admin) |
+| `members_join`   | `{ boardId }`                | Join a board as a member               |
+| `members_leave`  | `{ boardId }`                | Leave a board                          |
+
 #### Relations
 
-| Tool               | Params                                      | Description                                            |
-| ------------------ | ------------------------------------------- | ------------------------------------------------------ |
-| `relations_list`   | `{ taskId }`                                | List blocking/blockedBy/relatedTo relations for a task |
-| `relations_create` | `{ taskId, otherTaskId, type, direction? }` | Create a `blocks` or `related_to` relation             |
-| `relations_delete` | `{ relationId }`                            | Delete a relation                                      |
+| Tool               | Params                                      | Description                                                                                                                                                                                                 |
+| ------------------ | ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `relations_list`   | `{ taskId }`                                | List blocking/blockedBy/relatedTo/duplicateOf/duplicates relations for a task                                                                                                                               |
+| `relations_create` | `{ taskId, otherTaskId, type, direction? }` | Create a relation. direction: 'source' = URL task is the source; 'target' = other is the source. For blocks: source blocks other. For duplicate_of: source is the duplicate of other. Defaults to 'source'. |
+| `relations_delete` | `{ relationId }`                            | Delete a relation                                                                                                                                                                                           |
 
 ### Example: Agent Creates a Board and Tasks
 
@@ -444,12 +534,12 @@ The Streamable HTTP transport requires an `initialize` handshake that returns an
 → {"method":"tools/call","params":{"name":"boards_create","arguments":{"name":"Sprint 24","slug":"sprint-24","identifier":"SPR"}},"id":1}
 ← {"jsonrpc":"2.0","id":1,"result":{...}}
 
-// 2. Create a task in the "To Do" list
-→ {"method":"tools/call","params":{"name":"tasks_create","arguments":{"listId":"...","title":"Design API schema","priority":"high","assigneeId":"alice-id"}},"id":2}
+// 2. Create a task in the "To Do" status
+→ {"method":"tools/call","params":{"name":"tasks_create","arguments":{"statusId":"...","title":"Design API schema","priority":"high","assigneeId":"alice-id"}},"id":2}
 ← {"jsonrpc":"2.0","id":2,"result":{...}}
 
 // 3. Move task to "In Progress"
-→ {"method":"tools/call","params":{"name":"tasks_move","arguments":{"id":"...","listId":"in-progress-list-id"}},"id":3}
+→ {"method":"tools/call","params":{"name":"tasks_move","arguments":{"id":"...","statusId":"in-progress-status-id"}},"id":3}
 ← {"jsonrpc":"2.0","id":3,"result":{...}}
 
 // 4. Search for tasks
@@ -480,28 +570,33 @@ On success the server emits `auth_success`; on failure it emits `auth_error` and
 
 ### Event Types
 
-| Event                 | Payload         | When                            |
-| --------------------- | --------------- | ------------------------------- |
-| `board:created`       | Board object    | A new board is created          |
-| `board:updated`       | Board object    | A board is renamed/updated      |
-| `board:deleted`       | `{ id }`        | A board is deleted              |
-| `list:created`        | List object     | A new list is added             |
-| `list:updated`        | List object     | A list is renamed/recolored     |
-| `list:reordered`      | Reorder result  | Lists are reordered             |
-| `list:deleted`        | `{ id }`        | A list is deleted               |
-| `task:created`        | Task object     | A new task is created           |
-| `task:updated`        | Task object     | A task is edited                |
-| `task:moved`          | Task object     | A task is moved to another list |
-| `task:deleted`        | `{ id }`        | A task is archived              |
-| `task.label.attached` | Task object     | A label is attached to a task   |
-| `task.label.detached` | Task object     | A label is detached from a task |
-| `comment:created`     | Comment object  | A comment is added              |
-| `comment:deleted`     | `{ id }`        | A comment is deleted            |
-| `label:created`       | Label object    | A new label is created          |
-| `label:updated`       | Label object    | A label is renamed/recolored    |
-| `label:deleted`       | `{ id }`        | A label is deleted              |
-| `relation:created`    | Relation object | A task relation is created      |
-| `relation:deleted`    | `{ id }`        | A task relation is deleted      |
+| Event                  | Payload             | When                                    |
+| ---------------------- | ------------------- | --------------------------------------- |
+| `board:created`        | Board object        | A new board is created                  |
+| `board:updated`        | Board object        | A board is renamed/updated              |
+| `board:deleted`        | `{ id }`            | A board is deleted                      |
+| `status:created`       | Status object       | A new status is added                   |
+| `status:updated`       | Status object       | A status is renamed/recolored           |
+| `status:reordered`     | Reorder result      | Statuses are reordered                  |
+| `status:deleted`       | `{ id }`            | A status is deleted                     |
+| `status:doneToggled`   | Status object       | Done column is set or unset             |
+| `task:created`         | Task object         | A new task is created                   |
+| `task:updated`         | Task object         | A task is edited                        |
+| `task:moved`           | Task object         | A task is moved to another status       |
+| `task:deleted`         | `{ id }`            | A task is deleted                       |
+| `task.label.attached`  | Task object         | A label is attached to a task           |
+| `task.label.detached`  | Task object         | A label is detached from a task         |
+| `comment:created`      | Comment object      | A comment is added                      |
+| `comment:deleted`      | `{ id }`            | A comment is deleted                    |
+| `label:created`        | Label object        | A new label is created                  |
+| `label:updated`        | Label object        | A label is renamed/recolored            |
+| `label:deleted`        | `{ id }`            | A label is deleted                      |
+| `relation:created`     | Relation object     | A task relation is created              |
+| `relation:deleted`     | `{ id }`            | A task relation is deleted              |
+| `document:created`     | Document object     | A document is created                   |
+| `document:updated`     | Document object     | A document is edited                    |
+| `document:deleted`     | `{ id }`            | A document is deleted                   |
+| `notification:created` | Notification object | A notification is created (user-scoped) |
 
 ---
 
@@ -511,18 +606,24 @@ The React SPA is served by the NestJS backend in production. In development, Vit
 
 ### Routes
 
-| Route                          | View                                                                         |
-| ------------------------------ | ---------------------------------------------------------------------------- |
-| `/onboarding`                  | First-run admin setup                                                        |
-| `/login`                       | Login form                                                                   |
-| `/signup/:token`               | Invite-based signup                                                          |
-| `/`                            | Home — board list with create/delete                                         |
-| `/board/:id`                   | Kanban board with task cards, labels, priority indicators, assignees         |
-| `/board/:id/settings`          | Board settings (labels, members)                                             |
-| `/board/:boardId/task/:taskId` | Task detail page (edit fields, activity log, comments, sub-tasks, relations) |
-| `/tasks`                       | List view — sortable table across all tasks                                  |
-| `/settings`                    | Admin settings                                                               |
-| `/account`                     | Account settings (display name, password)                                    |
+| Route                              | View                                                                         |
+| ---------------------------------- | ---------------------------------------------------------------------------- |
+| `/onboarding`                      | First-run admin setup                                                        |
+| `/login`                           | Login form                                                                   |
+| `/signup/:token`                   | Invite-based signup                                                          |
+| `/`                                | Home — board list with create/delete                                         |
+| `/board/:id`                       | Kanban board with task cards, labels, priority indicators, assignees         |
+| `/board/:id/settings`              | Board settings (labels, members)                                             |
+| `/board/:boardId/docs`             | Board documents list                                                         |
+| `/board/:boardId/doc/:docId`       | Document editor page                                                         |
+| `/board/:boardId/task/:taskId`     | Task detail page (edit fields, activity log, comments, sub-tasks, relations) |
+| `/tasks`                           | List view — sortable table across all tasks                                  |
+| `/settings`                        | Admin settings                                                               |
+| `/account`                         | Account settings (display name, password)                                    |
+| `/inbox`                           | Notification inbox                                                           |
+| `/inbox/:notificationId`           | Notification detail                                                          |
+| `/public/:identifier/:number`      | Public task view (no auth required)                                          |
+| `/public/docs/:identifier/:number` | Public document view (no auth required)                                      |
 
 ### Tech Stack
 
@@ -608,12 +709,17 @@ taskforge/
 │   │       ├── auth/              # Users, sessions, invites, bot tokens, AuthGuard
 │   │       ├── settings/          # Instance settings (singleton)
 │   │       ├── boards/            # Boards module (REST)
-│   │       ├── lists/             # Lists module (REST)
+│   │       ├── statuses/          # Statuses module (REST)
 │   │       ├── tasks/             # Tasks module (REST)
-│   │       ├── relations/         # Task relations (blocks / related_to)
+│   │       ├── relations/         # Task relations (blocks / related_to / duplicate_of)
 │   │       ├── comments/          # Comments module (REST)
 │   │       ├── labels/            # Labels module (REST)
 │   │       ├── activity/          # Activity log module (REST)
+│   │       ├── documents/         # Documents module (REST)
+│   │       ├── members/           # Board members
+│   │       ├── subscriptions/     # Task subscriptions
+│   │       ├── notifications/     # Notifications + inbox
+│   │       ├── public/            # Public task/document sharing
 │   │       ├── events/            # WebSocket gateway + event bus
 │   │       └── mcp/               # MCP Streamable HTTP server + tool defs
 │   └── web/                       # React SPA (ESM, strict)
