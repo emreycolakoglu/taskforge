@@ -663,7 +663,14 @@ describe('api', () => {
   // ─── Relations ───────────────────────────────────────────────────────────────
 
   it('api.relations.list(taskId) → GET /tasks/<id>/relations', async () => {
-    const rels = { taskId: 't1', blocking: [], blockedBy: [], relatedTo: [] };
+    const rels = {
+      taskId: 't1',
+      blocking: [],
+      blockedBy: [],
+      relatedTo: [],
+      duplicateOf: [],
+      duplicates: [],
+    };
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve(rels),

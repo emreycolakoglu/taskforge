@@ -57,6 +57,22 @@ export function DetailPropertiesSidebar({
     <aside className="w-[260px] max-w-[260px] shrink-0 border-l border-border bg-secondary">
       <ScrollArea className="h-full">
         <div className="w-[260px] max-w-[260px] p-4">
+          {relations?.duplicateOf && relations.duplicateOf.length > 0 && (
+            <div className="rounded-lg border border-border bg-background px-3 py-2 mb-3 text-sm text-muted-foreground">
+              This is a duplicate of{' '}
+              {relations.duplicateOf.map((r, i) => (
+                <span key={r.relationId}>
+                  {i > 0 && ', '}
+                  <button
+                    className="font-mono text-primary hover:underline"
+                    onClick={() => onNavigate(r.task.id)}
+                  >
+                    {r.task.taskNumber}
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
           {/* Group 1 — Properties */}
           <DetailGroup>
             <DetailGroupTitle>Properties</DetailGroupTitle>
@@ -140,6 +156,36 @@ export function DetailPropertiesSidebar({
               onRemove={onRemoveRelation}
               onNavigate={onNavigate}
               listType="related_to"
+            />
+          </DetailGroup>
+
+          {/* Group 6 — Duplicate of */}
+          <DetailGroup>
+            <DetailGroupTitle>Duplicate of</DetailGroupTitle>
+            <DetailRelations
+              relations={relations?.duplicateOf}
+              taskId={task.id}
+              boardId={task.boardId}
+              boardTasks={boardTasks}
+              onAdd={onAddRelation}
+              onRemove={onRemoveRelation}
+              onNavigate={onNavigate}
+              listType="duplicate-source"
+            />
+          </DetailGroup>
+
+          {/* Group 7 — Duplicates */}
+          <DetailGroup>
+            <DetailGroupTitle>Duplicates</DetailGroupTitle>
+            <DetailRelations
+              relations={relations?.duplicates}
+              taskId={task.id}
+              boardId={task.boardId}
+              boardTasks={boardTasks}
+              onAdd={onAddRelation}
+              onRemove={onRemoveRelation}
+              onNavigate={onNavigate}
+              listType="duplicate-target"
             />
           </DetailGroup>
         </div>

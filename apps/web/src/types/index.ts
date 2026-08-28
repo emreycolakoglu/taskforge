@@ -66,7 +66,7 @@ export interface Task {
   isOptimistic?: boolean;
 }
 
-export type RelationType = 'blocks' | 'related_to';
+export type RelationType = 'blocks' | 'related_to' | 'duplicate_of';
 
 export interface RelationEntry {
   relationId: string;
@@ -79,6 +79,8 @@ export interface TaskRelations {
   blocking: RelationEntry[];
   blockedBy: RelationEntry[];
   relatedTo: RelationEntry[];
+  duplicateOf: RelationEntry[];
+  duplicates: RelationEntry[];
 }
 
 export interface TaskLabel {

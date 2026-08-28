@@ -20,7 +20,8 @@ interface DetailRelationsProps {
   onAdd: (otherTaskId: string, type: RelationType, direction?: 'source' | 'target') => void;
   onRemove: (relationId: string) => void;
   onNavigate: (id: string) => void;
-  listType: 'related_to' | 'blocks-source' | 'blocks-target';
+  listType:
+    'related_to' | 'blocks-source' | 'blocks-target' | 'duplicate-source' | 'duplicate-target';
 }
 
 export function DetailRelations({
@@ -62,17 +63,19 @@ export function DetailRelations({
         <DetailAddRelationPopover
           boardTasks={boardTasks}
           excludeIds={excludeIds}
-          onAdd={(id) =>
-            onAdd(
-              id,
-              listType == 'related_to' ? 'related_to' : 'blocks',
-              listType == 'related_to'
-                ? undefined
-                : listType == 'blocks-source'
-                  ? 'source'
-                  : 'target',
-            )
-          }
+          onAdd={(id) => {
+            if (listType === 'related_to') {
+              onAdd(id, 'related_to');
+            } else if (listType === 'duplicate-source') {
+              onAdd(id, 'duplicate_of', 'source');
+            } else if (listType === 'duplicate-target') {
+              onAdd(id, 'duplicate_of', 'target');
+            } else if (listType === 'blocks-source') {
+              onAdd(id, 'blocks', 'source');
+            } else {
+              onAdd(id, 'blocks', 'target');
+            }
+          }}
         />
       </div>
     </section>
