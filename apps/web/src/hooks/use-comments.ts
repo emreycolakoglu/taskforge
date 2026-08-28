@@ -39,3 +39,34 @@ export function useDeleteComment() {
     },
   });
 }
+
+export function useUpdateComment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body, taskId }: { id: string; body: string; taskId: string }) =>
+      api.comments.update(id, body),
+    onSuccess: (_data, variables) => {
+      toast.success('Comment updated');
+      queryClient.invalidateQueries({ queryKey: ['comments', variables.taskId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', variables.taskId] });
+    },
+    onError: (error) => {
+      toast.error('Failed to update comment', { description: error.message });
+    },
+  });
+}
+
+export function useReactToComment() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, emoji, taskId }: { id: string; emoji: string; taskId: string }) =>
+      api.comments.react(id, emoji),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: ['comments', variables.taskId] });
+      queryClient.invalidateQueries({ queryKey: ['tasks', variables.taskId] });
+    },
+    onError: (error) => {
+      toast.error('Failed to toggle reaction', { description: error.message });
+    },
+  });
+}
