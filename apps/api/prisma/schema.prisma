@@ -98,8 +98,9 @@ model Status {
   position  Float
   color     String?  @default("#6366f1")
   wipLimit  Int?
-  isDone    Boolean  @default(false)
-  progress  Int      @default(0)
+  isDone      Boolean @default(false)
+  isDuplicate Boolean @default(false)
+  progress    Int     @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -148,9 +149,9 @@ model Task {
 
 model TaskRelation {
   id          String   @id @default(cuid())
-  type        String   // "blocks" | "related_to"
-  fromTaskId  String   // for "blocks": the blocker; for "related_to": the lower-ordered task
-  toTaskId    String   // for "blocks": the blocked task; for "related_to": the higher-ordered task
+  type        String   // "blocks" | "related_to" | "duplicate_of"
+  fromTaskId  String   // "blocks": blocker; "related_to": lower-ordered; "duplicate_of": the duplicate
+  toTaskId    String   // "blocks": blocked; "related_to": higher-ordered; "duplicate_of": the canonical original
   createdAt   DateTime @default(now())
 
   fromTask Task @relation("TaskRelationsFrom", fields: [fromTaskId], references: [id], onDelete: Cascade)
