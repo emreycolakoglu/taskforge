@@ -13,7 +13,13 @@ import { useCallback } from 'react';
 import { useTask, useUpdateTask, useTasksByBoard, useCreateTask } from '@/hooks/use-tasks';
 import { useTaskRelations, useCreateRelation, useRemoveRelation } from '@/hooks/use-relations';
 import { useBoardFull } from '@/hooks/use-boards';
-import { useComments, useCreateComment, useDeleteComment } from '@/hooks/use-comments';
+import {
+  useComments,
+  useCreateComment,
+  useDeleteComment,
+  useUpdateComment,
+  useReactToComment,
+} from '@/hooks/use-comments';
 import { useUsers } from '@/hooks/use-users';
 import { useLabels } from '@/hooks/use-labels';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -56,6 +62,8 @@ export function TaskDetailView({
   const updateTask = useUpdateTask();
   const createComment = useCreateComment();
   const deleteComment = useDeleteComment();
+  const updateComment = useUpdateComment();
+  const reactToComment = useReactToComment();
   const createTask = useCreateTask();
   const { data: relations } = useTaskRelations(taskId);
   const createRelation = useCreateRelation();
@@ -85,6 +93,22 @@ export function TaskDetailView({
       deleteComment.mutate({ id: commentId, taskId: task.id });
     },
     [task, deleteComment],
+  );
+
+  const handleEditComment = useCallback(
+    (commentId: string, body: string) => {
+      if (!task) return;
+      updateComment.mutate({ id: commentId, body, taskId: task.id });
+    },
+    [task, updateComment],
+  );
+
+  const handleReactToComment = useCallback(
+    (commentId: string, emoji: string) => {
+      if (!task) return;
+      reactToComment.mutate({ id: commentId, emoji, taskId: task.id });
+    },
+    [task, reactToComment],
   );
 
   const handleCreateSubTask = useCallback(
@@ -190,6 +214,8 @@ export function TaskDetailView({
             comments={comments}
             onSubmit={handleAddComment}
             onDelete={handleDeleteComment}
+            onEdit={handleEditComment}
+            onReact={handleReactToComment}
             formatTimestamp={formatTimestamp}
           />
         </div>

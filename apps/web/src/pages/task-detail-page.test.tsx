@@ -107,6 +107,8 @@ vi.mock('@/hooks/use-comments', () => ({
   }),
   useCreateComment: () => ({ mutate: vi.fn() }),
   useDeleteComment: () => ({ mutate: vi.fn() }),
+  useUpdateComment: () => ({ mutate: vi.fn() }),
+  useReactToComment: () => ({ mutate: vi.fn() }),
 }));
 
 vi.mock('@/contexts/auth-context', () => ({
