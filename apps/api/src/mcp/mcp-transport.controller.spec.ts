@@ -155,6 +155,7 @@ describe('McpTransportController', () => {
         notifications,
         new MentionsService(prisma as any, notifications),
       ),
+      new MentionsService(prisma as any, notifications),
     );
     const factory = new McpServerFactory(mcpService);
     controller = new McpTransportController(factory);

@@ -328,7 +328,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'inbox_list',
     title: 'List inbox notifications',
-    description: "List the authenticated user's inbox notifications, newest first.",
+    description:
+      'List the authenticated user\'s inbox notifications, newest first. Actions include "commented" (someone commented on a subscribed task) and "mentioned" (you were @-mentioned).',
     inputSchema: {
       filter: z.enum(['unread', 'all']).optional(),
       limit: z.number().optional(),

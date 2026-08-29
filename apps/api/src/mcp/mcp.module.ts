@@ -8,6 +8,7 @@ import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { CommentsModule } from '../comments/comments.module';
+import { MentionsModule } from '../mentions/mentions.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { CommentsModule } from '../comments/comments.module';
     NotificationsModule,
     DocumentsModule,
     CommentsModule,
+    MentionsModule,
   ],
   controllers: [McpTransportController],
   providers: [McpService, McpServerFactory],

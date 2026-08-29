@@ -838,6 +838,46 @@ describe('McpService', () => {
     });
   });
 
+  describe('mentions', () => {
+    it('comments_create should subscribe + notify mentioned users', async () => {
+      const mentioned = await seedUser(prisma, { displayName: 'Bob' });
+      const task = await seedTask(prisma, board.statuses[0].id);
+
+      const res = await service.handleRequest(
+        { method: 'comments_create', params: { taskId: task.id, body: 'hey @Bob' }, id: 1 },
+        user,
+      );
+
+      expect(res.error).toBeUndefined();
+      const sub = await prisma.taskSubscription.findUnique({
+        where: { taskId_userId: { taskId: task.id, userId: mentioned.id } },
+      });
+      expect(sub).not.toBeNull();
+      expect(
+        await prisma.notification.count({ where: { userId: mentioned.id, action: 'mentioned' } }),
+      ).toBe(1);
+    });
+
+    it('tasks_update should subscribe + notify on description change', async () => {
+      const mentioned = await seedUser(prisma, { displayName: 'Bob' });
+      const task = await seedTask(prisma, board.statuses[0].id);
+
+      const res = await service.handleRequest(
+        { method: 'tasks_update', params: { id: task.id, description: 'cc @Bob' }, id: 2 },
+        user,
+      );
+
+      expect(res.error).toBeUndefined();
+      const sub = await prisma.taskSubscription.findUnique({
+        where: { taskId_userId: { taskId: task.id, userId: mentioned.id } },
+      });
+      expect(sub).not.toBeNull();
+      expect(
+        await prisma.notification.count({ where: { userId: mentioned.id, action: 'mentioned' } }),
+      ).toBe(1);
+    });
+  });
+
   // ─── Labels ───
 
   describe('labels_list', () => {

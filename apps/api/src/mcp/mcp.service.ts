@@ -6,6 +6,7 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DocumentsService } from '../documents/documents.service';
 import { CommentsService } from '../comments/comments.service';
+import { MentionsService } from '../mentions/mentions.service';
 
 function withTaskNumber(task: any): any {
   const identifier = task.board?.identifier ?? task.status?.board?.identifier;
@@ -70,6 +71,7 @@ export class McpService {
     private notifications: NotificationsService,
     private documents: DocumentsService,
     private comments: CommentsService,
+    private mentions: MentionsService,
   ) {}
 
   async handleRequest(req: McpRequest, user?: AuthUser): Promise<McpResponse> {
@@ -532,6 +534,9 @@ export class McpService {
         }
 
         this.events.emit('task:updated', task, task.status?.boardId);
+        if (params.description !== undefined && params.description !== existing.description) {
+          await this.mentions.processMentions(params.id, params.description, user);
+        }
         return withTaskNumber(task);
       }
       case 'move': {
@@ -611,38 +616,14 @@ export class McpService {
         return this.comments.findByTask(params.taskId);
       }
       case 'create': {
-        if (params.parentId) {
-          const parent = await this.prisma.comment.findUnique({
-            where: { id: params.parentId },
-          });
-          if (!parent || parent.taskId !== params.taskId) {
-            throw new Error('Invalid parent comment');
-          }
-        }
-        const comment = await this.prisma.comment.create({
-          data: {
+        return this.comments.create(
+          {
             taskId: params.taskId,
-            parentId: params.parentId ?? null,
-            authorId: actorId,
-            author: authorName,
             body: params.body,
+            ...(params.parentId ? { parentId: params.parentId } : {}),
           },
-        });
-        await this.prisma.activity.create({
-          data: {
-            taskId: params.taskId,
-            actorId,
-            actor: authorName,
-            action: 'commented',
-            detail: JSON.stringify({ commentId: comment.id }),
-          },
-        });
-        const task = await this.prisma.task.findUnique({
-          where: { id: params.taskId },
-          include: { status: { select: { boardId: true } } },
-        });
-        this.events.emit('comment:created', comment, task?.status?.boardId);
-        return comment;
+          user,
+        );
       }
       case 'delete': {
         const comment = await this.prisma.comment.findUnique({ where: { id: params.id } });

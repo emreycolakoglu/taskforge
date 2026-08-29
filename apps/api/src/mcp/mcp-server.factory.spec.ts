@@ -36,6 +36,7 @@ describe('McpServerFactory', () => {
         notifications,
         new MentionsService(prisma as any, notifications),
       ),
+      new MentionsService(prisma as any, notifications),
     );
     factory = new McpServerFactory(mcpService);
   });
