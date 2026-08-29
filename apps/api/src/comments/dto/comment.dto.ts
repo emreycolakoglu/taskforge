@@ -6,6 +6,10 @@ export class CreateCommentDto {
 
   @IsOptional()
   @IsString()
+  parentId?: string;
+
+  @IsOptional()
+  @IsString()
   authorId?: string;
 
   @IsOptional()

@@ -443,4 +443,144 @@ describe('CommentsService', () => {
       expect(comments[0].reactions).toEqual([]);
     });
   });
+
+  describe('threaded replies', () => {
+    describe('create', () => {
+      it('creates a reply with a valid parentId', async () => {
+        const parent = await service.create({ taskId: task.id, body: 'parent' }, user);
+        const reply = await service.create(
+          { taskId: task.id, body: 'child', parentId: parent.id },
+          user,
+        );
+        expect(reply.parentId).toBe(parent.id);
+      });
+
+      it('rejects a parentId belonging to another task', async () => {
+        const otherTask = await seedTask(prisma, board.statuses[0].id);
+        const parent = await service.create({ taskId: otherTask.id, body: 'parent' }, user);
+        await expect(
+          service.create({ taskId: task.id, body: 'child', parentId: parent.id }, user),
+        ).rejects.toThrow('Invalid parent comment');
+      });
+
+      it('rejects a missing parentId', async () => {
+        await expect(
+          service.create({ taskId: task.id, body: 'child', parentId: 'nope' }, user),
+        ).rejects.toThrow('Invalid parent comment');
+      });
+
+      it('allows replying to a tombstoned comment', async () => {
+        const parent = await seedComment(prisma, task.id, { body: 'parent' });
+        await seedComment(prisma, task.id, { body: 'child', parentId: parent.id });
+        await service.remove(parent.id);
+        const reply = await service.create(
+          { taskId: task.id, body: 'late reply', parentId: parent.id },
+          user,
+        );
+        expect(reply.parentId).toBe(parent.id);
+      });
+    });
+
+    describe('findByTask', () => {
+      it('returns a nested tree: roots newest-first, replies oldest-first', async () => {
+        const root1 = await service.create({ taskId: task.id, body: 'root1' }, user);
+        await new Promise((r) => setTimeout(r, 5));
+        const root2 = await service.create({ taskId: task.id, body: 'root2' }, user);
+        await new Promise((r) => setTimeout(r, 5));
+        const reply1 = await service.create(
+          { taskId: task.id, body: 'reply1', parentId: root1.id },
+          user,
+        );
+        await new Promise((r) => setTimeout(r, 5));
+        await service.create({ taskId: task.id, body: 'reply2', parentId: root1.id }, user);
+        await new Promise((r) => setTimeout(r, 5));
+        await service.create({ taskId: task.id, body: 'deep', parentId: reply1.id }, user);
+
+        const tree = await service.findByTask(task.id);
+        expect(tree.map((c) => c.body)).toEqual(['root2', 'root1']);
+        const replies = tree[1].replies;
+        expect(replies.map((c) => c.body)).toEqual(['reply1', 'reply2']);
+        expect(replies[0].replies.map((c) => c.body)).toEqual(['deep']);
+        expect(tree[1].replies[1].replies).toEqual([]);
+      });
+
+      it('promotes orphaned replies to roots (defensive; parents are same-task by validation)', async () => {
+        // The FK constraint blocks seeding a truly missing parentId, so use a
+        // parent from another task and re-point the stored row without it.
+        const otherTask = await seedTask(prisma, board.statuses[0].id);
+        const staleParent = await seedComment(prisma, otherTask.id, {
+          body: 'stale parent',
+        });
+        const orphan = await seedComment(prisma, task.id, {
+          body: 'orphan',
+          parentId: staleParent.id,
+        });
+        await prisma.comment.delete({ where: { id: staleParent.id } }); // onDelete: SetNull orphans the reply
+        const refreshed = await prisma.comment.findUnique({ where: { id: orphan.id } });
+        expect(refreshed!.parentId).toBeNull();
+
+        const tree = await service.findByTask(task.id);
+        expect(tree).toHaveLength(1);
+        expect(tree[0].body).toBe('orphan');
+        expect(tree[0].replies).toEqual([]);
+      });
+    });
+
+    describe('remove with replies', () => {
+      it('tombstones a comment with replies: keeps the row, blanks body, sets deletedAt', async () => {
+        const parent = await seedComment(prisma, task.id, { body: 'parent' });
+        await seedComment(prisma, task.id, { body: 'child', parentId: parent.id });
+
+        await service.remove(parent.id);
+
+        const stored = await prisma.comment.findUnique({ where: { id: parent.id } });
+        expect(stored).not.toBeNull();
+        expect(stored!.deletedAt).not.toBeNull();
+        expect(stored!.body).toBe('');
+        expect(stored!.author).toBe('tester');
+
+        const tree = await service.findByTask(task.id);
+        expect(tree).toHaveLength(1);
+        expect(tree[0].deletedAt).not.toBeNull();
+        expect(tree[0].replies.map((c) => c.body)).toEqual(['child']);
+      });
+
+      it('hard-deletes a leaf comment (existing behavior preserved)', async () => {
+        const leaf = await seedComment(prisma, task.id, { body: 'leaf' });
+        await service.remove(leaf.id);
+        const stored = await prisma.comment.findUnique({ where: { id: leaf.id } });
+        expect(stored).toBeNull();
+      });
+
+      it('emits comment:deleted and logs activity for a tombstone too', async () => {
+        const parent = await seedComment(prisma, task.id, { body: 'parent' });
+        await seedComment(prisma, task.id, { body: 'child', parentId: parent.id });
+        const emitted: any[] = [];
+        const subscription = events.observe().subscribe((payload) => {
+          if (payload.event === 'comment:deleted') emitted.push(payload);
+        });
+
+        await service.remove(parent.id);
+        subscription.unsubscribe();
+
+        expect(emitted).toHaveLength(1);
+        expect(emitted[0].data).toEqual({ id: parent.id, taskId: task.id });
+        const activity = await prisma.activity.findMany({
+          where: { taskId: task.id, action: 'deleted_comment' },
+        });
+        expect(activity).toHaveLength(1);
+      });
+    });
+
+    describe('update on tombstone', () => {
+      it('rejects editing a tombstoned comment', async () => {
+        const parent = await seedComment(prisma, task.id, { body: 'parent' });
+        await seedComment(prisma, task.id, { body: 'child', parentId: parent.id });
+        await service.remove(parent.id);
+        await expect(service.update(parent.id, 'nope', user)).rejects.toThrow(
+          'Cannot edit a deleted comment',
+        );
+      });
+    });
+  });
 });

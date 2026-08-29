@@ -142,7 +142,8 @@ async function getNextTaskNumber(prisma: PrismaClient, boardId: string): Promise
 }
 
 /**
- * Seed a comment on a task.
+ * Seed a comment on a task. Overrides spread over the defaults —
+ * pass `parentId` to seed a reply, `deletedAt` to seed a tombstone.
  */
 export async function seedComment(
   prisma: PrismaClient,
@@ -155,6 +156,7 @@ export async function seedComment(
       authorId: overrides.authorId ?? null,
       author: overrides.author || 'tester',
       body: overrides.body || 'Test comment',
+      ...overrides,
     },
   });
 }
