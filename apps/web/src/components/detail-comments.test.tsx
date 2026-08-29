@@ -290,21 +290,29 @@ describe('DetailComments — threaded replies', () => {
     expect(screen.queryByPlaceholderText('Reply to Alice…')).not.toBeInTheDocument();
   });
 
-  it('renders tombstoned comments as a muted "deleted" marker with no menu, reactions or reply', () => {
+  it('renders a tombstone inert while a live reply under it stays interactive', () => {
     const parent = makeComment({
       id: 'c1',
       body: '',
       deletedAt: '2026-01-02T00:00:00Z',
       authorId: 'user-1',
-      replies: [makeComment({ id: 'c2', body: 'surviving reply' })],
+      author: 'Alice',
+      replies: [
+        makeComment({ id: 'c2', body: 'surviving reply', authorId: 'user-2', author: 'Bob' }),
+      ],
     });
     renderComments([parent], vi.fn(), undefined, vi.fn(), vi.fn());
 
     expect(screen.getByText('deleted')).toBeInTheDocument();
+    expect(screen.getByText('surviving reply')).toBeInTheDocument();
+    // The tombstone is inert even though the live user authored it — deletedAt
+    // gates menu actions per-node (no menu, no reply button). The reply is by
+    // another author, so document-wide "no Comment actions" proves gating:
+    // without deletedAt the author would see a menu only on the tombstone.
     expect(screen.queryByLabelText('Comment actions')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Reply to Alice')).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('Add reaction')).not.toBeInTheDocument();
-    expect(screen.getByText('surviving reply')).toBeInTheDocument();
+    // The live reply (different author) keeps its actions under the tombstone.
+    expect(screen.getByLabelText('Reply to Bob')).toBeInTheDocument();
   });
 
   it('counts only visible (non-deleted) comments in the header', async () => {

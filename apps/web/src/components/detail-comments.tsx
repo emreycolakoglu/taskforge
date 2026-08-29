@@ -12,7 +12,8 @@
  *
  * Tombstones (deletedAt set, body blanked by the server): rendered as a muted
  * mono "deleted" marker — no body, menu, reactions, or reply button. Children
- * of a tombstone keep rendering in place. Header counts visible comments only.
+ * of a tombstone keep rendering in place and remain fully interactive
+ * (per-node permission gates apply). Header counts visible comments only.
  *
  * Edit: the three-dot menu shows "Edit" above "Delete" for the author/admin.
  * Edit mode swaps the read-only MarkdownEditor for a Textarea + Save/Cancel.
@@ -152,13 +153,12 @@ export function DetailComments({
   const hasReacted = (c: Comment, emoji: string) =>
     !!user && !!c.reactions?.some((r) => r.emoji === emoji && r.userIds.includes(user.id));
 
-  const renderNode = (c: Comment, depth: number, insideTombstone = false) => {
+  const renderNode = (c: Comment, depth: number) => {
     const isEditing = editingId === c.id;
     const isDeleted = !!c.deletedAt;
-    const frozen = insideTombstone || isDeleted;
     const replies = c.replies ?? [];
     const collapsed = collapsedIds.has(c.id);
-    const showMenu = !frozen && (canDelete(c) || canModify(c));
+    const showMenu = canDelete(c) || canModify(c);
 
     return (
       <div
@@ -181,9 +181,9 @@ export function DetailComments({
               {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
             </button>
           )}
-          {(showMenu || (!isDeleted && !frozen)) && (
+          {(showMenu || !isDeleted) && (
             <div className="ml-auto flex items-center gap-0.5">
-              {!isDeleted && !frozen && (
+              {!isDeleted && (
                 <Button
                   variant="ghost"
                   size="icon"
@@ -279,7 +279,7 @@ export function DetailComments({
         )}
 
         {/* Reply composer — one open at a time */}
-        {replyTo === c.id && !isDeleted && !frozen && (
+        {replyTo === c.id && !isDeleted && (
           <div className="mt-2 flex flex-col gap-2">
             <Textarea
               value={replyText}
@@ -311,7 +311,7 @@ export function DetailComments({
         )}
 
         {/* Reaction row — hidden on tombstones */}
-        {onReact && !isEditing && !isDeleted && !frozen && (
+        {onReact && !isEditing && !isDeleted && (
           <div className="mt-2 flex flex-wrap items-center gap-1">
             {c.reactions?.map((r) => {
               const mine = hasReacted(c, r.emoji);
@@ -371,7 +371,7 @@ export function DetailComments({
 
         {!collapsed && replies.length > 0 && (
           <div className="mt-1 ml-4 border-l border-border pl-4">
-            {replies.map((r) => renderNode(r, depth + 1, frozen))}
+            {replies.map((r) => renderNode(r, depth + 1))}
           </div>
         )}
       </div>
