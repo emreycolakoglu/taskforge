@@ -68,6 +68,48 @@ export class NotificationsService {
     }
   }
 
+  /**
+   * Direct mention notifications (TFG-33). These bypass dispatchFromActivity:
+   * mentioned users are notified explicitly, regardless of subscription state,
+   * with a dedicated summary. Emits to each user's socket room.
+   */
+  async notifyMentions(
+    taskId: string,
+    activityId: string,
+    userIds: string[],
+    actorName: string,
+  ): Promise<void> {
+    if (userIds.length === 0) return;
+
+    const task = await this.prisma.task.findUnique({
+      where: { id: taskId },
+      include: { board: { select: { identifier: true } } },
+    });
+    if (!task) return;
+    const taskNumber = task.board?.identifier
+      ? `${task.board.identifier}-${task.number}`
+      : `#${task.number}`;
+
+    const summary = `@${actorName} mentioned you in ${taskNumber} "${task.title}"`;
+
+    await this.prisma.notification.createMany({
+      data: userIds.map((userId) => ({
+        userId,
+        taskId,
+        activityId,
+        action: 'mentioned',
+        summary,
+      })),
+    });
+
+    for (const userId of userIds) {
+      const created = await this.prisma.notification.findFirst({ where: { userId, activityId } });
+      if (created) {
+        this.events.emit('notification:created', created, undefined, { userRoom: userId });
+      }
+    }
+  }
+
   private buildSummary(
     actor: string,
     action: string,

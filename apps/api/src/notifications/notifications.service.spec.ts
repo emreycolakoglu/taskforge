@@ -18,6 +18,7 @@ describe('NotificationsService', () => {
   let task: any;
   let actor: any;
   let subscriber: any;
+  let watcher: any;
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
@@ -41,6 +42,7 @@ describe('NotificationsService', () => {
     task = await seedTask(prisma, board.statuses[0].id, { title: 'Fix login' });
     actor = await seedUser(prisma, { displayName: 'Actor' });
     subscriber = await seedUser(prisma, { displayName: 'Subscriber' });
+    watcher = await seedUser(prisma, { displayName: 'Watcher' });
     await seedSubscription(prisma, task.id, subscriber.id);
   });
 
@@ -126,6 +128,47 @@ describe('NotificationsService', () => {
         actor.displayName,
       );
       await expect(service.dispatchFromActivity(activity)).resolves.not.toThrow();
+    });
+  });
+
+  describe('notifyMentions', () => {
+    it('creates a mentioned notification with the @-summary for each user', async () => {
+      const activity = await prisma.activity.create({
+        data: { taskId: task.id, actorId: actor.id, actor: actor.displayName, action: 'mentioned' },
+      });
+
+      await service.notifyMentions(
+        task.id,
+        activity.id,
+        [subscriber.id, watcher.id],
+        actor.displayName,
+      );
+
+      const rows = await prisma.notification.findMany({ where: { action: 'mentioned' } });
+      expect(rows).toHaveLength(2);
+      expect(rows[0].summary).toBe(
+        `@${actor.displayName} mentioned you in ${board.identifier}-${task.number} "${task.title}"`,
+      );
+    });
+
+    it('does nothing for an unknown taskId', async () => {
+      const activity = await prisma.activity.create({
+        data: { taskId: task.id, actorId: actor.id, actor: actor.displayName, action: 'mentioned' },
+      });
+
+      await service.notifyMentions('nope', activity.id, [subscriber.id], actor.displayName);
+
+      expect(await prisma.notification.count()).toBe(0);
+    });
+
+    it('does nothing when userIds is empty', async () => {
+      const activity = await prisma.activity.create({
+        data: { taskId: task.id, actorId: actor.id, actor: actor.displayName, action: 'mentioned' },
+      });
+
+      await service.notifyMentions(task.id, activity.id, [], actor.displayName);
+
+      expect(await prisma.notification.count()).toBe(0);
     });
   });
 
