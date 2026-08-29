@@ -5,9 +5,16 @@ import { EventsModule } from '../events/events.module';
 import { RelationsModule } from '../relations/relations.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { MentionsModule } from '../mentions/mentions.module';
 
 @Module({
-  imports: [EventsModule, RelationsModule, SubscriptionsModule, NotificationsModule],
+  imports: [
+    EventsModule,
+    RelationsModule,
+    SubscriptionsModule,
+    NotificationsModule,
+    MentionsModule,
+  ],
   controllers: [TasksController],
   providers: [TasksService],
   exports: [TasksService],

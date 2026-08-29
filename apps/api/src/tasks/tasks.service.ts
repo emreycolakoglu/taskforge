@@ -4,6 +4,7 @@ import { EventsService } from '../events/events.service';
 import { RelationsService } from '../relations/relations.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MentionsService } from '../mentions/mentions.service';
 import { CreateTaskDto, UpdateTaskDto, MoveTaskDto, ReorderTasksDto } from './dto/task.dto';
 
 export function withTaskNumber(task: any): any {
@@ -87,6 +88,7 @@ export class TasksService {
     private relations: RelationsService,
     private subscriptions: SubscriptionsService,
     private notifications: NotificationsService,
+    private mentions: MentionsService,
   ) {}
 
   async findByBoard(
@@ -364,6 +366,9 @@ export class TasksService {
     }
 
     this.events.emit('task:updated', task, task.status.boardId);
+    if (dto.description !== undefined && dto.description !== existing.description) {
+      await this.mentions.processMentions(id, dto.description, user);
+    }
     return withTaskNumber(task);
   }
 

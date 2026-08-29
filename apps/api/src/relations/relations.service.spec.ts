@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MentionsService } from '../mentions/mentions.service';
 import { createTestPrisma, seedBoard, seedTask, seedRelation } from '../../test/setup';
 
 describe('RelationsService', () => {
@@ -27,6 +28,10 @@ describe('RelationsService', () => {
         { provide: EventsService, useValue: events },
         { provide: SubscriptionsService, useValue: new SubscriptionsService(prisma) },
         { provide: NotificationsService, useValue: new NotificationsService(prisma, events) },
+        {
+          provide: MentionsService,
+          useValue: new MentionsService(prisma, new NotificationsService(prisma, events)),
+        },
       ],
     }).compile();
     service = module.get<RelationsService>(RelationsService);

@@ -5,6 +5,7 @@ import { EventsService } from '../events/events.service';
 import { RelationsService } from '../relations/relations.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MentionsService } from '../mentions/mentions.service';
 import { createTestPrisma, seedBoard, seedTask, seedLabel, seedUser } from '../../test/setup';
 
 describe('TasksService', () => {
@@ -27,6 +28,10 @@ describe('TasksService', () => {
         { provide: RelationsService, useValue: relations },
         { provide: SubscriptionsService, useValue: new SubscriptionsService(prisma) },
         { provide: NotificationsService, useValue: new NotificationsService(prisma, events) },
+        {
+          provide: MentionsService,
+          useValue: new MentionsService(prisma, new NotificationsService(prisma, events)),
+        },
       ],
     }).compile();
     service = module.get<TasksService>(TasksService);
@@ -261,6 +266,61 @@ describe('TasksService', () => {
       expect(
         JSON.parse(updated!.detail).changes.some((c: string) => c === 'estimate cleared'),
       ).toBe(true);
+    });
+  });
+
+  describe('update mentions', () => {
+    let task: any;
+
+    beforeEach(async () => {
+      task = await seedTask(prisma, board.statuses[0].id);
+    });
+
+    it('should subscribe + notify mentioned users when description changes', async () => {
+      const bob = await seedUser(prisma, { displayName: 'Bob' });
+      const actor = await seedUser(prisma, { displayName: 'Alice' });
+
+      await service.update(
+        task.id,
+        { description: 'cc @bob' },
+        {
+          id: actor.id,
+          displayName: actor.displayName,
+        },
+      );
+
+      const sub = await prisma.taskSubscription.findUnique({
+        where: { taskId_userId: { taskId: task.id, userId: bob.id } },
+      });
+      expect(sub).not.toBeNull();
+      expect(
+        await prisma.notification.count({ where: { userId: bob.id, action: 'mentioned' } }),
+      ).toBe(1);
+    });
+
+    it('should not re-notify when the description text is unchanged', async () => {
+      const actor = await seedUser(prisma, { displayName: 'Alice' });
+      await seedUser(prisma, { displayName: 'Bob' });
+      await service.update(
+        task.id,
+        { description: 'cc @bob' },
+        {
+          id: actor.id,
+          displayName: actor.displayName,
+        },
+      );
+      const afterFirst = await prisma.notification.count({ where: { action: 'mentioned' } });
+      expect(afterFirst).toBe(1);
+
+      await service.update(
+        task.id,
+        { description: 'cc @bob' },
+        {
+          id: actor.id,
+          displayName: actor.displayName,
+        },
+      );
+      expect(await prisma.notification.count({ where: { action: 'mentioned' } })).toBe(1);
     });
   });
 
