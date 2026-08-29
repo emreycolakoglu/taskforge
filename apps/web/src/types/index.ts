@@ -107,11 +107,14 @@ export interface CommentReaction {
 export interface Comment {
   id: string;
   taskId: string;
+  parentId?: string | null;
   author: string;
   authorId?: string | null;
   body: string;
   editedAt?: string | null;
+  deletedAt?: string | null;
   reactions?: CommentReaction[];
+  replies: Comment[];
   createdAt: string;
 }
 
@@ -225,8 +228,18 @@ export interface Document {
  *
  * Intentionally NOT `Partial<Task>` — it is a different, narrower thing. No ids,
  * no board, no activity, no sub-tasks, no parent, and the assignee is a bare
- * display name rather than a User. Keep it that way; see PublicService.
+ * display name rather than a User. Comments are threaded (`PublicComment`
+ * trees with `replies`); keep the payload that way; see PublicService.
  */
+/** Read-only threaded comment on the public task page. No ids leak beyond the comment id. */
+export interface PublicComment {
+  id: string;
+  author: string;
+  body: string;
+  createdAt: string;
+  replies: PublicComment[];
+}
+
 export interface PublicTask {
   taskNumber: string;
   title: string;
@@ -235,7 +248,7 @@ export interface PublicTask {
   status: { name: string; color: string };
   assignee: string | null;
   labels: { name: string; color: string }[];
-  comments: { author: string; body: string; createdAt: string }[];
+  comments: PublicComment[];
   createdAt: string;
   updatedAt: string;
 }

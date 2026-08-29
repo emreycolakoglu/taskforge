@@ -97,8 +97,16 @@ describe('Types', () => {
       taskId: 't1',
       author: 'alice',
       body: 'Nice work!',
+      replies: [],
       createdAt: '2026-01-01T00:00:00Z',
     };
     expect(comment.body).toBe('Nice work!');
+    expect(comment.replies).toEqual([]);
+
+    const parent: Comment = {
+      ...comment,
+      replies: [{ ...comment, id: 'c2', body: 'a reply' }],
+    };
+    expect(parent.replies[0].parentId).toBeUndefined();
   });
 });

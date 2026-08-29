@@ -190,7 +190,7 @@ export const api = {
   // Comments
   comments: {
     list: (taskId: string) => request<Comment[]>(`/comments/task/${taskId}`),
-    create: (data: { taskId: string; author: string; body: string }) =>
+    create: (data: { taskId: string; author: string; body: string; parentId?: string }) =>
       request<Comment>('/comments', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, body: string) =>
       request<Comment>(`/comments/${id}`, { method: 'PATCH', body: JSON.stringify({ body }) }),

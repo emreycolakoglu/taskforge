@@ -12,7 +12,7 @@ export function useComments(taskId: string) {
 export function useCreateComment() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: { taskId: string; author: string; body: string }) =>
+    mutationFn: (data: { taskId: string; author: string; body: string; parentId?: string }) =>
       api.comments.create(data),
     onSuccess: (_data, variables) => {
       toast.success('Comment added');

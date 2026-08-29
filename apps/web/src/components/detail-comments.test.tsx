@@ -39,6 +39,7 @@ function makeComment(overrides: Partial<Comment> = {}): Comment {
     author: 'Alice',
     authorId: 'user-1',
     body: 'Looks good',
+    replies: [],
     createdAt: '2026-01-01T00:00:00Z',
     ...overrides,
   };
