@@ -6,7 +6,9 @@
  * separate page rather than <TaskDetailView readOnly>, because the read-only
  * surface is genuinely different UI, not the same UI with controls disabled:
  * status is a static pill instead of a Select, the description is rendered
- * markdown instead of an editor, comments have no composer. Threading a
+ * markdown instead of an editor, comments have no composer and render the
+ * server-pruned thread tree (tombstones omitted, orphaned replies promoted —
+ * see PublicService.buildPublicComments). Threading a
  * `readOnly` flag through six controls that each need a different rendering
  * would put more branching in the files that matter most.
  *
@@ -19,11 +21,13 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { fetchPublicTask, PublicTaskNotFoundError } from '@/hooks/public-api';
 import { MarkdownEditor } from '@/components/markdown';
 import { LabelPill } from '@/components/label-pill';
 import { Skeleton } from '@/components/ui/skeleton';
+import type { PublicComment } from '@/types';
 
 function formatTimestamp(value: string): string {
   return new Date(value).toLocaleDateString(undefined, {
@@ -55,6 +59,41 @@ function PublicTaskNotFound() {
         It may have never been shared, or sharing may have been turned off.
       </p>
     </div>
+  );
+}
+
+/** Recursive read-only comment; mirrors DetailComments nesting minus all controls. */
+function PublicCommentNode({ comment }: { comment: PublicComment }) {
+  const [collapsed, setCollapsed] = useState(false);
+  return (
+    <li>
+      <div className="rounded-md border border-border p-3">
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm text-foreground">{comment.author}</span>
+          <span className="font-mono text-xs text-muted-foreground">
+            {formatTimestamp(comment.createdAt)}
+          </span>
+          {comment.replies.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setCollapsed(!collapsed)}
+              aria-expanded={!collapsed}
+              className="ml-auto text-xs font-mono text-muted-foreground hover:text-foreground"
+            >
+              {comment.replies.length} {comment.replies.length === 1 ? 'reply' : 'replies'}
+            </button>
+          )}
+        </div>
+        <MarkdownEditor value={comment.body} editable={false} className="mt-1" />
+      </div>
+      {!collapsed && comment.replies.length > 0 && (
+        <ul className="ml-4 mt-2 space-y-2 border-l border-border pl-4">
+          {comment.replies.map((r) => (
+            <PublicCommentNode key={r.id} comment={r} />
+          ))}
+        </ul>
+      )}
+    </li>
   );
 }
 
@@ -128,19 +167,8 @@ export function PublicTaskPage() {
               Comments
             </h2>
             <ul className="space-y-4">
-              {task.comments.map((c, i) => (
-                <li
-                  key={`${c.author}-${c.createdAt}-${i}`}
-                  className="rounded-md border border-border p-3"
-                >
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-sm text-foreground">{c.author}</span>
-                    <span className="font-mono text-xs text-muted-foreground">
-                      {formatTimestamp(c.createdAt)}
-                    </span>
-                  </div>
-                  <MarkdownEditor value={c.body} editable={false} className="mt-1" />
-                </li>
+              {task.comments.map((c) => (
+                <PublicCommentNode key={c.id} comment={c} />
               ))}
             </ul>
           </section>

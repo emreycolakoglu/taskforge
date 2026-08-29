@@ -82,9 +82,9 @@ export function TaskDetailView({
   );
 
   const handleAddComment = useCallback(
-    (body: string) => {
+    (body: string, parentId?: string) => {
       if (!task) return;
-      createComment.mutate({ taskId: task.id, author: 'user', body });
+      createComment.mutate({ taskId: task.id, author: 'user', body, parentId });
     },
     [task, createComment],
   );
