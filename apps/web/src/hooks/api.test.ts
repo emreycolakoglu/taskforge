@@ -315,6 +315,19 @@ describe('api', () => {
     expect(result).toHaveLength(1);
   });
 
+  it('should make search tasks request with assigneeId when q is empty', async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve([{ id: 't1', title: 'Fix bug' }]),
+    });
+
+    const { api } = await import('./api');
+    const result = await api.tasks.search('', 'u1');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/tasks/search?assigneeId=u1', expect.any(Object));
+    expect(result).toHaveLength(1);
+  });
+
   it('should make POST request to add comment', async () => {
     mockFetch.mockResolvedValueOnce({
       ok: true,

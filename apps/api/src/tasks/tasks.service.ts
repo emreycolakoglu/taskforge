@@ -145,9 +145,9 @@ export class TasksService {
     return tasks.map(withTaskNumber);
   }
 
-  async search(query: string) {
+  async search(query: string, assigneeId?: string) {
     const taskNumMatch = query.match(/^([A-Z]{1,3})-(\d+)$/i);
-    if (taskNumMatch) {
+    if (taskNumMatch && !assigneeId) {
       const [, prefix, numStr] = taskNumMatch;
       const results = await this.prisma.task.findMany({
         where: {
@@ -166,17 +166,26 @@ export class TasksService {
       return results.map(withTaskNumber);
     }
 
+    const where: any = { assigneeId };
+
+    if (taskNumMatch) {
+      where.board = { identifier: taskNumMatch[1].toUpperCase() };
+      where.number = parseInt(taskNumMatch[2], 10);
+    } else if (query.trim()) {
+      where.OR = [{ title: { contains: query } }, { description: { contains: query } }];
+    }
+
+    if (!assigneeId && !query.trim()) return [];
+
     const results = await this.prisma.task.findMany({
-      where: {
-        OR: [{ title: { contains: query } }, { description: { contains: query } }],
-      },
+      where,
       include: {
         status: { include: { board: true } },
         board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
       },
-      take: 20,
+      take: 50,
       orderBy: { updatedAt: 'desc' },
     });
     return results.map(withTaskNumber);

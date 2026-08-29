@@ -115,6 +115,22 @@ describe('TasksService', () => {
     });
   });
 
+  describe('search assignee filter', () => {
+    it('returns tasks assigned to the user when no query', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const assignee = await seedUser(prisma);
+      await prisma.task.update({ where: { id: task.id }, data: { assigneeId: assignee.id } });
+
+      const results = await service.search('', assignee.id);
+
+      expect(results.map((t) => t.id)).toContain(task.id);
+    });
+
+    it('returns nothing for an unknown assignee id with no query', async () => {
+      expect(await service.search('', 'nonexistent-user')).toEqual([]);
+    });
+  });
+
   describe('findOne', () => {
     it('should return task with relations', async () => {
       const seeded = await seedTask(prisma, board.statuses[0].id);

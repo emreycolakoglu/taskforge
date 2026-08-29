@@ -164,7 +164,12 @@ export const api = {
       return request<Task[]>(`/tasks/status/${statusId}${qs ? `?${qs}` : ''}`);
     },
     get: (id: string) => request<Task>(`/tasks/${id}`),
-    search: (q: string) => request<Task[]>(`/tasks/search?q=${encodeURIComponent(q)}`),
+    search: (q: string, assigneeId?: string) => {
+      const params = new URLSearchParams();
+      if (q) params.set('q', q);
+      if (assigneeId) params.set('assigneeId', assigneeId);
+      return request<Task[]>(`/tasks/search?${params.toString()}`);
+    },
     create: (data: {
       statusId: string;
       title: string;

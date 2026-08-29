@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { useBoards } from '@/hooks/use-boards';
 import { useSearchTasks } from '@/hooks/use-tasks';
@@ -12,11 +12,13 @@ import { cn } from '@/lib/utils';
 export function TasksPage() {
   const [query, setQuery] = useState('');
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const assigneeId = searchParams.get('assignee') ?? undefined;
 
   const { data: boardList = [] } = useBoards();
   const boards = Object.fromEntries(boardList.map((b) => [b.id, b]));
 
-  const { data: results = [], isFetched: hasSearched } = useSearchTasks(query.trim());
+  const { data: results = [], isFetched: hasSearched } = useSearchTasks(query.trim(), assigneeId);
 
   const priorityColor = (p: string) => {
     switch (p) {
@@ -32,7 +34,7 @@ export function TasksPage() {
   };
 
   // Only show "no results" after a search has been performed with a non-empty query
-  const searched = hasSearched && query.trim().length > 0;
+  const searched = hasSearched && (query.trim().length > 0 || !!assigneeId);
 
   return (
     <div className="h-full overflow-y-auto bg-background space-y-4">
@@ -41,7 +43,9 @@ export function TasksPage() {
           className="md:hidden text-muted-foreground hover:text-foreground"
           aria-label="Toggle sidebar"
         />
-        <h1 className="text-sm font-medium text-foreground truncate">My Issues</h1>
+        <h1 className="text-sm font-medium text-foreground truncate">
+          {assigneeId ? 'Tasks assigned to this user' : 'My Issues'}
+        </h1>
       </header>
 
       <div className="px-6">
@@ -104,11 +108,11 @@ export function TasksPage() {
       <div className="px-6">
         {searched && results.length === 0 && (
           <div className="text-sm text-muted-foreground text-center py-12">
-            No tasks found for "{query}"
+            {query.trim() ? `No tasks found for "${query}"` : 'No tasks assigned to this user'}
           </div>
         )}
 
-        {!searched && !query.trim() && (
+        {!searched && !query.trim() && !assigneeId && (
           <div className="text-sm text-muted-foreground text-center py-12">
             Start typing to search tasks across all boards
           </div>

@@ -56,8 +56,8 @@ export class TasksController {
   }
 
   @Get('search')
-  search(@Query('q') q: string) {
-    return this.service.search(q);
+  search(@Query('q') q?: string, @Query('assigneeId') assigneeId?: string) {
+    return this.service.search(q ?? '', assigneeId);
   }
 
   @Get(':id')

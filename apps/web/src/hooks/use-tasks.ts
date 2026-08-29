@@ -17,11 +17,11 @@ export function useTask(id: string) {
   });
 }
 
-export function useSearchTasks(q: string) {
+export function useSearchTasks(q: string, assigneeId?: string) {
   return useQuery({
-    queryKey: ['tasks', 'search', q],
-    queryFn: () => api.tasks.search(q),
-    enabled: q.length > 0,
+    queryKey: ['tasks', 'search', q, assigneeId ?? null],
+    queryFn: () => api.tasks.search(q, assigneeId),
+    enabled: q.length > 0 || !!assigneeId,
   });
 }
 
