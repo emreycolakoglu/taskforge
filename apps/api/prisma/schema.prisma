@@ -209,20 +209,25 @@ model TaskLabel {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   taskId    String
+  parentId  String?
   authorId  String?
   author    String
   body      String
   editedAt  DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
-  task      Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  authorRel User? @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  task    Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies Comment[] @relation("CommentReplies")
+  authorRel User?   @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
   reactions CommentReaction[]
 
   @@index([authorId])
+  @@index([parentId])
 }
 
 model CommentReaction {
