@@ -7,6 +7,7 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DocumentsService } from '../documents/documents.service';
 import { CommentsService } from '../comments/comments.service';
+import { MentionsService } from '../mentions/mentions.service';
 import {
   createTestPrisma,
   seedBoard,
@@ -33,6 +34,7 @@ describe('McpService', () => {
         McpService,
         RelationsService,
         CommentsService,
+        MentionsService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
         { provide: SubscriptionsService, useValue: new SubscriptionsService(prisma) },

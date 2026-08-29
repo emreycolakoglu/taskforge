@@ -6,6 +6,7 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DocumentsService } from '../documents/documents.service';
 import { CommentsService } from '../comments/comments.service';
+import { MentionsService } from '../mentions/mentions.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { TOOL_NAMES } from './tool-definitions';
@@ -29,7 +30,12 @@ describe('McpServerFactory', () => {
       subscriptions,
       notifications,
       new DocumentsService(prisma as any, events),
-      new CommentsService(prisma as any, events, notifications),
+      new CommentsService(
+        prisma as any,
+        events,
+        notifications,
+        new MentionsService(prisma as any, notifications),
+      ),
     );
     factory = new McpServerFactory(mcpService);
   });

@@ -3,6 +3,7 @@ import { CommentsService } from './comments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MentionsService } from '../mentions/mentions.service';
 import {
   createTestPrisma,
   seedBoard,
@@ -29,6 +30,10 @@ describe('CommentsService', () => {
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
         { provide: NotificationsService, useValue: new NotificationsService(prisma, events) },
+        {
+          provide: MentionsService,
+          useValue: new MentionsService(prisma, new NotificationsService(prisma, events)),
+        },
       ],
     }).compile();
     service = module.get<CommentsService>(CommentsService);
@@ -92,6 +97,31 @@ describe('CommentsService', () => {
       expect(commentActivity).toBeDefined();
       expect(commentActivity!.actorId).toBe(user.id);
       expect(commentActivity!.actor).toBe(user.displayName);
+    });
+
+    it('should subscribe and notify a mentioned user on comment create', async () => {
+      const mentioned = await seedUser(prisma, { displayName: 'Bob' });
+
+      await service.create({ taskId: task.id, body: 'hey @Bob, take a look' }, user);
+
+      const sub = await prisma.taskSubscription.findUnique({
+        where: { taskId_userId: { taskId: task.id, userId: mentioned.id } },
+      });
+      expect(sub).not.toBeNull();
+      const notification = await prisma.notification.findFirst({
+        where: { userId: mentioned.id, action: 'mentioned' },
+      });
+      expect(notification).not.toBeNull();
+    });
+
+    it('should not double-notify an already-subscribed mentioned user', async () => {
+      const mentioned = await seedUser(prisma, { displayName: 'Bob' });
+      await seedSubscription(prisma, task.id, mentioned.id);
+
+      await service.create({ taskId: task.id, body: 'again @Bob' }, user);
+
+      const notifications = await prisma.notification.findMany({ where: { taskId: task.id } });
+      expect(notifications.every((n) => n.action !== 'mentioned')).toBe(true);
     });
   });
 
@@ -324,6 +354,18 @@ describe('CommentsService', () => {
 
     it('throws NotFound for a missing comment', async () => {
       await expect(service.update('nope', 'x', user)).rejects.toThrow('Comment not found');
+    });
+
+    it('should resolve new mentions from comment edits', async () => {
+      const comment = await service.create({ taskId: task.id, body: 'cc @Dee' }, user);
+      const dee = await seedUser(prisma, { displayName: 'Dee' });
+
+      await service.update(comment.id, 'now pinging @Dee for real', user);
+
+      const sub = await prisma.taskSubscription.findUnique({
+        where: { taskId_userId: { taskId: task.id, userId: dee.id } },
+      });
+      expect(sub).not.toBeNull();
     });
   });
 

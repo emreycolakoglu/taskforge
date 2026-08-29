@@ -9,6 +9,7 @@ import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { DocumentsService } from '../documents/documents.service';
 import { CommentsService } from '../comments/comments.service';
+import { MentionsService } from '../mentions/mentions.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { createTestPrisma, seedUser, seedBoard } from '../../test/setup';
 
@@ -148,7 +149,12 @@ describe('McpTransportController', () => {
       subscriptions,
       notifications,
       new DocumentsService(prisma as any, events),
-      new CommentsService(prisma as any, events, notifications),
+      new CommentsService(
+        prisma as any,
+        events,
+        notifications,
+        new MentionsService(prisma as any, notifications),
+      ),
     );
     const factory = new McpServerFactory(mcpService);
     controller = new McpTransportController(factory);

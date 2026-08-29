@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { MentionsService } from '../mentions/mentions.service';
 import { CreateCommentDto } from './dto/comment.dto';
 import { groupReactions, isValidReaction, toggleCommentReaction } from './reactions';
 
@@ -16,6 +17,7 @@ export class CommentsService {
     private prisma: PrismaService,
     private events: EventsService,
     private notifications: NotificationsService,
+    private mentions: MentionsService,
   ) {}
 
   /**
@@ -91,6 +93,10 @@ export class CommentsService {
       },
     });
     await this.notifications.dispatchFromActivity(activity);
+
+    const mentionActor =
+      user ?? (dto.authorId ? { id: dto.authorId, displayName: dto.author ?? '' } : undefined);
+    await this.mentions.processMentions(dto.taskId, dto.body, mentionActor);
 
     const task = await this.prisma.task.findUnique({
       where: { id: dto.taskId },
@@ -199,6 +205,7 @@ export class CommentsService {
     });
 
     this.events.emit('comment:updated', normalized, task?.status?.boardId);
+    await this.mentions.processMentions(comment.taskId, body, user ?? undefined);
     return normalized;
   }
 
