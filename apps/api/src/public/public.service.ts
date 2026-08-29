@@ -53,7 +53,14 @@ export class PublicService {
         assignee: { select: { displayName: true } },
         labels: { select: { label: { select: { name: true, color: true } } } },
         comments: {
-          select: { author: true, body: true, createdAt: true },
+          select: {
+            id: true,
+            parentId: true,
+            author: true,
+            body: true,
+            createdAt: true,
+            deletedAt: true,
+          },
           orderBy: { createdAt: 'desc' },
         },
       },
@@ -69,10 +76,58 @@ export class PublicService {
       status: task.status,
       assignee: task.assignee?.displayName ?? null,
       labels: task.labels.map((l) => l.label),
-      comments: task.comments,
+      comments: this.buildPublicComments(task.comments),
       createdAt: task.createdAt,
       updatedAt: task.updatedAt,
     };
+  }
+
+  /**
+   * Build the public comment tree: tombstoned comments are dropped (their
+   * replies are promoted to roots so the thread stays readable) and only the
+   * curated fields ride along — never reactions, author ids, or edits.
+   */
+  private buildPublicComments(
+    rows: {
+      id: string;
+      parentId: string | null;
+      author: string;
+      body: string;
+      createdAt: Date;
+      deletedAt: Date | null;
+    }[],
+  ): {
+    id: string;
+    author: string;
+    body: string;
+    createdAt: Date;
+    replies: any[];
+  }[] {
+    const byId = new Map<string, any>();
+    for (const row of rows) {
+      if (row.deletedAt) continue;
+      byId.set(row.id, {
+        id: row.id,
+        author: row.author,
+        body: row.body,
+        createdAt: row.createdAt,
+        replies: [] as any[],
+      });
+    }
+    const roots: any[] = [];
+    for (const row of rows) {
+      if (row.deletedAt) continue;
+      const node = byId.get(row.id);
+      const parent = row.parentId ? byId.get(row.parentId) : undefined;
+      if (parent) parent.replies.push(node);
+      else roots.push(node);
+    }
+    for (const node of byId.values()) {
+      node.replies.sort(
+        (a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      );
+    }
+    return roots;
   }
 
   /**

@@ -138,6 +138,46 @@ describe('PublicService', () => {
       expect(result.comments[0]).toMatchObject({ author: 'tester', body: 'a public comment' });
     });
 
+    it('returns comments as a threaded tree and omits tombstones', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id, { isPublic: true });
+      const parent = await seedComment(prisma, task.id, { author: 'tester', body: 'parent' });
+      await seedComment(prisma, task.id, {
+        author: 'tester',
+        body: 'the reply',
+        parentId: parent.id,
+      });
+      await seedComment(prisma, task.id, {
+        author: 'gone',
+        body: 'buried',
+        parentId: parent.id,
+        deletedAt: new Date(),
+      });
+
+      const result = await service.findPublicTask(board.identifier, task.number);
+
+      const roots = result.comments;
+      expect(roots).toHaveLength(1);
+      expect(roots[0]).toMatchObject({ author: 'tester', body: 'parent' });
+      expect(roots[0].replies).toHaveLength(1);
+      expect(roots[0].replies[0]).toMatchObject({ author: 'tester', body: 'the reply' });
+    });
+
+    it('promotes replies of deleted comments to top level', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id, { isPublic: true });
+      const parent = await seedComment(prisma, task.id, {
+        author: 'gone',
+        body: 'deleted root',
+        deletedAt: new Date(),
+      });
+      await seedComment(prisma, task.id, { author: 'k', body: 'orphan', parentId: parent.id });
+
+      const result = await service.findPublicTask(board.identifier, task.number);
+
+      expect(result.comments).toHaveLength(1);
+      expect(result.comments[0]).toMatchObject({ author: 'k', body: 'orphan' });
+      expect(result.comments[0].replies).toEqual([]);
+    });
+
     it('omits activity, sub-tasks and parent', async () => {
       const parent = await seedTask(prisma, board.statuses[0].id, {
         title: 'Secret parent',
