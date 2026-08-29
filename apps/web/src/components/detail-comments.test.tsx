@@ -39,6 +39,8 @@ function makeComment(overrides: Partial<Comment> = {}): Comment {
     author: 'Alice',
     authorId: 'user-1',
     body: 'Looks good',
+    parentId: null,
+    deletedAt: null,
     replies: [],
     createdAt: '2026-01-01T00:00:00Z',
     ...overrides,
@@ -220,5 +222,103 @@ describe('DetailComments — delete feature (TFG-8)', () => {
     const chip = screen.getByLabelText('👍 reaction, 1 reactors');
     expect(chip.className).toContain('border-primary/40');
     expect(chip.className).toContain('text-muted-foreground');
+  });
+});
+
+describe('DetailComments — threaded replies', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUser = { id: 'user-1', role: 'member' };
+  });
+
+  it('renders replies nested under their parent', async () => {
+    const parent = makeComment({
+      id: 'c1',
+      body: 'root body',
+      replies: [makeComment({ id: 'c2', body: 'nested body' })],
+    });
+    renderComments([parent]);
+    expect(await screen.findByText('root body')).toBeInTheDocument();
+    expect(await screen.findByText('nested body')).toBeInTheDocument();
+  });
+
+  it('shows a "N replies" toggle with aria-expanded and collapses the subtree on click', async () => {
+    const parent = makeComment({
+      id: 'c1',
+      body: 'root body',
+      replies: [
+        makeComment({ id: 'c2', body: 'reply one' }),
+        makeComment({ id: 'c3', body: 'reply two' }),
+      ],
+    });
+    renderComments([parent]);
+
+    const toggle = await screen.findByText('2 replies');
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(await screen.findByText('reply one')).toBeInTheDocument();
+
+    await userEvent.click(toggle);
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByText('reply one')).not.toBeInTheDocument();
+    expect(screen.queryByText('reply two')).not.toBeInTheDocument();
+  });
+
+  it('opens the reply composer and submits with the parent id', async () => {
+    const parent = makeComment({ id: 'c1', body: 'root body' });
+    const onSubmit = vi.fn();
+    render(<DetailComments comments={[parent]} onSubmit={onSubmit} formatTimestamp={(ts) => ts} />);
+
+    await userEvent.click(screen.getByLabelText('Reply to Alice'));
+    const textarea = screen.getByPlaceholderText('Reply to Alice…');
+    fireEvent.change(textarea, { target: { value: 'my reply' } });
+    fireEvent.click(screen.getByText('Reply'));
+    expect(onSubmit).toHaveBeenCalledWith('my reply', 'c1');
+    expect(screen.queryByPlaceholderText('Reply to Alice…')).not.toBeInTheDocument();
+  });
+
+  it('cancels the reply composer without submitting', async () => {
+    const parent = makeComment({ id: 'c1', body: 'root body' });
+    const onSubmit = vi.fn();
+    render(<DetailComments comments={[parent]} onSubmit={onSubmit} formatTimestamp={(ts) => ts} />);
+
+    await userEvent.click(screen.getByLabelText('Reply to Alice'));
+    fireEvent.change(screen.getByPlaceholderText('Reply to Alice…'), {
+      target: { value: 'draft' },
+    });
+    fireEvent.click(screen.getByText('Cancel'));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(screen.queryByPlaceholderText('Reply to Alice…')).not.toBeInTheDocument();
+  });
+
+  it('renders tombstoned comments as a muted "deleted" marker with no menu, reactions or reply', () => {
+    const parent = makeComment({
+      id: 'c1',
+      body: '',
+      deletedAt: '2026-01-02T00:00:00Z',
+      authorId: 'user-1',
+      replies: [makeComment({ id: 'c2', body: 'surviving reply' })],
+    });
+    renderComments([parent], vi.fn(), undefined, vi.fn(), vi.fn());
+
+    expect(screen.getByText('deleted')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Comment actions')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Reply to Alice')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Add reaction')).not.toBeInTheDocument();
+    expect(screen.getByText('surviving reply')).toBeInTheDocument();
+  });
+
+  it('counts only visible (non-deleted) comments in the header', async () => {
+    const parent = makeComment({
+      id: 'c1',
+      body: 'root body',
+      replies: [
+        makeComment({ id: 'c2', body: 'visible reply' }),
+        makeComment({ id: 'c3', body: '', deletedAt: '2026-01-02T00:00:00Z' }),
+      ],
+    });
+    renderComments([parent]);
+
+    const heading = await screen.findByRole('heading', { name: /comments/i });
+    expect(heading).toHaveTextContent('Comments (2)');
   });
 });
