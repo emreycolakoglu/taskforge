@@ -245,6 +245,13 @@ export class AuthService {
     await this.prisma.user.delete({ where: { id: userId } });
   }
 
+  async findUserDirectory(): Promise<Array<{ id: string; displayName: string }>> {
+    return this.prisma.user.findMany({
+      select: { id: true, displayName: true },
+      orderBy: { displayName: 'asc' },
+    });
+  }
+
   async findAllUsers() {
     return this.prisma.user.findMany({
       select: {

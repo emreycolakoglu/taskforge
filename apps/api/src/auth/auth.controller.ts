@@ -73,6 +73,11 @@ export class AuthController {
     return this.authService.updateUser(user.id, dto);
   }
 
+  @Get('users/directory')
+  async findUserDirectory() {
+    return this.authService.findUserDirectory();
+  }
+
   @Get('users')
   @Admin()
   async findAllUsers() {
