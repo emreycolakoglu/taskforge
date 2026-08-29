@@ -591,6 +591,19 @@ describe('McpService', () => {
 
       expect(res.result[0].reactions).toEqual([{ emoji: '👍', userIds: [user.id, other.id] }]);
     });
+
+    it('returns comments as a nested tree', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const parent = await seedComment(prisma, task.id);
+      const child = await seedComment(prisma, task.id, { parentId: parent.id });
+      const res = await service.handleRequest(
+        { method: 'comments_list', params: { taskId: task.id }, id: 251 },
+        user,
+      );
+      expect(res.result).toHaveLength(1);
+      expect(res.result[0].replies).toHaveLength(1);
+      expect(res.result[0].replies[0].id).toBe(child.id);
+    });
   });
 
   describe('comments_create', () => {
@@ -607,6 +620,37 @@ describe('McpService', () => {
       expect(res.result.body).toBe('MCP comment');
       expect(res.result.authorId).toBe(user.id);
       expect(res.result.author).toBe(user.displayName);
+    });
+
+    it('creates a reply when parentId targets a same-task comment', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const parent = await service.handleRequest(
+        { method: 'comments_create', params: { taskId: task.id, body: 'parent' }, id: 240 },
+        user,
+      );
+      const reply = await service.handleRequest(
+        {
+          method: 'comments_create',
+          params: { taskId: task.id, body: 'reply', parentId: parent.result.id },
+          id: 241,
+        },
+        user,
+      );
+      expect(reply.result.parentId).toBe(parent.result.id);
+
+      const otherTask = await seedTask(prisma, board.statuses[0].id);
+      // handleRequest catches handler errors and returns them as JSON-RPC error objects,
+      // so the cross-task rejection surfaces as res.error, not a thrown exception.
+      const rejected = await service.handleRequest(
+        {
+          method: 'comments_create',
+          params: { taskId: otherTask.id, body: 'cross-task', parentId: parent.result.id },
+          id: 242,
+        },
+        user,
+      );
+      expect(rejected.error).toBeDefined();
+      expect(rejected.error.message).toBe('Invalid parent comment');
     });
   });
 
@@ -717,6 +761,23 @@ describe('McpService', () => {
       subscription.unsubscribe();
       expect(emitted).toHaveLength(1);
       expect(emitted[0].data).toEqual({ id: created.result.id, taskId: task.id });
+    });
+
+    it('tombstones a comment with replies instead of deleting it', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const parent = await seedComment(prisma, task.id, { authorId: user.id });
+      await seedComment(prisma, task.id, { parentId: parent.id });
+
+      const res = await service.handleRequest(
+        { method: 'comments_delete', params: { id: parent.id }, id: 250 },
+        user,
+      );
+
+      expect(res.result.success).toBe(true);
+      const stored = await prisma.comment.findUnique({ where: { id: parent.id } });
+      expect(stored).not.toBeNull();
+      expect(stored!.deletedAt).not.toBeNull();
+      expect(stored!.body).toBe('');
     });
   });
 

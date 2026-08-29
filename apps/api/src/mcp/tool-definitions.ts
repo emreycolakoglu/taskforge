@@ -206,23 +206,26 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'comments_list',
     title: 'List comments',
-    description: 'List comments on a task, newest first.',
+    description:
+      'List comments on a task as a threaded tree: top-level comments newest-first, replies nested under parents oldest-first. Tombstoned (deleted) comments come back with body "" and a deletedAt timestamp.',
     inputSchema: { taskId: idField('Task') },
   },
   {
     name: 'comments_create',
     title: 'Create comment',
-    description: 'Add a comment to a task, attributed to the authenticated user.',
+    description:
+      'Add a comment to a task, attributed to the authenticated user. To reply, set parentId to the comment being replied to (must be on the same task).',
     inputSchema: {
       taskId: idField('Task'),
       body: z.string(),
+      parentId: z.string().optional().describe('Id of the comment being replied to'),
     },
   },
   {
     name: 'comments_delete',
     title: 'Delete comment',
     description:
-      'Delete a comment by its id. Only the author or an admin can delete. Anonymous (MCP bot) comments require admin.',
+      'Delete a comment by its id. Only the author or an admin can delete. Anonymous (MCP bot) comments require admin. Comments that have replies are tombstoned (body blanked, deletedAt set) so the thread structure survives; leaf comments are removed outright.',
     inputSchema: {
       id: z.string(),
     },

@@ -611,8 +611,22 @@ export class McpService {
         return this.comments.findByTask(params.taskId);
       }
       case 'create': {
+        if (params.parentId) {
+          const parent = await this.prisma.comment.findUnique({
+            where: { id: params.parentId },
+          });
+          if (!parent || parent.taskId !== params.taskId) {
+            throw new Error('Invalid parent comment');
+          }
+        }
         const comment = await this.prisma.comment.create({
-          data: { taskId: params.taskId, authorId: actorId, author: authorName, body: params.body },
+          data: {
+            taskId: params.taskId,
+            parentId: params.parentId ?? null,
+            authorId: actorId,
+            author: authorName,
+            body: params.body,
+          },
         });
         await this.prisma.activity.create({
           data: {
@@ -645,7 +659,15 @@ export class McpService {
           include: { status: { select: { boardId: true } } },
         });
 
-        await this.prisma.comment.delete({ where: { id: params.id } });
+        const childCount = await this.prisma.comment.count({ where: { parentId: params.id } });
+        if (childCount > 0) {
+          await this.prisma.comment.update({
+            where: { id: params.id },
+            data: { deletedAt: new Date(), body: '' },
+          });
+        } else {
+          await this.prisma.comment.delete({ where: { id: params.id } });
+        }
 
         await this.prisma.activity.create({
           data: {
