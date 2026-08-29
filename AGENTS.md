@@ -31,21 +31,21 @@ Direct pushes to `main` are fine for solo development — no PR required. Just m
 
 ## Commands
 
-| What                 | Command                                                                 |
-| -------------------- | ----------------------------------------------------------------------- |
-| Dev (both apps)      | `pnpm dev`                                                              |
-| Build all            | `pnpm build`                                                            |
-| Lint all             | `pnpm lint`                                                             |
-| API tests (Jest)     | `pnpm --filter @taskforge/api test`                                     |
-| Single API test      | `pnpm --filter @taskforge/api test -- --testPathPattern=boards.service` |
-| Web tests (Vitest)   | `pnpm --filter @taskforge/web test`                                     |
-| Single web test      | `cd apps/web && npx vitest run src/hooks/api.test.ts`                   |
-| Prisma generate      | `pnpm db:generate`                                                      |
-| Prisma migrate       | `pnpm db:migrate` (use `-- --name <desc>` to create new migrations)     |
-| Docker build         | `pnpm docker:build`                                                     |
-| Regenerate PWA icons | `pnpm --filter @taskforge/web icons`                                    |
-| Format all           | `pnpm format` (prettier --write .)                                      |
-| Check formatting     | `pnpm format:check` (prettier --check .)                                |
+| What                 | Command                                                                  |
+| -------------------- | ------------------------------------------------------------------------ |
+| Dev (both apps)      | `pnpm dev`                                                               |
+| Build all            | `pnpm build`                                                             |
+| Lint all             | `pnpm lint`                                                              |
+| API tests (Jest)     | `pnpm --filter @taskforge/api test`                                      |
+| Single API test      | `pnpm --filter @taskforge/api test -- --testPathPatterns=boards.service` |
+| Web tests (Vitest)   | `pnpm --filter @taskforge/web test`                                      |
+| Single web test      | `cd apps/web && npx vitest run src/hooks/api.test.ts`                    |
+| Prisma generate      | `pnpm db:generate`                                                       |
+| Prisma migrate       | `pnpm db:migrate` (use `-- --name <desc>` to create new migrations)      |
+| Docker build         | `pnpm docker:build`                                                      |
+| Regenerate PWA icons | `pnpm --filter @taskforge/web icons`                                     |
+| Format all           | `pnpm format` (prettier --write .)                                       |
+| Check formatting     | `pnpm format:check` (prettier --check .)                                 |
 
 ## Formatting
 
@@ -70,7 +70,7 @@ Schema migrations run automatically on container startup via `apps/api/docker-en
 - **Authentication is global and on by default** — `AuthModule` binds `AuthGuard` as an `APP_GUARD`, so _every_ route requires an `Authorization: Bearer <token>` matching a live `Session` row unless it carries `@Public()`. Tokens are opaque `crypto.randomUUID()` session tokens (not JWTs); passwords are bcrypt cost 12. `@Admin()` gates admin-only routes on `user.role`. The public surface is small and deliberate: `auth/status`, `auth/onboard`, `auth/login`, `auth/signup/:token`, two settings routes, and `public/tasks/:identifier/:number`.
 - **There is no per-board authorization** — the `Member` model exists with `admin`/`member`/`viewer` roles but **nothing reads it**. Any authenticated user can read and write any board, task, comment, or label. Auth here is authentication-only. Don't assume board scoping exists; if you need it, it has to be built.
 - **No ESLint config file** — lint scripts reference `eslint` but it's not installed in either app. `pnpm lint` will fail. CI does not run lint.
-- **The web build does NOT typecheck** — `@taskforge/web`'s `build` script is bare `vite build`, which only transpiles. A passing build proves nothing about types. Run `cd apps/web && npx tsc --noEmit` explicitly. Note it currently reports **3 pre-existing errors** (in `kanban-board.tsx`, `ui/dropdown-menu.tsx`, `use-labels.ts`) — check the count hasn't grown rather than expecting zero.
+- **The web build does NOT typecheck** — `@taskforge/web`'s `build` script is bare `vite build`, which only transpiles. A passing build proves nothing about types. Run `cd apps/web && npx tsc --noEmit` explicitly. Note it currently reports **7 pre-existing errors** — check the count hasn't grown rather than expecting zero.
 - **Board identifiers must be exactly 3 uppercase letters** — enforced by a `Matches` rule in `CreateBoardDto`. `TF` is rejected; `TFG` is fine.
 - **CI gates releases** — `release.yml` triggers via `workflow_run` on `ci` success. A broken main push won't publish to Docker Hub.
 - **`packages/` directory doesn't exist yet** — the workspace config includes it, but nothing is there.
