@@ -162,6 +162,70 @@ describe('PublicService', () => {
       expect(roots[0].replies[0]).toMatchObject({ author: 'tester', body: 'the reply' });
     });
 
+    it('orders roots and replies consistently across a multi-root, tombstoned tree', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id, { isPublic: true });
+
+      // Root A (created first) with a depth-3 chain ascending by createdAt.
+      const rootA = await seedComment(prisma, task.id, {
+        author: 'rootA',
+        body: 'root A',
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      });
+      const a1 = await seedComment(prisma, task.id, {
+        author: 'a1',
+        body: 'a reply 1',
+        parentId: rootA.id,
+        createdAt: new Date('2026-01-01T00:01:00Z'),
+      });
+      const a2 = await seedComment(prisma, task.id, {
+        author: 'a2',
+        body: 'a reply 2',
+        parentId: a1.id,
+        createdAt: new Date('2026-01-01T00:02:00Z'),
+      });
+      await seedComment(prisma, task.id, {
+        author: 'a3',
+        body: 'a reply 3',
+        parentId: a2.id,
+        createdAt: new Date('2026-01-01T00:03:00Z'),
+      });
+
+      // Root B with two replies, one deleted; its surviving child is promoted.
+      const rootB = await seedComment(prisma, task.id, {
+        author: 'rootB',
+        body: 'root B',
+        createdAt: new Date('2026-01-02T00:00:00Z'),
+      });
+      const bTombstone = await seedComment(prisma, task.id, {
+        author: 'gone',
+        body: 'buried',
+        parentId: rootB.id,
+        deletedAt: new Date(),
+        createdAt: new Date('2026-01-02T00:01:00Z'),
+      });
+      await seedComment(prisma, task.id, {
+        author: 'orphan',
+        body: 'orphan promoted',
+        parentId: bTombstone.id,
+        createdAt: new Date('2026-01-02T00:02:00Z'),
+      });
+
+      const result = await service.findPublicTask(board.identifier, task.number);
+
+      const roots = result.comments;
+      // Promoted orphan is newest, so it lands first in the createdAt-desc
+      // root ordering.
+      expect(roots.map((r: any) => r.body)).toEqual(['orphan promoted', 'root B', 'root A']);
+      expect(roots[2].replies.map((r: any) => r.body)).toEqual(['a reply 1']);
+      expect(roots[2].replies[0].replies.map((r: any) => r.body)).toEqual(['a reply 2']);
+      expect(roots[2].replies[0].replies[0].replies.map((r: any) => r.body)).toEqual(['a reply 3']);
+      expect(roots[1].replies).toEqual([]);
+      // Curated shape only: exactly these five keys, nothing rides along.
+      expect(Object.keys(roots[0]).sort()).toEqual(
+        ['author', 'body', 'createdAt', 'id', 'replies'].sort(),
+      );
+    });
+
     it('promotes replies of deleted comments to top level', async () => {
       const task = await seedTask(prisma, board.statuses[0].id, { isPublic: true });
       const parent = await seedComment(prisma, task.id, {
