@@ -65,6 +65,7 @@ const mockBoard = {
       id: 'status-1',
       boardId: 'board-1',
       name: 'Backlog',
+      type: 'backlog',
       position: 0,
       tasks: [mockTask],
     },

@@ -436,7 +436,7 @@ function AddStatusForm({ boardId }: { boardId: string }) {
   const handleSubmit = async () => {
     if (!name.trim()) return;
     try {
-      await api.statuses.create({ boardId, name: name.trim() });
+      await api.statuses.create({ boardId, name: name.trim(), type: 'todo' });
       toast.success('Status created');
       setName('');
       setEditing(false);

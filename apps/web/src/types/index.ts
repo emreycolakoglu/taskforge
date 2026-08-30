@@ -13,15 +13,17 @@ export interface Board {
   nextTaskNum?: number;
 }
 
+export type StatusType =
+  'triage' | 'backlog' | 'todo' | 'in_progress' | 'done' | 'cancelled' | 'duplicate';
+
 export interface Status {
   id: string;
   boardId: string;
   name: string;
+  type: StatusType;
   position: number;
   color?: string;
-  wipLimit?: number;
-  isDone?: boolean;
-  progress?: number;
+  progress?: number | null;
   tasks?: Task[];
   _count?: { tasks: number };
 }

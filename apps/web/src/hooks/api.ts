@@ -2,6 +2,7 @@ import {
   API_BASE,
   Board,
   Status,
+  StatusType,
   Task,
   TaskLabel,
   Comment,
@@ -131,18 +132,17 @@ export const api = {
     create: (data: {
       boardId: string;
       name: string;
+      type: StatusType;
       position?: number;
       color?: string;
-      wipLimit?: number;
     }) => request<Status>('/statuses', { method: 'POST', body: JSON.stringify(data) }),
-    update: (id: string, data: Partial<Status>) =>
-      request<Status>(`/statuses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    update: (
+      id: string,
+      data: Partial<Pick<Status, 'name' | 'type' | 'color' | 'position' | 'progress'>>,
+    ) => request<Status>(`/statuses/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     reorder: (items: { id: string; position: number }[]) =>
       request<Status[]>('/statuses/reorder', { method: 'PUT', body: JSON.stringify({ items }) }),
     delete: (id: string) => request<void>(`/statuses/${id}`, { method: 'DELETE' }),
-    toggleDone: (id: string) => request<Status>(`/statuses/${id}/toggle-done`, { method: 'POST' }),
-    unsetDone: (boardId: string) =>
-      request<{ unset: boolean }>(`/statuses/board/${boardId}/unset-done`, { method: 'POST' }),
   },
 
   // Tasks
