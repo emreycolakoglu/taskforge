@@ -96,12 +96,11 @@ model Status {
   id        String   @id @default(cuid())
   boardId   String
   name      String
+  type      String   @default("todo") // triage | backlog | todo | in_progress | done | cancelled | duplicate
   position  Float
   color     String?  @default("#6366f1")
   wipLimit  Int?
-  isDone      Boolean @default(false)
-  isDuplicate Boolean @default(false)
-  progress    Int     @default(0)
+  progress  Int?     @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
