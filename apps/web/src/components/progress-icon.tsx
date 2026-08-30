@@ -5,7 +5,7 @@
  * Color changes by threshold: 0-30 red, 31-70 amber, 71-100 green.
  *
  * For null progress (cancelled/duplicate types), renders a filled gray circle
- * with a distinct glyph: a slash for cancelled, a copy mark for duplicate.
+ * with a distinct glyph: a slash for cancelled, an inner ring for duplicate.
  *
  * Props:
  *   progress  — 0-100 percentage, or null for terminal non-progress types
@@ -32,7 +32,7 @@ function progressColor(p: number): string {
 const GRAY = '#64748B';
 
 export const ProgressIcon: FC<ProgressIconProps> = ({ progress, type, size = 16, className }) => {
-  if (progress === null || progress === undefined) {
+  if (progress === null) {
     return (
       <svg width={size} height={size} viewBox="0 0 16 16" className={className} aria-hidden="true">
         <circle cx="8" cy="8" r="6" fill={GRAY} opacity={0.3} />
