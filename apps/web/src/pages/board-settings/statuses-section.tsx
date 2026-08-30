@@ -12,6 +12,14 @@ import { Input } from '@/components/ui/input';
 import { Label as UILabel } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -41,6 +49,7 @@ export function StatusesSection({ boardId, statuses }: { boardId: string; status
   const [editColor, setEditColor] = useState('#6366f1');
   const [editProgress, setEditProgress] = useState(0);
   const [saving, setSaving] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] });
@@ -107,6 +116,10 @@ export function StatusesSection({ boardId, statuses }: { boardId: string; status
       });
     }
   };
+
+  const pendingDeleteStatus = pendingDeleteId
+    ? statuses.find((s) => s.id === pendingDeleteId)
+    : null;
 
   const handleReorder = async (status: Status, direction: 'up' | 'down') => {
     const sorted = [...statuses].sort((a, b) => a.position - b.position);
@@ -183,7 +196,7 @@ export function StatusesSection({ boardId, statuses }: { boardId: string; status
                   variant="ghost"
                   size="icon"
                   className="size-7 text-destructive hover:text-destructive"
-                  onClick={() => handleDelete(status.id)}
+                  onClick={() => setPendingDeleteId(status.id)}
                   aria-label="Delete status"
                 >
                   <Trash2 className="size-3.5" />
@@ -323,6 +336,40 @@ export function StatusesSection({ boardId, statuses }: { boardId: string; status
           Add Status
         </Button>
       )}
+
+      {/* Delete status confirmation dialog */}
+      <Dialog
+        open={pendingDeleteId !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingDeleteId(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete status</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete &ldquo;{pendingDeleteStatus?.name}&rdquo;? All tasks
+              in this status will also be deleted. This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPendingDeleteId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => {
+                if (pendingDeleteId) {
+                  handleDelete(pendingDeleteId);
+                  setPendingDeleteId(null);
+                }
+              }}
+            >
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }

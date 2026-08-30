@@ -137,15 +137,26 @@ describe('StatusesSection', () => {
     });
   });
 
-  it('deletes a status on trash icon click', async () => {
+  it('deletes a status after confirming in the dialog', async () => {
     mockDelete.mockResolvedValueOnce(undefined);
     const user = userEvent.setup();
     renderSection();
     const deleteButtons = screen.getAllByLabelText('Delete status');
     await user.click(deleteButtons[0]);
+    expect(screen.getByText('Delete status')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Delete' }));
     await waitFor(() => {
       expect(mockDelete).toHaveBeenCalledWith('s1');
     });
+  });
+
+  it('does not delete a status when cancel is clicked', async () => {
+    const user = userEvent.setup();
+    renderSection();
+    const deleteButtons = screen.getAllByLabelText('Delete status');
+    await user.click(deleteButtons[0]);
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(mockDelete).not.toHaveBeenCalled();
   });
 
   it('reorders up on arrow up click', async () => {
