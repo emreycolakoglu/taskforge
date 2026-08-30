@@ -359,14 +359,14 @@ describe('TasksService', () => {
   });
 
   describe('move — doneAt stamping', () => {
-    it('moving into an isDone status stamps doneAt', async () => {
+    it('moving into a done type status stamps doneAt', async () => {
       const seeded = await seedTask(prisma, board.statuses[0].id);
-      const moved = await service.move(seeded.id, { statusId: board.statuses[4].id }, user);
+      const moved = await service.move(seeded.id, { statusId: board.statuses[3].id }, user);
       expect(moved.doneAt).not.toBeNull();
     });
 
-    it('moving out of an isDone status clears doneAt', async () => {
-      const doneStatus = board.statuses[4]; // isDone: true
+    it('moving out of a done type status clears doneAt', async () => {
+      const doneStatus = board.statuses[3]; // type: done
       const seeded = await seedTask(prisma, doneStatus.id, { doneAt: new Date() });
       const moved = await service.move(seeded.id, { statusId: board.statuses[0].id }, user);
       expect(moved.doneAt).toBeNull();
@@ -378,18 +378,100 @@ describe('TasksService', () => {
       expect(moved.doneAt).toBeNull();
     });
 
-    it('moving into an isDuplicate status stamps doneAt', async () => {
+    it('moving into a cancelled type status stamps doneAt', async () => {
       const seeded = await seedTask(prisma, board.statuses[0].id);
-      const dupStatus = board.statuses.find((s) => s.isDuplicate)!;
-      const moved = await service.move(seeded.id, { statusId: dupStatus.id }, user);
+      const cancelledStatus = board.statuses[4]; // type: cancelled
+      const moved = await service.move(seeded.id, { statusId: cancelledStatus.id }, user);
       expect(moved.doneAt).not.toBeNull();
     });
 
-    it('moving out of an isDuplicate status clears doneAt', async () => {
-      const dupStatus = board.statuses.find((s) => s.isDuplicate)!;
-      const seeded = await seedTask(prisma, dupStatus.id, { doneAt: new Date() });
+    it('moving into a duplicate type status does NOT stamp doneAt', async () => {
+      const seeded = await seedTask(prisma, board.statuses[0].id);
+      const dupStatus = board.statuses[5]; // type: duplicate
+      const moved = await service.move(seeded.id, { statusId: dupStatus.id }, user);
+      expect(moved.doneAt).toBeNull();
+    });
+
+    it('moving out of a duplicate type status does NOT clear doneAt (it was never set)', async () => {
+      const dupStatus = board.statuses[5]; // type: duplicate
+      const seeded = await seedTask(prisma, dupStatus.id);
       const moved = await service.move(seeded.id, { statusId: board.statuses[0].id }, user);
       expect(moved.doneAt).toBeNull();
+    });
+
+    it('moving from done to duplicate clears doneAt (duplicate does not stamp)', async () => {
+      const doneStatus = board.statuses[3]; // type: done
+      const dupStatus = board.statuses[5]; // type: duplicate
+      const seeded = await seedTask(prisma, doneStatus.id, { doneAt: new Date() });
+      const moved = await service.move(seeded.id, { statusId: dupStatus.id }, user);
+      expect(moved.doneAt).toBeNull();
+    });
+  });
+
+  describe('move — auto-unblock on done', () => {
+    it('moving into a done type status auto-resolves outgoing blocks relations', async () => {
+      const taskA = await seedTask(prisma, board.statuses[0].id, { title: 'Blocker' });
+      const taskB = await seedTask(prisma, board.statuses[0].id, { title: 'Blocked' });
+      await prisma.taskRelation.create({
+        data: { type: 'blocks', fromTaskId: taskA.id, toTaskId: taskB.id },
+      });
+
+      const doneStatus = board.statuses[3]; // type: done
+      await service.move(taskA.id, { statusId: doneStatus.id }, user);
+
+      const relations = await prisma.taskRelation.findMany({
+        where: { fromTaskId: taskA.id, type: 'blocks' },
+      });
+      expect(relations).toHaveLength(0);
+    });
+
+    it('writes unblocked activity on the freed task', async () => {
+      const taskA = await seedTask(prisma, board.statuses[0].id, { title: 'Blocker' });
+      const taskB = await seedTask(prisma, board.statuses[0].id, { title: 'Blocked' });
+      await prisma.taskRelation.create({
+        data: { type: 'blocks', fromTaskId: taskA.id, toTaskId: taskB.id },
+      });
+
+      const doneStatus = board.statuses[3];
+      await service.move(taskA.id, { statusId: doneStatus.id }, user);
+
+      const activity = await prisma.activity.findFirst({
+        where: { taskId: taskB.id, action: 'unblocked' },
+      });
+      expect(activity).not.toBeNull();
+      expect(activity!.actor).toBe(user.displayName);
+    });
+
+    it('moving into a cancelled type status does NOT unblock', async () => {
+      const taskA = await seedTask(prisma, board.statuses[0].id, { title: 'Blocker' });
+      const taskB = await seedTask(prisma, board.statuses[0].id, { title: 'Blocked' });
+      await prisma.taskRelation.create({
+        data: { type: 'blocks', fromTaskId: taskA.id, toTaskId: taskB.id },
+      });
+
+      const cancelledStatus = board.statuses[4]; // type: cancelled
+      await service.move(taskA.id, { statusId: cancelledStatus.id }, user);
+
+      const relations = await prisma.taskRelation.findMany({
+        where: { fromTaskId: taskA.id, type: 'blocks' },
+      });
+      expect(relations).toHaveLength(1);
+    });
+
+    it('moving into a duplicate type status does NOT unblock', async () => {
+      const taskA = await seedTask(prisma, board.statuses[0].id, { title: 'Blocker' });
+      const taskB = await seedTask(prisma, board.statuses[0].id, { title: 'Blocked' });
+      await prisma.taskRelation.create({
+        data: { type: 'blocks', fromTaskId: taskA.id, toTaskId: taskB.id },
+      });
+
+      const dupStatus = board.statuses[5]; // type: duplicate
+      await service.move(taskA.id, { statusId: dupStatus.id }, user);
+
+      const relations = await prisma.taskRelation.findMany({
+        where: { fromTaskId: taskA.id, type: 'blocks' },
+      });
+      expect(relations).toHaveLength(1);
     });
   });
 

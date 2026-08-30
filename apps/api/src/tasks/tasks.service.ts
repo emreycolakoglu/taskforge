@@ -5,6 +5,7 @@ import { RelationsService } from '../relations/relations.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MentionsService } from '../mentions/mentions.service';
+import { isTerminalType, stampsDoneAt } from '../statuses/status-types';
 import { CreateTaskDto, UpdateTaskDto, MoveTaskDto, ReorderTasksDto } from './dto/task.dto';
 
 export function withTaskNumber(task: any): any {
@@ -393,9 +394,21 @@ export class TasksService {
     });
     const sourceStatus = await this.prisma.status.findUnique({ where: { id: existing.statusId } });
     const now = new Date();
-    const isClosedTarget = targetStatus.isDone || targetStatus.isDuplicate;
-    const wasClosedSource = sourceStatus?.isDone || sourceStatus?.isDuplicate;
-    const doneAt = isClosedTarget ? now : wasClosedSource ? null : undefined;
+    const isClosedTarget = isTerminalType(targetStatus.type);
+    const wasClosedSource = sourceStatus ? isTerminalType(sourceStatus.type) : false;
+    const targetStampsDoneAt = stampsDoneAt(targetStatus.type);
+    // doneAt logic:
+    // - Target stamps doneAt (done/cancelled) → set doneAt = now
+    // - Target is terminal but doesn't stamp (duplicate) → clear doneAt if it was set (moving from done/cancelled to duplicate)
+    // - Target is non-terminal and source was closed → clear doneAt
+    // - Otherwise → leave doneAt unchanged
+    const doneAt = targetStampsDoneAt
+      ? now
+      : isClosedTarget
+        ? null
+        : wasClosedSource
+          ? null
+          : undefined;
 
     const data: any = {
       statusId: dto.statusId,
@@ -413,6 +426,40 @@ export class TasksService {
         board: { select: { identifier: true } },
       },
     });
+
+    // Auto-unblock: moving into a done-type status resolves outgoing blocks relations.
+    if (targetStatus.type === 'done') {
+      const blockingRelations = await this.prisma.taskRelation.findMany({
+        where: { fromTaskId: id, type: 'blocks' },
+      });
+      if (blockingRelations.length > 0) {
+        await this.prisma.taskRelation.deleteMany({
+          where: { fromTaskId: id, type: 'blocks' },
+        });
+        for (const rel of blockingRelations) {
+          this.events.emit(
+            'relation:deleted',
+            {
+              relationId: rel.id,
+              type: 'blocks' as const,
+              fromTaskId: rel.fromTaskId,
+              toTaskId: rel.toTaskId,
+              boardId: task.status.boardId,
+            },
+            task.status.boardId,
+          );
+          await this.prisma.activity.create({
+            data: {
+              taskId: rel.toTaskId,
+              actorId: user?.id ?? null,
+              actor: user?.displayName ?? 'system',
+              action: 'unblocked',
+              detail: JSON.stringify({ blockerTaskId: id, blockerCompleted: true }),
+            },
+          });
+        }
+      }
+    }
 
     const newStatus = await this.prisma.status.findUnique({ where: { id: dto.statusId } });
     const activity = await this.prisma.activity.create({
