@@ -1,4 +1,4 @@
-import { Bell, CheckCheck } from 'lucide-react';
+import { AtSign, Bell, CheckCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -68,7 +68,11 @@ export function InboxList({ notifications, selectedId, onSelect, onMarkAllRead }
                     )}
                     <div className="flex items-center gap-2">
                       <span className="size-5 shrink-0 rounded-full border border-border bg-secondary-foreground/10 flex items-center justify-center text-[11px] font-semibold text-muted-foreground">
-                        {n.summary.charAt(0).toUpperCase()}
+                        {n.action === 'mentioned' ? (
+                          <AtSign className="size-3 text-indigo" />
+                        ) : (
+                          n.summary.charAt(0).toUpperCase()
+                        )}
                       </span>
                       <span className="flex-1 text-[13px] leading-snug font-medium text-foreground line-clamp-2">
                         {n.summary}
