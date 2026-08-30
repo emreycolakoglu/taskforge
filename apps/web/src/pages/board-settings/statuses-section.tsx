@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import { ArrowUp, ArrowDown, Trash2, Plus } from 'lucide-react';
 import { api } from '@/hooks/api';
 import type { Status, StatusType } from '@/types';
-import { isProgressEditable } from '@/lib/status-type';
+import { defaultProgressForType, isProgressEditable } from '@/lib/status-type';
 import { ProgressIcon } from '@/components/progress-icon';
 import { Card, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -154,10 +154,20 @@ export function StatusesSection({ boardId, statuses }: { boardId: string; status
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center gap-3">
                 <ProgressIcon progress={status.progress ?? 0} type={status.type} size={16} />
+                <span
+                  className="size-2.5 rounded-full shrink-0"
+                  style={{ backgroundColor: status.color ?? '#94a3b8' }}
+                  aria-label={`Color ${status.color ?? 'default'}`}
+                />
                 <span className="text-sm text-foreground">{status.name}</span>
                 <Badge
                   variant="secondary"
-                  className="text-xs text-muted-foreground bg-muted rounded-sm px-1.5 py-0.5 border-0 font-mono"
+                  className="text-xs text-muted-foreground border-0 rounded-sm px-1.5 py-0.5 font-mono"
+                  style={{
+                    backgroundColor: 'transparent',
+                    border: `1px solid ${status.color ?? '#333'}`,
+                    color: status.color ?? '#94a3b8',
+                  }}
                 >
                   {TYPE_OPTIONS.find((t) => t.value === status.type)?.label ?? status.type}
                 </Badge>
@@ -217,7 +227,14 @@ export function StatusesSection({ boardId, statuses }: { boardId: string; status
                   </div>
                   <div className="flex flex-col gap-1">
                     <UILabel className="text-xs text-muted-foreground">Type</UILabel>
-                    <Select value={editType} onValueChange={(v) => setEditType(v as StatusType)}>
+                    <Select
+                      value={editType}
+                      onValueChange={(v) => {
+                        const next = v as StatusType;
+                        setEditType(next);
+                        setEditProgress(defaultProgressForType(next) ?? 0);
+                      }}
+                    >
                       <SelectTrigger className="h-8 w-36">
                         <SelectValue />
                       </SelectTrigger>

@@ -236,7 +236,7 @@ export function KanbanBoard() {
                     </td>
                     <td className="py-2.5 px-3 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1.5">
-                        <ProgressIcon progress={s.progress ?? 0} size={14} />
+                        <ProgressIcon progress={s.progress ?? 0} type={s.type} size={14} />
                         {s.name}
                       </span>
                     </td>
