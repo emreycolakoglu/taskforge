@@ -1,6 +1,7 @@
 import { PrismaClient } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
+import { defaultProgressForType } from '../src/statuses/status-types';
 
 const prisma = new PrismaClient();
 
@@ -59,27 +60,67 @@ async function main() {
     },
   });
 
-  // Statuses
+  // Statuses — mirror the app's default set (backlog, todo, in_progress, done, cancelled,
+  // duplicate) plus a Review column the seed uses for a task. `type` replaces the old
+  // isDone/isDuplicate booleans; progress defaults come from status-types.
   const backlog = await prisma.status.create({
-    data: { boardId: board.id, name: 'Backlog', position: 0, color: '#94a3b8', progress: 0 },
+    data: {
+      boardId: board.id,
+      name: 'Backlog',
+      type: 'backlog',
+      position: 0,
+      color: '#94a3b8',
+      progress: defaultProgressForType('backlog'),
+    },
   });
   const todo = await prisma.status.create({
-    data: { boardId: board.id, name: 'To Do', position: 1, color: '#6366f1', progress: 25 },
+    data: {
+      boardId: board.id,
+      name: 'To Do',
+      type: 'todo',
+      position: 1,
+      color: '#6366f1',
+      progress: defaultProgressForType('todo'),
+    },
   });
   const inProgress = await prisma.status.create({
-    data: { boardId: board.id, name: 'In Progress', position: 2, color: '#f59e0b', progress: 50 },
+    data: {
+      boardId: board.id,
+      name: 'In Progress',
+      type: 'in_progress',
+      position: 2,
+      color: '#f59e0b',
+      progress: defaultProgressForType('in_progress'),
+    },
   });
   const review = await prisma.status.create({
-    data: { boardId: board.id, name: 'Review', position: 3, color: '#8b5cf6', progress: 75 },
+    data: {
+      boardId: board.id,
+      name: 'Review',
+      type: 'todo',
+      position: 3,
+      color: '#8b5cf6',
+      progress: 0,
+    },
   });
   const done = await prisma.status.create({
     data: {
       boardId: board.id,
       name: 'Done',
+      type: 'done',
       position: 4,
       color: '#22c55e',
-      isDone: true,
-      progress: 100,
+      progress: defaultProgressForType('done'),
+    },
+  });
+  const cancelled = await prisma.status.create({
+    data: {
+      boardId: board.id,
+      name: 'Cancelled',
+      type: 'cancelled',
+      position: 5,
+      color: '#64748b',
+      progress: defaultProgressForType('cancelled'),
     },
   });
 
@@ -244,7 +285,7 @@ async function main() {
 
   console.log('✅ Seeded:');
   console.log(`   Board: ${board.name} (${board.identifier})`);
-  console.log(`   5 statuses, 4 labels, 6 tasks, 4 comments`);
+  console.log(`   6 statuses, 4 labels, 6 tasks, 4 comments`);
   console.log(`   3 users: alice@example.com / bob@example.com / charlie@example.com`);
   console.log(`   Password: password123`);
 }
