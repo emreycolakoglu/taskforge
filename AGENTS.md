@@ -115,6 +115,35 @@ A task can be published to a read-only page reachable without a session. The mod
 - **Frontend**: `pages/public-task-page.tsx`, mounted in `app.tsx` _above_ `AuthProvider` (not exempted from inside it) so no redirect, `/auth/status` call, or `SidebarLayout` can touch it. It fetches through `hooks/public-api.ts`, never `hooks/api.ts` — the shared client clears the token and redirects to `/login` on any 401, which would log a signed-in colleague out just for opening a public link.
 - **Not indexed**: `index.html` carries `<meta name="robots" content="noindex, nofollow">` and `public/robots.txt` disallows everything. Enumeration takes intent; a search hit takes none.
 
+## @-Mentions
+
+`@<DisplayName>` tokens in comments and task descriptions auto-subscribe and
+notify the mentioned user. Invariants:
+
+- Matching is exact + case-insensitive on `displayName`, longest-match-first,
+  with a trailing word boundary (`@emre` never matches inside `@emreyc`).
+  `apps/api/src/mentions/mentions.ts` (API) and
+  `apps/web/src/components/markdown/mentions.ts` (web) implement the same rules
+  in two places — keep them in sync.
+- The notification fires only for NEWLY-created subscriptions
+  (`MentionsService.processMentions`), so repeated autosaves of unchanged text
+  never re-notify, and already-subscribed users are covered by the normal
+  `commented` dispatch. Actor never self-notifies.
+- Mentions bypass `NotificationsService.dispatchFromActivity` — do not add
+  `action: 'mentioned'` to `isNotifying()`, or mentioned users will get two
+  notifications from comment creation.
+- Wire-ups live in three places by design: `CommentsService.create/update`,
+  `TasksService.update` (description change), and
+  `McpService.handleTasks 'update'`. MCP `comments_create` delegates to
+  `CommentsService.create`, which is why MCP mentions need no separate path.
+- `GET /api/auth/users/directory` (id + displayName only) is intentionally
+  NOT admin-gated — chips need the mapping on every client. Keep the payload
+  that narrow.
+- Web mentions are an inline TipTap mark parsed via
+  `storage.markdown.parse.updateDOM` (no markdown-it plugin, no atom node) and
+  serialize back to plain `@Name` text. Mentions split across inline formatting
+  marks are not detected (v1 limitation).
+
 ## Installable PWA
 
 The web app is installable — "Install app" on desktop/Android, "Add to Home Screen" on iOS. Wired with `vite-plugin-pwa` (`injectManifest` mode) in `apps/web/vite.config.ts`; the manifest itself lives in `apps/web/src/pwa/manifest.ts`.
