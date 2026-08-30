@@ -27,6 +27,7 @@ export function findMentionRanges(text: string, names: MentionName[]): MentionRa
     while ((match = pattern.exec(text)) !== null) {
       const start = match.index;
       const end = start + match[0].length;
+      if (start > 0 && /[a-z0-9]/i.test(text[start - 1])) continue;
       if (/[a-z0-9]/i.test(text[end] ?? '')) continue;
       if (ranges.some((r) => start < r.end && end > r.start)) continue;
       ranges.push({ start, end, user });

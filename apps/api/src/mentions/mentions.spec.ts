@@ -46,6 +46,11 @@ describe('parseMentions', () => {
     expect(parseMentions('mail me at bob@emre.com', users)).toEqual([]);
   });
 
+  it('skips a candidate already claimed by a longer same-range match', () => {
+    const users = [user('u1', 'emre'), user('u2', 'emre')];
+    expect(parseMentions('ping @emre', users)).toEqual([user('u1', 'emre')]);
+  });
+
   it('returns empty for text without @ or without candidates', () => {
     const users = [user('u1', 'emre')];
     expect(parseMentions('no mentions here', users)).toEqual([]);

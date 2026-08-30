@@ -34,4 +34,10 @@ describe('findMentionRanges', () => {
     expect(findMentionRanges('nothing here', [{ id: 'u1', displayName: 'emre' }])).toEqual([]);
     expect(findMentionRanges('@emre', [])).toEqual([]);
   });
+
+  it('ignores leading-boundary at-usage like emails', () => {
+    expect(
+      findMentionRanges('mail me at bob@emre.com', [{ id: 'u1', displayName: 'emre' }]),
+    ).toEqual([]);
+  });
 });

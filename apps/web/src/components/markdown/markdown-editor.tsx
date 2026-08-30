@@ -65,7 +65,9 @@ export default function MarkdownEditor({
   const onContainerClick = (e: React.MouseEvent) => {
     const target = (e.target as HTMLElement).closest('.mention');
     if (!target) return;
-    // ProseMirror renders the mark's `userId` attribute lowercased as `userid`.
+    // ProseMirror renders the mark's `userId` attribute lowercased as `userid` (see the
+    // Mention mark's renderHTML/parseHTML in markdown-extensions.ts). Keep this attribute
+    // name in sync with those — changing one without the other breaks click-through.
     const userId = target.getAttribute('userid');
     if (userId && handleMentionClick.current) handleMentionClick.current(userId);
   };

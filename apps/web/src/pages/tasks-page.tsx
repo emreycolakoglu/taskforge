@@ -33,7 +33,7 @@ export function TasksPage() {
     }
   };
 
-  // Only show "no results" after a search has been performed with a non-empty query
+  // Only show "no results" after a search has been performed with a non-empty query or an assignee filter
   const searched = hasSearched && (query.trim().length > 0 || !!assigneeId);
 
   return (

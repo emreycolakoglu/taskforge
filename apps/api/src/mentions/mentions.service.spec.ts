@@ -106,7 +106,7 @@ describe('MentionsService', () => {
   it('does nothing for text without @ signs or unknown names', async () => {
     const actor = await seedUser(prisma, { displayName: 'Alice' });
 
-    await service.processMentions(task.id, 'plain text, no one @around', {
+    await service.processMentions(task.id, 'plain text, no one around', {
       id: actor.id,
       displayName: actor.displayName,
     });

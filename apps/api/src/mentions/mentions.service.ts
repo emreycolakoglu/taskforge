@@ -3,11 +3,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { parseMentions } from './mentions';
 
-interface MentionActor {
-  id?: string | null;
-  displayName?: string | null;
-}
-
 @Injectable()
 export class MentionsService {
   constructor(
