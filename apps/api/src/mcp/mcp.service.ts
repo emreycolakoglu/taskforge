@@ -7,6 +7,13 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { DocumentsService } from '../documents/documents.service';
 import { CommentsService } from '../comments/comments.service';
 import { MentionsService } from '../mentions/mentions.service';
+import { DEFAULT_STATUSES } from '../statuses/status-defaults';
+import {
+  isTerminalType,
+  stampsDoneAt,
+  isProgressEditable,
+  defaultProgressForType,
+} from '../statuses/status-types';
 
 function withTaskNumber(task: any): any {
   const identifier = task.board?.identifier ?? task.status?.board?.identifier;
@@ -163,14 +170,7 @@ export class McpService {
             identifier: (params.identifier || '???').toUpperCase(),
             description: params.description,
             statuses: {
-              create: [
-                { name: 'Backlog', position: 0, color: '#94a3b8' },
-                { name: 'To Do', position: 1, color: '#6366f1' },
-                { name: 'In Progress', position: 2, color: '#f59e0b' },
-                { name: 'Review', position: 3, color: '#8b5cf6' },
-                { name: 'Done', position: 4, color: '#22c55e', isDone: true },
-                { name: 'Duplicate', position: 5, color: '#64748b', isDuplicate: true },
-              ],
+              create: DEFAULT_STATUSES,
             },
           },
           include: { statuses: true },
@@ -228,21 +228,40 @@ export class McpService {
           data: {
             boardId: params.boardId,
             name: params.name,
+            type: params.type,
             position: params.position ?? (maxPos._max.position ?? -1) + 1,
             color: params.color,
-            wipLimit: params.wipLimit,
-            progress: params.progress,
+            progress: defaultProgressForType(params.type),
           },
         });
         this.events.emit('status:created', status, params.boardId);
         return status;
       }
       case 'update': {
+        const existing = await this.prisma.status.findUniqueOrThrow({ where: { id: params.id } });
+
+        if (params.progress !== undefined && !isProgressEditable(existing.type)) {
+          throw new BadRequestException(
+            `Progress is not editable for status type "${existing.type}"`,
+          );
+        }
+
         const data: Record<string, any> = {};
         if (params.name !== undefined) data.name = params.name;
         if (params.color !== undefined) data.color = params.color;
-        if (params.wipLimit !== undefined) data.wipLimit = params.wipLimit;
-        if (params.progress !== undefined) data.progress = params.progress;
+        if (params.position !== undefined) data.position = params.position;
+
+        if (params.type !== undefined) {
+          data.type = params.type;
+          if (!isProgressEditable(params.type)) {
+            data.progress = defaultProgressForType(params.type);
+          } else if (params.progress !== undefined) {
+            data.progress = params.progress;
+          }
+        } else if (params.progress !== undefined && isProgressEditable(existing.type)) {
+          data.progress = params.progress;
+        }
+
         const status = await this.prisma.status.update({
           where: { id: params.id },
           data,
@@ -255,38 +274,6 @@ export class McpService {
         await this.prisma.status.delete({ where: { id: params.id } });
         this.events.emit('status:deleted', { id: params.id }, status?.boardId);
         return { deleted: true };
-      }
-      case 'toggle_done': {
-        const target = await this.prisma.status.findUniqueOrThrow({ where: { id: params.id } });
-        await this.prisma.$transaction(async (tx) => {
-          const prevDone = await tx.status.findFirst({
-            where: { boardId: target.boardId, isDone: true },
-          });
-          if (prevDone && prevDone.id !== params.id) {
-            await tx.status.update({ where: { id: prevDone.id }, data: { isDone: false } });
-            await tx.task.updateMany({ where: { statusId: prevDone.id }, data: { doneAt: null } });
-          }
-          await tx.status.update({ where: { id: params.id }, data: { isDone: true } });
-          await tx.task.updateMany({
-            where: { statusId: params.id, doneAt: null },
-            data: { doneAt: new Date() },
-          });
-        });
-        const status = await this.prisma.status.findUniqueOrThrow({ where: { id: params.id } });
-        this.events.emit('status:doneToggled', status, target.boardId);
-        return status;
-      }
-      case 'unset_done': {
-        const done = await this.prisma.status.findFirst({
-          where: { boardId: params.boardId, isDone: true },
-        });
-        if (!done) return { unset: true };
-        await this.prisma.$transaction(async (tx) => {
-          await tx.status.update({ where: { id: done.id }, data: { isDone: false } });
-          await tx.task.updateMany({ where: { statusId: done.id }, data: { doneAt: null } });
-        });
-        this.events.emit('status:doneToggled', { id: done.id, isDone: false }, params.boardId);
-        return { unset: true };
       }
       default:
         throw new Error(`Unknown action: statuses_${action}`);
@@ -552,9 +539,16 @@ export class McpService {
           where: { id: existing.statusId },
         });
         const now = new Date();
-        const isClosedTarget = targetStatus.isDone || targetStatus.isDuplicate;
-        const wasClosedSource = sourceStatus?.isDone || sourceStatus?.isDuplicate;
-        const doneAt = isClosedTarget ? now : wasClosedSource ? null : undefined;
+        const isClosedTarget = isTerminalType(targetStatus.type);
+        const wasClosedSource = sourceStatus ? isTerminalType(sourceStatus.type) : false;
+        const targetStampsDoneAt = stampsDoneAt(targetStatus.type);
+        const doneAt = targetStampsDoneAt
+          ? now
+          : isClosedTarget
+            ? null
+            : wasClosedSource
+              ? null
+              : undefined;
 
         const data: any = {
           statusId: params.statusId,
@@ -570,6 +564,40 @@ export class McpService {
             board: { select: { identifier: true } },
           },
         });
+
+        if (targetStatus.type === 'done') {
+          const blockingRelations = await this.prisma.taskRelation.findMany({
+            where: { fromTaskId: params.id, type: 'blocks' },
+          });
+          if (blockingRelations.length > 0) {
+            await this.prisma.taskRelation.deleteMany({
+              where: { fromTaskId: params.id, type: 'blocks' },
+            });
+            for (const rel of blockingRelations) {
+              this.events.emit(
+                'relation:deleted',
+                {
+                  relationId: rel.id,
+                  type: 'blocks' as const,
+                  fromTaskId: rel.fromTaskId,
+                  toTaskId: rel.toTaskId,
+                  boardId: task.status?.boardId,
+                },
+                task.status?.boardId,
+              );
+              await this.prisma.activity.create({
+                data: {
+                  taskId: rel.toTaskId,
+                  actorId,
+                  actor,
+                  action: 'unblocked',
+                  detail: JSON.stringify({ blockerTaskId: params.id, blockerCompleted: true }),
+                },
+              });
+            }
+          }
+        }
+
         const newStatus = await this.prisma.status.findUnique({ where: { id: params.statusId } });
         await this.prisma.activity.create({
           data: {

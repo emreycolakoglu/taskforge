@@ -190,12 +190,13 @@ describe('McpService', () => {
       const res = await service.handleRequest(
         {
           method: 'statuses_create',
-          params: { boardId: board.id, name: 'MCP Status' },
+          params: { boardId: board.id, name: 'MCP Status', type: 'todo' },
           id: 6,
         },
         user,
       );
       expect(res.result.name).toBe('MCP Status');
+      expect(res.result.type).toBe('todo');
     });
   });
 
@@ -225,59 +226,6 @@ describe('McpService', () => {
         user,
       );
       expect(res.result.deleted).toBe(true);
-    });
-  });
-
-  describe('statuses_toggle_done', () => {
-    it('should set a status as the Done column', async () => {
-      const res = await service.handleRequest(
-        {
-          method: 'statuses_toggle_done',
-          params: { id: board.statuses[1].id },
-          id: 601,
-        },
-        user,
-      );
-      expect(res.result.isDone).toBe(true);
-      const prev = await prisma.status.findUnique({ where: { id: board.statuses[4].id } });
-      expect(prev?.isDone).toBe(false);
-    });
-  });
-
-  describe('statuses_unset_done', () => {
-    it('should clear the board Done column', async () => {
-      await service.handleRequest(
-        {
-          method: 'statuses_toggle_done',
-          params: { id: board.statuses[1].id },
-          id: 602,
-        },
-        user,
-      );
-      const res = await service.handleRequest(
-        {
-          method: 'statuses_unset_done',
-          params: { boardId: board.id },
-          id: 603,
-        },
-        user,
-      );
-      expect(res.result.unset).toBe(true);
-      const done = await prisma.status.findUnique({ where: { id: board.statuses[1].id } });
-      expect(done?.isDone).toBe(false);
-    });
-
-    it('should be a no-op when no Done status exists', async () => {
-      await prisma.status.update({ where: { id: board.statuses[4].id }, data: { isDone: false } });
-      const res = await service.handleRequest(
-        {
-          method: 'statuses_unset_done',
-          params: { boardId: board.id },
-          id: 604,
-        },
-        user,
-      );
-      expect(res.result.unset).toBe(true);
     });
   });
 
@@ -480,7 +428,7 @@ describe('McpService', () => {
       const res = await service.handleRequest(
         {
           method: 'tasks_move',
-          params: { id: task.id, statusId: board.statuses[4].id },
+          params: { id: task.id, statusId: board.statuses[3].id },
           id: 701,
         },
         user,
@@ -489,7 +437,7 @@ describe('McpService', () => {
     });
 
     it('should clear doneAt when moving out of a Done status', async () => {
-      const task = await seedTask(prisma, board.statuses[4].id, { doneAt: new Date() });
+      const task = await seedTask(prisma, board.statuses[3].id, { doneAt: new Date() });
       const res = await service.handleRequest(
         {
           method: 'tasks_move',
@@ -499,6 +447,39 @@ describe('McpService', () => {
         user,
       );
       expect(res.result.doneAt).toBeNull();
+    });
+
+    it('should not stamp doneAt when moving to a Duplicate status', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const res = await service.handleRequest(
+        {
+          method: 'tasks_move',
+          params: { id: task.id, statusId: board.statuses[5].id },
+          id: 703,
+        },
+        user,
+      );
+      expect(res.result.doneAt).toBeNull();
+    });
+
+    it('should auto-unblock when moving to a Done status', async () => {
+      const taskA = await seedTask(prisma, board.statuses[0].id, { title: 'A' });
+      const taskB = await seedTask(prisma, board.statuses[0].id, { title: 'B' });
+      await prisma.taskRelation.create({
+        data: { type: 'blocks', fromTaskId: taskA.id, toTaskId: taskB.id },
+      });
+      await service.handleRequest(
+        {
+          method: 'tasks_move',
+          params: { id: taskA.id, statusId: board.statuses[3].id },
+          id: 704,
+        },
+        user,
+      );
+      const relations = await prisma.taskRelation.findMany({
+        where: { fromTaskId: taskA.id, type: 'blocks' },
+      });
+      expect(relations).toHaveLength(0);
     });
   });
 
@@ -1032,7 +1013,7 @@ describe('McpService', () => {
       expect(row!.toTaskId).toBe(hi.id);
     });
 
-    it('relations_create with type=duplicate_of → URL task moved to Duplicate status; activity attributed to user', async () => {
+    it('relations_create with type=duplicate_of → URL task moved to Duplicate status; activity attributed to user; doneAt NOT stamped', async () => {
       const tA = await seedTask(prisma, board.statuses[0].id, { title: 'A' });
       const tB = await seedTask(prisma, board.statuses[0].id, { title: 'B' });
       const res = await service.handleRequest(
@@ -1048,10 +1029,10 @@ describe('McpService', () => {
       expect(row!.fromTaskId).toBe(tA.id);
       expect(row!.toTaskId).toBe(tB.id);
 
-      const dupStatus = board.statuses.find((s) => s.isDuplicate)!;
+      const dupStatus = board.statuses.find((s: any) => s.type === 'duplicate')!;
       const moved = await prisma.task.findUnique({ where: { id: tA.id } });
       expect(moved!.statusId).toBe(dupStatus.id);
-      expect(moved!.doneAt).not.toBeNull();
+      expect(moved!.doneAt).toBeNull();
 
       const activity = await prisma.activity.findFirst({ where: { taskId: tA.id } });
       expect(activity!.action).toBe('marked_duplicate');

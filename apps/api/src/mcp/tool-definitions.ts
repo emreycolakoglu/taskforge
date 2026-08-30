@@ -77,22 +77,32 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     inputSchema: {
       boardId: idField('Board'),
       name: z.string(),
+      type: z
+        .enum(['triage', 'backlog', 'todo', 'in_progress', 'done', 'cancelled', 'duplicate'])
+        .describe('Status type — determines progress defaults and terminal behavior'),
       position: z.number().optional(),
       color: z.string().optional(),
-      wipLimit: z.number().optional(),
-      progress: z.number().int().min(0).max(100).optional().describe('Progress percentage (0-100)'),
     },
   },
   {
     name: 'statuses_update',
     title: 'Update status',
-    description: 'Update a status name, color, or WIP limit.',
+    description: 'Update a status name, type, color, or progress.',
     inputSchema: {
       id: idField('Status'),
       name: z.string().optional(),
+      type: z
+        .enum(['triage', 'backlog', 'todo', 'in_progress', 'done', 'cancelled', 'duplicate'])
+        .optional(),
       color: z.string().optional(),
-      wipLimit: z.number().optional(),
-      progress: z.number().int().min(0).max(100).optional().describe('Progress percentage (0-100)'),
+      position: z.number().optional(),
+      progress: z
+        .number()
+        .int()
+        .min(0)
+        .max(100)
+        .optional()
+        .describe('Progress percentage (0-100). Only editable for triage and in_progress types.'),
     },
   },
   {
@@ -100,20 +110,6 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     title: 'Delete status',
     description: 'Delete a status and its tasks.',
     inputSchema: { id: idField('Status') },
-  },
-  {
-    name: 'statuses_toggle_done',
-    title: 'Toggle Done status',
-    description:
-      "Set a status as the board's Done column. Stamps doneAt on its tasks and clears doneAt on the previous Done status's tasks.",
-    inputSchema: { id: idField('Status') },
-  },
-  {
-    name: 'statuses_unset_done',
-    title: 'Unset Done status',
-    description:
-      "Clear the board's Done column. Clears isDone and doneAt on the current Done status and its tasks.",
-    inputSchema: { boardId: idField('Board') },
   },
 
   // tasks
