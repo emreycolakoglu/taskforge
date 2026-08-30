@@ -220,13 +220,7 @@ Small labels next to status name showing the type (e.g. "Done", "In Progress"). 
 
 ```ts
 export type StatusType =
-  | 'triage'
-  | 'backlog'
-  | 'todo'
-  | 'in_progress'
-  | 'done'
-  | 'cancelled'
-  | 'duplicate';
+  'triage' | 'backlog' | 'todo' | 'in_progress' | 'done' | 'cancelled' | 'duplicate';
 
 export interface Status {
   id: string;

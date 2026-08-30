@@ -17,7 +17,7 @@
 - Do not add `strict: true` to `apps/api/tsconfig.json`.
 - Prettier is canonical: run `pnpm format:check` before committing (or `pnpm format`). `.prettierignore` already covers generated dirs.
 - No ESLint config exists; `pnpm lint` fails — never run it.
-- Web build does NOT typecheck: run `cd apps/web && npx tsc --noEmit` explicitly. Baseline is 1 pre-existing error in `kanban-board.tsx` (a `DraggingStyle` vs `CSSProperties` Radix CSS var incompatibility); confirm the count doesn't grow.
+- Web build does NOT typecheck: run `cd apps/web && npx tsc --noEmit` explicitly. Baseline is **7 pre-existing errors** (incl. `kanban-board.tsx` DraggingStyle bug, `create-board-dialog.tsx`, `ui/dropdown-menu.tsx`, `use-labels.ts`, `use-tasks.ts` + test, `use-tasks.test.tsx`). Confirm the count doesn't grow above 7.
 - API tests are integration-level against a real temp SQLite DB; each test file cleans tables in `afterEach` in reverse dependency order — keep that order intact.
 - Kebab-case filenames. Always write unit tests.
 - MCP service reimplements logic inline (does NOT inject `StatusesService`) — keep the REST and MCP paths in sync.
@@ -1493,13 +1493,7 @@ In `apps/web/src/types/index.ts`, replace the `Status` interface (lines 16-27) w
 
 ```typescript
 export type StatusType =
-  | 'triage'
-  | 'backlog'
-  | 'todo'
-  | 'in_progress'
-  | 'done'
-  | 'cancelled'
-  | 'duplicate';
+  'triage' | 'backlog' | 'todo' | 'in_progress' | 'done' | 'cancelled' | 'duplicate';
 
 export interface Status {
   id: string;
