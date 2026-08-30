@@ -575,6 +575,7 @@ export class McpService {
         if (targetStatus.type === 'done') {
           const blockingRelations = await this.prisma.taskRelation.findMany({
             where: { fromTaskId: params.id, type: 'blocks' },
+            include: { fromTask: { select: { boardId: true } } },
           });
           if (blockingRelations.length > 0) {
             await this.prisma.taskRelation.deleteMany({
@@ -588,9 +589,9 @@ export class McpService {
                   type: 'blocks' as const,
                   fromTaskId: rel.fromTaskId,
                   toTaskId: rel.toTaskId,
-                  boardId: task.status?.boardId,
+                  boardId: rel.fromTask.boardId,
                 },
-                task.status?.boardId,
+                rel.fromTask.boardId,
               );
               await this.prisma.activity.create({
                 data: {
