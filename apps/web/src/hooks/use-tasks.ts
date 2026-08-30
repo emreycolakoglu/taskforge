@@ -85,7 +85,6 @@ export function useUpdateTask() {
     mutationFn: ({ id, data, boardId }: { id: string; data: Partial<Task>; boardId: string }) =>
       api.tasks.update(id, data),
     onSuccess: (_data, variables) => {
-      toast.success('Task updated');
       queryClient.invalidateQueries({ queryKey: ['tasks', variables.id] });
       queryClient.invalidateQueries({ queryKey: ['tasks', 'board', variables.boardId] });
       queryClient.invalidateQueries({ queryKey: ['boards', variables.boardId, 'full'] });
