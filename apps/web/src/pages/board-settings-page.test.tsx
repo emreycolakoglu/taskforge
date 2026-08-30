@@ -3,7 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { DeleteBoardSection } from './board-settings-page';
+import { DeleteBoardSection } from './board-settings/danger-section';
 
 let mockUser: { id: string } | null = { id: 'user-1' };
 

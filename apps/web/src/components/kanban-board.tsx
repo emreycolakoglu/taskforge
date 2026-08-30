@@ -1,7 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { Plus } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api } from '@/hooks/api';
@@ -30,7 +29,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 export function KanbanBoard() {
@@ -285,7 +283,7 @@ export function KanbanBoard() {
                       isAdding={creatingInStatus === status.id}
                       onAddTask={() => setCreatingInStatus(status.id)}
                       onDeleteStatus={() => setPendingDeleteStatusId(status.id)}
-                      onEditStatus={() => navigate(`/board/${id}/settings`)}
+                      onEditStatus={() => navigate(`/board/${id}/settings/statuses`)}
                       droppableProvided={{
                         innerRef: provided.innerRef,
                         droppableProps: provided.droppableProps as unknown as Record<
@@ -340,11 +338,6 @@ export function KanbanBoard() {
                   )}
                 </Droppable>
               ))}
-
-              {/* Add status */}
-              <div className="w-[348px] shrink-0">
-                <AddStatusForm boardId={board.id} />
-              </div>
             </div>
           </div>
         </DragDropContext>
@@ -425,61 +418,5 @@ export function KanbanBoard() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-function AddStatusForm({ boardId }: { boardId: string }) {
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState('');
-  const queryClient = useQueryClient();
-
-  const handleSubmit = async () => {
-    if (!name.trim()) return;
-    try {
-      await api.statuses.create({ boardId, name: name.trim(), type: 'todo' });
-      toast.success('Status created');
-      setName('');
-      setEditing(false);
-      queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] });
-      queryClient.invalidateQueries({ queryKey: ['boards'] });
-    } catch (error) {
-      toast.error('Failed to create status', {
-        description: error instanceof Error ? error.message : 'Unknown error',
-      });
-      queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] });
-    }
-  };
-
-  if (editing) {
-    return (
-      <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
-        <Input
-          autoFocus
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-          placeholder="Status name..."
-        />
-        <div className="flex gap-2">
-          <Button size="sm" onClick={handleSubmit}>
-            Add
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => setEditing(false)}>
-            Cancel
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <Button
-      variant="outline"
-      className="w-full border-dashed border-border text-muted-foreground hover:text-foreground"
-      onClick={() => setEditing(true)}
-    >
-      <Plus data-icon="inline-start" />
-      Add Status
-    </Button>
   );
 }

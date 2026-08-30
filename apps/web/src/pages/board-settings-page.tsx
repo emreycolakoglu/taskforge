@@ -1,713 +1,89 @@
-import { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import {
-  ArrowLeft,
-  Plus,
-  Pencil,
-  Trash2,
-  X,
-  Check,
-  UserMinus,
-  LogOut,
-  UserPlus,
-} from 'lucide-react';
-import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
-import { useBoardFull, useDeleteBoard } from '@/hooks/use-boards';
-import { useLabels, useCreateLabel, useUpdateLabel, useDeleteLabel } from '@/hooks/use-labels';
-import { useMembers, useAddMember, useRemoveMember, useLeaveBoard } from '@/hooks/use-members';
-import { useUsers } from '@/hooks/use-users';
-import { useAuth } from '@/contexts/auth-context';
-import { api } from '@/hooks/api';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label as UILabel } from '@/components/ui/label';
-import { Card, CardTitle, CardDescription } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ColorPicker } from '@/components/color-picker';
-import { EmojiPicker } from '@/components/emoji-picker';
-import { ProgressIcon } from '@/components/progress-icon';
-import type { Label, Status } from '@/types';
+import { NavLink, Outlet, useParams, useOutletContext } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
+import { useBoardFull } from '@/hooks/use-boards';
+import { GeneralSection } from './board-settings/general-section';
+import { StatusesSection } from './board-settings/statuses-section';
+import { LabelsSection } from './board-settings/labels-section';
+import { MembersSection } from './board-settings/members-section';
+import { DeleteBoardSection } from './board-settings/danger-section';
+
+const TABS = [
+  { to: 'general', label: 'General' },
+  { to: 'statuses', label: 'Statuses' },
+  { to: 'labels', label: 'Labels' },
+  { to: 'members', label: 'Members' },
+  { to: 'danger', label: 'Danger' },
+];
 
 export function BoardSettingsPage() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { data: board, isLoading: boardLoading } = useBoardFull(id!);
-  const { data: labels = [], isLoading: labelsLoading } = useLabels(id!);
-
-  if (boardLoading || labelsLoading) {
-    return (
-      <div className="p-6">
-        <Skeleton className="h-6 w-40 mb-2" />
-        <Skeleton className="h-4 w-60" />
-      </div>
-    );
-  }
-
-  if (!board) {
-    return (
-      <div className="p-6">
-        <Alert variant="destructive">
-          <AlertDescription>Board not found.</AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
+  const { data: board } = useBoardFull(id!);
 
   return (
     <div className="flex flex-col h-full">
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-border bg-secondary px-6">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 text-muted-foreground hover:text-foreground"
-          aria-label="Back to board"
-          onClick={() => navigate(`/board/${id}`)}
-        >
-          <ArrowLeft className="size-4" />
-        </Button>
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-base leading-none">{board.icon ?? '⭐'}</span>
-          <h1 className="text-sm font-medium text-foreground truncate">{board.name}</h1>
-          <span className="text-sm text-muted-foreground">— Settings</span>
-        </div>
-      </header>
-
-      <div className="flex-1 overflow-y-auto bg-background p-6">
-        <div className="space-y-6">
-          <BoardInfoSection boardId={id!} boardName={board.name} boardIcon={board.icon ?? '⭐'} />
-          <StatusesSection boardId={id!} statuses={board.statuses ?? []} />
-          <LabelsSection boardId={id!} labels={labels} />
-          <MembersSection boardId={id!} />
-          <DeleteBoardSection boardId={id!} boardName={board.name} />
-        </div>
+      {/* Header — 48px */}
+      <div className="h-12 shrink-0 px-4 flex items-center gap-2 border-b border-border">
+        <NavLink to={`/board/${id}`}>
+          <ArrowLeft className="size-4 text-muted-foreground hover:text-foreground" />
+        </NavLink>
+        <span className="text-lg">{board?.icon ?? '⭐'}</span>
+        <span className="text-sm font-medium text-foreground">{board?.name}</span>
+        <span className="text-sm text-muted-foreground">— Settings</span>
       </div>
-    </div>
-  );
-}
 
-function BoardInfoSection({
-  boardId,
-  boardName,
-  boardIcon,
-}: {
-  boardId: string;
-  boardName: string;
-  boardIcon: string;
-}) {
-  const queryClient = useQueryClient();
-  const [name, setName] = useState(boardName);
-  const [icon, setIcon] = useState(boardIcon);
-
-  const handleIconChange = async (newIcon: string) => {
-    setIcon(newIcon);
-    try {
-      await api.boards.update(boardId, { icon: newIcon });
-      queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] });
-      queryClient.invalidateQueries({ queryKey: ['boards'] });
-      toast.success('Board icon updated');
-    } catch (err) {
-      toast.error('Failed to update icon', {
-        description: err instanceof Error ? err.message : undefined,
-      });
-      setIcon(boardIcon);
-    }
-  };
-
-  const handleNameBlur = async () => {
-    if (name.trim() === boardName) return;
-    try {
-      await api.boards.update(boardId, { name: name.trim() });
-      queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] });
-      queryClient.invalidateQueries({ queryKey: ['boards'] });
-      toast.success('Board name updated');
-    } catch (err) {
-      toast.error('Failed to update name', {
-        description: err instanceof Error ? err.message : undefined,
-      });
-      setName(boardName);
-    }
-  };
-
-  return (
-    <Card className="p-6 space-y-4">
-      <div>
-        <CardTitle className="text-base text-foreground">Board Info</CardTitle>
-        <CardDescription className="text-sm text-muted-foreground mt-1">
-          Change the board's emoji icon and name. Saved instantly.
-        </CardDescription>
-      </div>
-      <div className="flex items-center gap-3">
-        <EmojiPicker
-          value={icon}
-          onChange={handleIconChange}
-          className="size-10 text-xl border border-border"
-        />
-        <Input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={handleNameBlur}
-          className="flex-1"
-          aria-label="Board name"
-        />
-      </div>
-    </Card>
-  );
-}
-
-function StatusesSection({ boardId, statuses }: { boardId: string; statuses: Status[] }) {
-  const queryClient = useQueryClient();
-  const [togglingId, setTogglingId] = useState<string | null>(null);
-  const [progressUpdating, setProgressUpdating] = useState<string | null>(null);
-
-  const handleToggleDone = async (status: Status) => {
-    setTogglingId(status.id);
-    try {
-      if (status.isDone) {
-        await api.statuses.unsetDone(boardId);
-      } else {
-        await api.statuses.toggleDone(status.id);
-      }
-      toast.success('Done status updated');
-      queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] });
-    } catch (err) {
-      toast.error('Failed to update done status', {
-        description: err instanceof Error ? err.message : undefined,
-      });
-    } finally {
-      setTogglingId(null);
-    }
-  };
-
-  const handleProgressChange = async (statusId: string, value: string) => {
-    const num = parseInt(value, 10);
-    if (isNaN(num) || num < 0 || num > 100) return;
-    setProgressUpdating(statusId);
-    try {
-      await api.statuses.update(statusId, { progress: num });
-      queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] });
-    } catch (err) {
-      toast.error('Failed to update progress', {
-        description: err instanceof Error ? err.message : undefined,
-      });
-    } finally {
-      setProgressUpdating(null);
-    }
-  };
-
-  return (
-    <Card className="p-6 space-y-4">
-      <div>
-        <CardTitle className="text-base text-foreground">Statuses</CardTitle>
-        <CardDescription className="text-sm text-muted-foreground mt-1">
-          Manage statuses for this board. Mark one status as Done to auto-stamp completed tasks.
-        </CardDescription>
-      </div>
-      <div className="flex flex-col">
-        {statuses.map((status) => (
-          <div
-            key={status.id}
-            className="flex items-center justify-between py-3 border-b border-border last:border-0"
+      {/* Tab bar */}
+      <div className="flex items-center gap-1 px-4 border-b border-border">
+        {TABS.map((tab) => (
+          <NavLink
+            key={tab.to}
+            to={tab.to}
+            className={({ isActive }) =>
+              `px-3 py-2 text-sm rounded-none border-b-2 transition-colors ${
+                isActive
+                  ? 'border-foreground text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`
+            }
           >
-            <div className="flex items-center gap-3">
-              <ProgressIcon progress={status.progress ?? 0} size={16} />
-              <span className="text-sm text-foreground">{status.name}</span>
-              {status.isDone && (
-                <Badge
-                  variant="secondary"
-                  className="text-xs text-muted-foreground bg-muted rounded-sm px-1.5 py-0.5 border-0"
-                >
-                  Done
-                </Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-1.5">
-                <label htmlFor={`progress-${status.id}`} className="text-xs text-muted-foreground">
-                  Progress
-                </label>
-                <input
-                  id={`progress-${status.id}`}
-                  type="number"
-                  min={0}
-                  max={100}
-                  defaultValue={status.progress ?? 0}
-                  disabled={progressUpdating === status.id}
-                  onBlur={(e) => handleProgressChange(status.id, e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      handleProgressChange(status.id, (e.target as HTMLInputElement).value);
-                    }
-                  }}
-                  className="w-16 h-7 rounded-md border border-border bg-background px-2 text-xs text-foreground text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                />
-              </div>
-              <div className="flex items-center gap-2">
-                <UILabel htmlFor={`done-${status.id}`} className="text-xs text-muted-foreground">
-                  Done
-                </UILabel>
-                <Switch
-                  id={`done-${status.id}`}
-                  checked={!!status.isDone}
-                  disabled={togglingId === status.id}
-                  onCheckedChange={() => handleToggleDone(status)}
-                />
-              </div>
-            </div>
-          </div>
+            {tab.label}
+          </NavLink>
         ))}
-        {statuses.length === 0 && (
-          <p className="text-sm text-muted-foreground py-3">No statuses yet</p>
-        )}
-      </div>
-    </Card>
-  );
-}
-
-function LabelsSection({ boardId, labels }: { boardId: string; labels: Label[] }) {
-  const createLabel = useCreateLabel();
-
-  const handleCreate = (name: string, color: string) => {
-    createLabel.mutate({ boardId, name, color });
-  };
-
-  return (
-    <Card className="p-6 space-y-4">
-      <div>
-        <CardTitle className="text-base text-foreground">Labels</CardTitle>
-        <CardDescription className="text-sm text-muted-foreground mt-1">
-          Manage labels for this board
-        </CardDescription>
-      </div>
-      <div className="flex flex-col">
-        {labels.map((label) => (
-          <LabelRow key={label.id} label={label} boardId={boardId} />
-        ))}
-        {labels.length === 0 && <p className="text-sm text-muted-foreground py-3">No labels yet</p>}
-      </div>
-      <div className="pt-4 border-t border-border">
-        <AddLabelForm boardId={boardId} onSubmit={handleCreate} />
-      </div>
-    </Card>
-  );
-}
-
-function LabelRow({ label, boardId }: { label: Label; boardId: string }) {
-  const [editing, setEditing] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const updateLabel = useUpdateLabel();
-  const deleteLabel = useDeleteLabel();
-
-  const handleUpdate = (name: string, color: string) => {
-    updateLabel.mutate(
-      { id: label.id, boardId, data: { name, color } },
-      { onSuccess: () => setEditing(false) },
-    );
-  };
-
-  const handleDelete = () => {
-    deleteLabel.mutate({ id: label.id, boardId }, { onSuccess: () => setDeleteOpen(false) });
-  };
-
-  if (editing) {
-    return (
-      <LabelEditForm
-        initialName={label.name}
-        initialColor={label.color}
-        onSave={handleUpdate}
-        onCancel={() => setEditing(false)}
-      />
-    );
-  }
-
-  return (
-    <>
-      <div className="flex items-center justify-between py-3 border-b border-border last:border-0">
-        <div className="flex items-center gap-3">
-          <div className="w-4 h-4 rounded-sm shrink-0" style={{ backgroundColor: label.color }} />
-          <span className="text-sm text-foreground">{label.name}</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 text-muted-foreground hover:text-foreground"
-            aria-label={`Edit ${label.name}`}
-            onClick={() => setEditing(true)}
-          >
-            <Pencil className="size-3.5" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-8 text-muted-foreground hover:text-destructive"
-            aria-label={`Delete ${label.name}`}
-            onClick={() => setDeleteOpen(true)}
-          >
-            <Trash2 className="size-3.5" />
-          </Button>
-        </div>
       </div>
 
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete label</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete <strong>{label.name}</strong>? This will remove it
-              from all tasks.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setDeleteOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleteLabel.isPending}>
-              {deleteLabel.isPending ? 'Deleting…' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </>
-  );
-}
-
-function LabelEditForm({
-  initialName,
-  initialColor,
-  onSave,
-  onCancel,
-}: {
-  initialName: string;
-  initialColor: string;
-  onSave: (name: string, color: string) => void;
-  onCancel: () => void;
-}) {
-  const [name, setName] = useState(initialName);
-  const [color, setColor] = useState(initialColor);
-
-  return (
-    <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-3">
-      <div className="flex flex-col gap-2">
-        <UILabel htmlFor={`edit-name-${initialName}`}>Name</UILabel>
-        <Input
-          id={`edit-name-${initialName}`}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Label name"
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <UILabel>Color</UILabel>
-        <ColorPicker value={color} onChange={setColor} />
-      </div>
-      <div className="flex gap-2">
-        <Button
-          size="sm"
-          onClick={() => name.trim() && onSave(name.trim(), color)}
-          disabled={!name.trim()}
-        >
-          <Check className="size-4" />
-          Save
-        </Button>
-        <Button size="sm" variant="outline" onClick={onCancel}>
-          <X className="size-4" />
-          Cancel
-        </Button>
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <Outlet context={{ board }} />
       </div>
     </div>
   );
 }
 
-function AddLabelForm({
-  boardId,
-  onSubmit,
-}: {
-  boardId: string;
-  onSubmit: (name: string, color: string) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [color, setColor] = useState('#6366f1');
-  const createLabel = useCreateLabel();
-
-  const handleSubmit = () => {
-    if (!name.trim()) return;
-    createLabel.mutate(
-      { boardId, name: name.trim(), color },
-      {
-        onSuccess: () => {
-          setName('');
-          setColor('#6366f1');
-          setOpen(false);
-        },
-      },
-    );
-  };
-
-  if (!open) {
-    return (
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)}>
-        <Plus className="size-4" />
-        Add Label
-      </Button>
-    );
-  }
-
-  return (
-    <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-3">
-      <div className="flex flex-col gap-2">
-        <UILabel htmlFor="new-label-name">Name</UILabel>
-        <Input
-          id="new-label-name"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-          placeholder="Label name"
-          autoFocus
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <UILabel>Color</UILabel>
-        <ColorPicker value={color} onChange={setColor} />
-      </div>
-      <div className="flex gap-2">
-        <Button size="sm" onClick={handleSubmit} disabled={!name.trim() || createLabel.isPending}>
-          {createLabel.isPending ? 'Adding…' : 'Add Label'}
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => setOpen(false)}>
-          Cancel
-        </Button>
-      </div>
-    </div>
-  );
+export function GeneralSettingsRoute() {
+  const { board } = useOutletContext<{ board: any }>();
+  if (!board) return null;
+  return <GeneralSection boardId={board.id} boardName={board.name} boardIcon={board.icon} />;
 }
 
-function MembersSection({ boardId }: { boardId: string }) {
-  const { user } = useAuth();
-  const { data: members = [], isLoading } = useMembers(boardId);
-  const addMember = useAddMember();
-  const removeMember = useRemoveMember();
-  const leaveBoard = useLeaveBoard();
-  const { data: users = [] } = useUsers();
-  const [addOpen, setAddOpen] = useState(false);
-  const [selectedUserId, setSelectedUserId] = useState('');
-
-  const isAdmin = members.some((m) => m.userId === user?.id && m.role === 'admin');
-  const currentMember = members.find((m) => m.userId === user?.id);
-
-  const handleAdd = () => {
-    if (!selectedUserId) return;
-    addMember.mutate(
-      { boardId, userId: selectedUserId },
-      {
-        onSuccess: () => {
-          setAddOpen(false);
-          setSelectedUserId('');
-        },
-      },
-    );
-  };
-
-  const handleRemove = (userId: string) => {
-    removeMember.mutate({ boardId, userId });
-  };
-
-  const handleLeave = () => {
-    leaveBoard.mutate(boardId);
-  };
-
-  const availableUsers = users.filter((u) => !members.some((m) => m.userId === u.id));
-
-  return (
-    <Card className="p-6 space-y-4">
-      <div>
-        <CardTitle className="text-base text-foreground">Members</CardTitle>
-        <CardDescription className="text-sm text-muted-foreground mt-1">
-          Manage who has access to this board. Members appear in the sidebar.
-        </CardDescription>
-      </div>
-
-      {isLoading ? (
-        <div className="flex flex-col gap-2">
-          <Skeleton className="h-10 w-full" />
-          <Skeleton className="h-10 w-full" />
-        </div>
-      ) : (
-        <div className="flex flex-col">
-          {members.map((member) => {
-            const memberUser = users.find((u) => u.id === member.userId);
-            const isCurrentUser = member.userId === user?.id;
-            return (
-              <div
-                key={member.id}
-                className="flex items-center justify-between py-3 border-b border-border last:border-0"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-secondary-foreground text-xs font-semibold">
-                    {memberUser?.displayName?.charAt(0).toUpperCase() ?? '?'}
-                  </span>
-                  <div className="min-w-0">
-                    <span className="text-sm text-foreground block truncate">
-                      {memberUser?.displayName ?? 'Unknown user'}
-                      {isCurrentUser && (
-                        <span className="text-muted-foreground text-xs ml-1">(you)</span>
-                      )}
-                    </span>
-                    <span className="text-xs text-muted-foreground font-mono">{member.role}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {isAdmin && !isCurrentUser && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="size-8 text-muted-foreground hover:text-destructive"
-                      aria-label={`Remove ${memberUser?.displayName ?? 'member'}`}
-                      onClick={() => handleRemove(member.userId)}
-                      disabled={removeMember.isPending}
-                    >
-                      <UserMinus className="size-3.5" />
-                    </Button>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-          {members.length === 0 && (
-            <p className="text-sm text-muted-foreground py-3">No members yet</p>
-          )}
-        </div>
-      )}
-
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 pt-4 border-t border-border">
-        {isAdmin && (
-          <>
-            {addOpen ? (
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full">
-                <select
-                  value={selectedUserId}
-                  onChange={(e) => setSelectedUserId(e.target.value)}
-                  className="flex-1 h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground"
-                  aria-label="Select user to add"
-                >
-                  <option value="">Select a user...</option>
-                  {availableUsers.map((u) => (
-                    <option key={u.id} value={u.id}>
-                      {u.displayName} ({u.email})
-                    </option>
-                  ))}
-                </select>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    onClick={handleAdd}
-                    disabled={!selectedUserId || addMember.isPending}
-                  >
-                    {addMember.isPending ? 'Adding...' : 'Add'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setAddOpen(false);
-                      setSelectedUserId('');
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <Button variant="outline" size="sm" onClick={() => setAddOpen(true)}>
-                <UserPlus className="size-3.5 mr-1.5" />
-                Add Member
-              </Button>
-            )}
-          </>
-        )}
-
-        {currentMember && !isAdmin && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive hover:text-destructive"
-            onClick={handleLeave}
-            disabled={leaveBoard.isPending}
-          >
-            <LogOut className="size-3.5 mr-1.5" />
-            {leaveBoard.isPending ? 'Leaving...' : 'Leave Board'}
-          </Button>
-        )}
-      </div>
-    </Card>
-  );
+export function StatusesSettingsRoute() {
+  const { board } = useOutletContext<{ board: any }>();
+  if (!board) return null;
+  return <StatusesSection boardId={board.id} statuses={board.statuses ?? []} />;
 }
 
-export function DeleteBoardSection({ boardId, boardName }: { boardId: string; boardName: string }) {
-  const { user } = useAuth();
-  const { data: members = [] } = useMembers(boardId);
-  const deleteBoard = useDeleteBoard();
-  const navigate = useNavigate();
-  const [confirmOpen, setConfirmOpen] = useState(false);
+export function LabelsSettingsRoute() {
+  const { board } = useOutletContext<{ board: any }>();
+  if (!board) return null;
+  return <LabelsSection boardId={board.id} labels={board.labels ?? []} />;
+}
 
-  const isAdmin = members.some((m) => m.userId === user?.id && m.role === 'admin');
+export function MembersSettingsRoute() {
+  const { board } = useOutletContext<{ board: any }>();
+  if (!board) return null;
+  return <MembersSection boardId={board.id} />;
+}
 
-  const handleDelete = () => {
-    deleteBoard.mutate(boardId, {
-      onSuccess: () => {
-        setConfirmOpen(false);
-        navigate('/boards');
-      },
-    });
-  };
-
-  if (!isAdmin) return null;
-
-  return (
-    <Card className="p-6 space-y-4 border-destructive/40">
-      <div>
-        <CardTitle className="text-base text-foreground">Danger Zone</CardTitle>
-        <CardDescription className="text-sm text-muted-foreground mt-1">
-          Permanently delete this board and all of its tasks, comments, and labels. This cannot be
-          undone.
-        </CardDescription>
-      </div>
-      <Button variant="destructive" onClick={() => setConfirmOpen(true)}>
-        <Trash2 className="size-4 mr-1.5" />
-        Delete Board
-      </Button>
-
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete board</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete <strong>{boardName}</strong>? This will permanently
-              delete the board and all of its tasks, comments, and labels. This cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setConfirmOpen(false)}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleteBoard.isPending}>
-              {deleteBoard.isPending ? 'Deleting…' : 'Delete'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </Card>
-  );
+export function DangerSettingsRoute() {
+  const { board } = useOutletContext<{ board: any }>();
+  if (!board) return null;
+  return <DeleteBoardSection boardId={board.id} boardName={board.name} />;
 }

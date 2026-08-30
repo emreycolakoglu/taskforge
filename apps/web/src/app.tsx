@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider } from '@/contexts/auth-context';
 import { SidebarLayout } from '@/components/sidebar-layout';
@@ -12,7 +12,14 @@ import { LoginPage } from '@/pages/login-page';
 import { SignupPage } from '@/pages/signup-page';
 
 import { KanbanBoard } from '@/components/kanban-board';
-import { BoardSettingsPage } from '@/pages/board-settings-page';
+import {
+  BoardSettingsPage,
+  GeneralSettingsRoute,
+  StatusesSettingsRoute,
+  LabelsSettingsRoute,
+  MembersSettingsRoute,
+  DangerSettingsRoute,
+} from '@/pages/board-settings-page';
 import { BoardDocumentsPage } from '@/pages/board-documents-page';
 import { DocumentEditorPage } from '@/pages/document-editor-page';
 import { BoardsPage } from '@/pages/boards-page';
@@ -64,7 +71,14 @@ function AuthedRoutes() {
               <BoardSettingsPage />
             </SidebarLayout>
           }
-        />
+        >
+          <Route index element={<Navigate to="general" replace />} />
+          <Route path="general" element={<GeneralSettingsRoute />} />
+          <Route path="statuses" element={<StatusesSettingsRoute />} />
+          <Route path="labels" element={<LabelsSettingsRoute />} />
+          <Route path="members" element={<MembersSettingsRoute />} />
+          <Route path="danger" element={<DangerSettingsRoute />} />
+        </Route>
         <Route
           path="/board/:boardId/docs"
           element={
