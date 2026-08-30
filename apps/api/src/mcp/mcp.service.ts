@@ -240,10 +240,13 @@ export class McpService {
       case 'update': {
         const existing = await this.prisma.status.findUniqueOrThrow({ where: { id: params.id } });
 
-        if (params.progress !== undefined && !isProgressEditable(existing.type)) {
-          throw new BadRequestException(
-            `Progress is not editable for status type "${existing.type}"`,
-          );
+        // Editability is evaluated against the TARGET type when changing type, not the
+        // existing one — otherwise a done→in_progress transition with progress would
+        // reject on the source type before the transition can apply.
+        const targetType = params.type !== undefined ? params.type : existing.type;
+
+        if (params.progress !== undefined && !isProgressEditable(targetType)) {
+          throw new BadRequestException(`Progress is not editable for status type "${targetType}"`);
         }
 
         const data: Record<string, any> = {};
@@ -257,6 +260,10 @@ export class McpService {
             data.progress = defaultProgressForType(params.type);
           } else if (params.progress !== undefined) {
             data.progress = params.progress;
+          } else {
+            // Type change to an editable type without an explicit progress: use the
+            // type default rather than carrying a stale value across the transition.
+            data.progress = defaultProgressForType(params.type);
           }
         } else if (params.progress !== undefined && isProgressEditable(existing.type)) {
           data.progress = params.progress;
