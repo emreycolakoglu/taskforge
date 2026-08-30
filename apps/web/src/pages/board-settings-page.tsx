@@ -1,6 +1,8 @@
 import { NavLink, Outlet, useParams, useOutletContext } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import { useBoardFull } from '@/hooks/use-boards';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { GeneralSection } from './board-settings/general-section';
 import { StatusesSection } from './board-settings/statuses-section';
 import { LabelsSection } from './board-settings/labels-section';
@@ -15,19 +17,26 @@ const TABS = [
   { to: 'danger', label: 'Danger' },
 ];
 
-export function BoardSettingsPage() {
-  const { id } = useParams<{ id: string }>();
-  const { data: board } = useBoardFull(id!);
+function SettingsContent({ board }: { board: any }) {
+  if (!board) {
+    return (
+      <div className="p-6">
+        <Alert variant="destructive">
+          <AlertDescription>Board not found.</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
       {/* Header — 48px */}
       <div className="h-12 shrink-0 px-4 flex items-center gap-2 border-b border-border">
-        <NavLink to={`/board/${id}`}>
+        <NavLink to={`/board/${board.id}`}>
           <ArrowLeft className="size-4 text-muted-foreground hover:text-foreground" />
         </NavLink>
-        <span className="text-lg">{board?.icon ?? '⭐'}</span>
-        <span className="text-sm font-medium text-foreground">{board?.name}</span>
+        <span className="text-lg">{board.icon ?? '⭐'}</span>
+        <span className="text-sm font-medium text-foreground">{board.name}</span>
         <span className="text-sm text-muted-foreground">— Settings</span>
       </div>
 
@@ -56,6 +65,22 @@ export function BoardSettingsPage() {
       </div>
     </div>
   );
+}
+
+export function BoardSettingsPage() {
+  const { id } = useParams<{ id: string }>();
+  const { data: board, isLoading } = useBoardFull(id!);
+
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-3">
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="h-4 w-60" />
+      </div>
+    );
+  }
+
+  return <SettingsContent board={board} />;
 }
 
 export function GeneralSettingsRoute() {
