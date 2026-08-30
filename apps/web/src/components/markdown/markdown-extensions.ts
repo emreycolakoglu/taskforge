@@ -11,6 +11,8 @@
  *   stored-XSS surface from agent- or human-authored descriptions.
  * - Links are restricted to safe protocols; `javascript:`/`data:` are dropped.
  * - Feature set is core prose + GFM task-list checkboxes. No tables, no images.
+ * - Mentions round-trip as plain `@Name` text and are re-hydrated into chips
+ *   from the directory list at render time.
  */
 
 import StarterKit from '@tiptap/starter-kit';
@@ -18,7 +20,8 @@ import { TaskList } from '@tiptap/extension-task-list';
 import { TaskItem } from '@tiptap/extension-task-item';
 import { Placeholder } from '@tiptap/extension-placeholder';
 import { Markdown, type MarkdownStorage } from 'tiptap-markdown';
-import type { Editor, Extensions } from '@tiptap/core';
+import { Mark, mergeAttributes, type Editor, type Extensions } from '@tiptap/core';
+import { addMentionSpans } from './mentions';
 
 const SAFE_PROTOCOLS = ['http', 'https', 'mailto'] as const;
 
@@ -52,9 +55,49 @@ export function getMarkdown(editor: Editor): string {
   return (editor.storage as unknown as { markdown: MarkdownStorage }).markdown.getMarkdown();
 }
 
+export interface MentionUser {
+  id: string;
+  displayName: string;
+}
+
 interface MarkdownExtensionsOptions {
   placeholder?: string;
+  mentions?: MentionUser[];
 }
+
+export const Mention = Mark.create({
+  name: 'mention',
+
+  addAttributes() {
+    return {
+      userId: { default: null, parseHTML: (element) => element.getAttribute('data-user-id') },
+      label: { default: null, parseHTML: (element) => element.getAttribute('data-mention') },
+    };
+  },
+
+  parseHTML() {
+    return [{ tag: 'span[data-mention]' }];
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['span', mergeAttributes(HTMLAttributes, { class: 'mention' }), 0];
+  },
+
+  addStorage() {
+    return {
+      markdown: {
+        // Serializes back to plain `@Name` text (the text content already holds it).
+        serialize: { open: '', close: '' },
+        parse: {
+          updateDOM(this: { options: MarkdownExtensionsOptions }, element: HTMLElement) {
+            const mentions = this.options.mentions as MentionUser[] | undefined;
+            if (mentions?.length) addMentionSpans(element, mentions);
+          },
+        },
+      },
+    };
+  },
+});
 
 export function createMarkdownExtensions(options: MarkdownExtensionsOptions = {}): Extensions {
   return [
@@ -76,6 +119,7 @@ export function createMarkdownExtensions(options: MarkdownExtensionsOptions = {}
     Placeholder.configure({
       placeholder: options.placeholder ?? 'Add a description…',
     }),
+    Mention.configure({ mentions: options.mentions ?? [] }),
     Markdown.configure({
       html: false,
       linkify: true,

@@ -87,3 +87,43 @@ describe('markdown round-trip', () => {
     expect(out).toContain('world');
   });
 });
+
+describe('mention mark', () => {
+  const mentions = [{ id: 'u1', displayName: 'emre' }];
+
+  it('wraps a known @Name in a mention mark on parse', () => {
+    const editor = new Editor({
+      extensions: createMarkdownExtensions({ mentions }),
+      content: 'ping @emre!',
+    });
+    const json = editor.getJSON() as any;
+    const paragraph = json.content.find((n: any) => n.type === 'paragraph');
+    const textNode = paragraph.content.find((n: any) => n.type === 'text' && n.marks?.length);
+    expect(textNode.text).toBe('@emre');
+    expect(textNode.marks[0].type).toBe('mention');
+    expect(textNode.marks[0].attrs.userId).toBe('u1');
+    editor.destroy();
+  });
+
+  it('round-trips mentions back to plain @Name markdown', () => {
+    const editor = new Editor({
+      extensions: createMarkdownExtensions({ mentions }),
+      content: 'ping @emre!',
+    });
+    expect(getMarkdown(editor).trim()).toBe('ping @emre!');
+    editor.destroy();
+  });
+
+  it('leaves unknown @tokens as plain text', () => {
+    const editor = new Editor({
+      extensions: createMarkdownExtensions({ mentions }),
+      content: 'ping @stranger',
+    });
+    const json = editor.getJSON() as any;
+    const paragraph = json.content.find((n: any) => n.type === 'paragraph');
+    expect(
+      paragraph.content.every((n: any) => !n.marks?.some((m: any) => m.type === 'mention')),
+    ).toBe(true);
+    editor.destroy();
+  });
+});

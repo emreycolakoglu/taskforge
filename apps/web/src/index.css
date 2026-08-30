@@ -308,3 +308,12 @@
   height: 0;
   pointer-events: none;
 }
+
+/* @-mention chips — Indigo wash, hairline edge (Lime stays reserved). */
+.markdown-body .mention {
+  color: var(--indigo);
+  background: color-mix(in oklab, var(--indigo) 12%, transparent);
+  border: 1px solid color-mix(in oklab, var(--indigo) 35%, transparent);
+  border-radius: 4px;
+  padding: 0 3px;
+}
