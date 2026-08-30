@@ -260,8 +260,8 @@ describe('RelationsService', () => {
 
   // ─── duplicate_of ─────────────────────────────────────────────────────────
 
-  it('19. create duplicate_of (source) → URL task is duplicate of other; row {from: urlTask, to: other}; URL task moved to Duplicate status + doneAt stamped; marked_duplicate activity', async () => {
-    const dupStatus = board.statuses.find((s) => s.isDuplicate)!;
+  it('19. create duplicate_of (source) → URL task is duplicate of other; row {from: urlTask, to: other}; URL task moved to Duplicate status; marked_duplicate activity; doneAt NOT stamped', async () => {
+    const dupStatus = board.statuses.find((s: any) => s.type === 'duplicate')!;
     const entry = await service.create(
       tA.id,
       { otherTaskId: tB.id, type: 'duplicate_of', direction: 'source' },
@@ -276,15 +276,15 @@ describe('RelationsService', () => {
 
     const moved = await prisma.task.findUnique({ where: { id: tA.id } });
     expect(moved!.statusId).toBe(dupStatus.id);
-    expect(moved!.doneAt).not.toBeNull();
+    expect(moved!.doneAt).toBeNull();
 
     const activity = await prisma.activity.findFirst({ where: { taskId: tA.id } });
     expect(activity!.action).toBe('marked_duplicate');
     expect(activity!.actor).toBe('emre');
   });
 
-  it('20. create duplicate_of (target) → other is the duplicate; other task moved to Duplicate status; URL task untouched', async () => {
-    const dupStatus = board.statuses.find((s) => s.isDuplicate)!;
+  it('20. create duplicate_of (target) → other is the duplicate; other task moved to Duplicate status; URL task untouched; doneAt NOT stamped', async () => {
+    const dupStatus = board.statuses.find((s: any) => s.type === 'duplicate')!;
     const entry = await service.create(
       tA.id,
       { otherTaskId: tB.id, type: 'duplicate_of', direction: 'target' },
@@ -297,10 +297,31 @@ describe('RelationsService', () => {
 
     const otherTask = await prisma.task.findUnique({ where: { id: tB.id } });
     expect(otherTask!.statusId).toBe(dupStatus.id);
-    expect(otherTask!.doneAt).not.toBeNull();
+    expect(otherTask!.doneAt).toBeNull();
 
     const urlTask = await prisma.task.findUnique({ where: { id: tA.id } });
     expect(urlTask!.statusId).toBe(board.statuses[0].id);
+  });
+
+  it('20b. create duplicate_of when no duplicate-type status exists → task stays put, no error, marked_duplicate activity still written', async () => {
+    // Delete all duplicate-type statuses from the board
+    const dupStatuses = board.statuses.filter((s: any) => s.type === 'duplicate');
+    for (const ds of dupStatuses) {
+      await prisma.status.delete({ where: { id: ds.id } });
+    }
+    const originalStatusId = tA.statusId;
+    const entry = await service.create(
+      tA.id,
+      { otherTaskId: tB.id, type: 'duplicate_of', direction: 'source' },
+      { id: 'u1', displayName: 'emre' },
+    );
+    expect(entry.type).toBe('duplicate_of');
+
+    const moved = await prisma.task.findUnique({ where: { id: tA.id } });
+    expect(moved!.statusId).toBe(originalStatusId);
+
+    const activity = await prisma.activity.findFirst({ where: { taskId: tA.id } });
+    expect(activity!.action).toBe('marked_duplicate');
   });
 
   it('21. create duplicate_of self → BadRequestException', async () => {
@@ -356,7 +377,7 @@ describe('RelationsService', () => {
   });
 
   it('27. delete a duplicate_of relation → unmarked_duplicate activity written; task status NOT restored', async () => {
-    const dupStatus = board.statuses.find((s) => s.isDuplicate)!;
+    const dupStatus = board.statuses.find((s: any) => s.type === 'duplicate')!;
     const entry = await service.create(tA.id, {
       otherTaskId: tB.id,
       type: 'duplicate_of',

@@ -218,18 +218,18 @@ export class RelationsService {
     };
     this.events.emit('relation:created', payload, boardId);
 
-    // duplicate_of: move the dup task into the board's Duplicate status, stamp doneAt,
-    // emit task:moved, and log a marked_duplicate activity. Done inline (not via
-    // TasksService.move) to avoid a circular module dependency.
+    // duplicate_of: move the dup task into the board's first Duplicate status by
+    // position, emit task:moved, and log a marked_duplicate activity. Done inline
+    // (not via TasksService.move) to avoid a circular module dependency.
     if (dto.type === 'duplicate_of') {
       const dupStatus = await this.prisma.status.findFirst({
-        where: { boardId, isDuplicate: true },
+        where: { boardId, type: 'duplicate' },
+        orderBy: { position: 'asc' },
       });
       if (dupStatus) {
-        const now = new Date();
         const movedTask = await this.prisma.task.update({
           where: { id: fromTaskId },
-          data: { statusId: dupStatus.id, doneAt: now },
+          data: { statusId: dupStatus.id },
           include: {
             assignee: { select: { id: true, email: true, displayName: true, role: true } },
             labels: { include: { label: true } },
