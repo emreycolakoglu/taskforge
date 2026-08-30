@@ -174,7 +174,6 @@ const EMOJI_CATEGORIES: Record<string, string[]> = {
     '🔨',
     '⛏️',
     '⚒️',
-    '🛠️',
     '🔧',
     '🔩',
     '⚙️',
@@ -316,9 +315,9 @@ export function EmojiPicker({ value, onChange, className }: EmojiPickerProps) {
         </div>
         {/* Emoji grid */}
         <div className="grid grid-cols-8 gap-1 p-2 max-h-48 overflow-y-auto">
-          {emojis.map((emoji) => (
+          {emojis.map((emoji, i) => (
             <button
-              key={emoji}
+              key={`${activeCategory}-${i}`}
               type="button"
               onClick={() => {
                 onChange(emoji);
