@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { LabelsService } from '../labels/labels.service';
 import { withTaskNumber } from '../tasks/tasks.service';
+import { DEFAULT_STATUSES } from '../statuses/status-defaults';
 import { CreateBoardDto, UpdateBoardDto } from './dto/board.dto';
 
 const DEFAULT_LABELS = [
@@ -91,14 +92,7 @@ export class BoardsService {
         description: dto.description,
         icon: dto.icon,
         statuses: {
-          create: [
-            { name: 'Backlog', position: 0, color: '#94a3b8', progress: 0 },
-            { name: 'To Do', position: 1, color: '#6366f1', progress: 25 },
-            { name: 'In Progress', position: 2, color: '#f59e0b', progress: 50 },
-            { name: 'Review', position: 3, color: '#8b5cf6', progress: 75 },
-            { name: 'Done', position: 4, color: '#22c55e', isDone: true, progress: 100 },
-            { name: 'Duplicate', position: 5, color: '#64748b', isDuplicate: true, progress: 100 },
-          ],
+          create: DEFAULT_STATUSES,
         },
       },
       include: { statuses: true },

@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import { DEFAULT_STATUSES } from '../src/statuses/status-defaults';
 import { execSync } from 'child_process';
 import { join } from 'path';
 import { randomUUID, createHash } from 'crypto';
@@ -56,14 +57,7 @@ export async function seedBoard(prisma: PrismaClient) {
       identifier,
       description: 'A board for testing',
       statuses: {
-        create: [
-          { name: 'Backlog', position: 0, color: '#94a3b8' },
-          { name: 'To Do', position: 1, color: '#6366f1' },
-          { name: 'In Progress', position: 2, color: '#f59e0b' },
-          { name: 'Review', position: 3, color: '#8b5cf6' },
-          { name: 'Done', position: 4, color: '#22c55e', isDone: true },
-          { name: 'Duplicate', position: 5, color: '#64748b', isDuplicate: true },
-        ],
+        create: DEFAULT_STATUSES,
       },
     },
     include: { statuses: true },
