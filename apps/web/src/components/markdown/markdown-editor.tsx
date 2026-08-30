@@ -65,33 +65,41 @@ export default function MarkdownEditor({
   const onContainerClick = (e: React.MouseEvent) => {
     const target = (e.target as HTMLElement).closest('.mention');
     if (!target) return;
-    const userId = target.getAttribute('data-user-id');
+    // ProseMirror renders the mark's `userId` attribute lowercased as `userid`.
+    const userId = target.getAttribute('userid');
     if (userId && handleMentionClick.current) handleMentionClick.current(userId);
   };
 
-  const editor = useEditor({
-    editable,
-    autofocus: autoFocus ? 'end' : false,
-    extensions: createMarkdownExtensions({ placeholder, mentions }),
-    content: value,
-    editorProps: {
-      attributes: {
-        class: cn(
-          'markdown-body focus:outline-none',
-          // The click target only matters when there is something to click into.
-          editable ? 'min-h-[60px]' : 'cursor-default',
-        ),
+  const editor = useEditor(
+    {
+      editable,
+      autofocus: autoFocus ? 'end' : false,
+      extensions: createMarkdownExtensions({ placeholder, mentions }),
+      content: value,
+      editorProps: {
+        attributes: {
+          class: cn(
+            'markdown-body focus:outline-none',
+            // The click target only matters when there is something to click into.
+            editable ? 'min-h-[60px]' : 'cursor-default',
+          ),
+        },
+      },
+      onUpdate: ({ editor }) => {
+        if (editor.isDestroyed) return;
+        onChangeRef.current?.(getMarkdown(editor));
+      },
+      onBlur: ({ editor }) => {
+        if (editor.isDestroyed) return;
+        onBlurRef.current?.(getMarkdown(editor));
       },
     },
-    onUpdate: ({ editor }) => {
-      if (editor.isDestroyed) return;
-      onChangeRef.current?.(getMarkdown(editor));
-    },
-    onBlur: ({ editor }) => {
-      if (editor.isDestroyed) return;
-      onBlurRef.current?.(getMarkdown(editor));
-    },
-  });
+    // Recreate the editor when the mention directory arrives so the parse
+    // hook re-runs and `@Name` text hydrates into chips. The directory is
+    // React Query data with stable identity between refetches, so this fires
+    // at most once per 5-minute stale window.
+    [mentions],
+  );
 
   // Keep `editable` in sync if it changes after mount.
   useEffect(() => {
