@@ -1,4 +1,5 @@
-import { IsString, IsOptional, IsNumber, IsInt, Min, Max, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsInt, Min, Max, IsArray, IsIn } from 'class-validator';
+import { STATUS_TYPES } from '../status-types';
 
 export class CreateStatusDto {
   @IsString()
@@ -7,6 +8,9 @@ export class CreateStatusDto {
   @IsString()
   name: string;
 
+  @IsIn(STATUS_TYPES)
+  type: string;
+
   @IsOptional()
   @IsNumber()
   position?: number;
@@ -14,16 +18,6 @@ export class CreateStatusDto {
   @IsOptional()
   @IsString()
   color?: string;
-
-  @IsOptional()
-  @IsNumber()
-  wipLimit?: number;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(100)
-  progress?: number;
 }
 
 export class UpdateStatusDto {
@@ -32,16 +26,16 @@ export class UpdateStatusDto {
   name?: string;
 
   @IsOptional()
+  @IsIn(STATUS_TYPES)
+  type?: string;
+
+  @IsOptional()
   @IsNumber()
   position?: number;
 
   @IsOptional()
   @IsString()
   color?: string;
-
-  @IsOptional()
-  @IsNumber()
-  wipLimit?: number;
 
   @IsOptional()
   @IsInt()

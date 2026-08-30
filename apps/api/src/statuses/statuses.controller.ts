@@ -44,16 +44,4 @@ export class StatusesController {
     const user = (req as any).user as AuthedUser | undefined;
     return this.service.remove(id, user);
   }
-
-  @Post(':id/toggle-done')
-  toggleDone(@Param('id') id: string, @Req() req: Request) {
-    const user = (req as any).user as AuthedUser | undefined;
-    return this.service.toggleDone(id, user);
-  }
-
-  @Post('board/:boardId/unset-done')
-  unsetDone(@Param('boardId') boardId: string, @Req() req: Request) {
-    const user = (req as any).user as AuthedUser | undefined;
-    return this.service.unsetDone(boardId, user);
-  }
 }

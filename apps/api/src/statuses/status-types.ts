@@ -33,5 +33,5 @@ export function stampsDoneAt(type: string): boolean {
 }
 
 export function defaultProgressForType(type: string): number | null {
-  return PROGRESS_BY_TYPE[type as StatusType] ?? 0;
+  return PROGRESS_BY_TYPE[type as StatusType] ?? null;
 }

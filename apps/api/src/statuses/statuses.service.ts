@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { CreateStatusDto, UpdateStatusDto, ReorderStatusesDto } from './dto/status.dto';
+import { STATUS_TYPES, defaultProgressForType, isProgressEditable } from './status-types';
 
 @Injectable()
 export class StatusesService {
@@ -25,6 +26,9 @@ export class StatusesService {
   }
 
   async create(dto: CreateStatusDto, _user?: { id: string; displayName: string }) {
+    if (!dto.type || !STATUS_TYPES.includes(dto.type as any)) {
+      throw new BadRequestException(`Invalid status type "${dto.type}"`);
+    }
     const maxPos = await this.prisma.status.aggregate({
       where: { boardId: dto.boardId },
       _max: { position: true },
@@ -33,10 +37,10 @@ export class StatusesService {
       data: {
         boardId: dto.boardId,
         name: dto.name,
+        type: dto.type,
         position: dto.position ?? (maxPos._max.position ?? -1) + 1,
         color: dto.color,
-        wipLimit: dto.wipLimit,
-        progress: dto.progress,
+        progress: defaultProgressForType(dto.type),
       },
     });
     this.events.emit('status:created', status, dto.boardId);
@@ -44,8 +48,29 @@ export class StatusesService {
   }
 
   async update(id: string, dto: UpdateStatusDto, _user?: { id: string; displayName: string }) {
-    await this.findOne(id);
-    const status = await this.prisma.status.update({ where: { id }, data: dto });
+    const existing = await this.findOne(id);
+
+    if (dto.progress !== undefined && !isProgressEditable(existing.type)) {
+      throw new BadRequestException(`Progress is not editable for status type "${existing.type}"`);
+    }
+
+    const data: Record<string, any> = {};
+    if (dto.name !== undefined) data.name = dto.name;
+    if (dto.position !== undefined) data.position = dto.position;
+    if (dto.color !== undefined) data.color = dto.color;
+
+    if (dto.type !== undefined) {
+      data.type = dto.type;
+      if (!isProgressEditable(dto.type)) {
+        data.progress = defaultProgressForType(dto.type);
+      } else if (dto.progress !== undefined) {
+        data.progress = dto.progress;
+      }
+    } else if (dto.progress !== undefined && isProgressEditable(existing.type)) {
+      data.progress = dto.progress;
+    }
+
+    const status = await this.prisma.status.update({ where: { id }, data });
     this.events.emit('status:updated', status, status.boardId);
     return status;
   }
@@ -67,34 +92,5 @@ export class StatusesService {
     const status = await this.findOne(id);
     await this.prisma.status.delete({ where: { id } });
     this.events.emit('status:deleted', { id }, status.boardId);
-  }
-
-  async toggleDone(statusId: string, _user?: { id: string; displayName: string }) {
-    const target = await this.findOne(statusId);
-    const boardId = target.boardId;
-    await this.prisma.$transaction(async (tx) => {
-      const prevDone = await tx.status.findFirst({ where: { boardId, isDone: true } });
-      if (prevDone && prevDone.id !== statusId) {
-        await tx.status.update({ where: { id: prevDone.id }, data: { isDone: false } });
-        await tx.task.updateMany({ where: { statusId: prevDone.id }, data: { doneAt: null } });
-      }
-      await tx.status.update({ where: { id: statusId }, data: { isDone: true } });
-      await tx.task.updateMany({ where: { statusId, doneAt: null }, data: { doneAt: new Date() } });
-    });
-    const status = await this.findOne(statusId);
-    this.events.emit('status:doneToggled', status, boardId);
-    return status;
-  }
-
-  async unsetDone(boardId: string, _user?: { id: string; displayName: string }) {
-    const done = await this.prisma.status.findFirst({ where: { boardId, isDone: true } });
-    if (!done) return { unset: true };
-    await this.prisma.$transaction(async (tx) => {
-      await tx.status.update({ where: { id: done.id }, data: { isDone: false } });
-      await tx.task.updateMany({ where: { statusId: done.id }, data: { doneAt: null } });
-    });
-    const refreshed = await this.findOne(done.id);
-    this.events.emit('status:doneToggled', refreshed, boardId);
-    return { unset: true };
   }
 }

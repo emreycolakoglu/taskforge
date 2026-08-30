@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { StatusesService } from './statuses.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
@@ -46,8 +47,13 @@ describe('StatusesService', () => {
       const statuses = await service.findByBoard(board.id);
       expect(statuses).toHaveLength(6);
       expect(statuses[0].name).toBe('Backlog');
-      expect(statuses[4].name).toBe('Done');
-      expect(statuses[4].isDone).toBe(true);
+      expect(statuses[0].type).toBe('backlog');
+      expect(statuses[3].name).toBe('Done');
+      expect(statuses[3].type).toBe('done');
+      expect(statuses[4].name).toBe('Cancelled');
+      expect(statuses[4].type).toBe('cancelled');
+      expect(statuses[5].name).toBe('Duplicate');
+      expect(statuses[5].type).toBe('duplicate');
     });
 
     it('should include task counts', async () => {
@@ -70,26 +76,54 @@ describe('StatusesService', () => {
 
   describe('create', () => {
     it('should create a status at the end', async () => {
-      const status = await service.create({ boardId: board.id, name: 'New Status' });
+      const status = await service.create({ boardId: board.id, name: 'New Status', type: 'todo' });
       expect(status.name).toBe('New Status');
       expect(status.position).toBe(6);
-      expect(status.isDone).toBe(false);
+      expect(status.type).toBe('todo');
+      expect(status.progress).toBe(0);
     });
 
     it('should create a status at a specific position', async () => {
-      const status = await service.create({ boardId: board.id, name: 'Middle', position: 2.5 });
+      const status = await service.create({
+        boardId: board.id,
+        name: 'Middle',
+        type: 'todo',
+        position: 2.5,
+      });
       expect(status.position).toBe(2.5);
     });
 
-    it('should create a status with color and wipLimit', async () => {
+    it('should create a status with color', async () => {
       const status = await service.create({
         boardId: board.id,
         name: 'Blocked',
+        type: 'todo',
         color: '#ef4444',
-        wipLimit: 3,
       });
       expect(status.color).toBe('#ef4444');
-      expect(status.wipLimit).toBe(3);
+    });
+
+    it('should set progress from type default on create', async () => {
+      const inProgress = await service.create({
+        boardId: board.id,
+        name: 'WIP',
+        type: 'in_progress',
+      });
+      expect(inProgress.progress).toBe(50);
+
+      const done = await service.create({ boardId: board.id, name: 'Shipped', type: 'done' });
+      expect(done.progress).toBe(100);
+
+      const cancelled = await service.create({
+        boardId: board.id,
+        name: 'Abandoned',
+        type: 'cancelled',
+      });
+      expect(cancelled.progress).toBeNull();
+    });
+
+    it('should reject create without type', async () => {
+      await expect(service.create({ boardId: board.id, name: 'No Type' } as any)).rejects.toThrow();
     });
   });
 
@@ -101,6 +135,40 @@ describe('StatusesService', () => {
       });
       expect(status.name).toBe('Icebox');
       expect(status.color).toBe('#000000');
+    });
+
+    it('should update status type and recompute progress to locked value', async () => {
+      const status = await service.update(board.statuses[0].id, { type: 'done' });
+      expect(status.type).toBe('done');
+      expect(status.progress).toBe(100);
+    });
+
+    it('should update status type to cancelled and set progress to null', async () => {
+      const status = await service.update(board.statuses[0].id, { type: 'cancelled' });
+      expect(status.type).toBe('cancelled');
+      expect(status.progress).toBeNull();
+    });
+
+    it('should allow progress update for in_progress type', async () => {
+      const inProgress = await service.create({
+        boardId: board.id,
+        name: 'WIP',
+        type: 'in_progress',
+      });
+      const updated = await service.update(inProgress.id, { progress: 75 });
+      expect(updated.progress).toBe(75);
+    });
+
+    it('should reject progress update for done type', async () => {
+      await expect(service.update(board.statuses[3].id, { progress: 50 })).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should reject progress update for backlog type', async () => {
+      await expect(service.update(board.statuses[0].id, { progress: 50 })).rejects.toThrow(
+        BadRequestException,
+      );
     });
   });
 
@@ -119,50 +187,6 @@ describe('StatusesService', () => {
     it('should delete a status', async () => {
       await service.remove(board.statuses[0].id);
       await expect(service.findOne(board.statuses[0].id)).rejects.toThrow('Status not found');
-    });
-  });
-
-  describe('toggleDone', () => {
-    it('sets isDone on the target and clears it on the previous done status', async () => {
-      const doneStatus = board.statuses[4]; // seeded with isDone=true
-      const backlog = board.statuses[0];
-      await service.toggleDone(backlog.id);
-      const refreshed = await service.findByBoard(board.id);
-      expect(refreshed.find((s) => s.id === backlog.id)!.isDone).toBe(true);
-      expect(refreshed.find((s) => s.id === doneStatus.id)!.isDone).toBe(false);
-    });
-
-    it('stamps doneAt on tasks in the new done status and clears it on the old', async () => {
-      const doneStatus = board.statuses[4];
-      const backlog = board.statuses[0];
-      const taskInDone = await seedTask(prisma, doneStatus.id);
-      const taskInBacklog = await seedTask(prisma, backlog.id);
-      // Move done onto backlog:
-      await service.toggleDone(backlog.id);
-      const refreshedBacklogTask = await prisma.task.findUnique({
-        where: { id: taskInBacklog.id },
-      });
-      const refreshedDoneTask = await prisma.task.findUnique({ where: { id: taskInDone.id } });
-      expect(refreshedBacklogTask!.doneAt).not.toBeNull();
-      expect(refreshedDoneTask!.doneAt).toBeNull();
-    });
-  });
-
-  describe('unsetDone', () => {
-    it('clears isDone and doneAt on the current done status', async () => {
-      const doneStatus = board.statuses[4];
-      await seedTask(prisma, doneStatus.id, { doneAt: new Date() });
-      await service.unsetDone(board.id);
-      const refreshed = await service.findByBoard(board.id);
-      expect(refreshed.find((s) => s.isDone)).toBeUndefined();
-      const tasks = await prisma.task.findMany({ where: { statusId: doneStatus.id } });
-      expect(tasks.every((t) => t.doneAt === null)).toBe(true);
-    });
-
-    it('is a no-op when no done status exists', async () => {
-      await service.unsetDone(board.id);
-      const result = await service.unsetDone(board.id);
-      expect(result).toEqual({ unset: true });
     });
   });
 });
