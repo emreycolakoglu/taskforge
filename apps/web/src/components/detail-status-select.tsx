@@ -42,7 +42,7 @@ export const DetailStatusSelect = ({
         {statuses.map((s) => (
           <SelectItem key={s.id} value={s.id}>
             <span className="flex items-center gap-1.5">
-              <ProgressIcon progress={s.progress ?? 0} size={16} />
+              <ProgressIcon progress={s.progress ?? 0} type={s.type} size={16} />
               {s.name}
             </span>
           </SelectItem>

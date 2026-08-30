@@ -58,7 +58,7 @@ export function BoardColumn({
     >
       {/* Column header — 50px, progress icon + name + count + menu */}
       <div className="h-[50px] shrink-0 px-3 flex items-center gap-2 border-b border-border">
-        <ProgressIcon progress={status.progress ?? 0} size={16} />
+        <ProgressIcon progress={status.progress ?? 0} type={status.type} size={16} />
         <span className="text-sm font-medium text-foreground">{status.name}</span>
         <span className="text-xs font-mono text-muted-foreground">{taskCount}</span>
         <div className="ml-auto">
