@@ -128,6 +128,7 @@ vi.mock('@/hooks/use-users', () => ({
       },
     ],
   }),
+  useUserDirectory: () => ({ data: [] }),
 }));
 
 vi.mock('@/hooks/use-labels', () => ({

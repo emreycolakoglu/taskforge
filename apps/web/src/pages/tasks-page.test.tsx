@@ -14,8 +14,8 @@ vi.mock('@/hooks/use-boards', () => ({
 }));
 
 vi.mock('@/hooks/use-tasks', () => ({
-  useSearchTasks: (q: string) => {
-    if (!q) return { data: [], isFetched: false };
+  useSearchTasks: (q: string, assigneeId?: string) => {
+    if (!q && !assigneeId) return { data: [], isFetched: false };
     return {
       data: [
         {

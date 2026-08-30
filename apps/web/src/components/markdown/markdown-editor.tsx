@@ -22,6 +22,7 @@ import { BubbleMenu } from '@tiptap/react/menus';
 import { Bold, Italic, Strikethrough, Code, Link2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { createMarkdownExtensions, getMarkdown, sanitizeHref } from './markdown-extensions';
+import type { MentionUser } from './markdown-extensions';
 import { shouldSyncExternalValue } from './sync-guard';
 
 export interface MarkdownEditorProps {
@@ -31,6 +32,10 @@ export interface MarkdownEditorProps {
   autoFocus?: boolean;
   placeholder?: string;
   className?: string;
+  /** Directory of users that `@Name` mentions are matched against for chips. */
+  mentions?: MentionUser[];
+  /** Fired when a mention chip is clicked, with the mentioned user's id. */
+  onMentionClick?: (userId: string) => void;
   /** Fires on every edit with the serialized markdown. */
   onChange?: (markdown: string) => void;
   /** Fires on blur with the serialized markdown (used to flush autosave). */
@@ -43,6 +48,8 @@ export default function MarkdownEditor({
   autoFocus = false,
   placeholder,
   className,
+  mentions,
+  onMentionClick,
   onChange,
   onBlur,
 }: MarkdownEditorProps) {
@@ -52,10 +59,20 @@ export default function MarkdownEditor({
   onChangeRef.current = onChange;
   onBlurRef.current = onBlur;
 
+  const handleMentionClick = useRef(undefined as undefined | ((userId: string) => void));
+  handleMentionClick.current = onMentionClick;
+
+  const onContainerClick = (e: React.MouseEvent) => {
+    const target = (e.target as HTMLElement).closest('.mention');
+    if (!target) return;
+    const userId = target.getAttribute('data-user-id');
+    if (userId && handleMentionClick.current) handleMentionClick.current(userId);
+  };
+
   const editor = useEditor({
     editable,
     autofocus: autoFocus ? 'end' : false,
-    extensions: createMarkdownExtensions({ placeholder }),
+    extensions: createMarkdownExtensions({ placeholder, mentions }),
     content: value,
     editorProps: {
       attributes: {
@@ -153,7 +170,9 @@ export default function MarkdownEditor({
           </MarkButton>
         </BubbleMenu>
       )}
-      <EditorContent editor={editor} className={className} />
+      <div onClick={onContainerClick} className="contents">
+        <EditorContent editor={editor} className={className} />
+      </div>
     </>
   );
 }

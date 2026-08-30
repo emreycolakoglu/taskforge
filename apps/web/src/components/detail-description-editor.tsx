@@ -12,7 +12,9 @@
  */
 
 import { useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MarkdownEditor } from '@/components/markdown';
+import { useUserDirectory } from '@/hooks/use-users';
 import { createAutosaver, type Autosaver } from '@/lib/autosave';
 
 const AUTOSAVE_DELAY_MS = 1000;
@@ -23,6 +25,8 @@ interface DetailDescriptionEditorProps {
 }
 
 export function DetailDescriptionEditor({ value, onSave }: DetailDescriptionEditorProps) {
+  const navigate = useNavigate();
+  const { data: directory = [] } = useUserDirectory();
   const onSaveRef = useRef(onSave);
   const valueRef = useRef(value);
   onSaveRef.current = onSave;
@@ -44,6 +48,8 @@ export function DetailDescriptionEditor({ value, onSave }: DetailDescriptionEdit
   return (
     <MarkdownEditor
       value={value}
+      mentions={directory}
+      onMentionClick={(userId) => navigate(`/tasks?assignee=${userId}`)}
       onChange={(markdown) => saverRef.current?.schedule(markdown)}
       onBlur={(markdown) => {
         saverRef.current?.schedule(markdown);

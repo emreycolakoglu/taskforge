@@ -48,6 +48,7 @@ vi.mock('@/hooks/use-comments', () => ({
 
 vi.mock('@/hooks/use-users', () => ({
   useUsers: () => ({ data: [] }),
+  useUserDirectory: () => ({ data: [] }),
 }));
 
 vi.mock('@/hooks/use-labels', () => ({

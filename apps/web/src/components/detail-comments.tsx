@@ -30,6 +30,7 @@
  */
 
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { MessageSquare, MoreHorizontal, Trash2, Pencil, Smile, Reply } from 'lucide-react';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
@@ -53,6 +54,7 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { MarkdownEditor } from '@/components/markdown';
 import { useAuth } from '@/contexts/auth-context';
+import { useUserDirectory } from '@/hooks/use-users';
 import { REACTION_EMOJIS } from '@/lib/reactions';
 import type { Comment } from '@/types';
 
@@ -86,6 +88,8 @@ export function DetailComments({
   const [replyText, setReplyText] = useState('');
   const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<string>>(new Set());
   const { user } = useAuth();
+  const navigate = useNavigate();
+  const { data: directory = [] } = useUserDirectory();
 
   const submit = () => {
     if (!text.trim()) return;
@@ -275,7 +279,13 @@ export function DetailComments({
             </div>
           </div>
         ) : (
-          <MarkdownEditor value={c.body} editable={false} className="mt-1" />
+          <MarkdownEditor
+            value={c.body}
+            editable={false}
+            className="mt-1"
+            mentions={directory}
+            onMentionClick={(userId) => navigate(`/tasks?assignee=${userId}`)}
+          />
         )}
 
         {/* Reply composer — one open at a time */}

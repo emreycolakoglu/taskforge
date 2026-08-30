@@ -28,6 +28,14 @@ vi.mock('@/contexts/auth-context', () => ({
   useAuth: () => ({ user: mockUser }),
 }));
 
+vi.mock('react-router-dom', () => ({
+  useNavigate: () => vi.fn(),
+}));
+
+vi.mock('@/hooks/use-users', () => ({
+  useUserDirectory: () => ({ data: [] }),
+}));
+
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));

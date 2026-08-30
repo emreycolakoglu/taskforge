@@ -96,6 +96,7 @@ export const api = {
     createInvite: () => request<InviteTokenResponse>('/auth/invite', { method: 'POST' }),
     createBotToken: () => request<InviteTokenResponse>('/auth/bot-token', { method: 'POST' }),
     users: () => request<User[]>('/auth/users'),
+    directory: () => request<{ id: string; displayName: string }[]>('/auth/users/directory'),
     deleteUser: (id: string) =>
       request<{ success: boolean }>(`/auth/users/${id}`, { method: 'DELETE' }),
     invites: () => request<Invite[]>('/auth/invites'),

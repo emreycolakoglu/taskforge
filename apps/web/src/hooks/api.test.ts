@@ -479,6 +479,24 @@ describe('api', () => {
     expect(result[0].displayName).toBe('Alice');
   });
 
+  it('should make auth.directory request', async () => {
+    const directory = [
+      { id: 'u1', displayName: 'Alice' },
+      { id: 'u2', displayName: 'Bob' },
+    ];
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () => Promise.resolve(directory),
+    });
+
+    const { api } = await import('./api');
+    const result = await api.auth.directory();
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/auth/users/directory', expect.any(Object));
+    expect(result).toHaveLength(2);
+    expect(result[0].displayName).toBe('Alice');
+  });
+
   it('should make GET request to list labels for a board', async () => {
     const labels = [
       {

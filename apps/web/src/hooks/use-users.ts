@@ -9,6 +9,14 @@ export function useUsers() {
   });
 }
 
+export function useUserDirectory() {
+  return useQuery({
+    queryKey: ['user-directory'],
+    queryFn: () => api.auth.directory(),
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useDeleteUser() {
   const queryClient = useQueryClient();
   return useMutation({
