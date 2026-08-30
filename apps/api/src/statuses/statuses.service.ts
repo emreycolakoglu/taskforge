@@ -50,8 +50,13 @@ export class StatusesService {
   async update(id: string, dto: UpdateStatusDto, _user?: { id: string; displayName: string }) {
     const existing = await this.findOne(id);
 
-    if (dto.progress !== undefined && !isProgressEditable(existing.type)) {
-      throw new BadRequestException(`Progress is not editable for status type "${existing.type}"`);
+    // Editability is evaluated against the TARGET type when changing type, not the
+    // existing one — otherwise a done→in_progress transition with progress would
+    // reject on the source type before the transition can apply.
+    const targetType = dto.type !== undefined ? dto.type : existing.type;
+
+    if (dto.progress !== undefined && !isProgressEditable(targetType)) {
+      throw new BadRequestException(`Progress is not editable for status type "${targetType}"`);
     }
 
     const data: Record<string, any> = {};
@@ -65,6 +70,10 @@ export class StatusesService {
         data.progress = defaultProgressForType(dto.type);
       } else if (dto.progress !== undefined) {
         data.progress = dto.progress;
+      } else {
+        // Type change to an editable type without an explicit progress: use the
+        // type default rather than carrying a stale value across the transition.
+        data.progress = defaultProgressForType(dto.type);
       }
     } else if (dto.progress !== undefined && isProgressEditable(existing.type)) {
       data.progress = dto.progress;
