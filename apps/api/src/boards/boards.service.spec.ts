@@ -148,7 +148,7 @@ describe('BoardsService', () => {
   });
 
   describe('create', () => {
-    it('should create a board with 6 default statuses, Done.isDone=true, Duplicate.isDuplicate=true', async () => {
+    it('should create a board with 6 default statuses with correct types', async () => {
       const board = await service.create({
         name: 'New Board',
         slug: 'new-board',
@@ -161,14 +161,18 @@ describe('BoardsService', () => {
       const statuses = board.statuses;
       expect(statuses.map((s: any) => s.name)).toEqual([
         'Backlog',
-        'To Do',
+        'Todo',
         'In Progress',
-        'Review',
         'Done',
+        'Cancelled',
         'Duplicate',
       ]);
-      expect(statuses.find((s: any) => s.name === 'Done').isDone).toBe(true);
-      expect(statuses.find((s: any) => s.name === 'Duplicate').isDuplicate).toBe(true);
+      expect(statuses.find((s: any) => s.name === 'Done').type).toBe('done');
+      expect(statuses.find((s: any) => s.name === 'Cancelled').type).toBe('cancelled');
+      expect(statuses.find((s: any) => s.name === 'Duplicate').type).toBe('duplicate');
+      expect(statuses.find((s: any) => s.name === 'Backlog').type).toBe('backlog');
+      expect(statuses.find((s: any) => s.name === 'Todo').type).toBe('todo');
+      expect(statuses.find((s: any) => s.name === 'In Progress').type).toBe('in_progress');
     });
 
     it('should create a board with 5 default labels', async () => {
