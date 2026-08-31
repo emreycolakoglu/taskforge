@@ -10,6 +10,7 @@ import { useUsers } from '@/hooks/use-users';
 import { useSocket } from '@/hooks/use-socket';
 import { useBoardViewState } from '@/hooks/use-board-view-state';
 import { useActiveView } from '@/hooks/use-view-state';
+import { useBoardViews, useCreateView, useUpdateView, useDeleteView } from '@/hooks/use-views';
 import { useDragScroll } from '@/hooks/use-drag-scroll';
 import {
   applyViewFilters,
@@ -28,6 +29,7 @@ import { BoardHeaderBar } from './board-header-bar';
 import { FilterChipsBar } from './filter-chips-bar';
 import { QuickAddInput } from './quick-add-input';
 import { CreateTaskDialog } from './create-task-dialog';
+import { SaveViewDialog } from './save-view-dialog';
 import { LabelPill } from './label-pill';
 import { ProgressIcon } from './progress-icon';
 import { Button } from '@/components/ui/button';
@@ -53,7 +55,19 @@ export function KanbanBoard() {
   const { viewMode, setViewMode, filters, toggleLabelFilter, removeFilter, clearFilters } =
     useBoardViewState(id ?? '');
 
-  const { activeView } = useActiveView(id ?? '');
+  const { activeView, selectView } = useActiveView(id ?? '');
+
+  const { data: viewsData } = useBoardViews(id ?? '');
+  const views = viewsData ?? [];
+  const createView = useCreateView(id ?? '');
+  const updateView = useUpdateView(id ?? '');
+  const deleteView = useDeleteView(id ?? '');
+
+  // "Shared with board" is offered when the board has no Member rows (legacy
+  // board — the API allows it) or once membership data resolves it separately;
+  // Task 10 tightens this to "current user has a Member row" when the auth
+  // context is wired into this component.
+  const canShareViews = (board?.members ?? []).length === 0;
 
   // When a saved view is active, its layout drives the mode; a manual toggle is
   // a local deviation stored as an override that wins for the session and resets
@@ -91,6 +105,7 @@ export function KanbanBoard() {
   } | null>(null);
   const [pendingDeleteStatusId, setPendingDeleteStatusId] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
   const createTask = useCreateTask();
   const { data: users = [] } = useUsers();
@@ -212,6 +227,41 @@ export function KanbanBoard() {
   const handleViewModeChange = (mode: ViewMode) => {
     if (activeView) setLayoutOverride(mode);
     setViewMode(mode);
+  };
+
+  const handleSaveView = ({ name, shared }: { name: string; shared: boolean }) => {
+    if (!id) return;
+    createView.mutate({
+      name,
+      shared,
+      filters: {
+        labelIds: effectiveFilters.labelIds,
+        assigneeIds: effectiveFilters.assigneeIds,
+        priorities: effectiveFilters.priorities,
+        dueDateRange: {
+          from: effectiveFilters.dueDateRange.from,
+          to: effectiveFilters.dueDateRange.to,
+        },
+        searchQuery: effectiveFilters.searchQuery,
+      },
+      groupBy: effectiveGroupBy,
+      sortBy: effectiveSortBy,
+      layout: effectiveViewMode === 'list' ? 'list' : 'board',
+    });
+  };
+
+  const handleSelectView = (viewId: string | null) => {
+    selectView(viewId);
+    setLayoutOverride(null);
+  };
+
+  const handleRenameView = (viewId: string, name: string) => {
+    updateView.mutate({ id: viewId, data: { name } });
+  };
+
+  const handleDeleteView = (viewId: string) => {
+    deleteView.mutate(viewId);
+    if (activeView?.id === viewId) selectView(null);
   };
 
   const priorityColor = (p: string) => {
@@ -361,6 +411,12 @@ export function KanbanBoard() {
         onViewModeChange={handleViewModeChange}
         onOpenSettings={() => navigate(`/board/${id}/settings`)}
         onNewTask={() => setCreateDialogOpen(true)}
+        views={views}
+        activeViewId={activeView?.id ?? null}
+        onSelectView={handleSelectView}
+        onRenameView={handleRenameView}
+        onDeleteView={handleDeleteView}
+        onSaveAsView={() => setSaveDialogOpen(true)}
       />
 
       {/* When a saved view is active its filters come from the view (chips are Task 10) */}
@@ -496,6 +552,14 @@ export function KanbanBoard() {
         statuses={statuses}
         users={users}
         onSubmit={handleCreateTaskDialog}
+      />
+
+      {/* Save-as-view dialog (opened from header "Save as view") */}
+      <SaveViewDialog
+        open={saveDialogOpen}
+        onOpenChange={setSaveDialogOpen}
+        canShare={canShareViews}
+        onSubmit={handleSaveView}
       />
 
       {/* Sub-task creation dialog */}

@@ -1,17 +1,19 @@
 /**
  * BoardHeaderBar — sticky board header (Linear-style command deck bar).
  *
- * Three groups: breadcrumb/title (left), view tabs (center), toolbar + CTA (right).
- * The "New Issue" button is the screen's single rationed Acid Lime CTA per design.md.
- * No lime appears anywhere else in the header.
+ * Three groups: breadcrumb/title (left), saved-views selector + view tabs
+ * (center), toolbar + CTA (right). The "New Issue" button is the screen's
+ * single rationed Acid Lime CTA per design.md. No lime appears anywhere else
+ * in the header — "Save as view" is a ghost button.
  */
 
 import { List, Columns3, Plus, Settings } from 'lucide-react';
-import type { Board } from '@/types';
+import type { Board, View } from '@/types';
 import type { ViewMode } from '@/hooks/use-board-view-state';
 import { Button } from '@/components/ui/button';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { SidebarTrigger } from '@/components/ui/sidebar';
+import { ViewSelector } from './view-selector';
 
 interface BoardHeaderBarProps {
   board: Board;
@@ -19,6 +21,12 @@ interface BoardHeaderBarProps {
   onViewModeChange: (mode: ViewMode) => void;
   onOpenSettings: () => void;
   onNewTask: () => void;
+  views: View[];
+  activeViewId: string | null;
+  onSelectView: (id: string | null) => void;
+  onRenameView: (id: string, name: string) => void;
+  onDeleteView: (id: string) => void;
+  onSaveAsView: () => void;
 }
 
 export function BoardHeaderBar({
@@ -27,6 +35,12 @@ export function BoardHeaderBar({
   onViewModeChange,
   onOpenSettings,
   onNewTask,
+  views,
+  activeViewId,
+  onSelectView,
+  onRenameView,
+  onDeleteView,
+  onSaveAsView,
 }: BoardHeaderBarProps) {
   return (
     <header className="flex h-12 items-center justify-between px-6 border-b border-border bg-secondary shrink-0">
@@ -44,39 +58,57 @@ export function BoardHeaderBar({
         </h1>
       </div>
 
-      {/* Center — view tabs. Active state = Graphite (bg-accent), NOT Lime
-          (design.md conflict register #1: Lime reserved for the New Issue CTA). */}
-      <ToggleGroup
-        type="single"
-        value={viewMode}
-        onValueChange={(v) => {
-          if (v) onViewModeChange(v as ViewMode);
-        }}
-        aria-label="View mode"
-        variant="outline"
-        size="sm"
-        className="shrink-0"
-      >
-        <ToggleGroupItem
-          value="list"
-          aria-label="List view"
-          className="data-[state=on]:bg-accent data-[state=on]:text-foreground data-[state=on]:border-border"
+      {/* Center — saved views selector + view tabs. Active state = Graphite
+          (bg-accent), NOT Lime (design.md conflict register #1: Lime reserved
+          for the New Issue CTA). */}
+      <div className="flex items-center gap-2 shrink-0">
+        <ViewSelector
+          views={views}
+          activeViewId={activeViewId}
+          onSelect={onSelectView}
+          onRename={onRenameView}
+          onDelete={onDeleteView}
+        />
+        <ToggleGroup
+          type="single"
+          value={viewMode}
+          onValueChange={(v) => {
+            if (v) onViewModeChange(v as ViewMode);
+          }}
+          aria-label="View mode"
+          variant="outline"
+          size="sm"
+          className="shrink-0"
         >
-          <List className="size-3.5" />
-          List
-        </ToggleGroupItem>
-        <ToggleGroupItem
-          value="kanban"
-          aria-label="Kanban view"
-          className="data-[state=on]:bg-accent data-[state=on]:text-foreground data-[state=on]:border-border"
-        >
-          <Columns3 className="size-3.5" />
-          Board
-        </ToggleGroupItem>
-      </ToggleGroup>
+          <ToggleGroupItem
+            value="list"
+            aria-label="List view"
+            className="data-[state=on]:bg-accent data-[state=on]:text-foreground data-[state=on]:border-border"
+          >
+            <List className="size-3.5" />
+            List
+          </ToggleGroupItem>
+          <ToggleGroupItem
+            value="kanban"
+            aria-label="Kanban view"
+            className="data-[state=on]:bg-accent data-[state=on]:text-foreground data-[state=on]:border-border"
+          >
+            <Columns3 className="size-3.5" />
+            Board
+          </ToggleGroupItem>
+        </ToggleGroup>
+      </div>
 
       {/* Right — toolbar + CTA */}
       <div className="flex items-center gap-1 shrink-0">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
+          onClick={onSaveAsView}
+        >
+          Save as view
+        </Button>
         <Button
           variant="ghost"
           size="icon"
