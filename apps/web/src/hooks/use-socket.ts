@@ -184,6 +184,18 @@ export function useSocket(boardId?: string) {
         }
       }
 
+      if (
+        eventName === 'view:created' ||
+        eventName === 'view:updated' ||
+        eventName === 'view:deleted'
+      ) {
+        const v = eventData as { boardId?: string };
+        const target = v.boardId ?? bid;
+        if (target) {
+          queryClient.invalidateQueries({ queryKey: ['views', target] });
+        }
+      }
+
       if (eventName === 'notification:created') {
         queryClient.invalidateQueries({ queryKey: ['notifications'] });
         queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
@@ -216,6 +228,9 @@ export function useSocket(boardId?: string) {
       'board:created',
       'relation:created',
       'relation:deleted',
+      'view:created',
+      'view:updated',
+      'view:deleted',
       'notification:created',
     ];
 

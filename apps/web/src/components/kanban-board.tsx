@@ -7,6 +7,7 @@ import { api } from '@/hooks/api';
 import { useBoardFull } from '@/hooks/use-boards';
 import { useCreateTask } from '@/hooks/use-tasks';
 import { useUsers } from '@/hooks/use-users';
+import { useAuth } from '@/contexts/auth-context';
 import { useSocket } from '@/hooks/use-socket';
 import { useBoardViewState } from '@/hooks/use-board-view-state';
 import { useActiveView } from '@/hooks/use-view-state';
@@ -50,6 +51,7 @@ export function KanbanBoard() {
   const queryClient = useQueryClient();
 
   const { data: board } = useBoardFull(id!);
+  const { user } = useAuth();
   const statuses = board?.statuses || [];
   const labels: Label[] = board?.labels || [];
 
@@ -64,11 +66,13 @@ export function KanbanBoard() {
   const updateView = useUpdateView(id ?? '');
   const deleteView = useDeleteView(id ?? '');
 
-  // "Shared with board" is offered when the board has no Member rows (legacy
-  // board — the API allows it) or once membership data resolves it separately;
-  // Task 10 tightens this to "current user has a Member row" when the auth
-  // context is wired into this component.
-  const canShareViews = (board?.members ?? []).length === 0;
+  const canShareViews = useMemo(() => {
+    const members = board?.members;
+    // Legacy boards (created before members existed) have zero Member rows and
+    // allow all writes, so sharing stays available there.
+    if (!members || members.length === 0) return true;
+    return members.some((m) => m.userId === user?.id);
+  }, [board?.members, user?.id]);
 
   // When a saved view is active, its layout drives the mode; a manual toggle is
   // a local deviation stored as an override that wins for the session and resets

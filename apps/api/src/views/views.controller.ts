@@ -1,3 +1,7 @@
+/**
+ * ViewsController — REST endpoints for saved board views:
+ * list per board (personal + shared), read, create, update, delete (creator-or-admin writes).
+ */
 import { Body, Controller, Delete, Get, Patch, Post, Param, Req } from '@nestjs/common';
 import { Request } from 'express';
 import { ViewsService } from './views.service';

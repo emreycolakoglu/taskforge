@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { KanbanBoard } from './kanban-board';
-import type { Task, View } from '@/types';
+import type { Board, Member, Task, User, View } from '@/types';
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -31,7 +31,7 @@ function makeTask(overrides: Partial<Task> = {}): Task {
 const urgentTask = makeTask({ id: 't1', title: 'Urgent task', priority: 'urgent', position: 0 });
 const lowTask = makeTask({ id: 't2', title: 'Low task', priority: 'low', position: 1 });
 
-const mockBoard = {
+const mockBoard: Board = {
   id: 'b1',
   name: 'Sprint 1',
   slug: 'sprint-1',
@@ -49,6 +49,19 @@ const mockBoard = {
   ],
   labels: [],
 };
+
+const meUser: User = {
+  id: 'u-me',
+  email: 'me@example.com',
+  displayName: 'Me',
+  role: 'member',
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-01T00:00:00Z',
+};
+
+function makeMember(overrides: Partial<Member> = {}): Member {
+  return { id: 'm1', boardId: 'b1', userId: 'u-other', role: 'member', ...overrides };
+}
 
 const mockView: View = {
   id: 'v1',
@@ -71,8 +84,15 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const useBoardViewsMock = vi.fn(() => ({ data: [mockView], isLoading: false }));
 
+const authUserOverride = { current: meUser };
+const boardOverride = { current: mockBoard };
+
+vi.mock('@/contexts/auth-context', () => ({
+  useAuth: () => ({ user: authUserOverride.current }),
+}));
+
 vi.mock('@/hooks/use-boards', () => ({
-  useBoardFull: () => ({ data: mockBoard }),
+  useBoardFull: () => ({ data: boardOverride.current }),
 }));
 
 vi.mock('@/hooks/use-tasks', () => ({
@@ -118,7 +138,6 @@ function renderBoard(route: string) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  localStorage.clear();
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[route]}>
@@ -135,6 +154,8 @@ function renderBoard(route: string) {
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
+  authUserOverride.current = meUser;
+  boardOverride.current = mockBoard;
   useBoardViewsMock.mockReturnValue({ data: [mockView], isLoading: false });
 });
 
@@ -210,5 +231,56 @@ describe('KanbanBoard — save-as-view trigger gating', () => {
       expect(screen.queryByText('Low task')).not.toBeInTheDocument();
     });
     expect(screen.getByRole('button', { name: /save as view/i })).toBeInTheDocument();
+  });
+});
+
+describe('KanbanBoard — shared-view availability (canShare)', () => {
+  async function openSaveDialog() {
+    // The Save trigger (and thus the dialog) is gated on filter deviation, so
+    // seed a label filter in the board's persisted view state before mounting.
+    localStorage.setItem(
+      'taskforge:board-view:b1',
+      JSON.stringify({
+        viewMode: 'kanban',
+        filters: {
+          labelIds: ['l1'],
+          assigneeIds: [],
+          priorities: [],
+          dueDateRange: { from: null, to: null },
+          searchQuery: '',
+        },
+      }),
+    );
+    renderBoard('/board/b1');
+    await screen.findByRole('button', { name: /save as view/i });
+    fireEvent.click(screen.getByRole('button', { name: /save as view/i }));
+  }
+
+  it('offers the shared option when the current user has a Member row', async () => {
+    boardOverride.current = {
+      ...mockBoard,
+      members: [makeMember({ userId: 'u-me' })],
+    };
+    await openSaveDialog();
+
+    expect(screen.getByLabelText(/^shared/i)).toBeInTheDocument();
+  });
+
+  it('hides the shared option when the user has no Member row', async () => {
+    boardOverride.current = {
+      ...mockBoard,
+      members: [makeMember({ userId: 'u-other' })],
+    };
+    await openSaveDialog();
+
+    expect(screen.queryByLabelText(/^shared/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(/personal/i)).toBeInTheDocument();
+  });
+
+  it('keeps the legacy-board fallback: zero Member rows allows sharing', async () => {
+    boardOverride.current = { ...mockBoard, members: [] };
+    await openSaveDialog();
+
+    expect(screen.getByLabelText(/^shared/i)).toBeInTheDocument();
   });
 });

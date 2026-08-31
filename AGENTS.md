@@ -119,6 +119,14 @@ A task can be published to a read-only page reachable without a session. The mod
 - **Frontend**: `pages/public-task-page.tsx`, mounted in `app.tsx` _above_ `AuthProvider` (not exempted from inside it) so no redirect, `/auth/status` call, or `SidebarLayout` can touch it. It fetches through `hooks/public-api.ts`, never `hooks/api.ts` — the shared client clears the token and redirects to `/login` on any 401, which would log a signed-in colleague out just for opening a public link.
 - **Not indexed**: `index.html` carries `<meta name="robots" content="noindex, nofollow">` and `public/robots.txt` disallows everything. Enumeration takes intent; a search hit takes none.
 
+## Saved views
+
+Users can persist a board's filter/group/sort/layout state as named views. The `View` row stores its creator in `userId` for both kinds; `isShared` picks the audience.
+
+- **Model**: personal views are visible only to their creator; shared views are visible to everyone on the board. Writes (update/delete) are creator-or-global-admin only (`ViewsService`). Legacy boards (zero Member rows) allow sharing for all users.
+- **REST**: `GET /api/boards/:boardId/views`, `GET/POST /api/views`, `PATCH/DELETE /api/views/:id` → `views/` module. Also `views_*` MCP tools.
+- **Web**: `hooks/use-views.ts` (React Query `['views', boardId]`), `lib/apply-view.ts` (filter/group/sort engine), `hooks/use-view-state.ts` (active view selection, `?view=` URL param + localStorage fallback), `view-selector` + `save-view-dialog` components, socket `view:created/updated/deleted` invalidation in `hooks/use-socket.ts`.
+
 ## @-Mentions
 
 `@<DisplayName>` tokens in comments and task descriptions auto-subscribe and
