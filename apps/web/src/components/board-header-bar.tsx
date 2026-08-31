@@ -4,7 +4,8 @@
  * Three groups: breadcrumb/title (left), saved-views selector + view tabs
  * (center), toolbar + CTA (right). The "New Issue" button is the screen's
  * single rationed Acid Lime CTA per design.md. No lime appears anywhere else
- * in the header — "Save as view" is a ghost button.
+ * in the header — "Save as view" lives in the filter row (see
+ * save-view-trigger.tsx), gated on filter deviation per the spec.
  */
 
 import { List, Columns3, Plus, Settings } from 'lucide-react';
@@ -26,7 +27,6 @@ interface BoardHeaderBarProps {
   onSelectView: (id: string | null) => void;
   onRenameView: (id: string, name: string) => void;
   onDeleteView: (id: string) => void;
-  onSaveAsView: () => void;
 }
 
 export function BoardHeaderBar({
@@ -40,7 +40,6 @@ export function BoardHeaderBar({
   onSelectView,
   onRenameView,
   onDeleteView,
-  onSaveAsView,
 }: BoardHeaderBarProps) {
   return (
     <header className="flex h-12 items-center justify-between px-6 border-b border-border bg-secondary shrink-0">
@@ -101,14 +100,6 @@ export function BoardHeaderBar({
 
       {/* Right — toolbar + CTA */}
       <div className="flex items-center gap-1 shrink-0">
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-7 px-2 text-xs text-muted-foreground hover:text-foreground"
-          onClick={onSaveAsView}
-        >
-          Save as view
-        </Button>
         <Button
           variant="ghost"
           size="icon"

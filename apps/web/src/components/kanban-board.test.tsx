@@ -182,3 +182,33 @@ describe('KanbanBoard — saved views', () => {
     expect(screen.queryByText('Todo')).not.toBeInTheDocument();
   });
 });
+
+describe('KanbanBoard — save-as-view trigger gating', () => {
+  it('hides the Save trigger on a pristine board (no active view, no filters)', () => {
+    renderBoard('/board/b1');
+
+    expect(screen.getByText('Urgent task')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /save as view/i })).not.toBeInTheDocument();
+  });
+
+  it('hides the Save trigger on a pristine active view (filters at default)', () => {
+    const view: View = { ...mockView, id: 'v3', filters: {} };
+    useBoardViewsMock.mockReturnValue({ data: [view], isLoading: false });
+    renderBoard('/board/b1?view=v3');
+
+    expect(screen.getByText('Urgent task')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /save as view/i })).not.toBeInTheDocument();
+  });
+
+  it('shows the Save trigger when an active view applies a filter', async () => {
+    useBoardViewsMock.mockReturnValue({ data: [mockView], isLoading: false });
+    renderBoard('/board/b1?view=v1');
+
+    // mockView filters by priority=urgent, so the low-priority task is hidden —
+    // proof the view's effective state deviates from the default.
+    await waitFor(() => {
+      expect(screen.queryByText('Low task')).not.toBeInTheDocument();
+    });
+    expect(screen.getByRole('button', { name: /save as view/i })).toBeInTheDocument();
+  });
+});

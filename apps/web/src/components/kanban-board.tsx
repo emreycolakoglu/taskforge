@@ -30,6 +30,7 @@ import { FilterChipsBar } from './filter-chips-bar';
 import { QuickAddInput } from './quick-add-input';
 import { CreateTaskDialog } from './create-task-dialog';
 import { SaveViewDialog } from './save-view-dialog';
+import { SaveViewTrigger } from './save-view-trigger';
 import { LabelPill } from './label-pill';
 import { ProgressIcon } from './progress-icon';
 import { Button } from '@/components/ui/button';
@@ -283,6 +284,30 @@ export function KanbanBoard() {
     ? statuses.find((s) => s.id === pendingDeleteStatusId)
     : null;
 
+  // "Save as view" appears only when state deviates from the default (spec:
+  // once ≥1 filter applied). With no active view the baseline is
+  // DEFAULT_FILTER_STATE; with a view active the testable contract is still
+  // "deviates from default" — a view whose own filters sit at the default
+  // (e.g. it only customizes grouping) leaves the trigger hidden.
+  const filtersDeviate = useMemo(() => {
+    const f: ViewFilterState = activeView
+      ? effectiveFilters
+      : {
+          labelIds: filters.labelIds,
+          assigneeIds: filters.assigneeIds,
+          priorities: filters.priorities,
+          dueDateRange: { from: filters.dueDateRange.from, to: filters.dueDateRange.to },
+          searchQuery: filters.searchQuery,
+        };
+    return (
+      f.labelIds.length > 0 ||
+      f.assigneeIds.length > 0 ||
+      f.priorities.length > 0 ||
+      !(f.dueDateRange.from === null && f.dueDateRange.to === null) ||
+      f.searchQuery !== ''
+    );
+  }, [activeView, effectiveFilters, filters]);
+
   const hasActiveFilters = filters.labelIds.length > 0;
 
   if (!board) return null;
@@ -416,7 +441,6 @@ export function KanbanBoard() {
         onSelectView={handleSelectView}
         onRenameView={handleRenameView}
         onDeleteView={handleDeleteView}
-        onSaveAsView={() => setSaveDialogOpen(true)}
       />
 
       {/* When a saved view is active its filters come from the view (chips are Task 10) */}
@@ -427,7 +451,18 @@ export function KanbanBoard() {
           onToggleLabel={toggleLabelFilter}
           onRemoveLabel={removeFilter}
           onClear={clearFilters}
+          onSaveAsView={() => setSaveDialogOpen(true)}
         />
+      )}
+
+      {/* View-active equivalent: the chips bar is hidden while a view is
+          active, so the Save trigger lives in its own row — but only once the
+          board's effective filter state deviates from the default. On a
+          pristine view (filters at default) there is nothing to save. */}
+      {activeView && filtersDeviate && (
+        <div className="flex h-9 items-center justify-end px-6 border-b border-border bg-background shrink-0">
+          <SaveViewTrigger onClick={() => setSaveDialogOpen(true)} />
+        </div>
       )}
 
       {/* Content */}
@@ -554,7 +589,7 @@ export function KanbanBoard() {
         onSubmit={handleCreateTaskDialog}
       />
 
-      {/* Save-as-view dialog (opened from header "Save as view") */}
+      {/* Save-as-view dialog (opened from the filter row's "Save as view") */}
       <SaveViewDialog
         open={saveDialogOpen}
         onOpenChange={setSaveDialogOpen}

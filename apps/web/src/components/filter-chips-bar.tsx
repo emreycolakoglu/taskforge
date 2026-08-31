@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { LabelOptionList } from './label-option-list';
-import { cn } from '@/lib/utils';
+import { SaveViewTrigger } from './save-view-trigger';
 
 interface FilterChipsBarProps {
   filters: FilterState;
@@ -22,6 +22,7 @@ interface FilterChipsBarProps {
   onToggleLabel: (labelId: string) => void;
   onRemoveLabel: (labelId: string) => void;
   onClear: () => void;
+  onSaveAsView?: () => void;
 }
 
 export function FilterChipsBar({
@@ -30,6 +31,7 @@ export function FilterChipsBar({
   onToggleLabel,
   onRemoveLabel,
   onClear,
+  onSaveAsView,
 }: FilterChipsBarProps) {
   const activeLabels = labels.filter((l) => filters.labelIds.includes(l.id));
   const hasFilters = activeLabels.length > 0;
@@ -42,9 +44,7 @@ export function FilterChipsBar({
         <Badge
           key={label.id}
           variant="outline"
-          className={cn(
-            'inline-flex items-center gap-1 rounded-sm border-border px-2 py-0.5 text-xs text-muted-foreground',
-          )}
+          className="inline-flex items-center gap-1 rounded-sm border-border px-2 py-0.5 text-xs text-muted-foreground"
         >
           <span className="size-2 rounded-sm shrink-0" style={{ backgroundColor: label.color }} />
           {label.name}
@@ -85,12 +85,18 @@ export function FilterChipsBar({
         <Button
           variant="ghost"
           size="sm"
-          className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground ml-auto"
+          className="h-6 px-2 text-xs text-muted-foreground hover:text-foreground"
           onClick={onClear}
         >
           <X className="size-3 mr-1" />
           Clear all
         </Button>
+      )}
+
+      {onSaveAsView && (
+        <div className="ml-auto flex items-center">
+          <SaveViewTrigger onClick={onSaveAsView} />
+        </div>
       )}
     </div>
   );

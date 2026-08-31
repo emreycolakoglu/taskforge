@@ -213,6 +213,7 @@ function ViewRow({
       >
         <span className="truncate">{view.name}</span>
       </DropdownMenuItem>
+      {/* TODO(TFG-30 follow-up): row rename/delete unreachable via keyboard — Radix menu focus trap; use submenu or footer action row */}
       <div className="absolute right-1 flex items-center gap-0.5">
         <button
           type="button"
