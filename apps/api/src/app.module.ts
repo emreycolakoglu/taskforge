@@ -16,6 +16,7 @@ import { EventsModule } from './events/events.module';
 import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PublicModule } from './public/public.module';
+import { ViewsModule } from './views/views.module';
 
 import { MembersModule } from './members/members.module';
 
@@ -39,6 +40,7 @@ import { MembersModule } from './members/members.module';
     NotificationsModule,
     PublicModule,
     MembersModule,
+    ViewsModule,
   ],
 })
 export class AppModule {}
