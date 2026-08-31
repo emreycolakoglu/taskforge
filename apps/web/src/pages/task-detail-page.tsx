@@ -101,6 +101,7 @@ export function TaskDetailPage() {
       />
 
       <TaskDetailView
+        key={taskId}
         taskId={taskId!}
         boardId={boardId!}
         onNavigateTask={navigateToTask}

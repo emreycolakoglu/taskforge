@@ -7,6 +7,12 @@
  * A save is skipped when the serialized markdown matches the server value, so
  * focus-in/out without edits does not spawn a mutation.
  *
+ * Cross-task guard: a pending autosave is bound to the `value` (i.e. the task)
+ * it was scheduled under. If the value is swapped for a different snapshot
+ * (task-to-task navigation without a remount) mid-debounce, the pending save
+ * is cancelled — otherwise a stale edit typed on the previous task would be
+ * delivered to the new task's onSave (see TFG-45).
+ *
  * The MarkdownEditor's remote-update guard keeps live WebSocket refetches from
  * clobbering the caret mid-edit (last-write-wins on the field).
  */
@@ -40,6 +46,15 @@ export function DetailDescriptionEditor({ value, onSave }: DetailDescriptionEdit
       },
       { delayMs: AUTOSAVE_DELAY_MS },
     );
+  }
+
+  // A pending save is only valid for the task snapshot it was typed under.
+  // When the parent swaps in another task's value, drop it before the new
+  // task's onSave can be wired up (TFG-45 race).
+  const lastSeenValueRef = useRef(value);
+  if (lastSeenValueRef.current !== value) {
+    saverRef.current?.cancel();
+    lastSeenValueRef.current = value;
   }
 
   // Flush any pending edit if the view unmounts (navigation away mid-edit).
