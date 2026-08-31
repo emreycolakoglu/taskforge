@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import { useQueryClient } from '@tanstack/react-query';
@@ -9,8 +9,18 @@ import { useCreateTask } from '@/hooks/use-tasks';
 import { useUsers } from '@/hooks/use-users';
 import { useSocket } from '@/hooks/use-socket';
 import { useBoardViewState } from '@/hooks/use-board-view-state';
+import { useActiveView } from '@/hooks/use-view-state';
 import { useDragScroll } from '@/hooks/use-drag-scroll';
-import { Task, Label, Board } from '@/types';
+import {
+  applyViewFilters,
+  DEFAULT_FILTER_STATE,
+  groupTasksBy,
+  sortTasks,
+  type TaskGroup,
+  type ViewFilterState,
+} from '@/lib/apply-view';
+import { Task, Label, Board, Status, ViewGroupBy, ViewSortBy } from '@/types';
+import type { ViewMode } from '@/hooks/use-board-view-state';
 import { planTaskMove } from '@/lib/kanban-dnd';
 import { TaskCard } from './task-card';
 import { BoardColumn } from './board-column';
@@ -43,6 +53,36 @@ export function KanbanBoard() {
   const { viewMode, setViewMode, filters, toggleLabelFilter, removeFilter, clearFilters } =
     useBoardViewState(id ?? '');
 
+  const { activeView } = useActiveView(id ?? '');
+
+  // When a saved view is active, its layout drives the mode; a manual toggle is
+  // a local deviation stored as an override that wins for the session and resets
+  // when the active view changes.
+  const [layoutOverride, setLayoutOverride] = useState<ViewMode | null>(null);
+  useEffect(() => {
+    setLayoutOverride(null);
+  }, [activeView?.id]);
+  const effectiveViewMode: ViewMode =
+    layoutOverride ?? (activeView ? (activeView.layout === 'list' ? 'list' : 'kanban') : viewMode);
+
+  const effectiveGroupBy: ViewGroupBy = activeView?.groupBy ?? 'status';
+  const effectiveSortBy: ViewSortBy = activeView?.sortBy ?? 'position';
+
+  const effectiveFilters: ViewFilterState = useMemo(() => {
+    if (!activeView) return { ...filters };
+    const vf = activeView.filters;
+    return {
+      labelIds: vf.labelIds ?? DEFAULT_FILTER_STATE.labelIds,
+      assigneeIds: vf.assigneeIds ?? DEFAULT_FILTER_STATE.assigneeIds,
+      priorities: vf.priorities ?? DEFAULT_FILTER_STATE.priorities,
+      dueDateRange: {
+        from: vf.dueDateRange?.from ?? DEFAULT_FILTER_STATE.dueDateRange.from,
+        to: vf.dueDateRange?.to ?? DEFAULT_FILTER_STATE.dueDateRange.to,
+      },
+      searchQuery: vf.searchQuery ?? DEFAULT_FILTER_STATE.searchQuery,
+    };
+  }, [activeView, filters]);
+
   const [creatingInStatus, setCreatingInStatus] = useState<string | null>(null);
   const [creatingSubTask, setCreatingSubTask] = useState<{
     parentId: string;
@@ -65,22 +105,42 @@ export function KanbanBoard() {
   // WebSocket handles cache invalidation via useSocket
   useSocket(id);
 
-  /** Filter tasks: show only tasks that have ALL active labels. */
-  const filterTask = useCallback(
-    (task: Task) => {
-      if (filters.labelIds.length === 0) return true;
-      const taskLabelIds = (task.taskLabels ?? task.labels ?? []).map((tl) => tl.labelId);
-      return filters.labelIds.every((lid) => taskLabelIds.includes(lid));
-    },
-    [filters.labelIds],
+  const matchesFilters = useCallback(
+    (task: Task) => applyViewFilters(task, effectiveFilters),
+    [effectiveFilters],
   );
 
   const filteredStatuses = useMemo(() => {
     return statuses.map((status) => ({
       ...status,
-      tasks: (status.tasks || []).filter(filterTask),
+      tasks: sortTasks((status.tasks || []).filter(matchesFilters), effectiveSortBy),
     }));
-  }, [statuses, filterTask]);
+  }, [statuses, matchesFilters, effectiveSortBy]);
+
+  // Read-only grouped columns for non-status groupings (DnD disabled).
+  const viewGroups: TaskGroup[] = useMemo(() => {
+    if (effectiveGroupBy === 'status' || effectiveViewMode === 'list') return [];
+    return groupTasksBy(tasks.filter(matchesFilters), statuses, effectiveGroupBy, labels).map(
+      (g) => ({ ...g, tasks: sortTasks(g.tasks, effectiveSortBy) }),
+    );
+  }, [
+    effectiveGroupBy,
+    effectiveViewMode,
+    tasks,
+    matchesFilters,
+    statuses,
+    labels,
+    effectiveSortBy,
+  ]);
+
+  const statusById = useMemo(() => new Map(statuses.map((s) => [s.id, s])), [statuses]);
+
+  // Flat, filtered + sorted row set for list view. Grouping only affects the
+  // board layout; list stays flat.
+  const listTasks = useMemo(
+    () => sortTasks(tasks.filter(matchesFilters), effectiveSortBy),
+    [tasks, matchesFilters, effectiveSortBy],
+  );
 
   const handleDragEnd = useCallback(
     async (result: DropResult) => {
@@ -149,6 +209,11 @@ export function KanbanBoard() {
     }
   }
 
+  const handleViewModeChange = (mode: ViewMode) => {
+    if (activeView) setLayoutOverride(mode);
+    setViewMode(mode);
+  };
+
   const priorityColor = (p: string) => {
     switch (p) {
       case 'urgent':
@@ -172,17 +237,134 @@ export function KanbanBoard() {
 
   if (!board) return null;
 
+  const renderGroupColumns = (groups: TaskGroup[], draggable: boolean) => (
+    <div
+      ref={draggable ? undefined : boardScrollRef}
+      className={cn(
+        'flex-1 overflow-x-auto bg-background',
+        isPanning && 'cursor-grabbing select-none',
+      )}
+    >
+      <div className="flex gap-4 h-full min-h-0 px-4 py-3">
+        {groups.map((group) => {
+          // Status groups map to the real Status row; synthetic groups (priority,
+          // assignee, label, none) render as a fabricated Status-shaped column.
+          const status: Status =
+            statusById.get(group.id) ??
+            ({
+              id: group.id,
+              boardId: '',
+              name: group.name,
+              type: group.type,
+              position: group.position,
+              tasks: group.tasks,
+            } as Status);
+          return draggable ? (
+            <Droppable key={group.id} droppableId={group.id}>
+              {(provided, snapshot) => (
+                <BoardColumn
+                  status={status}
+                  taskCount={group.tasks.length}
+                  isAdding={creatingInStatus === group.id}
+                  onAddTask={() => setCreatingInStatus(group.id)}
+                  onDeleteStatus={() => setPendingDeleteStatusId(group.id)}
+                  onEditStatus={() => navigate(`/board/${id}/settings/statuses`)}
+                  droppableProvided={{
+                    innerRef: provided.innerRef,
+                    droppableProps: provided.droppableProps as unknown as Record<string, unknown>,
+                    placeholder: provided.placeholder,
+                  }}
+                  isDraggingOver={snapshot.isDraggingOver}
+                >
+                  {group.tasks.map((task, index) => (
+                    <Draggable key={task.id} draggableId={task.id} index={index}>
+                      {(dragProvided, dragSnapshot) => (
+                        <div
+                          ref={dragProvided.innerRef}
+                          {...dragProvided.draggableProps}
+                          {...dragProvided.dragHandleProps}
+                          onClick={() => navigate(`/board/${id}/task/${task.id}`)}
+                        >
+                          <TaskCard
+                            task={task}
+                            isDragging={dragSnapshot.isDragging}
+                            boardId={id}
+                            parentTaskNumber={
+                              task.parentId ? taskNumberById.get(task.parentId) : undefined
+                            }
+                            parentTaskName={
+                              task.parentId ? taskTitleById.get(task.parentId) : undefined
+                            }
+                            onAddSubTask={() =>
+                              setCreatingSubTask({
+                                parentId: task.id,
+                                statusId: task.statusId,
+                                parentTaskNumber: task.taskNumber,
+                              })
+                            }
+                          />
+                        </div>
+                      )}
+                    </Draggable>
+                  ))}
+
+                  {/* Inline quick-add inside the column footer slot */}
+                  {creatingInStatus === group.id && (
+                    <QuickAddInput
+                      statusId={group.id}
+                      onSubmit={(title) => handleCreateTask(group.id, title)}
+                      onClose={() => setCreatingInStatus(null)}
+                    />
+                  )}
+                </BoardColumn>
+              )}
+            </Droppable>
+          ) : (
+            <BoardColumn
+              key={group.id}
+              status={status}
+              taskCount={group.tasks.length}
+              isAdding={false}
+              onAddTask={() => {}}
+              onDeleteStatus={() => {}}
+              onEditStatus={() => {}}
+            >
+              {group.tasks.map((task) => (
+                <div key={task.id} onClick={() => navigate(`/board/${id}/task/${task.id}`)}>
+                  <TaskCard
+                    task={task}
+                    boardId={id}
+                    parentTaskNumber={task.parentId ? taskNumberById.get(task.parentId) : undefined}
+                    parentTaskName={task.parentId ? taskTitleById.get(task.parentId) : undefined}
+                    onAddSubTask={() =>
+                      setCreatingSubTask({
+                        parentId: task.id,
+                        statusId: task.statusId,
+                        parentTaskNumber: task.taskNumber,
+                      })
+                    }
+                  />
+                </div>
+              ))}
+            </BoardColumn>
+          );
+        })}
+      </div>
+    </div>
+  );
+
   return (
     <div className="flex flex-col h-full">
       <BoardHeaderBar
         board={board}
-        viewMode={viewMode}
-        onViewModeChange={setViewMode}
+        viewMode={effectiveViewMode}
+        onViewModeChange={handleViewModeChange}
         onOpenSettings={() => navigate(`/board/${id}/settings`)}
         onNewTask={() => setCreateDialogOpen(true)}
       />
 
-      {hasActiveFilters && (
+      {/* When a saved view is active its filters come from the view (chips are Task 10) */}
+      {hasActiveFilters && !activeView && (
         <FilterChipsBar
           filters={filters}
           labels={labels}
@@ -193,7 +375,7 @@ export function KanbanBoard() {
       )}
 
       {/* Content */}
-      {viewMode === 'list' ? (
+      {effectiveViewMode === 'list' ? (
         <div className="flex-1 overflow-auto bg-background p-6">
           <table className="w-full">
             <thead>
@@ -219,8 +401,9 @@ export function KanbanBoard() {
               </tr>
             </thead>
             <tbody>
-              {statuses.flatMap((s) =>
-                (s.tasks || []).filter(filterTask).map((t) => (
+              {listTasks.map((t) => {
+                const s = statusById.get(t.statusId);
+                return (
                   <tr
                     key={t.id}
                     className="border-b border-border hover:bg-accent/50 cursor-pointer"
@@ -236,8 +419,8 @@ export function KanbanBoard() {
                     </td>
                     <td className="py-2.5 px-3 text-sm text-muted-foreground">
                       <span className="flex items-center gap-1.5">
-                        <ProgressIcon progress={s.progress ?? 0} type={s.type} size={14} />
-                        {s.name}
+                        <ProgressIcon progress={s?.progress ?? 0} type={s?.type} size={14} />
+                        {s?.name ?? '—'}
                       </span>
                     </td>
                     <td className="py-2.5 px-3 text-sm">
@@ -259,88 +442,17 @@ export function KanbanBoard() {
                       {t.dueDate ? new Date(t.dueDate).toLocaleDateString() : '—'}
                     </td>
                   </tr>
-                )),
-              )}
+                );
+              })}
             </tbody>
           </table>
         </div>
-      ) : (
+      ) : effectiveGroupBy === 'status' ? (
         <DragDropContext onDragEnd={handleDragEnd}>
-          <div
-            ref={boardScrollRef}
-            className={cn(
-              'flex-1 overflow-x-auto bg-background',
-              isPanning && 'cursor-grabbing select-none',
-            )}
-          >
-            <div className="flex gap-4 h-full min-h-0 px-4 py-3">
-              {filteredStatuses.map((status) => (
-                <Droppable key={status.id} droppableId={status.id}>
-                  {(provided, snapshot) => (
-                    <BoardColumn
-                      status={status}
-                      taskCount={status.tasks?.length || 0}
-                      isAdding={creatingInStatus === status.id}
-                      onAddTask={() => setCreatingInStatus(status.id)}
-                      onDeleteStatus={() => setPendingDeleteStatusId(status.id)}
-                      onEditStatus={() => navigate(`/board/${id}/settings/statuses`)}
-                      droppableProvided={{
-                        innerRef: provided.innerRef,
-                        droppableProps: provided.droppableProps as unknown as Record<
-                          string,
-                          unknown
-                        >,
-                        placeholder: provided.placeholder,
-                      }}
-                      isDraggingOver={snapshot.isDraggingOver}
-                    >
-                      {(status.tasks || []).map((task, index) => (
-                        <Draggable key={task.id} draggableId={task.id} index={index}>
-                          {(dragProvided, dragSnapshot) => (
-                            <div
-                              ref={dragProvided.innerRef}
-                              {...dragProvided.draggableProps}
-                              {...dragProvided.dragHandleProps}
-                              onClick={() => navigate(`/board/${id}/task/${task.id}`)}
-                            >
-                              <TaskCard
-                                task={task}
-                                isDragging={dragSnapshot.isDragging}
-                                boardId={id}
-                                parentTaskNumber={
-                                  task.parentId ? taskNumberById.get(task.parentId) : undefined
-                                }
-                                parentTaskName={
-                                  task.parentId ? taskTitleById.get(task.parentId) : undefined
-                                }
-                                onAddSubTask={() =>
-                                  setCreatingSubTask({
-                                    parentId: task.id,
-                                    statusId: task.statusId,
-                                    parentTaskNumber: task.taskNumber,
-                                  })
-                                }
-                              />
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-
-                      {/* Inline quick-add inside the column footer slot */}
-                      {creatingInStatus === status.id && (
-                        <QuickAddInput
-                          statusId={status.id}
-                          onSubmit={(title) => handleCreateTask(status.id, title)}
-                          onClose={() => setCreatingInStatus(null)}
-                        />
-                      )}
-                    </BoardColumn>
-                  )}
-                </Droppable>
-              ))}
-            </div>
-          </div>
+          {renderGroupColumns(filteredStatuses, true)}
         </DragDropContext>
+      ) : (
+        renderGroupColumns(viewGroups, false)
       )}
 
       {/* Delete status confirmation dialog */}
