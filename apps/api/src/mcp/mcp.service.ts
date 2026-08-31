@@ -7,13 +7,11 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { DocumentsService } from '../documents/documents.service';
 import { CommentsService } from '../comments/comments.service';
 import { MentionsService } from '../mentions/mentions.service';
+import { MembersService } from '../members/members.service';
+import { LabelsService } from '../labels/labels.service';
+import { StatusesService } from '../statuses/statuses.service';
 import { DEFAULT_STATUSES } from '../statuses/status-defaults';
-import {
-  isTerminalType,
-  stampsDoneAt,
-  isProgressEditable,
-  defaultProgressForType,
-} from '../statuses/status-types';
+import { isTerminalType, stampsDoneAt } from '../statuses/status-types';
 
 function withTaskNumber(task: any): any {
   const identifier = task.board?.identifier ?? task.status?.board?.identifier;
@@ -79,6 +77,9 @@ export class McpService {
     private documents: DocumentsService,
     private comments: CommentsService,
     private mentions: MentionsService,
+    private members: MembersService,
+    private labelsService: LabelsService,
+    private statusesService: StatusesService,
   ) {}
 
   async handleRequest(req: McpRequest, user?: AuthUser): Promise<McpResponse> {
@@ -105,7 +106,7 @@ export class McpService {
           result = await this.handleComments(action, req.params, user);
           break;
         case 'labels':
-          result = await this.handleLabels(action, req.params);
+          result = await this.handleLabels(action, req.params, user);
           break;
         case 'activity':
           result = await this.handleActivity(action, req.params);
@@ -220,66 +221,22 @@ export class McpService {
         });
       }
       case 'create': {
-        const maxPos = await this.prisma.status.aggregate({
-          where: { boardId: params.boardId },
-          _max: { position: true },
-        });
-        const status = await this.prisma.status.create({
-          data: {
+        return this.statusesService.create(
+          {
             boardId: params.boardId,
             name: params.name,
             type: params.type,
-            position: params.position ?? (maxPos._max.position ?? -1) + 1,
+            position: params.position,
             color: params.color,
-            progress: defaultProgressForType(params.type),
           },
-        });
-        this.events.emit('status:created', status, params.boardId);
-        return status;
+          user,
+        );
       }
       case 'update': {
-        const existing = await this.prisma.status.findUniqueOrThrow({ where: { id: params.id } });
-
-        // Editability is evaluated against the TARGET type when changing type, not the
-        // existing one — otherwise a done→in_progress transition with progress would
-        // reject on the source type before the transition can apply.
-        const targetType = params.type !== undefined ? params.type : existing.type;
-
-        if (params.progress !== undefined && !isProgressEditable(targetType)) {
-          throw new BadRequestException(`Progress is not editable for status type "${targetType}"`);
-        }
-
-        const data: Record<string, any> = {};
-        if (params.name !== undefined) data.name = params.name;
-        if (params.color !== undefined) data.color = params.color;
-        if (params.position !== undefined) data.position = params.position;
-
-        if (params.type !== undefined) {
-          data.type = params.type;
-          if (!isProgressEditable(params.type)) {
-            data.progress = defaultProgressForType(params.type);
-          } else if (params.progress !== undefined) {
-            data.progress = params.progress;
-          } else {
-            // Type change to an editable type without an explicit progress: use the
-            // type default rather than carrying a stale value across the transition.
-            data.progress = defaultProgressForType(params.type);
-          }
-        } else if (params.progress !== undefined && isProgressEditable(existing.type)) {
-          data.progress = params.progress;
-        }
-
-        const status = await this.prisma.status.update({
-          where: { id: params.id },
-          data,
-        });
-        this.events.emit('status:updated', status, status.boardId);
-        return status;
+        return this.statusesService.update(params.id, params, user);
       }
       case 'delete': {
-        const status = await this.prisma.status.findUnique({ where: { id: params.id } });
-        await this.prisma.status.delete({ where: { id: params.id } });
-        this.events.emit('status:deleted', { id: params.id }, status?.boardId);
+        await this.statusesService.remove(params.id, user);
         return { deleted: true };
       }
       default:
@@ -714,23 +671,20 @@ export class McpService {
     }
   }
 
-  private async handleLabels(action: string, params: any) {
+  private async handleLabels(action: string, params: any, user?: AuthUser) {
     switch (action) {
       case 'list': {
         return this.prisma.label.findMany({ where: { boardId: params.boardId } });
       }
       case 'create': {
-        const label = await this.prisma.label.create({
-          data: { boardId: params.boardId, name: params.name, color: params.color || '#6366f1' },
-        });
-        this.events.emit('label:created', label, params.boardId);
-        return label;
+        return this.labelsService.create(
+          params.boardId,
+          { name: params.name, color: params.color || '#6366f1' },
+          user,
+        );
       }
       case 'delete': {
-        const label = await this.prisma.label.findUnique({ where: { id: params.id } });
-        await this.prisma.taskLabel.deleteMany({ where: { labelId: params.id } });
-        await this.prisma.label.delete({ where: { id: params.id } });
-        this.events.emit('label:deleted', { id: params.id }, label?.boardId);
+        await this.labelsService.remove(params.id, user);
         return { deleted: true };
       }
       default:
@@ -809,80 +763,24 @@ export class McpService {
   }
 
   private async handleMembers(action: string, params: any, user?: AuthUser) {
+    if (!user) throw new Error('Authentication required');
     switch (action) {
-      case 'list': {
-        if (!user) throw new Error('Authentication required');
-        return this.prisma.member.findMany({
-          where: { boardId: params.boardId },
-          include: {
-            user: { select: { id: true, email: true, displayName: true, role: true } },
-          },
-        });
-      }
+      case 'list':
+        return this.members.findByBoard(params.boardId);
       case 'add': {
-        if (!user) throw new Error('Authentication required');
-        // Check authorization
-        const isAdmin = await this.isBoardAdmin(params.boardId, user.id);
-        if (!isAdmin) throw new Error('Only board admins can add members');
-        const member = await this.prisma.member.upsert({
-          where: { boardId_userId: { boardId: params.boardId, userId: params.userId } },
-          update: { role: params.role || 'member' },
-          create: { boardId: params.boardId, userId: params.userId, role: params.role || 'member' },
-          include: {
-            user: { select: { id: true, email: true, displayName: true, role: true } },
-          },
-        });
-        return member;
+        return this.members.addMember(
+          params.boardId,
+          user.id,
+          params.userId,
+          params.role || 'member',
+        );
       }
-      case 'remove': {
-        if (!user) throw new Error('Authentication required');
-        const isAdmin = await this.isBoardAdmin(params.boardId, user.id);
-        if (!isAdmin) throw new Error('Only board admins can remove members');
-        const member = await this.prisma.member.findUnique({
-          where: { boardId_userId: { boardId: params.boardId, userId: params.userId } },
-        });
-        if (!member) throw new Error('Member not found');
-        if (member.role === 'admin') {
-          const adminCount = await this.prisma.member.count({
-            where: { boardId: params.boardId, role: 'admin' },
-          });
-          if (adminCount <= 1) throw new Error('Cannot remove the last admin');
-        }
-        await this.prisma.member.delete({
-          where: { boardId_userId: { boardId: params.boardId, userId: params.userId } },
-        });
-        return { success: true };
-      }
-      case 'join': {
-        if (!user) throw new Error('Authentication required');
-        const existing = await this.prisma.member.findUnique({
-          where: { boardId_userId: { boardId: params.boardId, userId: user.id } },
-        });
-        if (existing) return existing;
-        return this.prisma.member.create({
-          data: { boardId: params.boardId, userId: user.id, role: 'member' },
-          include: {
-            user: { select: { id: true, email: true, displayName: true, role: true } },
-          },
-        });
-      }
-      case 'leave': {
-        if (!user) throw new Error('Authentication required');
-        const member = await this.prisma.member.findUnique({
-          where: { boardId_userId: { boardId: params.boardId, userId: user.id } },
-        });
-        if (!member) return { success: true };
-        if (member.role === 'admin') {
-          const adminCount = await this.prisma.member.count({
-            where: { boardId: params.boardId, role: 'admin' },
-          });
-          if (adminCount <= 1) throw new Error('Cannot leave as the last admin');
-        }
-        await this.prisma.member.delete({
-          where: { boardId_userId: { boardId: params.boardId, userId: user.id } },
-        });
-        return { success: true };
-      }
+      case 'remove':
+        return this.members.removeMember(params.boardId, user.id, params.userId);
+      case 'join':
+        return this.members.join(params.boardId, user.id);
+      case 'leave':
+        return this.members.leave(params.boardId, user.id);
       default:
         throw new Error(`Unknown action: members_${action}`);
     }
@@ -949,12 +847,7 @@ export class McpService {
   }
 
   private async isBoardAdmin(boardId: string, userId: string): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (user?.role === 'admin') return true;
-    const member = await this.prisma.member.findUnique({
-      where: { boardId_userId: { boardId, userId } },
-    });
-    return member?.role === 'admin';
+    return this.members.isBoardAdmin(boardId, userId);
   }
 
   /**
@@ -965,6 +858,8 @@ export class McpService {
    */
   private async assertBoardAdmin(boardId: string, user?: AuthUser) {
     if (!user?.id) throw new Error('Admin access required');
+    const userRow = await this.prisma.user.findUnique({ where: { id: user.id } });
+    if (userRow?.role === 'admin') return;
     const admins = await this.prisma.member.findMany({
       where: { boardId, role: 'admin' },
     });

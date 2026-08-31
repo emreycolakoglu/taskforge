@@ -9,6 +9,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { DocumentsModule } from '../documents/documents.module';
 import { CommentsModule } from '../comments/comments.module';
 import { MentionsModule } from '../mentions/mentions.module';
+import { MembersModule } from '../members/members.module';
+import { LabelsModule } from '../labels/labels.module';
+import { StatusesModule } from '../statuses/statuses.module';
 
 @Module({
   imports: [
@@ -19,6 +22,9 @@ import { MentionsModule } from '../mentions/mentions.module';
     DocumentsModule,
     CommentsModule,
     MentionsModule,
+    MembersModule,
+    LabelsModule,
+    StatusesModule,
   ],
   controllers: [McpTransportController],
   providers: [McpService, McpServerFactory],

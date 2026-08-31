@@ -10,6 +10,9 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { DocumentsService } from '../documents/documents.service';
 import { CommentsService } from '../comments/comments.service';
 import { MentionsService } from '../mentions/mentions.service';
+import { MembersService } from '../members/members.service';
+import { LabelsService } from '../labels/labels.service';
+import { StatusesService } from '../statuses/statuses.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { createTestPrisma, seedUser, seedBoard } from '../../test/setup';
 
@@ -156,6 +159,9 @@ describe('McpTransportController', () => {
         new MentionsService(prisma as any, notifications),
       ),
       new MentionsService(prisma as any, notifications),
+      new MembersService(prisma as any),
+      new LabelsService(prisma as any, events, new MembersService(prisma as any)),
+      new StatusesService(prisma as any, events, new MembersService(prisma as any)),
     );
     const factory = new McpServerFactory(mcpService);
     controller = new McpTransportController(factory);

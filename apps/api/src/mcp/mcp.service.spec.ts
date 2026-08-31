@@ -8,6 +8,9 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { DocumentsService } from '../documents/documents.service';
 import { CommentsService } from '../comments/comments.service';
 import { MentionsService } from '../mentions/mentions.service';
+import { MembersService } from '../members/members.service';
+import { LabelsService } from '../labels/labels.service';
+import { StatusesService } from '../statuses/statuses.service';
 import {
   createTestPrisma,
   seedBoard,
@@ -35,6 +38,9 @@ describe('McpService', () => {
         RelationsService,
         CommentsService,
         MentionsService,
+        MembersService,
+        LabelsService,
+        StatusesService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
         { provide: SubscriptionsService, useValue: new SubscriptionsService(prisma) },
@@ -50,7 +56,7 @@ describe('McpService', () => {
   });
 
   beforeEach(async () => {
-    user = await seedUser(prisma);
+    user = await seedUser(prisma, { role: 'admin' });
     board = await seedBoard(prisma);
   });
 
@@ -149,11 +155,14 @@ describe('McpService', () => {
     it('should forbid non-admin user from deleting', async () => {
       const b = await seedBoard(prisma);
       const admin = await seedUser(prisma);
+      // A plain member: the shared `user` is a global admin (needed for the
+      // label/status CRUD tests) and must not be used as the denied actor here.
+      const member = await seedUser(prisma);
       await prisma.member.create({ data: { boardId: b.id, userId: admin.id, role: 'admin' } });
-      await prisma.member.create({ data: { boardId: b.id, userId: user.id, role: 'member' } });
+      await prisma.member.create({ data: { boardId: b.id, userId: member.id, role: 'member' } });
       const res = await service.handleRequest(
         { method: 'boards_delete', params: { id: b.id }, id: 4 },
-        user,
+        member,
       );
       expect(res.error).toBeDefined();
       expect(res.error.message).toContain('Only board admins can perform this action');

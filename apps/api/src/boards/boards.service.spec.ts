@@ -3,6 +3,7 @@ import { BoardsService } from './boards.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { LabelsService } from '../labels/labels.service';
+import { MembersService } from '../members/members.service';
 import {
   createTestPrisma,
   seedBoard,
@@ -19,7 +20,7 @@ describe('BoardsService', () => {
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     const events = new EventsService();
-    const labelsService = new LabelsService(prisma, events);
+    const labelsService = new LabelsService(prisma, events, new MembersService(prisma));
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BoardsService,
@@ -301,6 +302,31 @@ describe('BoardsService', () => {
         { id: user.id, displayName: user.displayName },
       );
       expect(updated.name).toBe('Legacy');
+    });
+
+    it('should allow a global admin to update a board they are not a member of', async () => {
+      const seeded = await seedBoard(prisma);
+      const admin = await seedUser(prisma);
+      const globalAdmin = await seedUser(prisma, { role: 'admin' });
+      await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
+      const updated = await service.update(
+        seeded.id,
+        { name: 'Global Admin Updated' },
+        { id: globalAdmin.id, displayName: globalAdmin.displayName },
+      );
+      expect(updated.name).toBe('Global Admin Updated');
+    });
+
+    it('should allow a global admin to delete a board they are not a member of', async () => {
+      const seeded = await seedBoard(prisma);
+      const admin = await seedUser(prisma);
+      const globalAdmin = await seedUser(prisma, { role: 'admin' });
+      await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
+      await service.remove(seeded.id, {
+        id: globalAdmin.id,
+        displayName: globalAdmin.displayName,
+      });
+      await expect(service.findOne(seeded.id)).rejects.toThrow('Board not found');
     });
   });
 

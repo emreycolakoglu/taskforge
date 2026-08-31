@@ -29,8 +29,9 @@ export class StatusesController {
   }
 
   @Put('reorder')
-  reorder(@Body() dto: ReorderStatusesDto) {
-    return this.service.reorder(dto);
+  reorder(@Body() dto: ReorderStatusesDto, @Req() req: Request) {
+    const user = (req as any).user as AuthedUser | undefined;
+    return this.service.reorder(dto, user);
   }
 
   @Put(':id')

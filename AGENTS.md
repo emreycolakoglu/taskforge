@@ -68,7 +68,7 @@ Schema migrations run automatically on container startup via `apps/api/docker-en
 - **API is CommonJS, Web is ESM** — module resolution differs. Don't copy import patterns between apps.
 - **PrismaModule is `@Global()`** — no need to import it into feature modules.
 - **Authentication is global and on by default** — `AuthModule` binds `AuthGuard` as an `APP_GUARD`, so _every_ route requires an `Authorization: Bearer <token>` matching a live `Session` row unless it carries `@Public()`. Tokens are opaque `crypto.randomUUID()` session tokens (not JWTs); passwords are bcrypt cost 12. `@Admin()` gates admin-only routes on `user.role`. The public surface is small and deliberate: `auth/status`, `auth/onboard`, `auth/login`, `auth/signup/:token`, two settings routes, and `public/tasks/:identifier/:number`.
-- **There is no per-board authorization** — the `Member` model exists with `admin`/`member`/`viewer` roles but **nothing reads it**. Any authenticated user can read and write any board, task, comment, or label. Auth here is authentication-only. Don't assume board scoping exists; if you need it, it has to be built.
+- **Per-board authorization is write-gating only** — the `Member` model (`admin`/`member`/`viewer`) is enforced for **writes**: board update/delete (`BoardsService.assertBoardAdmin`), labels create/update/delete, statuses create/update/reorder/delete, and member management (`MembersService`). Global admins (`user.role === 'admin'`) pass every board gate; a board with zero admin Member rows ("legacy board") allows all writes as a fallback. **Reads are not scoped** — any authenticated user can read any board, task, comment, or label. `viewer` role is stored but gives no read restriction.
 - **No ESLint config file** — lint scripts reference `eslint` but it's not installed in either app. `pnpm lint` will fail. CI does not run lint.
 - **The web build does NOT typecheck** — `@taskforge/web`'s `build` script is bare `vite build`, which only transpiles. A passing build proves nothing about types. Run `cd apps/web && npx tsc --noEmit` explicitly. Note it currently reports **7 pre-existing errors** — check the count hasn't grown rather than expecting zero.
 - **Board identifiers must be exactly 3 uppercase letters** — enforced by a `Matches` rule in `CreateBoardDto`. `TF` is rejected; `TFG` is fine.
@@ -94,6 +94,10 @@ The web UI follows the Linear "midnight command deck" design system — dark-onl
 - Inter Variable weights cap at 590 — never 700+. Use JetBrains Mono (`font-mono`) for IDs, code, timestamps, keyboard hints.
 - Cards get depth from 1px inset Graphite border + soft drop shadow, not fills.
 - No new accent colors — palette is Lime + Indigo + semantic (Emerald/Crimson/Cyan) only.
+
+## Planning → TaskForge
+
+Every planning result — whether from a brainstorming session, a written plan, a design doc, or any other planning artifact — must be turned into TaskForge tasks via the TaskForge MCP tools (e.g. `taskforge_boards_create`, `taskforge_tasks_create`). Do not leave planning output as prose only; persist it as boards, lists, and tasks so progress is trackable. One board per plan, one task per actionable item, with relations (`taskforge_relations_create`) to capture blocking dependencies where they matter.
 
 ## Architecture
 

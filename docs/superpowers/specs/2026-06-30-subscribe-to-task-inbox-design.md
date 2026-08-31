@@ -66,9 +66,9 @@ Add reverse relations on `User` and `Task`:
 - `Task.subscriptions TaskSubscription[]`
 - `Task.notifications Notification[]`
 
-And a forward relation on `Activity`:
+And a reverse relation on `Activity`:
 
-- `Activity.notification Notification?` (1:1 — an activity row fans out to at most one notification per user; the relation is to the activity's "primary" notification if any).
+- `Activity.notifications Notification[]` (1:N — an activity row fans out to one notification per subscriber, so a single activity can produce many notifications).
 
 ### Choices
 

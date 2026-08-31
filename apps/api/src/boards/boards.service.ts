@@ -98,15 +98,18 @@ export class BoardsService {
       include: { statuses: true },
     });
 
-    // Seed default labels for the new board
-    for (const labelData of DEFAULT_LABELS) {
-      await this.labelsService.create(board.id, labelData);
-    }
-
-    // Add creator as board admin
+    // Seed default labels for the new board. Part of board creation itself, so
+    // it is not subject to the label admin gate: when a creator is present they
+    // have just been made admin (and could create these anyway), and userless
+    // creation (system/seeding) has no actor to authorize.
     if (_user?.id) {
       await this.prisma.member.create({
         data: { boardId: board.id, userId: _user.id, role: 'admin' },
+      });
+    }
+    for (const labelData of DEFAULT_LABELS) {
+      await this.prisma.label.create({
+        data: { boardId: board.id, ...labelData },
       });
     }
 
@@ -133,14 +136,18 @@ export class BoardsService {
 
   /**
    * Board-level admin gate for destructive/config operations (update, remove).
-   * A user must be a member with role 'admin' on the board. If the board has no
-   * admin member rows at all (e.g. legacy boards created before members existed),
-   * we allow the call as a pragmatic fallback rather than locking the board.
+   * Global admins (user.role === 'admin') always pass, matching
+   * MembersService.isBoardAdmin. Otherwise the user must be a member with role
+   * 'admin' on the board. If the board has no admin member rows at all (e.g.
+   * legacy boards created before members existed), we allow the call as a
+   * pragmatic fallback rather than locking the board.
    */
   private async assertBoardAdmin(boardId: string, user?: { id: string; displayName: string }) {
     if (!user?.id) {
       throw new ForbiddenException('Admin access required');
     }
+    const userRow = await this.prisma.user.findUnique({ where: { id: user.id } });
+    if (userRow?.role === 'admin') return;
     const admins = await this.prisma.member.findMany({
       where: { boardId, role: 'admin' },
     });
