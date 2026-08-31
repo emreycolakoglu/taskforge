@@ -8,7 +8,7 @@
       "type": "remote",
       "url": "https://tasks.healmeets.com/api/mcp",
       "headers": {
-        "Authorization": "Bearer 514ce28f-2d31-4c42-a9f3-94c9552697da"
+        "Authorization": "Bearer 1d7da722-d2a6-4bdb-897c-d1fddd47493b"
       }
     },
     "chrome-devtools": {
