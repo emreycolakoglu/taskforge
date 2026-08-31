@@ -26,6 +26,7 @@ model User {
   members        Member[]
   subscriptions  TaskSubscription[]
   notifications  Notification[]
+  views          View[]              @relation("ViewOwner")
 
   @@map("users")
 }
@@ -90,6 +91,7 @@ model Board {
   members   Member[]
   tasks     Task[]
   documents Document[]
+  views     View[]
 }
 
 model Status {
@@ -307,4 +309,24 @@ model Notification {
   @@index([userId, readAt])
   @@index([userId, createdAt])
   @@map("notifications")
+}
+
+model View {
+  id        String   @id @default(cuid())
+  boardId   String
+  userId    String? // null = shared board view, set = personal
+  name      String
+  filters   String // JSON string: { labelIds?, assigneeIds?, priorities?, dueDateRange?, searchQuery? }
+  groupBy   String   @default("status") // status | assignee | priority | label | none
+  sortBy    String   @default("position") // position | priority | dueDate | title
+  layout    String   @default("board") // board | list
+  position  Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  owner User? @relation("ViewOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+  @@map("views")
 }
