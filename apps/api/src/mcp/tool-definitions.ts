@@ -270,6 +270,62 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     inputSchema: { id: idField('Label') },
   },
 
+  // views
+  {
+    name: 'views_list',
+    title: 'List views',
+    description: "List saved views on a board (shared views plus the caller's own personal views).",
+    inputSchema: { boardId: idField('Board') },
+  },
+  {
+    name: 'views_create',
+    title: 'Create view',
+    description:
+      'Create a saved view for a board. shared=false (default) makes it personal to the caller; shared=true requires board membership.',
+    inputSchema: {
+      boardId: idField('Board'),
+      name: z.string(),
+      filters: z
+        .object({
+          labelIds: z.array(z.string()).optional(),
+          assigneeIds: z.array(z.string()).optional(),
+          priorities: z.array(z.enum(['low', 'medium', 'high', 'urgent'])).optional(),
+          dueDateRange: z
+            .object({ from: z.string().optional(), to: z.string().optional() })
+            .optional(),
+          searchQuery: z.string().optional(),
+        })
+        .optional(),
+      groupBy: z.enum(['status', 'assignee', 'priority', 'label', 'none']).optional(),
+      sortBy: z.enum(['position', 'priority', 'dueDate', 'title']).optional(),
+      layout: z.enum(['board', 'list']).optional(),
+      shared: z.boolean().optional(),
+      position: z.number().optional(),
+    },
+  },
+  {
+    name: 'views_update',
+    title: 'Update view',
+    description:
+      'Update a saved view (name, filters, groupBy, sortBy, layout, position). Personal views: owner only. Shared views: owner or board admin.',
+    inputSchema: {
+      id: idField('View'),
+      name: z.string().optional(),
+      filters: z.record(z.any()).optional(),
+      groupBy: z.enum(['status', 'assignee', 'priority', 'label', 'none']).optional(),
+      sortBy: z.enum(['position', 'priority', 'dueDate', 'title']).optional(),
+      layout: z.enum(['board', 'list']).optional(),
+      position: z.number().optional(),
+    },
+  },
+  {
+    name: 'views_delete',
+    title: 'Delete view',
+    description:
+      'Delete a saved view. Personal views: owner only. Shared views: owner or board admins.',
+    inputSchema: { id: idField('View') },
+  },
+
   // activity
   {
     name: 'activity_list',

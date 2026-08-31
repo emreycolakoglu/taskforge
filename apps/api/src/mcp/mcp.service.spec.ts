@@ -11,6 +11,7 @@ import { MentionsService } from '../mentions/mentions.service';
 import { MembersService } from '../members/members.service';
 import { LabelsService } from '../labels/labels.service';
 import { StatusesService } from '../statuses/statuses.service';
+import { ViewsService } from '../views/views.service';
 import {
   createTestPrisma,
   seedBoard,
@@ -20,6 +21,7 @@ import {
   seedUser,
   seedRelation,
   seedDocument,
+  seedView,
 } from '../../test/setup';
 
 describe('McpService', () => {
@@ -41,6 +43,7 @@ describe('McpService', () => {
         MembersService,
         LabelsService,
         StatusesService,
+        ViewsService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
         { provide: SubscriptionsService, useValue: new SubscriptionsService(prisma) },
@@ -68,6 +71,7 @@ describe('McpService', () => {
     await prisma.activity.deleteMany();
     await prisma.comment.deleteMany();
     await prisma.document.deleteMany();
+    await prisma.view.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
     await prisma.status.deleteMany();
@@ -903,6 +907,125 @@ describe('McpService', () => {
         user,
       );
       expect(res.result.deleted).toBe(true);
+    });
+  });
+
+  // ─── Views ───
+
+  describe('views_list', () => {
+    it('should list shared views plus the caller personal views', async () => {
+      const other = await seedUser(prisma, { displayName: 'Other' });
+      await seedView(prisma, board.id, { userId: user.id, name: 'Mine' });
+      await seedView(prisma, board.id, { userId: other.id, name: 'Shared', isShared: true });
+      // Personal view of another user — must not appear
+      await seedView(prisma, board.id, { userId: other.id, name: 'Hidden' });
+
+      const res = await service.handleRequest(
+        { method: 'views_list', params: { boardId: board.id }, id: 601 },
+        user,
+      );
+      expect(res.result).toHaveLength(2);
+      expect(res.result.map((v: any) => v.name).sort()).toEqual(['Mine', 'Shared']);
+    });
+  });
+
+  describe('views_create', () => {
+    it('should create a shared view when the caller is a board member', async () => {
+      await prisma.member.create({ data: { boardId: board.id, userId: user.id, role: 'member' } });
+      const res = await service.handleRequest(
+        {
+          method: 'views_create',
+          params: {
+            boardId: board.id,
+            name: 'Urgent work',
+            filters: { priorities: ['urgent'] },
+            groupBy: 'priority',
+            sortBy: 'priority',
+            layout: 'list',
+            shared: true,
+            position: 2,
+          },
+          id: 602,
+        },
+        user,
+      );
+      expect(res.error).toBeUndefined();
+      expect(res.result.name).toBe('Urgent work');
+      expect(res.result.isShared).toBe(true);
+      expect(res.result.groupBy).toBe('priority');
+      expect(res.result.layout).toBe('list');
+      expect(res.result.position).toBe(2);
+      expect(JSON.parse(res.result.filters)).toEqual({ priorities: ['urgent'] });
+    });
+
+    it('should default shared=false and defaults for omitted fields', async () => {
+      const res = await service.handleRequest(
+        {
+          method: 'views_create',
+          params: { boardId: board.id, name: 'Personal' },
+          id: 603,
+        },
+        user,
+      );
+      expect(res.result.isShared).toBe(false);
+      expect(res.result.groupBy).toBe('status');
+      expect(res.result.sortBy).toBe('position');
+      expect(res.result.layout).toBe('board');
+      expect(JSON.parse(res.result.filters)).toEqual({});
+    });
+
+    it('should reject shared=true for a non-member', async () => {
+      // The shared `user` is a global admin who passes the membership gate;
+      // use a plain non-member instead.
+      const outsider = await seedUser(prisma, { displayName: 'Outsider' });
+      const res = await service.handleRequest(
+        {
+          method: 'views_create',
+          params: { boardId: board.id, name: 'Sneaky', shared: true },
+          id: 604,
+        },
+        { id: outsider.id, displayName: outsider.displayName, role: outsider.role },
+      );
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('Board membership required');
+    });
+  });
+
+  describe('views_update', () => {
+    it('should update a view as the creator', async () => {
+      const view = await seedView(prisma, board.id, { userId: user.id, name: 'Old' });
+      const res = await service.handleRequest(
+        {
+          method: 'views_update',
+          params: { id: view.id, name: 'New', filters: { priorities: ['high'] } },
+          id: 605,
+        },
+        user,
+      );
+      expect(res.result.name).toBe('New');
+      expect(JSON.parse(res.result.filters)).toEqual({ priorities: ['high'] });
+    });
+
+    it('should reject the update from a non-creator', async () => {
+      const view = await seedView(prisma, board.id, { userId: user.id, name: 'Mine' });
+      const res = await service.handleRequest(
+        { method: 'views_update', params: { id: view.id, name: 'Hacked' }, id: 606 },
+        { id: 'nobody', displayName: 'Nobody', role: 'member' },
+      );
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('Only the creator or board admins');
+    });
+  });
+
+  describe('views_delete', () => {
+    it('should delete a view as the creator', async () => {
+      const view = await seedView(prisma, board.id, { userId: user.id, name: 'Gone' });
+      const res = await service.handleRequest(
+        { method: 'views_delete', params: { id: view.id }, id: 607 },
+        user,
+      );
+      expect(await prisma.view.findUnique({ where: { id: view.id } })).toBeNull();
+      expect(res.result).toBeUndefined();
     });
   });
 

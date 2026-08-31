@@ -12,6 +12,7 @@ import { MentionsModule } from '../mentions/mentions.module';
 import { MembersModule } from '../members/members.module';
 import { LabelsModule } from '../labels/labels.module';
 import { StatusesModule } from '../statuses/statuses.module';
+import { ViewsModule } from '../views/views.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { StatusesModule } from '../statuses/statuses.module';
     MembersModule,
     LabelsModule,
     StatusesModule,
+    ViewsModule,
   ],
   controllers: [McpTransportController],
   providers: [McpService, McpServerFactory],

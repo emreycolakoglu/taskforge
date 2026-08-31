@@ -13,6 +13,7 @@ import { MentionsService } from '../mentions/mentions.service';
 import { MembersService } from '../members/members.service';
 import { LabelsService } from '../labels/labels.service';
 import { StatusesService } from '../statuses/statuses.service';
+import { ViewsService } from '../views/views.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { createTestPrisma, seedUser, seedBoard } from '../../test/setup';
 
@@ -162,6 +163,7 @@ describe('McpTransportController', () => {
       new MembersService(prisma as any),
       new LabelsService(prisma as any, events, new MembersService(prisma as any)),
       new StatusesService(prisma as any, events, new MembersService(prisma as any)),
+      new ViewsService(prisma as any, events, new MembersService(prisma as any)),
     );
     const factory = new McpServerFactory(mcpService);
     controller = new McpTransportController(factory);
@@ -237,7 +239,7 @@ describe('McpTransportController', () => {
     expect(r.status).toBeLessThan(300);
   });
 
-  it('tools/list with session id → 200 with 24 tools', async () => {
+  it('tools/list with session id → 200 with 28 tools', async () => {
     const init = await post({
       jsonrpc: '2.0',
       id: 1,

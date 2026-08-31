@@ -10,6 +10,7 @@ import { MentionsService } from '../mentions/mentions.service';
 import { MembersService } from '../members/members.service';
 import { LabelsService } from '../labels/labels.service';
 import { StatusesService } from '../statuses/statuses.service';
+import { ViewsService } from '../views/views.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { TOOL_NAMES } from './tool-definitions';
@@ -43,6 +44,7 @@ describe('McpServerFactory', () => {
       new MembersService(prisma as any),
       new LabelsService(prisma as any, events, new MembersService(prisma as any)),
       new StatusesService(prisma as any, events, new MembersService(prisma as any)),
+      new ViewsService(prisma as any, events, new MembersService(prisma as any)),
     );
     factory = new McpServerFactory(mcpService);
   });

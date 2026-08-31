@@ -10,6 +10,7 @@ import { MentionsService } from '../mentions/mentions.service';
 import { MembersService } from '../members/members.service';
 import { LabelsService } from '../labels/labels.service';
 import { StatusesService } from '../statuses/statuses.service';
+import { ViewsService } from '../views/views.service';
 import { DEFAULT_STATUSES } from '../statuses/status-defaults';
 import { isTerminalType, stampsDoneAt } from '../statuses/status-types';
 
@@ -80,6 +81,7 @@ export class McpService {
     private members: MembersService,
     private labelsService: LabelsService,
     private statusesService: StatusesService,
+    private views: ViewsService,
   ) {}
 
   async handleRequest(req: McpRequest, user?: AuthUser): Promise<McpResponse> {
@@ -107,6 +109,9 @@ export class McpService {
           break;
         case 'labels':
           result = await this.handleLabels(action, req.params, user);
+          break;
+        case 'views':
+          result = await this.handleViews(action, req.params, user);
           break;
         case 'activity':
           result = await this.handleActivity(action, req.params);
@@ -689,6 +694,42 @@ export class McpService {
       }
       default:
         throw new Error(`Unknown action: labels_${action}`);
+    }
+  }
+
+  private async handleViews(action: string, params: any, user?: AuthUser) {
+    if (!user) throw new BadRequestException('Authentication required');
+    switch (action) {
+      case 'list': {
+        if (!params.boardId) throw new BadRequestException('boardId is required');
+        return this.views.findAll(params.boardId, user.id);
+      }
+      case 'get': {
+        return this.views.findOne(params.id, user);
+      }
+      case 'create': {
+        return this.views.create(
+          {
+            boardId: params.boardId,
+            name: params.name,
+            filters: params.filters ?? {},
+            groupBy: params.groupBy,
+            sortBy: params.sortBy,
+            layout: params.layout,
+            shared: params.shared ?? false,
+            position: params.position,
+          },
+          user,
+        );
+      }
+      case 'update': {
+        return this.views.update(params.id, params, user);
+      }
+      case 'delete': {
+        return this.views.remove(params.id, user);
+      }
+      default:
+        throw new BadRequestException(`Unknown views action: ${action}`);
     }
   }
 
