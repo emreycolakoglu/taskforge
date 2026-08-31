@@ -265,6 +265,38 @@ export interface PublicDocument {
   updatedAt: string;
 }
 
+export type ViewGroupBy = 'status' | 'assignee' | 'priority' | 'label' | 'none';
+export type ViewSortBy = 'position' | 'priority' | 'dueDate' | 'title';
+
+export interface ViewFilters {
+  labelIds?: string[];
+  assigneeIds?: string[];
+  priorities?: ('low' | 'medium' | 'high' | 'urgent')[];
+  dueDateRange?: { from?: string | null; to?: string | null };
+  searchQuery?: string;
+}
+
+/**
+ * A saved board view. `userId` is the CREATOR for both personal and shared
+ * views (never null); shared-ness is carried by `isShared`. The API stores
+ * `filters` as a JSON string column — `api.views` parses it into a
+ * `ViewFilters` object before anything downstream sees the row.
+ */
+export interface View {
+  id: string;
+  boardId: string;
+  userId: string;
+  isShared: boolean;
+  name: string;
+  filters: ViewFilters;
+  groupBy: ViewGroupBy;
+  sortBy: ViewSortBy;
+  layout: 'board' | 'list';
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const API_BASE = '/api';
 
 export const PREDEFINED_COLORS = [

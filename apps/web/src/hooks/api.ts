@@ -21,6 +21,8 @@ import {
   TaskSubscriptionState,
   Member,
   Document,
+  View,
+  ViewFilters,
 } from '../types';
 
 const TOKEN_KEY = 'taskforge_token';
@@ -72,6 +74,25 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   } catch {
     return undefined as T;
   }
+}
+
+// The API stores view filters as a JSON string column; parse it defensively so
+// the rest of the app always sees a ViewFilters object.
+type RawViewRow = Omit<View, 'filters'> & { filters: string };
+
+function parseFilters(raw: string | ViewFilters | null | undefined): ViewFilters {
+  if (raw && typeof raw === 'object') return raw;
+  if (typeof raw !== 'string') return {};
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === 'object' ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function parseViewRow(v: RawViewRow): View {
+  return { ...v, filters: parseFilters(v.filters) };
 }
 
 export const api = {
@@ -284,6 +305,36 @@ export const api = {
       request<void>(`/boards/${boardId}/members/${userId}`, { method: 'DELETE' }),
     join: (boardId: string) => request<Member>(`/boards/${boardId}/join`, { method: 'POST' }),
     leave: (boardId: string) => request<void>(`/boards/${boardId}/leave`, { method: 'POST' }),
+  },
+
+  // Views
+  views: {
+    list: (boardId: string) =>
+      request<RawViewRow[]>(`/boards/${boardId}/views`).then((rows) => rows.map(parseViewRow)),
+    get: (id: string) => request<RawViewRow>(`/views/${id}`).then(parseViewRow),
+    create: (data: {
+      boardId: string;
+      name: string;
+      filters: ViewFilters;
+      groupBy?: string;
+      sortBy?: string;
+      layout?: string;
+      shared: boolean;
+      position?: number;
+    }) =>
+      request<RawViewRow>('/views', { method: 'POST', body: JSON.stringify(data) }).then(
+        parseViewRow,
+      ),
+    update: (
+      id: string,
+      data: Partial<Pick<View, 'name' | 'groupBy' | 'sortBy' | 'layout' | 'position'>> & {
+        filters?: ViewFilters;
+      },
+    ) =>
+      request<RawViewRow>(`/views/${id}`, { method: 'PATCH', body: JSON.stringify(data) }).then(
+        parseViewRow,
+      ),
+    delete: (id: string) => request<void>(`/views/${id}`, { method: 'DELETE' }),
   },
 
   // MCP
