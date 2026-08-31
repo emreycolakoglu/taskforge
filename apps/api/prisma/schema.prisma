@@ -312,9 +312,10 @@ model Notification {
 }
 
 model View {
-  id        String   @id @default(cuid())
-  boardId   String
-  userId    String? // null = shared board view, set = personal
+  id       String  @id @default(cuid())
+  boardId  String
+  userId   String
+  isShared Boolean @default(false)
   name      String
   filters   String // JSON string: { labelIds?, assigneeIds?, priorities?, dueDateRange?, searchQuery? }
   groupBy   String   @default("status") // status | assignee | priority | label | none
@@ -325,7 +326,7 @@ model View {
   updatedAt DateTime @updatedAt
 
   board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  owner User? @relation("ViewOwner", fields: [userId], references: [id], onDelete: Cascade)
+  owner User  @relation("ViewOwner", fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([boardId])
   @@map("views")

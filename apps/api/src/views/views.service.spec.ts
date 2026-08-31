@@ -41,6 +41,7 @@ describe('ViewsService', () => {
     outsider = await seedUser(prisma, { email: 'view-outsider@example.com' });
     boardAdmin = await seedUser(prisma, { email: 'view-admin@example.com' });
     await prisma.member.create({ data: { boardId: board.id, userId: owner.id, role: 'member' } });
+    await prisma.member.create({ data: { boardId: board.id, userId: member.id, role: 'member' } });
     await prisma.member.create({
       data: { boardId: board.id, userId: boardAdmin.id, role: 'admin' },
     });
@@ -67,9 +68,10 @@ describe('ViewsService', () => {
     expect(view.filters).toBe(JSON.stringify(testFilters));
   });
 
-  it('creates a shared view (userId null)', async () => {
+  it('creates a shared view with creator set (isShared true)', async () => {
     const view = await service.create({ ...baseDto, boardId: board.id, shared: true }, owner);
-    expect(view.userId).toBeNull();
+    expect(view.isShared).toBe(true);
+    expect(view.userId).toBe(owner.id);
   });
 
   it('rejects shared view creation by a non-member', async () => {
@@ -89,10 +91,25 @@ describe('ViewsService', () => {
     await service.create({ ...baseDto, boardId: board.id, name: 'My view' }, member);
     const other = await service.create({ ...baseDto, boardId: board.id, name: 'My view' }, owner);
     expect(other.userId).toBe(owner.id);
+    expect(other.isShared).toBe(false);
+  });
+
+  it('allows the same personal name across a personal and a shared view (separate scopes)', async () => {
+    await service.create({ ...baseDto, boardId: board.id, name: 'My view', shared: true }, owner);
+    const personal = await service.create(
+      { ...baseDto, boardId: board.id, name: 'My view' },
+      owner,
+    );
+    expect(personal.isShared).toBe(false);
   });
 
   it('lists shared views plus only my personal views, ordered by position', async () => {
-    await seedView(prisma, board.id, { name: 'shared-1', position: 2 });
+    await seedView(prisma, board.id, {
+      name: 'shared-1',
+      userId: member.id,
+      isShared: true,
+      position: 2,
+    });
     await seedView(prisma, board.id, { name: 'mine', userId: owner.id, position: 1 });
     await seedView(prisma, board.id, { name: 'theirs', userId: member.id });
     const views = await service.findAll(board.id, owner.id);
@@ -100,7 +117,11 @@ describe('ViewsService', () => {
   });
 
   it('fetches a shared view for any authenticated user', async () => {
-    const view = await seedView(prisma, board.id, { name: 'shared' });
+    const view = await seedView(prisma, board.id, {
+      name: 'shared',
+      userId: member.id,
+      isShared: true,
+    });
     const found = await service.findOne(view.id, outsider);
     expect(found.id).toBe(view.id);
   });
@@ -108,6 +129,12 @@ describe('ViewsService', () => {
   it("404s someone else's personal view on findOne", async () => {
     const view = await seedView(prisma, board.id, { name: 'private', userId: owner.id });
     await expect(service.findOne(view.id, outsider)).rejects.toThrow(NotFoundException);
+  });
+
+  it('creator (plain member) updates their own shared view', async () => {
+    const view = await service.create({ ...baseDto, boardId: board.id, shared: true }, member);
+    const updated = await service.update(view.id, { name: 'Creator edit' }, member);
+    expect(updated.name).toBe('Creator edit');
   });
 
   it('owner updates their personal view', async () => {
@@ -121,17 +148,24 @@ describe('ViewsService', () => {
     await expect(service.update(view.id, { name: 'x' }, owner)).rejects.toThrow(ForbiddenException);
   });
 
-  it('board admin (not owner) updates a shared view', async () => {
+  it('board admin (not creator) updates a shared view', async () => {
     const view = await service.create({ ...baseDto, boardId: board.id, shared: true }, owner);
     const updated = await service.update(view.id, { name: 'Admin edit' }, boardAdmin);
     expect(updated.name).toBe('Admin edit');
   });
 
-  it('plain member (not owner, not admin) cannot update a shared view', async () => {
+  it('plain member (not creator, not admin) cannot update a shared view', async () => {
     const view = await service.create({ ...baseDto, boardId: board.id, shared: true }, owner);
     await expect(service.update(view.id, { name: 'x' }, member)).rejects.toThrow(
       ForbiddenException,
     );
+  });
+
+  it('creator (plain member) deletes their own shared view', async () => {
+    const view = await service.create({ ...baseDto, boardId: board.id, shared: true }, member);
+    await service.remove(view.id, member);
+    const remaining = await service.findAll(board.id, member.id);
+    expect(remaining).toHaveLength(0);
   });
 
   it('rejects rename to a duplicate name in the same shared scope', async () => {
@@ -149,6 +183,16 @@ describe('ViewsService', () => {
     expect(a.name).toBe('A');
   });
 
+  it('allows the same shared name across different creators (scope includes userId)', async () => {
+    await service.create({ ...baseDto, boardId: board.id, name: 'A', shared: true }, member);
+    const other = await service.create(
+      { ...baseDto, boardId: board.id, name: 'A', shared: true },
+      owner,
+    );
+    expect(other.isShared).toBe(true);
+    expect(other.userId).toBe(owner.id);
+  });
+
   it('owner deletes their personal view', async () => {
     const view = await service.create({ ...baseDto, boardId: board.id }, member);
     await service.remove(view.id, member);
@@ -156,7 +200,7 @@ describe('ViewsService', () => {
     expect(remaining).toHaveLength(0);
   });
 
-  it('member (non-owner) cannot delete a shared view but admin can', async () => {
+  it('member (non-creator, non-admin) cannot delete a shared view but admin can', async () => {
     const view = await service.create({ ...baseDto, boardId: board.id, shared: true }, owner);
     await expect(service.remove(view.id, member)).rejects.toThrow(ForbiddenException);
     await service.remove(view.id, boardAdmin);

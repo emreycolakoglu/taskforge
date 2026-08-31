@@ -25,7 +25,7 @@ export class ViewsService {
 
   async findAll(boardId: string, userId: string) {
     return this.prisma.view.findMany({
-      where: { boardId, OR: [{ userId: null }, { userId }] },
+      where: { boardId, OR: [{ isShared: true }, { userId }] },
       orderBy: { position: 'asc' },
     });
   }
@@ -33,19 +33,20 @@ export class ViewsService {
   async findOne(id: string, user: AuthedUser) {
     const view = await this.prisma.view.findUnique({ where: { id } });
     if (!view) throw new NotFoundException('View not found');
-    if (view.userId && view.userId !== user?.id) throw new NotFoundException('View not found');
+    if (!view.isShared && view.userId !== user?.id) throw new NotFoundException('View not found');
     return view;
   }
 
   async create(dto: CreateViewDto, user: AuthedUser) {
     if (!user?.id) throw new ForbiddenException('Authentication required');
     if (dto.shared) await this.assertBoardMember(dto.boardId, user);
-    await this.assertUniqueName(dto.boardId, dto.shared ? null : user.id, dto.name);
+    await this.assertUniqueName(dto.boardId, user.id, dto.shared, dto.name);
     const filters = JSON.stringify(dto.filters ?? {});
     const view = await this.prisma.view.create({
       data: {
         boardId: dto.boardId,
-        userId: dto.shared ? null : user.id,
+        userId: user.id,
+        isShared: dto.shared,
         name: dto.name,
         filters,
         groupBy: dto.groupBy ?? 'status',
@@ -63,7 +64,7 @@ export class ViewsService {
     if (!view) throw new NotFoundException('View not found');
     await this.assertCanMutate(view, user);
     if (dto.name && dto.name !== view.name) {
-      await this.assertUniqueName(view.boardId, view.userId, dto.name);
+      await this.assertUniqueName(view.boardId, view.userId, view.isShared, dto.name);
     }
     const updated = await this.prisma.view.update({
       where: { id },
@@ -76,7 +77,7 @@ export class ViewsService {
         ...(dto.position !== undefined && { position: dto.position }),
       },
     });
-    if (!view.userId) this.events.emit('view:updated', updated, view.boardId);
+    if (view.isShared) this.events.emit('view:updated', updated, view.boardId);
     return updated;
   }
 
@@ -85,23 +86,16 @@ export class ViewsService {
     if (!view) throw new NotFoundException('View not found');
     await this.assertCanMutate(view, user);
     await this.prisma.view.delete({ where: { id } });
-    if (!view.userId) this.events.emit('view:deleted', { id }, view.boardId);
+    if (view.isShared) this.events.emit('view:deleted', { id }, view.boardId);
   }
 
-  private async assertCanMutate(
-    view: { boardId: string; userId: string | null },
-    user: AuthedUser,
-  ) {
-    if (view.userId) {
-      if (view.userId !== user?.id)
-        throw new ForbiddenException('Only the owner can modify this view');
-      return;
-    }
-    // Shared view: only the board admin (the owner row has userId null) or a
-    // global admin may modify it.
+  private async assertCanMutate(view: { boardId: string; userId: string }, user: AuthedUser) {
+    // The creator can always modify their own view (personal or shared).
+    if (view.userId === user?.id) return;
+    // Non-creator board admins can manage views shared to the board.
     const isAdmin = user?.id ? await this.members.isBoardAdmin(view.boardId, user.id) : false;
     if (!isAdmin)
-      throw new ForbiddenException('Only the owner or board admins can modify a shared view');
+      throw new ForbiddenException('Only the creator or board admins can modify this view');
   }
 
   private async assertBoardMember(boardId: string, user: AuthedUser) {
@@ -109,14 +103,14 @@ export class ViewsService {
       where: { boardId_userId: { boardId, userId: user.id } },
     });
     if (member) return;
-    // Global admins and legacy boards (zero admin member rows) still pass
+    // Global admins (user.role === 'admin') may create shared views on any board
     const isAdmin = await this.members.isBoardAdmin(boardId, user.id);
     if (!isAdmin) throw new ForbiddenException('Board membership required to create shared views');
   }
 
-  private async assertUniqueName(boardId: string, userId: string | null, name: string) {
+  private async assertUniqueName(boardId: string, userId: string, isShared: boolean, name: string) {
     const existing = await this.prisma.view.findFirst({
-      where: { boardId, userId: userId === undefined ? undefined : userId, name },
+      where: { boardId, userId, isShared, name },
     });
     if (existing) throw new ConflictException(`A view named "${name}" already exists`);
   }

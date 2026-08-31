@@ -198,24 +198,29 @@ export const testFilters = {
 };
 
 /**
- * Seed a view on a board. `userId: null` = shared; set = personal.
- * Pass `{ userId: <id> }` for personal; no key for shared (do NOT rely on ?? null).
+ * Seed a view on a board. `userId` is required (the creator); pass
+ * `isShared: true` for shared views (default false = personal).
  */
 export async function seedView(
   prisma: PrismaClient,
   boardId: string,
   overrides: Record<string, any> = {},
 ) {
+  if (!overrides.userId) {
+    throw new Error('seedView requires overrides.userId (the creator)');
+  }
+  const { userId, ...rest } = overrides;
   return prisma.view.create({
     data: {
       boardId,
-      userId: 'userId' in overrides ? overrides.userId : null,
-      name: overrides.name || 'Test view',
-      filters: overrides.filters || '{}',
-      groupBy: overrides.groupBy || 'status',
-      sortBy: overrides.sortBy || 'position',
-      layout: overrides.layout || 'board',
-      position: overrides.position ?? 0,
+      userId,
+      isShared: rest.isShared ?? false,
+      name: rest.name || 'Test view',
+      filters: rest.filters || '{}',
+      groupBy: rest.groupBy || 'status',
+      sortBy: rest.sortBy || 'position',
+      layout: rest.layout || 'board',
+      position: rest.position ?? 0,
     },
   });
 }
