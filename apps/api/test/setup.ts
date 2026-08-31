@@ -187,6 +187,40 @@ export async function seedDocument(
 }
 
 /**
+ * Canonical filters fixture for view tests.
+ */
+export const testFilters = {
+  labelIds: [],
+  assigneeIds: [],
+  priorities: [],
+  dueDateRange: {},
+  searchQuery: '',
+};
+
+/**
+ * Seed a view on a board. `userId: null` = shared; set = personal.
+ * Pass `{ userId: <id> }` for personal; no key for shared (do NOT rely on ?? null).
+ */
+export async function seedView(
+  prisma: PrismaClient,
+  boardId: string,
+  overrides: Record<string, any> = {},
+) {
+  return prisma.view.create({
+    data: {
+      boardId,
+      userId: 'userId' in overrides ? overrides.userId : null,
+      name: overrides.name || 'Test view',
+      filters: overrides.filters || '{}',
+      groupBy: overrides.groupBy || 'status',
+      sortBy: overrides.sortBy || 'position',
+      layout: overrides.layout || 'board',
+      position: overrides.position ?? 0,
+    },
+  });
+}
+
+/**
  * Seed a relation between two tasks. For "related_to", canonicalizes so
  * fromTaskId < toTaskId lexicographically (matches RelationsService).
  */
