@@ -23,11 +23,16 @@ const mockView: View = {
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('./use-views', () => ({
-  useBoardViews: vi.fn(() => ({ data: [mockView], isLoading: false })),
+  useBoardViews: vi.fn(() => viewsQueryOverride.current ?? { data: [mockView], isPending: false }),
   useCreateView: vi.fn(() => ({ mutate: vi.fn() })),
   useUpdateView: vi.fn(() => ({ mutate: vi.fn() })),
   useDeleteView: vi.fn(() => ({ mutate: vi.fn() })),
 }));
+
+// Overridden per-test to control the views query state (e.g. loading).
+const viewsQueryOverride: { current: { data: View[]; isPending: boolean } | null } = {
+  current: null,
+};
 
 function makeWrapper(initialEntry: string) {
   const queryClient = new QueryClient({
@@ -65,6 +70,7 @@ function makeWrapper(initialEntry: string) {
 describe('useActiveView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    viewsQueryOverride.current = null;
   });
 
   it('resolves the active view from ?view=', () => {
@@ -88,6 +94,21 @@ describe('useActiveView', () => {
     });
     // Once the effect resolves, the param is removed and no view is active.
     expect(result.current.activeView).toBeNull();
+  });
+
+  it('does not strip a valid ?view= while the views query is still loading', () => {
+    viewsQueryOverride.current = { data: [], isPending: true };
+    const wrapper = makeWrapper('/board/b1?view=v1');
+    renderHook(() => useActiveView('b1'), { wrapper });
+    // The param survives at least one render pass even though data is empty.
+    expect(wrapper.currentSearch()).not.toBe('');
+  });
+
+  it('strips a stale ?view= once the views query has loaded', () => {
+    viewsQueryOverride.current = { data: [mockView], isPending: false };
+    const wrapper = makeWrapper('/board/b1?view=missing');
+    renderHook(() => useActiveView('b1'), { wrapper });
+    expect(wrapper.currentSearch()).not.toContain('view=');
   });
 
   it('selectView sets the ?view= param', () => {

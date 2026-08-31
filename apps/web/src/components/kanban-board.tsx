@@ -239,7 +239,7 @@ export function KanbanBoard() {
 
   const renderGroupColumns = (groups: TaskGroup[], draggable: boolean) => (
     <div
-      ref={draggable ? undefined : boardScrollRef}
+      ref={boardScrollRef}
       className={cn(
         'flex-1 overflow-x-auto bg-background',
         isPanning && 'cursor-grabbing select-none',

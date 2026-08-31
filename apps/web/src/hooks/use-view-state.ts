@@ -15,16 +15,20 @@ export function useActiveView(boardId: string): {
 } {
   const [searchParams, setSearchParams] = useSearchParams();
   const viewParam = searchParams.get('view');
-  const views = useBoardViews(boardId).data ?? [];
+  // `isPending` guards the strip effect below: while the views query is still
+  // resolving, `data` is empty and a valid `?view=<id>` would look stale.
+  const { data, isPending } = useBoardViews(boardId);
+  const views = data ?? [];
   const activeView = views.find((v) => v.id === viewParam) ?? null;
 
   useEffect(() => {
+    if (isPending) return;
     if (viewParam && !activeView) {
       const next = new URLSearchParams(searchParams);
       next.delete('view');
       setSearchParams(next, { replace: true });
     }
-  }, [viewParam, activeView, searchParams, setSearchParams]);
+  }, [viewParam, activeView, isPending, searchParams, setSearchParams]);
 
   return {
     activeView,
