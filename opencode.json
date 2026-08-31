@@ -10,6 +10,10 @@
       "headers": {
         "Authorization": "Bearer 6684c886-9184-4c29-9f17-f5b4feb82332"
       }
+    },
+    "chrome-devtools": {
+      "type": "local",
+      "command": ["npx", "-y", "chrome-devtools-mcp@latest"]
     }
   }
 }
