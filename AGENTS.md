@@ -123,7 +123,7 @@ A task can be published to a read-only page reachable without a session. The mod
 
 Users can persist a board's filter/group/sort/layout state as named views. The `View` row stores its creator in `userId` for both kinds; `isShared` picks the audience.
 
-- **Model**: personal views are visible only to their creator; shared views are visible to everyone on the board. Writes (update/delete) are creator-or-global-admin only (`ViewsService`). Legacy boards (zero Member rows) allow sharing for all users.
+- **Model**: personal views are visible only to their creator; shared views are visible to everyone on the board. Personal views are creator-only (no admin override); shared views can be written (update/delete) by their creator or a board admin (`ViewsService`). Legacy boards (zero Member rows) allow shared-view writes for all users.
 - **REST**: `GET /api/boards/:boardId/views`, `GET/POST /api/views`, `PATCH/DELETE /api/views/:id` → `views/` module. Also `views_*` MCP tools.
 - **Web**: `hooks/use-views.ts` (React Query `['views', boardId]`), `lib/apply-view.ts` (filter/group/sort engine), `hooks/use-view-state.ts` (active view selection, `?view=` URL param + localStorage fallback), `view-selector` + `save-view-dialog` components, socket `view:created/updated/deleted` invalidation in `hooks/use-socket.ts`.
 

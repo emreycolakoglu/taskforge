@@ -15,6 +15,7 @@ describe('ViewsService', () => {
   let member: any;
   let outsider: any;
   let boardAdmin: any;
+  let globalAdmin: any;
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
@@ -40,6 +41,10 @@ describe('ViewsService', () => {
     member = await seedUser(prisma, { email: 'view-member@example.com' });
     outsider = await seedUser(prisma, { email: 'view-outsider@example.com' });
     boardAdmin = await seedUser(prisma, { email: 'view-admin@example.com' });
+    globalAdmin = await seedUser(prisma, {
+      email: 'view-global-admin@example.com',
+      role: 'admin',
+    });
     await prisma.member.create({ data: { boardId: board.id, userId: owner.id, role: 'member' } });
     await prisma.member.create({ data: { boardId: board.id, userId: member.id, role: 'member' } });
     await prisma.member.create({
@@ -148,6 +153,24 @@ describe('ViewsService', () => {
     await expect(service.update(view.id, { name: 'x' }, owner)).rejects.toThrow(ForbiddenException);
   });
 
+  it('board admin cannot update another user’s personal view (creator-only)', async () => {
+    const view = await service.create({ ...baseDto, boardId: board.id }, member);
+    await expect(service.update(view.id, { name: 'Admin edit' }, boardAdmin)).rejects.toThrow(
+      ForbiddenException,
+    );
+  });
+
+  it('global admin cannot delete another user’s personal view (creator-only)', async () => {
+    const view = await service.create({ ...baseDto, boardId: board.id }, member);
+    await expect(service.remove(view.id, globalAdmin)).rejects.toThrow(ForbiddenException);
+  });
+
+  it('global admin can update a shared view they did not create', async () => {
+    const view = await service.create({ ...baseDto, boardId: board.id, shared: true }, member);
+    const updated = await service.update(view.id, { name: 'Global admin edit' }, globalAdmin);
+    expect(updated.name).toBe('Global admin edit');
+  });
+
   it('board admin (not creator) updates a shared view', async () => {
     const view = await service.create({ ...baseDto, boardId: board.id, shared: true }, owner);
     const updated = await service.update(view.id, { name: 'Admin edit' }, boardAdmin);
@@ -224,5 +247,45 @@ describe('ViewsService', () => {
       'view:updated',
       'view:deleted',
     ]);
+  });
+
+  describe('legacy boards (zero Member rows)', () => {
+    let legacyBoard: any;
+    let legacyUser: any;
+
+    beforeEach(async () => {
+      legacyBoard = await seedBoard(prisma);
+      legacyUser = await seedUser(prisma, { email: 'legacy-user@example.com' });
+      // No members seeded — the board is "legacy" by definition. Cleanup is
+      // handled by the suite-level afterEach (deleteMany over all tables).
+    });
+
+    it('allows a plain non-member user to create a shared view', async () => {
+      const view = await service.create(
+        { ...baseDto, boardId: legacyBoard.id, shared: true },
+        legacyUser,
+      );
+      expect(view.isShared).toBe(true);
+      expect(view.userId).toBe(legacyUser.id);
+    });
+
+    it('allows a plain non-member user to update a shared view they did not create', async () => {
+      const view = await service.create(
+        { ...baseDto, boardId: legacyBoard.id, shared: true },
+        legacyUser,
+      );
+      const updated = await service.update(view.id, { name: 'Legacy edit' }, outsider);
+      expect(updated.name).toBe('Legacy edit');
+    });
+
+    it('allows a plain non-member user to delete a shared view they did not create', async () => {
+      const view = await service.create(
+        { ...baseDto, boardId: legacyBoard.id, shared: true },
+        legacyUser,
+      );
+      await service.remove(view.id, outsider);
+      const remaining = await service.findAll(legacyBoard.id, legacyUser.id);
+      expect(remaining).toHaveLength(0);
+    });
   });
 });

@@ -89,13 +89,20 @@ export class ViewsService {
     if (view.isShared) this.events.emit('view:deleted', { id }, view.boardId);
   }
 
-  private async assertCanMutate(view: { boardId: string; userId: string }, user: AuthedUser) {
-    // The creator can always modify their own view (personal or shared).
+  private async assertCanMutate(
+    view: { boardId: string; userId: string; isShared: boolean },
+    user: AuthedUser,
+  ) {
     if (view.userId === user?.id) return;
-    // Non-creator board admins can manage views shared to the board.
-    const isAdmin = user?.id ? await this.members.isBoardAdmin(view.boardId, user.id) : false;
-    if (!isAdmin)
-      throw new ForbiddenException('Only the creator or board admins can modify this view');
+    // Personal views are creator-only — no admin override.
+    if (!view.isShared) throw new ForbiddenException('Only the creator can modify this view');
+    // Shared views: board admins (including global admins) may manage views
+    // shared to the board; legacy boards (zero Member rows) allow all writes.
+    if (user?.id) {
+      if (await this.members.isBoardAdmin(view.boardId, user.id)) return;
+      if (await this.isLegacyBoard(view.boardId)) return;
+    }
+    throw new ForbiddenException('Only the creator or board admins can modify this view');
   }
 
   private async assertBoardMember(boardId: string, user: AuthedUser) {
@@ -103,9 +110,17 @@ export class ViewsService {
       where: { boardId_userId: { boardId, userId: user.id } },
     });
     if (member) return;
+    // Legacy board fallback: boards with zero Member rows (pre-members era)
+    // allow shared-view writes for all users, mirroring BoardsService.
+    if (await this.isLegacyBoard(boardId)) return;
     // Global admins (user.role === 'admin') may create shared views on any board
     const isAdmin = await this.members.isBoardAdmin(boardId, user.id);
     if (!isAdmin) throw new ForbiddenException('Board membership required to create shared views');
+  }
+
+  private async isLegacyBoard(boardId: string): Promise<boolean> {
+    const count = await this.prisma.member.count({ where: { boardId } });
+    return count === 0;
   }
 
   private async assertUniqueName(boardId: string, userId: string, isShared: boolean, name: string) {

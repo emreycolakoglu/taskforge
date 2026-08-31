@@ -84,6 +84,8 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const useBoardViewsMock = vi.fn(() => ({ data: [mockView], isLoading: false }));
 
+const createViewMutate = vi.fn();
+
 const authUserOverride = { current: meUser };
 const boardOverride = { current: mockBoard };
 
@@ -109,7 +111,7 @@ vi.mock('@/hooks/use-socket', () => ({
 
 vi.mock('@/hooks/use-views', () => ({
   useBoardViews: () => useBoardViewsMock(),
-  useCreateView: () => ({ mutate: vi.fn() }),
+  useCreateView: () => ({ mutate: createViewMutate }),
   useUpdateView: () => ({ mutate: vi.fn() }),
   useDeleteView: () => ({ mutate: vi.fn() }),
 }));
@@ -282,5 +284,55 @@ describe('KanbanBoard — shared-view availability (canShare)', () => {
     await openSaveDialog();
 
     expect(screen.getByLabelText(/^shared/i)).toBeInTheDocument();
+  });
+});
+
+describe('KanbanBoard — saving a view activates it', () => {
+  it('activates the created view via selectView when create succeeds', async () => {
+    const createdView: View = {
+      ...mockView,
+      id: 'v-new',
+      name: 'Grouped by none',
+      filters: {},
+      groupBy: 'none',
+    };
+    // Simulate react-query: the mutate options' onSuccess runs after creation
+    // and the views list then includes the new view.
+    createViewMutate.mockImplementation((_payload, options) => {
+      useBoardViewsMock.mockReturnValue({
+        data: [...useBoardViewsMock().data, createdView],
+        isLoading: false,
+      });
+      options?.onSuccess?.(createdView);
+    });
+
+    // Seed a label filter so the Save trigger appears, then save.
+    localStorage.setItem(
+      'taskforge:board-view:b1',
+      JSON.stringify({
+        viewMode: 'kanban',
+        filters: {
+          labelIds: ['l1'],
+          assigneeIds: [],
+          priorities: [],
+          dueDateRange: { from: null, to: null },
+          searchQuery: '',
+        },
+      }),
+    );
+    renderBoard('/board/b1');
+    fireEvent.click(await screen.findByRole('button', { name: /save as view/i }));
+    fireEvent.change(screen.getByLabelText(/name/i), { target: { value: 'Grouped by none' } });
+    fireEvent.click(screen.getByRole('button', { name: /save view/i }));
+
+    expect(createViewMutate).toHaveBeenCalledWith(expect.anything(), expect.anything());
+
+    // selectView wrote ?view=v-new to the URL; the board resolves the active
+    // view from that param and renders its 'none' grouping.
+    await waitFor(() => {
+      expect(screen.getByText('All tasks')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Grouped by none')).toBeInTheDocument();
+    expect(screen.queryByText('Todo')).not.toBeInTheDocument();
   });
 });

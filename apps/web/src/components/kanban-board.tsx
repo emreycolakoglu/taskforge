@@ -236,23 +236,26 @@ export function KanbanBoard() {
 
   const handleSaveView = ({ name, shared }: { name: string; shared: boolean }) => {
     if (!id) return;
-    createView.mutate({
-      name,
-      shared,
-      filters: {
-        labelIds: effectiveFilters.labelIds,
-        assigneeIds: effectiveFilters.assigneeIds,
-        priorities: effectiveFilters.priorities,
-        dueDateRange: {
-          from: effectiveFilters.dueDateRange.from,
-          to: effectiveFilters.dueDateRange.to,
+    createView.mutate(
+      {
+        name,
+        shared,
+        filters: {
+          labelIds: effectiveFilters.labelIds,
+          assigneeIds: effectiveFilters.assigneeIds,
+          priorities: effectiveFilters.priorities,
+          dueDateRange: {
+            from: effectiveFilters.dueDateRange.from,
+            to: effectiveFilters.dueDateRange.to,
+          },
+          searchQuery: effectiveFilters.searchQuery,
         },
-        searchQuery: effectiveFilters.searchQuery,
+        groupBy: effectiveGroupBy,
+        sortBy: effectiveSortBy,
+        layout: effectiveViewMode === 'list' ? 'list' : 'board',
       },
-      groupBy: effectiveGroupBy,
-      sortBy: effectiveSortBy,
-      layout: effectiveViewMode === 'list' ? 'list' : 'board',
-    });
+      { onSuccess: (view) => selectView(view.id) },
+    );
   };
 
   const handleSelectView = (viewId: string | null) => {

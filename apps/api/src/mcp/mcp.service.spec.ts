@@ -976,7 +976,10 @@ describe('McpService', () => {
 
     it('should reject shared=true for a non-member', async () => {
       // The shared `user` is a global admin who passes the membership gate;
-      // use a plain non-member instead.
+      // use a plain non-member instead. The board needs at least one Member
+      // row, otherwise it counts as a legacy board where sharing is allowed
+      // for all users.
+      await prisma.member.create({ data: { boardId: board.id, userId: user.id, role: 'member' } });
       const outsider = await seedUser(prisma, { displayName: 'Outsider' });
       const res = await service.handleRequest(
         {
@@ -1007,13 +1010,14 @@ describe('McpService', () => {
     });
 
     it('should reject the update from a non-creator', async () => {
+      // Personal views are creator-only — no admin override.
       const view = await seedView(prisma, board.id, { userId: user.id, name: 'Mine' });
       const res = await service.handleRequest(
         { method: 'views_update', params: { id: view.id, name: 'Hacked' }, id: 606 },
         { id: 'nobody', displayName: 'Nobody', role: 'member' },
       );
       expect(res.error).toBeDefined();
-      expect(res.error.message).toContain('Only the creator or board admins');
+      expect(res.error.message).toContain('Only the creator');
     });
   });
 
