@@ -1,4 +1,4 @@
-import type { Label, Status, Task, ViewGroupBy, ViewSortBy } from '@/types';
+import type { Label, Status, StatusType, Task, ViewGroupBy, ViewSortBy } from '@/types';
 
 export interface ViewFilterState {
   labelIds: string[];
@@ -67,7 +67,7 @@ const PRIORITY_GROUP_ORDER = ['urgent', 'high', 'medium', 'low'] as const;
 export interface TaskGroup {
   id: string;
   name: string;
-  type: string;
+  type: StatusType;
   position: number;
   tasks: Task[];
 }
@@ -79,7 +79,7 @@ export function groupTasksBy(
   labels?: Label[],
 ): TaskGroup[] {
   if (groupBy === 'none') {
-    return [{ id: 'none', name: 'All tasks', type: 'todo', position: 0, tasks }];
+    return [{ id: 'none', name: 'All tasks', type: 'todo', position: 0, tasks: [...tasks] }];
   }
 
   if (groupBy === 'status') {
@@ -98,6 +98,8 @@ export function groupTasksBy(
   }
 
   if (groupBy === 'assignee') {
+    // Groups appear in first-appearance order; the "No assignee" fallback column
+    // is intentionally rendered LAST (owner decision, Task 7).
     const assigneeKey = (t: Task): string | null => t.assigneeId ?? t.assignee?.id ?? null;
     const byAssignee = new Map<string, { name: string; tasks: Task[] }>();
     for (const t of tasks) {
@@ -132,7 +134,8 @@ export function groupTasksBy(
   }
 
   // groupBy === 'label': one column per label id present on any task,
-  // "No label" fallback only when unlabeled tasks exist.
+  // "No label" fallback only when unlabeled tasks exist. Like the assignee
+  // grouping, the fallback column is intentionally rendered LAST (owner decision).
   const labelNames = new Map((labels ?? []).map((l) => [l.id, l.name]));
   const byLabel = new Map<string, Task[]>();
   for (const t of tasks) {
