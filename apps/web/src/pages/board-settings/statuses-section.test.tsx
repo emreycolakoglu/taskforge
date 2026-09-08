@@ -166,7 +166,30 @@ describe('StatusesSection', () => {
     const upButtons = screen.getAllByLabelText('Move up');
     await user.click(upButtons[1]);
     await waitFor(() => {
-      expect(mockReorder).toHaveBeenCalled();
+      // Moving Todo (index 1) up must give it Backlog's position 0, not a no-op swap
+      expect(mockReorder).toHaveBeenCalledWith([
+        { id: 's2', position: 0 },
+        { id: 's1', position: 1 },
+        { id: 's3', position: 2 },
+        { id: 's4', position: 3 },
+      ]);
+    });
+  });
+
+  it('reorders down on arrow down click', async () => {
+    mockReorder.mockResolvedValueOnce([]);
+    const user = userEvent.setup();
+    renderSection();
+    const downButtons = screen.getAllByLabelText('Move down');
+    await user.click(downButtons[0]);
+    await waitFor(() => {
+      // Moving Backlog (index 0) down must give it Todo's position 1
+      expect(mockReorder).toHaveBeenCalledWith([
+        { id: 's2', position: 0 },
+        { id: 's1', position: 1 },
+        { id: 's3', position: 2 },
+        { id: 's4', position: 3 },
+      ]);
     });
   });
 

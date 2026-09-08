@@ -127,8 +127,9 @@ export function StatusesSection({ boardId, statuses }: { boardId: string; status
     if (direction === 'up' && index === 0) return;
     if (direction === 'down' && index === sorted.length - 1) return;
     const swapIndex = direction === 'up' ? index - 1 : index + 1;
-    const items = sorted.map((s, i) => ({ id: s.id, position: i }));
-    [items[index], items[swapIndex]] = [items[swapIndex], items[index]];
+    const next = [...sorted];
+    [next[index], next[swapIndex]] = [next[swapIndex], next[index]];
+    const items = next.map((s, i) => ({ id: s.id, position: i }));
     try {
       await api.statuses.reorder(items);
       invalidate();
