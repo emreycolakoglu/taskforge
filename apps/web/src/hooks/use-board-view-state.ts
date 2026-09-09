@@ -82,8 +82,22 @@ export function useBoardViewState(boardId: string) {
     }));
   }, []);
 
-  const removeFilter = useCallback((labelId: string) => {
-    setFilters((prev) => ({ ...prev, labelIds: prev.labelIds.filter((id) => id !== labelId) }));
+  const toggleAssigneeFilter = useCallback((userId: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      assigneeIds: prev.assigneeIds.includes(userId)
+        ? prev.assigneeIds.filter((id) => id !== userId)
+        : [...prev.assigneeIds, userId],
+    }));
+  }, []);
+
+  const removeFilter = useCallback((id: string, kind: 'label' | 'assignee') => {
+    setFilters((prev) => ({
+      ...prev,
+      [kind === 'label' ? 'labelIds' : 'assigneeIds']: prev[
+        kind === 'label' ? 'labelIds' : 'assigneeIds'
+      ].filter((x) => x !== id),
+    }));
   }, []);
 
   const clearFilters = useCallback(() => setFilters({ ...EMPTY_FILTERS }), []);
@@ -93,6 +107,7 @@ export function useBoardViewState(boardId: string) {
     setViewMode,
     filters,
     toggleLabelFilter,
+    toggleAssigneeFilter,
     removeFilter,
     clearFilters,
   };
