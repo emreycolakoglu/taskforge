@@ -115,32 +115,47 @@ describe('SidebarLayout', () => {
     // Plus button for creating a board
     expect(screen.getByLabelText('Create board')).toBeInTheDocument();
 
-    // Board items render as links (board name → Issues page)
-    expect(screen.getByText('Sprint 1')).toBeInTheDocument();
-    expect(screen.getByText('Sprint 2')).toBeInTheDocument();
-    expect(screen.getByText('Active Board')).toBeInTheDocument();
+    // Board rows render as toggle buttons (not links)
+    expect(screen.getByRole('button', { name: /sprint 1/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /sprint 2/i })).toBeInTheDocument();
   });
 
-  it('board items link to correct board URLs', () => {
+  it('board name row is not a navigation link', () => {
     renderSidebar();
 
-    // Board names are now links to /board/:id
-    const sprint1Link = screen.getByRole('link', { name: /sprint 1/i });
-    expect(sprint1Link).toHaveAttribute('href', '/board/b1');
-
-    const sprint2Link = screen.getByRole('link', { name: /sprint 2/i });
-    expect(sprint2Link).toHaveAttribute('href', '/board/b2');
-
-    const activeLink = screen.getByRole('link', { name: /active board/i });
-    expect(activeLink).toHaveAttribute('href', '/board/123');
+    expect(screen.queryByRole('link', { name: /sprint 1/i })).not.toBeInTheDocument();
   });
 
-  it('highlights the active board based on URL', () => {
+  it('board name row toggles the sub-items without navigating', async () => {
+    const user = userEvent.setup();
+    renderSidebar();
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    // Sub-items are hidden while collapsed
+    expect(screen.queryByRole('link', { name: 'Issues' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /sprint 1/i }));
+
+    // Expanding reveals sub-items — no navigation happened
+    expect(screen.getByRole('link', { name: 'Issues' })).toHaveAttribute('href', '/board/b1');
+    expect(screen.getByRole('link', { name: 'Docs' })).toHaveAttribute('href', '/board/b1/docs');
+    const boardSettings = screen
+      .getAllByRole('link', { name: 'Settings' })
+      .find((l) => l.getAttribute('href') === '/board/b1/settings');
+    expect(boardSettings).toBeDefined();
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    // Clicking again collapses
+    await user.click(screen.getByRole('button', { name: /sprint 1/i }));
+    expect(screen.queryByRole('link', { name: 'Issues' })).not.toBeInTheDocument();
+  });
+
+  it('highlights the Issues sub-item when on the board page', () => {
     renderSidebar('/board/123');
 
-    // Board name link should have isActive (data-active)
-    const activeBoard = screen.getByRole('link', { name: /active board/i });
-    expect(activeBoard).toBeInTheDocument();
+    const issuesLink = screen.getByRole('link', { name: 'Issues' });
+    expect(issuesLink).toHaveAttribute('href', '/board/123');
+    expect(issuesLink.closest('[data-active="true"]')).not.toBeNull();
   });
 
   it('collapses boards section when chevron is clicked', async () => {

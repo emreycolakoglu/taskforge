@@ -66,8 +66,8 @@ const PRIMARY_NAV = [
  * sidebar's data attributes, tooltips come from SidebarMenuButton's `tooltip`
  * prop, and ⌘/Ctrl-B toggles. State persists to a cookie across reloads.
  *
- * Boards section: each board the current user is a member of is shown as a
- * collapsible group with Issues / Settings sub-items. Non-member boards are
+ * Boards section: each board row toggles collapse; sub-items are Issues /
+ * Docs / Settings; the row itself never navigates. Non-member boards are
  * hidden from the sidebar but accessible via /boards or direct link.
  */
 export function SidebarLayout({ children }: SidebarLayoutProps) {
@@ -198,31 +198,25 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                             className="group/collapsible"
                           >
                             <SidebarMenuItem>
-                              <div className="flex items-center">
-                                <CollapsibleTrigger asChild>
-                                  <SidebarMenuButton
-                                    className="w-auto shrink-0 px-1"
-                                    tooltip={board.name}
-                                  >
-                                    <ChevronRight className="size-3 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                                  </SidebarMenuButton>
-                                </CollapsibleTrigger>
-                                <SidebarMenuButton
-                                  asChild
-                                  isActive={issuesActive}
-                                  tooltip={board.name}
-                                  className="flex-1"
-                                >
-                                  <Link to={`/board/${board.id}`}>
-                                    <span className="text-base leading-none">
-                                      {board.icon ?? '⭐'}
-                                    </span>
-                                    <span className="truncate">{board.name}</span>
-                                  </Link>
+                              <CollapsibleTrigger asChild>
+                                <SidebarMenuButton tooltip={board.name}>
+                                  <span className="text-base leading-none">
+                                    {board.icon ?? '⭐'}
+                                  </span>
+                                  <span className="truncate">{board.name}</span>
+                                  <ChevronRight className="ml-auto size-3 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
                                 </SidebarMenuButton>
-                              </div>
+                              </CollapsibleTrigger>
                               <CollapsibleContent>
                                 <div className="ml-6 flex flex-col gap-0.5">
+                                  <SidebarMenuButton
+                                    asChild
+                                    isActive={issuesActive}
+                                    size="sm"
+                                    className="pl-2"
+                                  >
+                                    <Link to={`/board/${board.id}`}>Issues</Link>
+                                  </SidebarMenuButton>
                                   <SidebarMenuButton
                                     asChild
                                     isActive={docsActive}
