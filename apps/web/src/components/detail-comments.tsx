@@ -52,6 +52,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Badge } from '@/components/ui/badge';
 import { MarkdownEditor } from '@/components/markdown';
 import { useAuth } from '@/contexts/auth-context';
 import { useUserDirectory } from '@/hooks/use-users';
@@ -326,21 +327,26 @@ export function DetailComments({
             {c.reactions?.map((r) => {
               const mine = hasReacted(c, r.emoji);
               return (
-                <button
+                <Badge
                   key={r.emoji}
-                  type="button"
-                  onClick={() => onReact(c.id, r.emoji)}
+                  variant="outline"
+                  asChild
                   className={
-                    'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-xs ' +
+                    'cursor-pointer bg-muted ' +
                     (mine
-                      ? 'border-primary/40 bg-muted text-muted-foreground'
-                      : 'border-border bg-muted text-muted-foreground')
+                      ? 'border-foreground/40 text-foreground'
+                      : 'border-border text-muted-foreground')
                   }
-                  aria-label={`${r.emoji} reaction, ${r.userIds.length} reactors`}
+                  onClick={() => onReact(c.id, r.emoji)}
                 >
-                  <span>{r.emoji}</span>
-                  <span className="font-mono">{r.userIds.length}</span>
-                </button>
+                  <button
+                    type="button"
+                    aria-label={`${r.emoji} reaction, ${r.userIds.length} reactors`}
+                  >
+                    <span>{r.emoji}</span>
+                    <span className="font-mono">{r.userIds.length}</span>
+                  </button>
+                </Badge>
               );
             })}
             <Popover

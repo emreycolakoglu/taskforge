@@ -221,15 +221,15 @@ describe('DetailComments — delete feature (TFG-8)', () => {
     expect(screen.queryByLabelText('React with 🎉')).not.toBeInTheDocument();
   });
 
-  it('highlights the chip the user has reacted on with border-primary/40', () => {
+  it('highlights the chip the user has reacted on with a stronger neutral border', () => {
     const comment = makeComment({
       authorId: 'user-1',
       reactions: [{ emoji: '👍', userIds: ['user-1'] }],
     });
     renderComments([comment], undefined, undefined, undefined, vi.fn());
     const chip = screen.getByLabelText('👍 reaction, 1 reactors');
-    expect(chip.className).toContain('border-primary/40');
-    expect(chip.className).toContain('text-muted-foreground');
+    expect(chip.className).toContain('border-foreground/40');
+    expect(chip.className).toContain('text-foreground');
   });
 });
 
