@@ -46,51 +46,8 @@ export function FilterChipsBar({
     <div className="flex h-9 items-center gap-2 px-6 border-b border-border bg-background shrink-0">
       <SlidersHorizontal className="size-3.5 text-muted-foreground shrink-0" />
 
-      {activeLabels.map((label) => (
-        <Badge
-          key={label.id}
-          variant="outline"
-          className="inline-flex items-center gap-1 rounded-sm border-border px-2 py-0.5 text-xs text-muted-foreground"
-        >
-          <span className="size-2 rounded-sm shrink-0" style={{ backgroundColor: label.color }} />
-          {label.name}
-          <button
-            type="button"
-            aria-label={`Remove ${label.name} filter`}
-            onClick={() => onRemoveFilter(label.id, 'label')}
-            className="text-muted-foreground hover:text-foreground"
-          >
-            <X className="size-3" />
-          </button>
-        </Badge>
-      ))}
-
-      {filters.assigneeIds.map((assigneeId) => {
-        const assignee = assignees.find((a) => a.id === assigneeId);
-        if (!assignee) return null;
-        return (
-          <Badge
-            key={assigneeId}
-            variant="outline"
-            className="inline-flex items-center gap-1 rounded-sm border-border px-2 py-0.5 text-xs text-muted-foreground"
-          >
-            <span className="flex size-3 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-[8px] font-semibold">
-              {assignee.displayName.charAt(0).toUpperCase()}
-            </span>
-            {assignee.displayName}
-            <button
-              type="button"
-              aria-label={`Remove ${assignee.displayName} filter`}
-              onClick={() => onRemoveFilter(assigneeId, 'assignee')}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <X className="size-3" />
-            </button>
-          </Badge>
-        );
-      })}
-
-      {/* + Add filter popover */}
+      {/* Add filter button sits before the chips so adding/removing a filter
+          never shifts its position (and with it, the popover anchor). */}
       <Popover>
         <PopoverTrigger asChild>
           <Button
@@ -134,6 +91,50 @@ export function FilterChipsBar({
           )}
         </PopoverContent>
       </Popover>
+
+      {activeLabels.map((label) => (
+        <Badge
+          key={label.id}
+          variant="outline"
+          className="inline-flex items-center gap-1 rounded-sm border-border px-2 py-0.5 text-xs text-muted-foreground"
+        >
+          <span className="size-2 rounded-sm shrink-0" style={{ backgroundColor: label.color }} />
+          {label.name}
+          <button
+            type="button"
+            aria-label={`Remove ${label.name} filter`}
+            onClick={() => onRemoveFilter(label.id, 'label')}
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <X className="size-3" />
+          </button>
+        </Badge>
+      ))}
+
+      {filters.assigneeIds.map((assigneeId) => {
+        const assignee = assignees.find((a) => a.id === assigneeId);
+        if (!assignee) return null;
+        return (
+          <Badge
+            key={assigneeId}
+            variant="outline"
+            className="inline-flex items-center gap-1 rounded-sm border-border px-2 py-0.5 text-xs text-muted-foreground"
+          >
+            <span className="flex size-3 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-[8px] font-semibold">
+              {assignee.displayName.charAt(0).toUpperCase()}
+            </span>
+            {assignee.displayName}
+            <button
+              type="button"
+              aria-label={`Remove ${assignee.displayName} filter`}
+              onClick={() => onRemoveFilter(assigneeId, 'assignee')}
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <X className="size-3" />
+            </button>
+          </Badge>
+        );
+      })}
 
       {hasFilters && (
         <Button

@@ -142,13 +142,24 @@ export function TaskCard({
           )}
 
           {task._count && task._count.comments > 0 && (
-            <span
-              className="flex items-center gap-0.5 text-xs text-muted-foreground shrink-0"
-              aria-label={`${task._count.comments} comments`}
-            >
-              <CommentIcon />
-              {task._count.comments}
-            </span>
+            <TooltipProvider delayDuration={300}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Badge
+                    variant={'outline'}
+                    style={{ color: '#f7f8f8' }}
+                    className="shrink-0"
+                    aria-label={`${task._count.comments} comments`}
+                  >
+                    <CommentIcon />
+                    {task._count.comments}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {task._count.comments} comment{task._count.comments === 1 ? '' : 's'}
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           )}
 
           {task.blockedByCount != null && task.blockedByCount > 0 && (
