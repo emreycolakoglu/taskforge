@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SidebarProvider } from '@/components/ui/sidebar';
@@ -103,7 +104,10 @@ vi.mock('@/hooks/use-tasks', () => ({
 
 vi.mock('@/hooks/use-users', () => ({
   useUsers: () => ({ data: [] }),
+  useUserDirectory: () => useUserDirectoryMock(),
 }));
+
+const useUserDirectoryMock = vi.fn().mockReturnValue({ data: [], isLoading: false });
 
 vi.mock('@/hooks/use-socket', () => ({
   useSocket: vi.fn(),
@@ -207,11 +211,36 @@ describe('KanbanBoard — saved views', () => {
 });
 
 describe('KanbanBoard — save-as-view trigger gating', () => {
-  it('hides the Save trigger on a pristine board (no active view, no filters)', () => {
+  it('shows the filter row with an Add filter entry point on a pristine board', () => {
     renderBoard('/board/b1');
 
     expect(screen.getByText('Urgent task')).toBeInTheDocument();
+    // The filter row is always rendered (no view active) — "+ Add filter" is
+    // how a user applies their first filter.
+    expect(screen.getByRole('button', { name: /add filter/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /save as view/i })).not.toBeInTheDocument();
+  });
+
+  it('shows assignee options in the Add filter popover and chips when toggled', async () => {
+    const user = userEvent.setup();
+    useUserDirectoryMock.mockReturnValue({
+      data: [
+        { id: 'u1', displayName: 'Ada' },
+        { id: 'u2', displayName: 'Grace' },
+      ],
+      isLoading: false,
+    });
+    renderBoard('/board/b1');
+
+    await user.click(screen.getByRole('button', { name: /add filter/i }));
+    expect(screen.getByText('Assignee')).toBeInTheDocument();
+
+    // Both assignees listed as checkboxes; toggle Ada on
+    await user.click(screen.getByRole('checkbox', { name: /ada/i }));
+
+    // Ada's chip appears with a remove button; Grace has none
+    expect(screen.getByRole('button', { name: /remove ada filter/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /remove grace filter/i })).not.toBeInTheDocument();
   });
 
   it('hides the Save trigger on a pristine active view (filters at default)', () => {

@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { api } from '@/hooks/api';
 import { useBoardFull } from '@/hooks/use-boards';
 import { useCreateTask } from '@/hooks/use-tasks';
-import { useUsers } from '@/hooks/use-users';
+import { useUsers, useUserDirectory } from '@/hooks/use-users';
 import { useAuth } from '@/contexts/auth-context';
 import { useSocket } from '@/hooks/use-socket';
 import { useBoardViewState } from '@/hooks/use-board-view-state';
@@ -55,8 +55,15 @@ export function KanbanBoard() {
   const statuses = board?.statuses || [];
   const labels: Label[] = board?.labels || [];
 
-  const { viewMode, setViewMode, filters, toggleLabelFilter, removeFilter, clearFilters } =
-    useBoardViewState(id ?? '');
+  const {
+    viewMode,
+    setViewMode,
+    filters,
+    toggleLabelFilter,
+    toggleAssigneeFilter,
+    removeFilter,
+    clearFilters,
+  } = useBoardViewState(id ?? '');
 
   const { activeView, selectView } = useActiveView(id ?? '');
 
@@ -114,6 +121,7 @@ export function KanbanBoard() {
 
   const createTask = useCreateTask();
   const { data: users = [] } = useUsers();
+  const { data: directory = [] } = useUserDirectory();
 
   const { ref: boardScrollRef, isDragging: isPanning } = useDragScroll<HTMLDivElement>();
 
@@ -315,8 +323,6 @@ export function KanbanBoard() {
     );
   }, [activeView, effectiveFilters, filters]);
 
-  const hasActiveFilters = filters.labelIds.length > 0;
-
   if (!board) return null;
 
   const renderGroupColumns = (groups: TaskGroup[], draggable: boolean) => (
@@ -450,15 +456,19 @@ export function KanbanBoard() {
         onDeleteView={handleDeleteView}
       />
 
-      {/* When a saved view is active its filters come from the view (chips are Task 10) */}
-      {hasActiveFilters && !activeView && (
+      {/* Filter row is always reachable (no view active) — "+ Add filter" is
+          the entry point for filtering, so it can't be gated on having filters.
+          "Save as view" only appears once state deviates from the default. */}
+      {!activeView && (
         <FilterChipsBar
           filters={filters}
           labels={labels}
+          assignees={directory}
           onToggleLabel={toggleLabelFilter}
-          onRemoveLabel={removeFilter}
+          onToggleAssignee={toggleAssigneeFilter}
+          onRemoveFilter={removeFilter}
           onClear={clearFilters}
-          onSaveAsView={() => setSaveDialogOpen(true)}
+          onSaveAsView={filtersDeviate ? () => setSaveDialogOpen(true) : undefined}
         />
       )}
 
