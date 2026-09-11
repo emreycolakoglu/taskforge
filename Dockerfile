@@ -8,10 +8,10 @@ RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
 # ─── Stage 2: Dependencies ───
 FROM base AS deps
 WORKDIR /app
-COPY package.json pnpm-workspace.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
 COPY apps/api/package.json apps/api/
 COPY apps/web/package.json apps/web/
-RUN pnpm install --frozen-lockfile || pnpm install
+RUN pnpm install --frozen-lockfile
 
 # ─── Stage 3: Build ───
 FROM base AS builder
