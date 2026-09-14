@@ -14,6 +14,7 @@ import {
   InviteTokenResponse,
   Invite,
   Settings,
+  UpdateSettingsPayload,
   RelationType,
   RelationEntry,
   TaskRelations,
@@ -115,7 +116,11 @@ export const api = {
     me: () => request<User>('/auth/me'),
     updateUser: (data: { displayName?: string; currentPassword?: string; newPassword?: string }) =>
       request<User>('/auth/me', { method: 'PATCH', body: JSON.stringify(data) }),
-    createInvite: () => request<InviteTokenResponse>('/auth/invite', { method: 'POST' }),
+    createInvite: (recipientEmail?: string) =>
+      request<InviteTokenResponse>('/auth/invite', {
+        method: 'POST',
+        body: JSON.stringify(recipientEmail ? { recipientEmail } : {}),
+      }),
     createBotToken: () => request<InviteTokenResponse>('/auth/bot-token', { method: 'POST' }),
     users: () => request<User[]>('/auth/users'),
     directory: () => request<{ id: string; displayName: string }[]>('/auth/users/directory'),
@@ -131,8 +136,13 @@ export const api = {
     get: () => request<Settings>('/settings'),
     getInitialized: () => request<{ initialized: boolean }>('/settings/initialized'),
     getTitle: () => request<{ title: string }>('/settings/title'),
-    update: (data: { title?: string }) =>
+    update: (data: UpdateSettingsPayload) =>
       request<Settings>('/settings', { method: 'PUT', body: JSON.stringify(data) }),
+    sendTestEmail: (to: string) =>
+      request<{ success: boolean }>('/settings/test-email', {
+        method: 'POST',
+        body: JSON.stringify({ to }),
+      }),
   },
 
   // Boards

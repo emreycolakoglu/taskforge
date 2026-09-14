@@ -14,7 +14,13 @@ export interface Board {
 }
 
 export type StatusType =
-  'triage' | 'backlog' | 'todo' | 'in_progress' | 'done' | 'cancelled' | 'duplicate';
+  | 'triage'
+  | 'backlog'
+  | 'todo'
+  | 'in_progress'
+  | 'done'
+  | 'cancelled'
+  | 'duplicate';
 
 export interface Status {
   id: string;
@@ -169,6 +175,7 @@ export interface InviteTokenResponse {
   id: string;
   token: string;
   expiresAt: string;
+  recipientEmail: string | null;
 }
 
 export interface Invite {
@@ -178,6 +185,7 @@ export interface Invite {
   creatorName: string;
   usedBy: string | null;
   usedAt: string | null;
+  recipientEmail: string | null;
   expiresAt: string;
   createdAt: string;
   isExpired: boolean;
@@ -188,8 +196,26 @@ export interface Settings {
   id: string;
   title: string;
   onboarded: boolean;
+  smtpHost: string | null;
+  smtpPort: number | null;
+  smtpUsername: string | null;
+  smtpPasswordSet: boolean;
+  smtpFromEmail: string | null;
+  smtpFromName: string;
+  smtpSecure: boolean;
   createdAt: string | null;
   updatedAt: string | null;
+}
+
+export interface UpdateSettingsPayload {
+  title?: string;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUsername?: string | null;
+  smtpPassword?: string;
+  smtpFromEmail?: string | null;
+  smtpFromName?: string | null;
+  smtpSecure?: boolean;
 }
 
 export interface Notification {

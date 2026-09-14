@@ -41,7 +41,7 @@ export function useInvites() {
 export function useCreateInvite() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: () => api.auth.createInvite(),
+    mutationFn: (recipientEmail?: string) => api.auth.createInvite(recipientEmail),
     onSuccess: () => {
       toast.success('Invite created');
       queryClient.invalidateQueries({ queryKey: ['invites'] });
