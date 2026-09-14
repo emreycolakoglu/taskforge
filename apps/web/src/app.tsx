@@ -10,6 +10,7 @@ import { NotFoundPage } from '@/pages/not-found-page';
 import { OnboardingPage } from '@/pages/onboarding-page';
 import { LoginPage } from '@/pages/login-page';
 import { ForgotPasswordPage } from '@/pages/forgot-password-page';
+import { ResetPasswordPage } from '@/pages/reset-password-page';
 import { SignupPage } from '@/pages/signup-page';
 
 import { KanbanBoard } from '@/components/kanban-board';
@@ -41,6 +42,7 @@ function AuthedRoutes() {
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/reset-password/:token" element={<ResetPasswordPage />} />
         <Route path="/signup/:token" element={<SignupPage />} />
         <Route
           path="/"
