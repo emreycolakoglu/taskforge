@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailerService } from '../mailer/mailer.service';
@@ -14,8 +15,13 @@ import { OnboardDto } from './dto/onboard.dto';
 import { SignupDto } from './dto/signup.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+const RESET_COOLDOWN_MS = 60 * 1000;
+
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private prisma: PrismaService,
     private mailer: MailerService,
@@ -109,6 +115,61 @@ export class AuthService {
 
     const { passwordHash, ...userResponse } = user;
     return { user: userResponse, session: { token: session.token, expiresAt: session.expiresAt } };
+  }
+
+  /**
+   * Always resolves to the same shape: callers must not be able to tell whether
+   * the email exists, whether a cooldown suppressed the send, or whether SMTP is
+   * configured. See the design note in the spec.
+   */
+  async requestPasswordReset(email: string): Promise<{ success: true }> {
+    const normalized = email.toLowerCase().trim();
+    const user = await this.prisma.user.findUnique({ where: { email: normalized } });
+    if (!user) {
+      return { success: true };
+    }
+
+    const newest = await this.prisma.passwordResetToken.findFirst({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (newest && newest.createdAt.getTime() > Date.now() - RESET_COOLDOWN_MS) {
+      return { success: true };
+    }
+
+    await this.prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+    await this.prisma.passwordResetToken.create({
+      data: {
+        tokenHash,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + RESET_TOKEN_TTL_MS),
+      },
+    });
+
+    if (!(await this.mailer.isConfigured())) {
+      return { success: true };
+    }
+
+    const title = await this.settings.getTitle();
+    const origin = process.env.APP_ORIGIN ?? 'http://localhost:5173';
+    const link = `${origin}/reset-password/${rawToken}`;
+    try {
+      await this.mailer.send({
+        to: user.email,
+        subject: `Reset your ${title} password`,
+        html: `<p>Someone requested a password reset for your <strong>${title}</strong> account.</p><p><a href="${link}">Set a new password</a> — the link expires in 1 hour. If this wasn't you, ignore this email.</p>`,
+        text: `Reset your ${title} password: ${link} (expires in 1 hour).`,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Failed to send password reset email: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    return { success: true };
   }
 
   async logout(token: string): Promise<void> {

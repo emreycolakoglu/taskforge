@@ -3,7 +3,8 @@ import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailerService } from '../mailer/mailer.service';
 import { SettingsService } from '../settings/settings.service';
-import { createTestPrisma, seedBoard } from '../../test/setup';
+import { createTestPrisma, seedBoard, seedUser } from '../../test/setup';
+import * as crypto from 'crypto';
 import {
   ConflictException,
   UnauthorizedException,
@@ -38,6 +39,7 @@ describe('AuthService', () => {
   });
 
   afterEach(async () => {
+    await prisma.passwordResetToken.deleteMany();
     await prisma.inviteToken.deleteMany();
     await prisma.session.deleteMany();
     await prisma.member.deleteMany();
@@ -325,6 +327,79 @@ describe('AuthService', () => {
     it('should return null for non-existent session', async () => {
       const result = await service.validateSession('nonexistent-token');
       expect(result).toBeNull();
+    });
+  });
+
+  describe('requestPasswordReset', () => {
+    beforeEach(() => {
+      mailer.send.mockClear();
+      (mailer.isConfigured as jest.Mock).mockReset().mockResolvedValue(true);
+    });
+
+    const resetUrl = () =>
+      (mailer.send as jest.Mock).mock.calls.at(-1)?.[0]?.html as string | undefined;
+
+    it('returns generic success for an unknown email without writing a row', async () => {
+      const result = await service.requestPasswordReset('nobody@example.com');
+      expect(result).toEqual({ success: true });
+      expect(await prisma.passwordResetToken.count()).toBe(0);
+      expect(mailer.send).not.toHaveBeenCalled();
+    });
+
+    it('stores only the SHA-256 hash of the emailed token', async () => {
+      const user = await seedUser(prisma, { email: 'reset@example.com' });
+      await service.requestPasswordReset('RESET@example.com ');
+
+      const row = await prisma.passwordResetToken.findFirstOrThrow({
+        where: { userId: user.id },
+      });
+      const html = resetUrl()!;
+      const raw = html.match(/reset-password\/([a-f0-9]+)/)![1];
+
+      expect(row.tokenHash).toBe(crypto.createHash('sha256').update(raw).digest('hex'));
+      expect(row.tokenHash).not.toBe(raw);
+      expect(mailer.send).toHaveBeenCalledTimes(1);
+    });
+
+    it('suppresses a second send inside the 60s cooldown', async () => {
+      const user = await seedUser(prisma, { email: 'cooldown@example.com' });
+      await service.requestPasswordReset('cooldown@example.com');
+      expect(mailer.send).toHaveBeenCalledTimes(1);
+
+      const result = await service.requestPasswordReset('cooldown@example.com');
+      expect(result).toEqual({ success: true });
+      expect(mailer.send).toHaveBeenCalledTimes(1);
+      expect(await prisma.passwordResetToken.count({ where: { userId: user.id } })).toBe(1);
+    });
+
+    it('allows a new send once the cooldown has elapsed and replaces the old token', async () => {
+      const user = await seedUser(prisma, { email: 'again@example.com' });
+      await prisma.passwordResetToken.create({
+        data: {
+          tokenHash: crypto.createHash('sha256').update('old').digest('hex'),
+          userId: user.id,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+          createdAt: new Date(Date.now() - 2 * 60 * 1000),
+        },
+      });
+      mailer.send.mockClear();
+
+      await service.requestPasswordReset('again@example.com');
+
+      expect(mailer.send).toHaveBeenCalledTimes(1);
+      const rows = await prisma.passwordResetToken.findMany({ where: { userId: user.id } });
+      expect(rows).toHaveLength(1);
+      expect(rows[0].tokenHash).not.toBe(crypto.createHash('sha256').update('old').digest('hex'));
+    });
+
+    it('still returns success when SMTP is not configured', async () => {
+      await seedUser(prisma, { email: 'nosmtp@example.com' });
+      mailer.isConfigured.mockResolvedValueOnce(false);
+
+      const result = await service.requestPasswordReset('nosmtp@example.com');
+
+      expect(result).toEqual({ success: true });
+      expect(mailer.send).not.toHaveBeenCalled();
     });
   });
 
