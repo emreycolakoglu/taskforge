@@ -67,7 +67,7 @@ Schema migrations run automatically on container startup via `apps/api/docker-en
 - **API `strict: false`** — the NestJS app deliberately does not use TypeScript strict mode (decorator metadata requires it). Do not add `strict: true` to `apps/api/tsconfig.json`.
 - **API is CommonJS, Web is ESM** — module resolution differs. Don't copy import patterns between apps.
 - **PrismaModule is `@Global()`** — no need to import it into feature modules.
-- **Authentication is global and on by default** — `AuthModule` binds `AuthGuard` as an `APP_GUARD`, so _every_ route requires an `Authorization: Bearer <token>` matching a live `Session` row unless it carries `@Public()`. Tokens are opaque `crypto.randomUUID()` session tokens (not JWTs); passwords are bcrypt cost 12. `@Admin()` gates admin-only routes on `user.role`. The public surface is small and deliberate: `auth/status`, `auth/onboard`, `auth/login`, `auth/signup/:token`, two settings routes, and `public/tasks/:identifier/:number`.
+- **Authentication is global and on by default** — `AuthModule` binds `AuthGuard` as an `APP_GUARD`, so _every_ route requires an `Authorization: Bearer <token>` matching a live `Session` row unless it carries `@Public()`. Tokens are opaque `crypto.randomUUID()` session tokens (not JWTs); passwords are bcrypt cost 12. `@Admin()` gates admin-only routes on `user.role`. The public surface is small and deliberate: `auth/status`, `auth/onboard`, `auth/login`, `auth/forgot-password`, `auth/reset-password`, `auth/signup/:token`, two settings routes, and `public/tasks/:identifier/:number`.
 - **Per-board authorization is write-gating only** — the `Member` model (`admin`/`member`/`viewer`) is enforced for **writes**: board update/delete (`BoardsService.assertBoardAdmin`), labels create/update/delete, statuses create/update/reorder/delete, and member management (`MembersService`). Global admins (`user.role === 'admin'`) pass every board gate; a board with zero admin Member rows ("legacy board") allows all writes as a fallback. **Reads are not scoped** — any authenticated user can read any board, task, comment, or label. `viewer` role is stored but gives no read restriction.
 - **No ESLint config file** — lint scripts reference `eslint` but it's not installed in either app. `pnpm lint` will fail. CI does not run lint.
 - **The web build does NOT typecheck** — `@taskforge/web`'s `build` script is bare `vite build`, which only transpiles. A passing build proves nothing about types. Run `cd apps/web && npx tsc --noEmit` explicitly. Note it currently reports **6 pre-existing errors** — check the count hasn't grown rather than expecting zero.
@@ -126,6 +126,18 @@ Admins configure SMTP in Settings → Email; the fields live on the `Settings` s
 - **Sending**: `MailerService` (`apps/api/src/mailer/`) builds a nodemailer transport per send (no cached connection) and throws `BadRequestException('SMTP is not configured')` when `smtpHost` is unset.
 - **Test send**: `POST /api/settings/test-email` (`@Admin`) validates the config and surfaces SMTP errors verbatim.
 - **Invites**: `POST /api/auth/invite` with `recipientEmail` generates the token, awaits the send, and persists the row only on success (no orphan tokens). The invite link origin is the `APP_ORIGIN` env (default `http://localhost:5173`) — **container deploys must set `APP_ORIGIN`**, or emailed invite links point at localhost.
+
+## Password reset
+
+`POST /api/auth/forgot-password` always returns `{ success: true }` — unknown
+email, the 60s per-user cooldown, and an unconfigured SMTP server are
+indistinguishable from the outside. Reset tokens are stored as `sha256(raw)` in
+`password_reset_tokens`, single-use, 1h expiry; the raw token exists only in the
+emailed link (`${APP_ORIGIN}/reset-password/<token>`). A successful reset
+(`POST /api/auth/reset-password`) revokes **every** session for the user —
+bots included — so no pre-existing session survives a password change. The
+web pages (`/forgot-password`, `/reset-password/:token`) are public routes and
+ride `AuthProvider`'s `isPublicAuthRoute` escape hatch.
 
 ## Saved views
 
