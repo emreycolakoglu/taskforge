@@ -26,6 +26,19 @@ export function useAuth(): AuthContextValue {
   return ctx;
 }
 
+/**
+ * Routes that render without a session. AuthProvider's init effect runs on every
+ * mount, so an unauthenticated visitor on one of these must not be bounced to
+ * /login before they can use the page.
+ */
+function isPublicAuthRoute(pathname: string): boolean {
+  return (
+    pathname.startsWith('/signup/') ||
+    pathname === '/forgot-password' ||
+    pathname.startsWith('/reset-password/')
+  );
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setTokenState] = useState<string | null>(getToken());
@@ -53,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Signup runs on a public invite route (/signup/:token). An invited user
       // has no session yet, so the "onboarded but no token" path below must not
       // bounce them to /login before they can accept the invite.
-      const onSignupRoute = window.location.pathname.startsWith('/signup/');
+      const onPublicAuthRoute = isPublicAuthRoute(window.location.pathname);
 
       try {
         const status = await api.auth.status();
@@ -69,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const storedToken = getToken();
         if (!storedToken) {
           setIsLoading(false);
-          if (!onSignupRoute) navigate('/login', { replace: true });
+          if (!onPublicAuthRoute) navigate('/login', { replace: true });
           return;
         }
 
@@ -83,7 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           clearToken();
           resetSocket();
           setTokenState(null);
-          if (!onSignupRoute) navigate('/login', { replace: true });
+          if (!onPublicAuthRoute) navigate('/login', { replace: true });
         }
       } catch {
         if (cancelled) return;

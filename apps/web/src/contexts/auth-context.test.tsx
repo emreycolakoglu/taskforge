@@ -71,6 +71,22 @@ describe('AuthProvider init redirects', () => {
     expect(navigate).not.toHaveBeenCalledWith('/login', { replace: true });
   });
 
+  it('stays on the forgot-password page when onboarded and unauthenticated', async () => {
+    setPath('/forgot-password');
+    renderProvider();
+
+    await waitFor(() => expect(api.auth.status).toHaveBeenCalled());
+    expect(navigate).not.toHaveBeenCalledWith('/login', { replace: true });
+  });
+
+  it('stays on the reset-password page when onboarded and unauthenticated', async () => {
+    setPath('/reset-password/abc123');
+    renderProvider();
+
+    await waitFor(() => expect(api.auth.status).toHaveBeenCalled());
+    expect(navigate).not.toHaveBeenCalledWith('/login', { replace: true });
+  });
+
   it('redirects to /login on other routes when onboarded and unauthenticated', async () => {
     setPath('/board/abc');
     renderProvider();
