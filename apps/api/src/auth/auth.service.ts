@@ -6,6 +6,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailerService } from '../mailer/mailer.service';
+import { SettingsService } from '../settings/settings.service';
 import * as bcrypt from 'bcryptjs';
 import * as crypto from 'crypto';
 import { OnboardDto } from './dto/onboard.dto';
@@ -14,7 +16,11 @@ import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private mailer: MailerService,
+    private settings: SettingsService,
+  ) {}
 
   async isInitialized(): Promise<boolean> {
     const settings = await this.prisma.settings.findUnique({ where: { id: 'singleton' } });
@@ -128,9 +134,36 @@ export class AuthService {
     return user;
   }
 
-  async createInvite(adminId: string) {
+  async createInvite(adminId: string, recipientEmail?: string) {
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+
+    if (recipientEmail) {
+      const configured = await this.mailer.isConfigured();
+      if (!configured) {
+        throw new BadRequestException('SMTP is not configured');
+      }
+      const title = await this.settings.getTitle();
+      const origin = process.env.APP_ORIGIN ?? 'http://localhost:5173';
+      const link = `${origin}/signup/${token}`;
+      const html = `<p>You have been invited to join <strong>${title}</strong>.</p><p><a href="${link}">Accept the invite</a> — the link expires in 7 days.</p>`;
+      const text = `You have been invited to join ${title}. Accept the invite: ${link} (expires in 7 days).`;
+      try {
+        await this.mailer.send({
+          to: recipientEmail,
+          subject: `Invite to join ${title}`,
+          html,
+          text,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Failed to send invite email';
+        throw new BadRequestException(message);
+      }
+      return this.prisma.inviteToken.create({
+        data: { token, createdBy: adminId, expiresAt, recipientEmail },
+      });
+    }
+
     return this.prisma.inviteToken.create({
       data: { token, createdBy: adminId, expiresAt },
     });
@@ -278,6 +311,7 @@ export class AuthService {
       token: invite.token,
       createdBy: invite.createdBy,
       creatorName: invite.creator.displayName,
+      recipientEmail: invite.recipientEmail,
       usedBy: invite.usedBy,
       usedAt: invite.usedAt,
       expiresAt: invite.expiresAt,

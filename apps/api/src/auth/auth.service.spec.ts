@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailerService } from '../mailer/mailer.service';
+import { SettingsService } from '../settings/settings.service';
 import { createTestPrisma, seedBoard } from '../../test/setup';
 import {
   ConflictException,
@@ -12,11 +14,21 @@ import {
 describe('AuthService', () => {
   let service: AuthService;
   let prisma: PrismaService;
+  const mailer = {
+    send: jest.fn().mockResolvedValue(undefined),
+    isConfigured: jest.fn().mockResolvedValue(true),
+  };
+  const settings = { getTitle: jest.fn().mockResolvedValue('Test') };
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     const module: TestingModule = await Test.createTestingModule({
-      providers: [AuthService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        AuthService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: MailerService, useValue: mailer },
+        { provide: SettingsService, useValue: settings },
+      ],
     }).compile();
     service = module.get<AuthService>(AuthService);
   });
@@ -320,6 +332,9 @@ describe('AuthService', () => {
     let adminUser: any;
 
     beforeEach(async () => {
+      mailer.send.mockClear();
+      mailer.isConfigured.mockClear().mockResolvedValue(true);
+      settings.getTitle.mockClear().mockResolvedValue('Test');
       adminUser = await prisma.user.create({
         data: {
           email: 'admin-inv@example.com',
@@ -328,6 +343,39 @@ describe('AuthService', () => {
           role: 'admin',
         },
       });
+    });
+
+    it('should email the invite and persist recipientEmail when configured', async () => {
+      const invite = await service.createInvite(adminUser.id, 'newbie@example.com');
+      expect(invite.recipientEmail).toBe('newbie@example.com');
+      expect(mailer.send).toHaveBeenCalledTimes(1);
+      const arg = mailer.send.mock.calls[0][0];
+      expect(arg.to).toBe('newbie@example.com');
+      expect(arg.html).toContain(`/signup/${invite.token}`);
+    });
+
+    it('should not create a token row when SMTP is unconfigured', async () => {
+      mailer.isConfigured.mockResolvedValue(false);
+      await expect(service.createInvite(adminUser.id, 'newbie@example.com')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(await prisma.inviteToken.findMany()).toHaveLength(0);
+      expect(mailer.send).not.toHaveBeenCalled();
+    });
+
+    it('should not create a token row when the transport fails', async () => {
+      mailer.send.mockRejectedValueOnce(new Error('connect ECONNREFUSED'));
+      await expect(service.createInvite(adminUser.id, 'newbie@example.com')).rejects.toThrow(
+        'connect ECONNREFUSED',
+      );
+      expect(await prisma.inviteToken.findMany()).toHaveLength(0);
+    });
+
+    it('clipboard-only invite still works without email', async () => {
+      const invite = await service.createInvite(adminUser.id);
+      expect(invite.recipientEmail).toBeNull();
+      expect(mailer.send).not.toHaveBeenCalled();
+      expect(await prisma.inviteToken.findMany()).toHaveLength(1);
     });
 
     it('should create an invite token', async () => {

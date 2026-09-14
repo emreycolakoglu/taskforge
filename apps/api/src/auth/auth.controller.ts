@@ -5,6 +5,7 @@ import { OnboardDto } from './dto/onboard.dto';
 import { LoginDto } from './dto/login.dto';
 import { SignupDto } from './dto/signup.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { CreateInviteDto } from './dto/create-invite.dto';
 import { Public } from './public.decorator';
 import { Admin } from './admin.decorator';
 
@@ -44,9 +45,9 @@ export class AuthController {
 
   @Post('invite')
   @Admin()
-  async createInvite(@Req() req: Request) {
+  async createInvite(@Req() req: Request, @Body() dto: CreateInviteDto) {
     const user = (req as any).user;
-    return this.authService.createInvite(user.id);
+    return this.authService.createInvite(user.id, dto?.recipientEmail);
   }
 
   @Post('signup/:token')

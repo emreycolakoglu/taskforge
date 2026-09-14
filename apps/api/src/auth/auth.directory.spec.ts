@@ -5,7 +5,14 @@ import { createTestPrisma, seedUser } from '../../test/setup';
 describe('AuthService.findUserDirectory', () => {
   it('returns id + displayName only, sorted by displayName, without sensitive fields', async () => {
     const prisma = createTestPrisma() as unknown as PrismaService;
-    const service = new AuthService(prisma as any);
+    const service = new AuthService(
+      prisma as any,
+      {
+        send: jest.fn().mockResolvedValue(undefined),
+        isConfigured: jest.fn().mockResolvedValue(true),
+      } as any,
+      { getTitle: jest.fn().mockResolvedValue('TaskForge') } as any,
+    );
     try {
       await seedUser(prisma, { displayName: 'Zoe' });
       await seedUser(prisma, { displayName: 'Alice' });
