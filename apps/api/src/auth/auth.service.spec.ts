@@ -403,6 +403,95 @@ describe('AuthService', () => {
     });
   });
 
+  describe('resetPassword', () => {
+    async function tokenFor(email: string): Promise<{ raw: string; userId: string }> {
+      const user = await seedUser(prisma, { email });
+      await service.requestPasswordReset(email);
+      const html = (mailer.send as jest.Mock).mock.calls.at(-1)![0].html as string;
+      const raw = html.match(/reset-password\/([a-f0-9]+)/)![1];
+      return { raw, userId: user.id };
+    }
+
+    beforeEach(() => {
+      mailer.send.mockClear();
+      (mailer.isConfigured as jest.Mock).mockResolvedValue(true);
+    });
+
+    it('rejects an unknown token with the generic message', async () => {
+      await expect(service.resetPassword('deadbeef', 'newpassword')).rejects.toThrow(
+        'Invalid or expired reset token',
+      );
+    });
+
+    it('rejects an expired token', async () => {
+      const { raw, userId } = await tokenFor('expired@example.com');
+      await prisma.passwordResetToken.updateMany({
+        where: { userId },
+        data: { expiresAt: new Date(Date.now() - 1000) },
+      });
+      await expect(service.resetPassword(raw, 'newpassword')).rejects.toThrow(
+        'Invalid or expired reset token',
+      );
+    });
+
+    it('rejects an already-used token', async () => {
+      const { raw, userId } = await tokenFor('used@example.com');
+      await prisma.passwordResetToken.updateMany({
+        where: { userId },
+        data: { usedAt: new Date() },
+      });
+      await expect(service.resetPassword(raw, 'newpassword')).rejects.toThrow(
+        'Invalid or expired reset token',
+      );
+    });
+
+    it('rejects a password shorter than 6 characters', async () => {
+      const { raw } = await tokenFor('short@example.com');
+      await expect(service.resetPassword(raw, 'abc')).rejects.toThrow(BadRequestException);
+    });
+
+    it('changes the password, consumes the token, and revokes every session', async () => {
+      const { raw, userId } = await tokenFor('ok@example.com');
+      const bcrypt = require('bcryptjs');
+      const before = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+      const live = await prisma.session.create({
+        data: { token: crypto.randomUUID(), userId, expiresAt: new Date(Date.now() + 1e6) },
+      });
+      const bot = await prisma.session.create({
+        data: {
+          token: crypto.randomUUID(),
+          userId,
+          bot: true,
+          expiresAt: new Date(Date.now() + 1e6),
+        },
+      });
+      await prisma.passwordResetToken.create({
+        data: {
+          tokenHash: crypto.createHash('sha256').update('sibling').digest('hex'),
+          userId,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+        },
+      });
+
+      const result = await service.resetPassword(raw, 'newpassword');
+
+      expect(result).toEqual({ success: true });
+      const after = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      expect(after.passwordHash).not.toBe(before.passwordHash);
+      expect(await bcrypt.compare('newpassword', after.passwordHash)).toBe(true);
+
+      const used = await prisma.passwordResetToken.findMany({ where: { userId } });
+      expect(used).toHaveLength(1);
+      expect(used[0].usedAt).not.toBeNull();
+
+      for (const id of [live.id, bot.id]) {
+        const s = await prisma.session.findUniqueOrThrow({ where: { id } });
+        expect(s.revokedAt).not.toBeNull();
+      }
+    });
+  });
+
   describe('createInvite & signup', () => {
     let adminUser: any;
 

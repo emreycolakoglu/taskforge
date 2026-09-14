@@ -172,6 +172,37 @@ export class AuthService {
     return { success: true };
   }
 
+  async resetPassword(token: string, password: string): Promise<{ success: true }> {
+    if (password.length < 6) {
+      throw new BadRequestException('Password must be at least 6 characters');
+    }
+
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const row = await this.prisma.passwordResetToken.findUnique({ where: { tokenHash } });
+    if (!row || row.usedAt || row.expiresAt.getTime() < Date.now()) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    const passwordHash = await bcrypt.hash(password, 12);
+    const now = new Date();
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: row.userId }, data: { passwordHash } }),
+      this.prisma.passwordResetToken.update({
+        where: { id: row.id },
+        data: { usedAt: now },
+      }),
+      this.prisma.passwordResetToken.deleteMany({
+        where: { userId: row.userId, id: { not: row.id } },
+      }),
+      this.prisma.session.updateMany({
+        where: { userId: row.userId, revokedAt: null },
+        data: { revokedAt: now },
+      }),
+    ]);
+
+    return { success: true };
+  }
+
   async logout(token: string): Promise<void> {
     const session = await this.prisma.session.findUnique({ where: { token } });
     if (!session) return;
