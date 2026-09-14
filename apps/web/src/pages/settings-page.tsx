@@ -256,14 +256,20 @@ function InvitesTab() {
   const createInvite = useCreateInvite();
   const revokeInvite = useRevokeInvite();
   const [creating, setCreating] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
 
   const handleCreate = async () => {
     setCreating(true);
     try {
-      const result = await createInvite.mutateAsync(undefined as never);
+      const result = await createInvite.mutateAsync(inviteEmail.trim() || undefined);
       const link = `${window.location.origin}/signup/${result.token}`;
       await navigator.clipboard.writeText(link);
-      toast.success('Invite link copied to clipboard');
+      toast.success(
+        inviteEmail.trim()
+          ? 'Invite created — emailed and copied to clipboard'
+          : 'Invite link copied to clipboard',
+      );
+      setInviteEmail('');
     } finally {
       setCreating(false);
     }
@@ -289,10 +295,20 @@ function InvitesTab() {
         <h3 className="text-sm font-medium text-muted-foreground">
           {invites?.length ?? 0} invite{invites?.length === 1 ? '' : 's'}
         </h3>
-        <Button size="sm" onClick={handleCreate} disabled={creating}>
-          <Plus className="size-4" />
-          Create Invite
-        </Button>
+        <div className="flex items-center gap-2">
+          <Input
+            aria-label="Invite recipient email"
+            className="w-56"
+            type="email"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            placeholder="email@example.com (optional)"
+          />
+          <Button size="sm" onClick={handleCreate} disabled={creating}>
+            <Plus className="size-4" />
+            Create Invite
+          </Button>
+        </div>
       </div>
 
       {!invites?.length ? (
@@ -303,6 +319,7 @@ function InvitesTab() {
             <TableRow>
               <TableHead>Token</TableHead>
               <TableHead>Created By</TableHead>
+              <TableHead>Recipient</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Expires</TableHead>
               <TableHead>Actions</TableHead>
@@ -318,6 +335,7 @@ function InvitesTab() {
                 <TableRow key={invite.id}>
                   <TableCell className="font-mono text-xs">{invite.token.slice(0, 8)}...</TableCell>
                   <TableCell>{invite.creatorName}</TableCell>
+                  <TableCell>{invite.recipientEmail ?? '—'}</TableCell>
                   <TableCell>
                     <Badge
                       variant={

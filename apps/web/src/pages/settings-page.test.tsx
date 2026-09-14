@@ -24,12 +24,12 @@ vi.mock('@/contexts/auth-context', () => ({
   }),
 }));
 vi.mock('@/hooks/use-users', () => ({
-  useUsers: () => ({ data: [], isLoading: false }),
-  useInvites: () => ({ data: [], isLoading: false }),
-  useCreateInvite: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useRevokeInvite: () => ({ mutate: vi.fn(), isPending: false }),
-  useDeleteUser: () => ({ mutate: vi.fn(), isPending: false }),
-  useUserDirectory: () => ({ data: [] }),
+  useUsers: vi.fn(),
+  useInvites: vi.fn(),
+  useCreateInvite: vi.fn(),
+  useRevokeInvite: vi.fn(),
+  useDeleteUser: vi.fn(),
+  useUserDirectory: vi.fn(),
 }));
 vi.mock('@/hooks/use-settings', () => ({
   useSettings: vi.fn(),
@@ -38,10 +38,22 @@ vi.mock('@/hooks/use-settings', () => ({
 }));
 
 import { useSettings, useUpdateSettings, useSendTestEmail } from '@/hooks/use-settings';
+import {
+  useUsers,
+  useInvites,
+  useCreateInvite,
+  useRevokeInvite,
+  useDeleteUser,
+} from '@/hooks/use-users';
 
 const mockUseSettings = vi.mocked(useSettings);
 const mockUseUpdateSettings = vi.mocked(useUpdateSettings);
 const mockUseSendTestEmail = vi.mocked(useSendTestEmail);
+const mockUseUsers = vi.mocked(useUsers);
+const mockUseInvites = vi.mocked(useInvites);
+const mockUseCreateInvite = vi.mocked(useCreateInvite);
+const mockUseRevokeInvite = vi.mocked(useRevokeInvite);
+const mockUseDeleteUser = vi.mocked(useDeleteUser);
 
 describe('SettingsPage Email tab', () => {
   beforeEach(() => {
@@ -90,5 +102,63 @@ describe('SettingsPage Email tab', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     const payload = mutate.mock.calls[0][0];
     expect('smtpPassword' in payload).toBe(false);
+  });
+});
+
+describe('SettingsPage Invites tab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseSettings.mockReturnValue({
+      data: mockSettings,
+      isLoading: false,
+      isError: false,
+    } as never);
+    mockUseUpdateSettings.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+    mockUseSendTestEmail.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+    mockUseUsers.mockReturnValue({ data: [], isLoading: false } as never);
+    mockUseInvites.mockReturnValue({ data: [], isLoading: false } as never);
+    mockUseCreateInvite.mockReturnValue({
+      mutateAsync: vi.fn().mockResolvedValue({ id: 'i1', token: 'tok1234567890' }),
+      isPending: false,
+    } as never);
+    mockUseRevokeInvite.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+    mockUseDeleteUser.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+  });
+
+  it('shows recipient email column', async () => {
+    mockUseInvites.mockReturnValue({
+      data: [
+        {
+          id: 'i1',
+          token: 'tok1234567890',
+          createdBy: 'u1',
+          creatorName: 'A',
+          usedBy: null,
+          usedAt: null,
+          recipientEmail: 'x@y.dev',
+          expiresAt: '2027-01-01',
+          createdAt: '2026-09-14',
+          isExpired: false,
+          isUsed: false,
+        },
+      ],
+      isLoading: false,
+    } as never);
+    render(<SettingsPage />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Invites' }));
+    expect(screen.getByText('x@y.dev')).toBeInTheDocument();
+  });
+
+  it('passes trimmed email to createInvite and shows emailed toast', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    const mutateAsync = vi.fn().mockResolvedValue({ id: 'i1', token: 'tok1234567890' });
+    mockUseCreateInvite.mockReturnValue({ mutateAsync, isPending: false } as never);
+    render(<SettingsPage />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Invites' }));
+    await userEvent.type(screen.getByLabelText('Invite recipient email'), '  x@y.dev  ');
+    await userEvent.click(screen.getByRole('button', { name: 'Create Invite' }));
+    expect(mutateAsync).toHaveBeenCalledWith('x@y.dev');
+    expect(screen.getByLabelText('Invite recipient email')).toHaveValue('');
   });
 });
