@@ -107,6 +107,16 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       }),
+    forgotPassword: (email: string) =>
+      request<{ success: boolean }>('/auth/forgot-password', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      }),
+    resetPassword: (token: string, password: string) =>
+      request<{ success: boolean }>('/auth/reset-password', {
+        method: 'POST',
+        body: JSON.stringify({ token, password }),
+      }),
     logout: () => request<{ success: boolean }>('/auth/logout', { method: 'POST' }),
     signup: (token: string, data: { email: string; password: string; displayName: string }) =>
       request<AuthResponse>(`/auth/signup/${token}`, {

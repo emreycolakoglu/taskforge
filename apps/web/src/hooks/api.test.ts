@@ -203,6 +203,38 @@ describe('api', () => {
     expect(result.session.token).toBe('tok');
   });
 
+  it('posts to forgot-password with the email', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ success: true }) });
+    const { api } = await import('./api');
+
+    const result = await api.auth.forgotPassword('a@b.com');
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/auth/forgot-password',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ email: 'a@b.com' }),
+      }),
+    );
+    expect(result).toEqual({ success: true });
+  });
+
+  it('posts to reset-password with token and password', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, json: () => Promise.resolve({ success: true }) });
+    const { api } = await import('./api');
+
+    const result = await api.auth.resetPassword('raw-token', 'newpassword');
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/auth/reset-password',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ token: 'raw-token', password: 'newpassword' }),
+      }),
+    );
+    expect(result).toEqual({ success: true });
+  });
+
   it('should make auth.onboard request', async () => {
     const response = {
       user: { id: '1', email: 'a@b.c' },
