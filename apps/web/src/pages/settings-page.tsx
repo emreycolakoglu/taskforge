@@ -1,9 +1,9 @@
 import { useState, useEffect, type FormEvent } from 'react';
 import { Copy, LinkIcon, Ban, Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { User } from '@/types';
+import type { User, UpdateSettingsPayload } from '@/types';
 import { useAuth } from '@/contexts/auth-context';
-import { useSettings, useUpdateSettings } from '@/hooks/use-settings';
+import { useSettings, useUpdateSettings, useSendTestEmail } from '@/hooks/use-settings';
 import {
   useUsers,
   useInvites,
@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -363,6 +364,170 @@ function InvitesTab() {
   );
 }
 
+function EmailTab() {
+  const { data: settings } = useSettings();
+  const updateSettings = useUpdateSettings();
+  const sendTestEmail = useSendTestEmail();
+  const { user } = useAuth();
+
+  const [form, setForm] = useState({
+    smtpHost: '',
+    smtpPort: '',
+    smtpUsername: '',
+    smtpPassword: '',
+    smtpFromEmail: '',
+    smtpFromName: '',
+    smtpSecure: true,
+  });
+  const [testTo, setTestTo] = useState('');
+
+  useEffect(() => {
+    if (!settings) return;
+    setForm({
+      smtpHost: settings.smtpHost ?? '',
+      smtpPort: settings.smtpPort?.toString() ?? '',
+      smtpUsername: settings.smtpUsername ?? '',
+      smtpPassword: '',
+      smtpFromEmail: settings.smtpFromEmail ?? '',
+      smtpFromName: settings.smtpFromName ?? '',
+      smtpSecure: settings.smtpSecure,
+    });
+  }, [settings]);
+
+  const buildPayload = (): UpdateSettingsPayload => {
+    const port = parseInt(form.smtpPort, 10);
+    const payload: UpdateSettingsPayload = {
+      smtpHost: form.smtpHost || null,
+      smtpPort: Number.isFinite(port) ? port : null,
+      smtpUsername: form.smtpUsername || null,
+      smtpFromEmail: form.smtpFromEmail || null,
+      smtpFromName: form.smtpFromName || null,
+      smtpSecure: form.smtpSecure,
+    };
+    if (form.smtpPassword !== '') payload.smtpPassword = form.smtpPassword;
+    return payload;
+  };
+
+  const handleSave = (e: FormEvent) => {
+    e.preventDefault();
+    updateSettings.mutate(buildPayload());
+  };
+
+  const handleTest = () => {
+    if (testTo.trim()) sendTestEmail.mutate(testTo.trim());
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Email (SMTP)</CardTitle>
+        <CardDescription>Used to send invite emails and (later) password resets.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={handleSave} className="flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="smtp-host">SMTP Host</Label>
+              <Input
+                id="smtp-host"
+                aria-label="SMTP Host"
+                value={form.smtpHost}
+                onChange={(e) => setForm({ ...form, smtpHost: e.target.value })}
+                placeholder="smtp.example.com"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="smtp-port">Port</Label>
+              <Input
+                id="smtp-port"
+                aria-label="Port"
+                type="number"
+                value={form.smtpPort}
+                onChange={(e) => setForm({ ...form, smtpPort: e.target.value })}
+                placeholder="587"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="smtp-user">Username</Label>
+              <Input
+                id="smtp-user"
+                aria-label="Username"
+                value={form.smtpUsername}
+                onChange={(e) => setForm({ ...form, smtpUsername: e.target.value })}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="smtp-pass">Password</Label>
+              <Input
+                id="smtp-pass"
+                aria-label="Password"
+                type="password"
+                value={form.smtpPassword}
+                placeholder={settings?.smtpPasswordSet ? '••••••' : ''}
+                onChange={(e) => setForm({ ...form, smtpPassword: e.target.value })}
+              />
+              <p className="text-xs text-muted-foreground">
+                {settings?.smtpPasswordSet
+                  ? 'A password is set — leave blank to keep it.'
+                  : 'No password set.'}
+              </p>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="smtp-from">From Email</Label>
+              <Input
+                id="smtp-from"
+                aria-label="From Email"
+                type="email"
+                value={form.smtpFromEmail}
+                onChange={(e) => setForm({ ...form, smtpFromEmail: e.target.value })}
+                placeholder="noreply@example.com"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="smtp-from-name">From Name</Label>
+              <Input
+                id="smtp-from-name"
+                aria-label="From Name"
+                value={form.smtpFromName}
+                onChange={(e) => setForm({ ...form, smtpFromName: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Switch
+              id="smtp-secure"
+              checked={form.smtpSecure}
+              onCheckedChange={(v) => setForm({ ...form, smtpSecure: v })}
+            />
+            <Label htmlFor="smtp-secure">Use TLS (secure) connection</Label>
+          </div>
+          <div className="flex items-center gap-3 border-t pt-4">
+            <Button type="submit" disabled={updateSettings.isPending}>
+              {updateSettings.isPending ? 'Saving…' : 'Save'}
+            </Button>
+            <Input
+              aria-label="Test recipient"
+              className="w-64"
+              type="email"
+              value={testTo}
+              onChange={(e) => setTestTo(e.target.value)}
+              placeholder={user?.email ?? 'you@example.com'}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTest}
+              disabled={sendTestEmail.isPending || !testTo.trim()}
+            >
+              {sendTestEmail.isPending ? 'Sending…' : 'Send test email'}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function SettingsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -377,12 +542,18 @@ export function SettingsPage() {
       <Tabs defaultValue="general">
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
+          {isAdmin && <TabsTrigger value="email">Email</TabsTrigger>}
           {isAdmin && <TabsTrigger value="users">Users</TabsTrigger>}
           {isAdmin && <TabsTrigger value="invites">Invites</TabsTrigger>}
         </TabsList>
         <TabsContent value="general" className="mt-4">
           <GeneralTab />
         </TabsContent>
+        {isAdmin && (
+          <TabsContent value="email" className="mt-4">
+            <EmailTab />
+          </TabsContent>
+        )}
         {isAdmin && (
           <TabsContent value="users" className="mt-4">
             <UsersTab />
