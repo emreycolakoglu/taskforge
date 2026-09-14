@@ -106,10 +106,22 @@ jobs:
             --notes "${{ steps.changelog.outputs.body }}" \
             --target main
 
-  docker:
+  # Build each architecture natively in parallel (public repos get free
+  # GitHub-hosted ARM runners), push by digest, then merge into one
+  # multi-arch manifest. Replaces the QEMU cross-build that intermittently
+  # hung for hours under emulation.
+  build:
     needs: bump-version
     if: needs.bump-version.outputs.skip != 'true'
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     permissions:
       contents: read
@@ -118,11 +130,56 @@ jobs:
         with:
           ref: main
 
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+      - name: Prepare platform name
+        run: |
+          platform=${{ matrix.platform }}
+          echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=emreyc/taskforge,push-by-digest=true,name-canonical=true,push=true
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs: [bump-version, build]
+    if: needs.bump-version.outputs.skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
 
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -141,15 +198,21 @@ jobs:
           echo "major=$MAJOR" >> "$GITHUB_OUTPUT"
           echo "minor=$MINOR" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            emreyc/taskforge:latest
-            emreyc/taskforge:${{ needs.bump-version.outputs.next_version }}
-            emreyc/taskforge:${{ steps.tags.outputs.minor }}
-            emreyc/taskforge:${{ steps.tags.outputs.major }}
-            emreyc/taskforge:sha-${{ needs.bump-version.outputs.short_sha }}
+      - name: Create multi-arch manifest and push
+        working-directory: /tmp/digests
+        env:
+          NEXT_VERSION: ${{ needs.bump-version.outputs.next_version }}
+          SHORT_SHA: ${{ needs.bump-version.outputs.short_sha }}
+          MAJOR: ${{ steps.tags.outputs.major }}
+          MINOR: ${{ steps.tags.outputs.minor }}
+        run: |
+          docker buildx imagetools create \
+            -t emreyc/taskforge:latest \
+            -t "emreyc/taskforge:${NEXT_VERSION}" \
+            -t "emreyc/taskforge:${MINOR}" \
+            -t "emreyc/taskforge:${MAJOR}" \
+            -t "emreyc/taskforge:sha-${SHORT_SHA}" \
+            $(printf 'emreyc/taskforge@sha256:%s ' *)
+
+      - name: Inspect image
+        run: docker buildx imagetools inspect emreyc/taskforge:latest
