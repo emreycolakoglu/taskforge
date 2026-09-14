@@ -401,6 +401,29 @@ describe('AuthService', () => {
       expect(result).toEqual({ success: true });
       expect(mailer.send).not.toHaveBeenCalled();
     });
+
+    it('does not delete an existing reset token when SMTP is not configured', async () => {
+      const user = await seedUser(prisma, { email: 'keep@example.com' });
+      const existingHash = crypto.createHash('sha256').update('existing').digest('hex');
+      await prisma.passwordResetToken.create({
+        data: {
+          tokenHash: existingHash,
+          userId: user.id,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+          createdAt: new Date(Date.now() - 2 * 60 * 1000),
+        },
+      });
+      mailer.isConfigured.mockResolvedValueOnce(false);
+
+      const result = await service.requestPasswordReset('keep@example.com');
+
+      expect(result).toEqual({ success: true });
+      expect(mailer.send).not.toHaveBeenCalled();
+      const rows = await prisma.passwordResetToken.findMany({ where: { userId: user.id } });
+      expect(rows).toHaveLength(1);
+      expect(rows[0].tokenHash).toBe(existingHash);
+      expect(rows[0].usedAt).toBeNull();
+    });
   });
 
   describe('resetPassword', () => {
@@ -489,6 +512,22 @@ describe('AuthService', () => {
         const s = await prisma.session.findUniqueOrThrow({ where: { id } });
         expect(s.revokedAt).not.toBeNull();
       }
+    });
+
+    it('rejects a reused token and leaves the password unchanged', async () => {
+      const { raw, userId } = await tokenFor('reuse@example.com');
+      const bcrypt = require('bcryptjs');
+
+      await service.resetPassword(raw, 'firstpassword');
+      const afterFirst = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+
+      await expect(service.resetPassword(raw, 'secondpassword')).rejects.toThrow(
+        'Invalid or expired reset token',
+      );
+
+      const afterSecond = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+      expect(afterSecond.passwordHash).toBe(afterFirst.passwordHash);
+      expect(await bcrypt.compare('secondpassword', afterSecond.passwordHash)).toBe(false);
     });
   });
 

@@ -3,6 +3,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { IS_PUBLIC_KEY } from './public.decorator';
 
 describe('AuthController password reset routes', () => {
   let controller: AuthController;
@@ -30,5 +31,16 @@ describe('AuthController password reset routes', () => {
     const dto: ResetPasswordDto = { token: 'raw', password: 'newpassword' };
     await expect(controller.resetPassword(dto)).resolves.toEqual({ success: true });
     expect(authService.resetPassword).toHaveBeenCalledWith('raw', 'newpassword');
+  });
+
+  it('marks forgot-password and reset-password as public', () => {
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, AuthController.prototype.forgotPassword)).toBe(true);
+    expect(Reflect.getMetadata(IS_PUBLIC_KEY, AuthController.prototype.resetPassword)).toBe(true);
+  });
+
+  it('marks the existing public handlers as public', () => {
+    for (const handler of ['getStatus', 'onboard', 'login', 'signup'] as const) {
+      expect(Reflect.getMetadata(IS_PUBLIC_KEY, AuthController.prototype[handler])).toBe(true);
+    }
   });
 });

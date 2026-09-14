@@ -137,6 +137,10 @@ export class AuthService {
       return { success: true };
     }
 
+    if (!(await this.mailer.isConfigured())) {
+      return { success: true };
+    }
+
     await this.prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
 
     const rawToken = crypto.randomBytes(32).toString('hex');
@@ -149,25 +153,23 @@ export class AuthService {
       },
     });
 
-    if (!(await this.mailer.isConfigured())) {
-      return { success: true };
-    }
-
     const title = await this.settings.getTitle();
     const origin = process.env.APP_ORIGIN ?? 'http://localhost:5173';
     const link = `${origin}/reset-password/${rawToken}`;
-    try {
-      await this.mailer.send({
+    // Fire-and-forget: awaiting the SMTP round trip would make the known-email
+    // response measurably slower than the unknown-email one.
+    this.mailer
+      .send({
         to: user.email,
         subject: `Reset your ${title} password`,
         html: `<p>Someone requested a password reset for your <strong>${title}</strong> account.</p><p><a href="${link}">Set a new password</a> — the link expires in 1 hour. If this wasn't you, ignore this email.</p>`,
         text: `Reset your ${title} password: ${link} (expires in 1 hour).`,
+      })
+      .catch((err) => {
+        this.logger.warn(
+          `Failed to send password reset email: ${err instanceof Error ? err.message : String(err)}`,
+        );
       });
-    } catch (err) {
-      this.logger.warn(
-        `Failed to send password reset email: ${err instanceof Error ? err.message : String(err)}`,
-      );
-    }
 
     return { success: true };
   }
@@ -185,20 +187,23 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(password, 12);
     const now = new Date();
-    await this.prisma.$transaction([
-      this.prisma.user.update({ where: { id: row.userId }, data: { passwordHash } }),
-      this.prisma.passwordResetToken.update({
-        where: { id: row.id },
+    await this.prisma.$transaction(async (tx) => {
+      const consumed = await tx.passwordResetToken.updateMany({
+        where: { id: row.id, usedAt: null },
         data: { usedAt: now },
-      }),
-      this.prisma.passwordResetToken.deleteMany({
+      });
+      if (consumed.count === 0) {
+        throw new BadRequestException('Invalid or expired reset token');
+      }
+      await tx.user.update({ where: { id: row.userId }, data: { passwordHash } });
+      await tx.passwordResetToken.deleteMany({
         where: { userId: row.userId, id: { not: row.id } },
-      }),
-      this.prisma.session.updateMany({
+      });
+      await tx.session.updateMany({
         where: { userId: row.userId, revokedAt: null },
         data: { revokedAt: now },
-      }),
-    ]);
+      });
+    });
 
     return { success: true };
   }
