@@ -1,5 +1,7 @@
 import { Injectable, ConflictException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { UpdateSettingsDto } from './dto/update-settings.dto';
 
 @Injectable()
 export class SettingsService {
@@ -25,6 +27,10 @@ export class SettingsService {
     });
   }
 
+  /**
+   * Admin-facing settings view. smtpPassword never leaves the server;
+   * smtpPasswordSet reports whether one is stored.
+   */
   async getFullSettings() {
     const settings = await this.prisma.settings.findUnique({ where: { id: 'singleton' } });
     if (!settings) {
@@ -35,15 +41,52 @@ export class SettingsService {
         smtpHost: null,
         smtpPort: null,
         smtpUsername: null,
-        smtpPassword: null,
+        smtpPasswordSet: false,
         smtpFromEmail: null,
-        smtpFromName: null,
-        smtpSecure: false,
+        smtpFromName: 'TaskForge',
+        smtpSecure: true,
         createdAt: null,
         updatedAt: null,
       };
     }
-    return settings;
+    const { smtpPassword, ...rest } = settings;
+    return { ...rest, smtpPasswordSet: !!smtpPassword };
+  }
+
+  /**
+   * Internal SMTP view carrying smtpPassword; consumed by MailerService only.
+   */
+  async getSmtpConfig() {
+    const settings = await this.prisma.settings.findUnique({ where: { id: 'singleton' } });
+    if (!settings) {
+      return {
+        smtpHost: null,
+        smtpPort: null,
+        smtpUsername: null,
+        smtpPassword: null,
+        smtpFromEmail: null,
+        smtpFromName: 'TaskForge',
+        smtpSecure: true,
+      };
+    }
+    const {
+      smtpHost,
+      smtpPort,
+      smtpUsername,
+      smtpPassword,
+      smtpFromEmail,
+      smtpFromName,
+      smtpSecure,
+    } = settings;
+    return {
+      smtpHost,
+      smtpPort,
+      smtpUsername,
+      smtpPassword,
+      smtpFromEmail,
+      smtpFromName,
+      smtpSecure,
+    };
   }
 
   async getSettings() {
@@ -52,14 +95,23 @@ export class SettingsService {
     return { initialized: settings.onboarded, title: settings.title };
   }
 
-  async updateSettings(data: { title?: string }) {
+  /**
+   * Password semantics: absent = keep, '' = clear, non-empty = set.
+   * Other smtp fields: absent = unchanged, null = clear.
+   */
+  async updateSettings(data: UpdateSettingsDto) {
     const settings = await this.prisma.settings.findUnique({ where: { id: 'singleton' } });
     if (!settings) {
       throw new ConflictException('Settings not initialized');
     }
-    return this.prisma.settings.update({
-      where: { id: 'singleton' },
-      data,
-    });
+    const { smtpPassword, ...rest } = data;
+    const dbData: Prisma.SettingsUpdateInput = { ...rest };
+    if (smtpPassword === '') {
+      dbData.smtpPassword = null;
+    } else if (smtpPassword !== undefined) {
+      dbData.smtpPassword = smtpPassword;
+    }
+    await this.prisma.settings.update({ where: { id: 'singleton' }, data: dbData });
+    return this.getFullSettings();
   }
 }

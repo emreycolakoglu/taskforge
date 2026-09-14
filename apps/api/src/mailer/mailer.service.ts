@@ -20,7 +20,7 @@ export class MailerService {
   }
 
   async send(params: SendParams): Promise<void> {
-    const s = await this.settings.getFullSettings();
+    const s = await this.settings.getSmtpConfig();
     if (!s.smtpHost) {
       throw new BadRequestException('SMTP is not configured');
     }

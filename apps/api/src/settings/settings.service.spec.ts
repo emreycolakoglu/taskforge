@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SettingsService } from './settings.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { MailerService } from '../mailer/mailer.service';
 import { createTestPrisma } from '../../test/setup';
 import { ConflictException } from '@nestjs/common';
 
@@ -11,7 +12,11 @@ describe('SettingsService', () => {
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     const module: TestingModule = await Test.createTestingModule({
-      providers: [SettingsService, { provide: PrismaService, useValue: prisma }],
+      providers: [
+        SettingsService,
+        { provide: PrismaService, useValue: prisma },
+        { provide: MailerService, useValue: { send: jest.fn(), isConfigured: jest.fn() } },
+      ],
     }).compile();
     service = module.get<SettingsService>(SettingsService);
   });
@@ -101,6 +106,51 @@ describe('SettingsService', () => {
       await expect(service.updateSettings({ title: 'New Title' })).rejects.toThrow(
         ConflictException,
       );
+    });
+  });
+
+  describe('SMTP settings', () => {
+    async function init() {
+      return service.initialize('Test');
+    }
+
+    it('should return smtpPasswordSet instead of the password', async () => {
+      await init();
+      await service.updateSettings({ smtpHost: 'smtp.test', smtpPassword: 'secret' });
+      const result = await service.getFullSettings();
+      expect(result.smtpHost).toBe('smtp.test');
+      expect(result.smtpPasswordSet).toBe(true);
+      expect('smtpPassword' in result).toBe(false);
+    });
+
+    it('should keep password when absent, clear when empty string', async () => {
+      await init();
+      await service.updateSettings({ smtpPassword: 'secret' });
+      await service.updateSettings({ smtpHost: 'h2' });
+      expect(await service.getFullSettings()).toMatchObject({ smtpPasswordSet: true });
+      await service.updateSettings({ smtpPassword: '' });
+      expect(await service.getFullSettings()).toMatchObject({ smtpPasswordSet: false });
+    });
+
+    it('should round-trip all smtp fields', async () => {
+      await init();
+      await service.updateSettings({
+        smtpHost: 'smtp.test',
+        smtpPort: 587,
+        smtpUsername: 'u',
+        smtpFromEmail: 'f@t.dev',
+        smtpFromName: 'TF',
+        smtpSecure: false,
+      });
+      expect(await service.getFullSettings()).toMatchObject({
+        smtpHost: 'smtp.test',
+        smtpPort: 587,
+        smtpUsername: 'u',
+        smtpFromEmail: 'f@t.dev',
+        smtpFromName: 'TF',
+        smtpSecure: false,
+        smtpPasswordSet: false,
+      });
     });
   });
 });

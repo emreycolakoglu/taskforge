@@ -7,12 +7,14 @@ describe('MailerService', () => {
   let service: MailerService;
   let sendMail: jest.Mock;
   let capturedOpts: Record<string, unknown> | undefined;
-  let settingsService: { getFullSettings: jest.Mock };
+  let settingsService: { getFullSettings: jest.Mock; getSmtpConfig: jest.Mock };
 
   beforeEach(async () => {
     sendMail = jest.fn().mockResolvedValue({ messageId: 'test' });
     capturedOpts = undefined;
-    settingsService = { getFullSettings: jest.fn().mockResolvedValue({}) };
+    // getSmtpConfig aliases getFullSettings so per-test mocks feed both reads
+    const settingsMock = jest.fn().mockResolvedValue({});
+    settingsService = { getFullSettings: settingsMock, getSmtpConfig: settingsMock };
     const module: TestingModule = await Test.createTestingModule({
       providers: [MailerService, { provide: SettingsService, useValue: settingsService }],
     }).compile();
