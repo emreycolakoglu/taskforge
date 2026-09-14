@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
 import { useNotifications, useMarkRead, useMarkAllRead } from '@/hooks/use-notifications';
@@ -15,8 +15,14 @@ export function InboxPage() {
 
   const selected = notifications.find((n) => n.id === notificationId) ?? null;
 
+  // Guard against a re-mark loop: while the mark-read POST + refetch are in
+  // flight, `selected.readAt` is still null, so a bare effect re-fires on every
+  // render. Remember which ids we already marked for this mount.
+  const markedRef = useRef<Set<string>>(new Set());
+
   useEffect(() => {
-    if (selected && selected.readAt === null) {
+    if (selected && selected.readAt === null && !markedRef.current.has(selected.id)) {
+      markedRef.current.add(selected.id);
       markRead.mutate(selected.id);
     }
   }, [selected, markRead]);

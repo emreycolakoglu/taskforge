@@ -107,16 +107,22 @@ describe('NotificationsService', () => {
       expect(notifs).toHaveLength(0);
     });
 
-    it('moved does NOT notify', async () => {
+    it('moved notifies subscribers, excludes actor', async () => {
       const activity = await makeActivity(
         'moved',
-        { to: 'In Progress' },
+        { to: 'status-id', statusName: 'In Progress' },
         actor.id,
         actor.displayName,
       );
       await service.dispatchFromActivity(activity);
       const notifs = await prisma.notification.findMany({ where: { userId: subscriber.id } });
-      expect(notifs).toHaveLength(0);
+      expect(notifs).toHaveLength(1);
+      expect(notifs[0].action).toBe('moved');
+      expect(notifs[0].summary).toContain('moved');
+      expect(notifs[0].summary).toContain('In Progress');
+      expect(notifs[0].summary).toContain(`${board.identifier}-${task.number}`);
+      const actorNotifs = await prisma.notification.findMany({ where: { userId: actor.id } });
+      expect(actorNotifs).toHaveLength(0);
     });
 
     it('no subscribers → no notifications, no error', async () => {

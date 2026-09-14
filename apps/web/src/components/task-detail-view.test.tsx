@@ -3,6 +3,8 @@ import { render } from '@testing-library/react';
 import { TaskDetailView } from './task-detail-view';
 
 const mockUseSocket = vi.hoisted(() => vi.fn(() => ({ on: vi.fn() })));
+const mockUseUsers = vi.hoisted(() => vi.fn(() => ({ data: [] })));
+const mockUseUserDirectory = vi.hoisted(() => vi.fn(() => ({ data: [] })));
 
 vi.mock('@/hooks/use-socket', () => ({
   useSocket: mockUseSocket,
@@ -47,8 +49,8 @@ vi.mock('@/hooks/use-comments', () => ({
 }));
 
 vi.mock('@/hooks/use-users', () => ({
-  useUsers: () => ({ data: [] }),
-  useUserDirectory: () => ({ data: [] }),
+  useUsers: mockUseUsers,
+  useUserDirectory: mockUseUserDirectory,
 }));
 
 vi.mock('@/hooks/use-labels', () => ({
@@ -79,11 +81,22 @@ vi.mock('@/components/detail-properties-sidebar', () => ({
 }));
 
 describe('TaskDetailView', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseUsers.mockReturnValue({ data: [] } as never);
+    mockUseUserDirectory.mockReturnValue({ data: [] } as never);
+  });
 
   it('joins the task board socket room', () => {
     render(<TaskDetailView taskId="task-1" boardId="board-1" />);
 
     expect(mockUseSocket).toHaveBeenCalledWith('board-1');
+  });
+
+  it('sources assignee options from the user directory, not the admin-only users endpoint', () => {
+    render(<TaskDetailView taskId="task-1" boardId="board-1" />);
+
+    expect(mockUseUserDirectory).toHaveBeenCalled();
+    expect(mockUseUsers).not.toHaveBeenCalled();
   });
 });

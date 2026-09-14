@@ -20,6 +20,7 @@ export class NotificationsService {
 
   private isNotifying(activity: ActivityInput): boolean {
     if (activity.action === 'commented') return true;
+    if (activity.action === 'moved') return true;
     return false;
   }
 
@@ -119,6 +120,16 @@ export class NotificationsService {
   ): string {
     if (action === 'commented') {
       return `${actor} commented on ${taskNumber} "${title}"`;
+    }
+    if (action === 'moved') {
+      let statusName = '';
+      try {
+        statusName = detail ? (JSON.parse(detail).statusName ?? '') : '';
+      } catch {
+        statusName = '';
+      }
+      const suffix = statusName ? ` to ${statusName}` : '';
+      return `${actor} moved ${taskNumber} "${title}"${suffix}`;
     }
     return `${actor} ${action} ${taskNumber} "${title}"`;
   }

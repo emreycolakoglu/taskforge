@@ -11,7 +11,8 @@
  */
 
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { Board, RelationType, Task, TaskRelations, User } from '@/types';
+import type { Board, RelationType, Task, TaskRelations } from '@/types';
+import type { AssigneeOption } from './detail-assignee-select';
 import { Calendar } from 'lucide-react';
 import { DetailAssigneeSelect } from './detail-assignee-select';
 import { DetailGroup } from './detail-group';
@@ -27,7 +28,7 @@ import { DetailRelations } from './detail-relations';
 interface DetailPropertiesSidebarProps {
   task: Task;
   board: Board | undefined;
-  users: User[];
+  users: AssigneeOption[];
   boardTasks: Task[];
   relations: TaskRelations | undefined;
   onUpdate: (data: Partial<Task>) => void;

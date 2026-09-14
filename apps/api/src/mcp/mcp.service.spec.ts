@@ -61,6 +61,8 @@ describe('McpService', () => {
   beforeEach(async () => {
     user = await seedUser(prisma, { role: 'admin' });
     board = await seedBoard(prisma);
+    // statuses come back from the include unordered — index-based tests rely on position order
+    board.statuses.sort((a: any, b: any) => a.position - b.position);
   });
 
   afterEach(async () => {
@@ -493,6 +495,27 @@ describe('McpService', () => {
         where: { fromTaskId: taskA.id, type: 'blocks' },
       });
       expect(relations).toHaveLength(0);
+    });
+
+    it('should log moved activity with the human status name, not the status id', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      await service.handleRequest(
+        {
+          method: 'tasks_move',
+          params: { id: task.id, statusId: board.statuses[2].id },
+          id: 705,
+        },
+        user,
+      );
+      const movedActivity = await prisma.activity.findFirst({
+        where: { taskId: task.id, action: 'moved' },
+        orderBy: { createdAt: 'desc' },
+      });
+      expect(movedActivity).toBeDefined();
+      const detail = JSON.parse(movedActivity!.detail ?? '{}');
+      expect(detail.statusName).toBe(board.statuses[2].name);
+      expect(detail.to).toBe(board.statuses[2].id);
+      expect(detail.from).toBe(board.statuses[0].id);
     });
   });
 

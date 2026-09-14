@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { api } from '@/hooks/api';
 import { useBoardFull } from '@/hooks/use-boards';
 import { useCreateTask } from '@/hooks/use-tasks';
-import { useUsers, useUserDirectory } from '@/hooks/use-users';
+import { useUserDirectory } from '@/hooks/use-users';
 import { useAuth } from '@/contexts/auth-context';
 import { useSocket } from '@/hooks/use-socket';
 import { useBoardViewState } from '@/hooks/use-board-view-state';
@@ -120,8 +120,7 @@ export function KanbanBoard() {
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
 
   const createTask = useCreateTask();
-  const { data: users = [] } = useUsers();
-  const { data: directory = [] } = useUserDirectory();
+  const { data: users = [] } = useUserDirectory();
 
   const { ref: boardScrollRef, isDragging: isPanning } = useDragScroll<HTMLDivElement>();
 
@@ -463,7 +462,7 @@ export function KanbanBoard() {
         <FilterChipsBar
           filters={filters}
           labels={labels}
-          assignees={directory}
+          assignees={users}
           onToggleLabel={toggleLabelFilter}
           onToggleAssignee={toggleAssigneeFilter}
           onRemoveFilter={removeFilter}

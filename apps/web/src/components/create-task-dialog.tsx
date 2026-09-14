@@ -9,7 +9,8 @@
  */
 
 import { useState, useEffect } from 'react';
-import type { Status, Task, User } from '@/types';
+import type { Status, Task } from '@/types';
+import type { AssigneeOption } from '@/components/detail-assignee-select';
 import {
   Dialog,
   DialogContent,
@@ -33,7 +34,7 @@ interface CreateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   statuses: Status[];
-  users: User[];
+  users: AssigneeOption[];
   defaultStatusId?: string;
   onSubmit: (data: {
     title: string;

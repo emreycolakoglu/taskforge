@@ -20,7 +20,7 @@ import {
   useUpdateComment,
   useReactToComment,
 } from '@/hooks/use-comments';
-import { useUsers } from '@/hooks/use-users';
+import { useUserDirectory } from '@/hooks/use-users';
 import { useLabels } from '@/hooks/use-labels';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSocket } from '@/hooks/use-socket';
@@ -56,7 +56,7 @@ export function TaskDetailView({
   const { data: task } = useTask(taskId);
   const { data: board } = useBoardFull(boardId);
   const { data: comments = [] } = useComments(taskId);
-  const { data: users = [] } = useUsers();
+  const { data: users = [] } = useUserDirectory();
   const { data: _labels = [] } = useLabels(boardId);
   const { data: boardTasks = [] } = useTasksByBoard(boardId);
   useSocket(boardId);

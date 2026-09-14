@@ -17,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import type { User } from '@/types';
 import type { ReactNode } from 'react';
 import { UserIcon } from 'lucide-react';
 
@@ -26,9 +25,15 @@ const UNASSIGNED = '__unassigned__';
 const TRIGGER_CLASS =
   'h-8 w-auto gap-1.5 border-0 bg-transparent px-2 py-1 text-muted-foreground shadow-none hover:bg-accent hover:text-foreground [&>span]:flex [&>span]:items-center [&>span]:gap-1.5 [&_svg]:size-4';
 
+/** Minimal assignee option — sourced from the public user directory. */
+export interface AssigneeOption {
+  id: string;
+  displayName: string;
+}
+
 interface DetailAssigneeSelectProps {
   value: string | null;
-  users: User[];
+  users: AssigneeOption[];
   onChange: (id: string | null) => void;
 }
 

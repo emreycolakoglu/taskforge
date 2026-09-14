@@ -753,7 +753,7 @@ describe('TasksService', () => {
       expect(notifs).toHaveLength(0);
     });
 
-    it('moving a task does NOT notify subscribers', async () => {
+    it('moving a task notifies subscribers', async () => {
       const task = await service.create(
         { statusId: board.statuses[0].id, title: 'New task' },
         user,
@@ -762,7 +762,8 @@ describe('TasksService', () => {
       await prisma.taskSubscription.create({ data: { taskId: task.id, userId: other.id } });
       await service.move(task.id, { statusId: board.statuses[2].id }, user);
       const notifs = await prisma.notification.findMany({ where: { userId: other.id } });
-      expect(notifs).toHaveLength(0);
+      expect(notifs).toHaveLength(1);
+      expect(notifs[0].action).toBe('moved');
     });
   });
 

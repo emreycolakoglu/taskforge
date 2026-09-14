@@ -575,7 +575,11 @@ export class McpService {
             actorId,
             actor,
             action: 'moved',
-            detail: JSON.stringify({ to: newStatus?.name }),
+            detail: JSON.stringify({
+              from: existing.statusId,
+              to: params.statusId,
+              statusName: newStatus?.name,
+            }),
           },
         });
         this.events.emit('task:moved', task, task.status?.boardId);

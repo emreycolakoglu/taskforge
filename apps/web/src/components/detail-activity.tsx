@@ -31,10 +31,10 @@ function ActivityRow({
       const d = JSON.parse(a.detail);
       extra = d.changes
         ? ` — ${d.changes.join(', ')}`
-        : d.to
-          ? ` → ${d.to}`
-          : d.statusName
-            ? ` → ${d.statusName}`
+        : d.statusName
+          ? ` → ${d.statusName}`
+          : d.to
+            ? ` → ${d.to}`
             : d.listName
               ? ` → ${d.listName}`
               : '';
