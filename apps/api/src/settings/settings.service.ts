@@ -106,6 +106,9 @@ export class SettingsService {
     }
     const { smtpPassword, ...rest } = data;
     const dbData: Prisma.SettingsUpdateInput = { ...rest };
+    if (rest.smtpFromName === null) {
+      dbData.smtpFromName = '';
+    }
     if (smtpPassword === '') {
       dbData.smtpPassword = null;
     } else if (smtpPassword !== undefined) {

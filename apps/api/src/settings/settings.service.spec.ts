@@ -131,6 +131,12 @@ describe('SettingsService', () => {
       expect('smtpPassword' in result).toBe(false);
     });
 
+    it('should coerce a null smtpFromName to empty string', async () => {
+      await service.initialize('Test');
+      const updated = await service.updateSettings({ smtpFromName: null });
+      expect(updated.smtpFromName).toBe('');
+    });
+
     it('should keep password when absent, clear when empty string', async () => {
       await init();
       await service.updateSettings({ smtpPassword: 'secret' });
