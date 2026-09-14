@@ -49,25 +49,33 @@ model Session {
 }
 
 model Settings {
-  id        String   @id @default("singleton")
-  title     String   @default("TaskForge")
-  onboarded Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default("singleton")
+  title         String   @default("TaskForge")
+  onboarded     Boolean  @default(false)
+  smtpHost      String?
+  smtpPort      Int?
+  smtpUsername  String?
+  smtpPassword  String?
+  smtpFromEmail String?
+  smtpFromName  String   @default("TaskForge")
+  smtpSecure    Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@map("settings")
 }
 
 model InviteToken {
-  id        String    @id @default(cuid())
-  token     String    @unique
-  createdBy String
-  creator   User      @relation("CreatedInvites", fields: [createdBy], references: [id], onDelete: Cascade)
-  usedBy    String?
-  user      User?     @relation("UsedInvites", fields: [usedBy], references: [id], onDelete: SetNull)
-  usedAt    DateTime?
-  expiresAt DateTime
-  createdAt DateTime  @default(now())
+  id             String    @id @default(cuid())
+  token          String    @unique
+  createdBy      String
+  creator        User      @relation("CreatedInvites", fields: [createdBy], references: [id], onDelete: Cascade)
+  usedBy         String?
+  user           User?     @relation("UsedInvites", fields: [usedBy], references: [id], onDelete: SetNull)
+  usedAt         DateTime?
+  expiresAt      DateTime
+  recipientEmail String?
+  createdAt      DateTime  @default(now())
 
   @@index([token])
   @@index([createdBy])
