@@ -70,6 +70,25 @@ describe('SettingsPage Email tab', () => {
     await userEvent.click(screen.getByRole('tab', { name: 'Email' }));
     await userEvent.type(screen.getByLabelText('SMTP Host'), 'x');
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
-    expect(mutate).toHaveBeenCalled();
+    expect(mutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        smtpHost: 'smtp.testx',
+        smtpPort: 465,
+        smtpUsername: 'user',
+        smtpFromEmail: 'from@tf.dev',
+        smtpFromName: 'TF Mailer',
+        smtpSecure: true,
+      }),
+    );
+  });
+
+  it('omits smtpPassword from the payload when left blank', async () => {
+    const mutate = vi.fn();
+    mockUseUpdateSettings.mockReturnValue({ mutate, isPending: false } as never);
+    render(<SettingsPage />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Email' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const payload = mutate.mock.calls[0][0];
+    expect('smtpPassword' in payload).toBe(false);
   });
 });
