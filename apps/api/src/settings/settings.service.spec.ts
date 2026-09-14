@@ -100,6 +100,7 @@ describe('SettingsService', () => {
       await service.initialize('Old Title');
       const updated = await service.updateSettings({ title: 'New Title' });
       expect(updated.title).toBe('New Title');
+      expect('smtpPassword' in updated).toBe(false);
     });
 
     it('should throw ConflictException when no settings exist', async () => {
@@ -113,6 +114,13 @@ describe('SettingsService', () => {
     async function init() {
       return service.initialize('Test');
     }
+
+    it('should not return the password in the update response', async () => {
+      await init();
+      const updated = await service.updateSettings({ smtpPassword: 'secret' });
+      expect(updated.smtpPasswordSet).toBe(true);
+      expect('smtpPassword' in updated).toBe(false);
+    });
 
     it('should return smtpPasswordSet instead of the password', async () => {
       await init();
