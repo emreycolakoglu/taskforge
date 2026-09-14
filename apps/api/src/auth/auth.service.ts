@@ -181,7 +181,7 @@ export class AuthService {
 
     const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
     const row = await this.prisma.passwordResetToken.findUnique({ where: { tokenHash } });
-    if (!row || row.usedAt || row.expiresAt.getTime() < Date.now()) {
+    if (!row || row.expiresAt.getTime() < Date.now()) {
       throw new BadRequestException('Invalid or expired reset token');
     }
 
