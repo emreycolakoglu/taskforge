@@ -70,7 +70,7 @@ Schema migrations run automatically on container startup via `apps/api/docker-en
 - **Authentication is global and on by default** — `AuthModule` binds `AuthGuard` as an `APP_GUARD`, so _every_ route requires an `Authorization: Bearer <token>` matching a live `Session` row unless it carries `@Public()`. Tokens are opaque `crypto.randomUUID()` session tokens (not JWTs); passwords are bcrypt cost 12. `@Admin()` gates admin-only routes on `user.role`. The public surface is small and deliberate: `auth/status`, `auth/onboard`, `auth/login`, `auth/signup/:token`, two settings routes, and `public/tasks/:identifier/:number`.
 - **Per-board authorization is write-gating only** — the `Member` model (`admin`/`member`/`viewer`) is enforced for **writes**: board update/delete (`BoardsService.assertBoardAdmin`), labels create/update/delete, statuses create/update/reorder/delete, and member management (`MembersService`). Global admins (`user.role === 'admin'`) pass every board gate; a board with zero admin Member rows ("legacy board") allows all writes as a fallback. **Reads are not scoped** — any authenticated user can read any board, task, comment, or label. `viewer` role is stored but gives no read restriction.
 - **No ESLint config file** — lint scripts reference `eslint` but it's not installed in either app. `pnpm lint` will fail. CI does not run lint.
-- **The web build does NOT typecheck** — `@taskforge/web`'s `build` script is bare `vite build`, which only transpiles. A passing build proves nothing about types. Run `cd apps/web && npx tsc --noEmit` explicitly. Note it currently reports **7 pre-existing errors** — check the count hasn't grown rather than expecting zero.
+- **The web build does NOT typecheck** — `@taskforge/web`'s `build` script is bare `vite build`, which only transpiles. A passing build proves nothing about types. Run `cd apps/web && npx tsc --noEmit` explicitly. Note it currently reports **6 pre-existing errors** — check the count hasn't grown rather than expecting zero.
 - **Board identifiers must be exactly 3 uppercase letters** — enforced by a `Matches` rule in `CreateBoardDto`. `TF` is rejected; `TFG` is fine.
 - **CI gates releases** — `release.yml` triggers via `workflow_run` on `ci` success. A broken main push won't publish to Docker Hub.
 - **`packages/` directory doesn't exist yet** — the workspace config includes it, but nothing is there.
@@ -119,6 +119,14 @@ A task can be published to a read-only page reachable without a session. The mod
 - **Frontend**: `pages/public-task-page.tsx`, mounted in `app.tsx` _above_ `AuthProvider` (not exempted from inside it) so no redirect, `/auth/status` call, or `SidebarLayout` can touch it. It fetches through `hooks/public-api.ts`, never `hooks/api.ts` — the shared client clears the token and redirects to `/login` on any 401, which would log a signed-in colleague out just for opening a public link.
 - **Not indexed**: `index.html` carries `<meta name="robots" content="noindex, nofollow">` and `public/robots.txt` disallows everything. Enumeration takes intent; a search hit takes none.
 
+## Email (SMTP)
+
+Admins configure SMTP in Settings → Email; the fields live on the `Settings` singleton row (`smtpHost`, `smtpPort`, `smtpUsername`, `smtpPassword`, `smtpFromEmail`, `smtpFromName`, `smtpSecure`). The password is write-only — GET/PUT return a `smtpPasswordSet` boolean instead.
+
+- **Sending**: `MailerService` (`apps/api/src/mailer/`) builds a nodemailer transport per send (no cached connection) and throws `BadRequestException('SMTP is not configured')` when `smtpHost` is unset.
+- **Test send**: `POST /api/settings/test-email` (`@Admin`) validates the config and surfaces SMTP errors verbatim.
+- **Invites**: `POST /api/auth/invite` with `recipientEmail` generates the token, awaits the send, and persists the row only on success (no orphan tokens). The invite link origin is the `APP_ORIGIN` env (default `http://localhost:5173`) — **container deploys must set `APP_ORIGIN`**, or emailed invite links point at localhost.
+
 ## Saved views
 
 Users can persist a board's filter/group/sort/layout state as named views. The `View` row stores its creator in `userId` for both kinds; `isShared` picks the audience.
@@ -155,6 +163,8 @@ notify the mentioned user. Invariants:
   `storage.markdown.parse.updateDOM` (no markdown-it plugin, no atom node) and
   serialize back to plain `@Name` text. Mentions split across inline formatting
   marks are not detected (v1 limitation).
+
+- **SMTP password redaction**: `getFullSettings()`/`updateSettings()` never return the password — GET/PUT expose a `smtpPasswordSet` boolean. The real password flows only via `SettingsService.getSmtpConfig()` → `MailerService.send()`.
 
 ## Installable PWA
 
