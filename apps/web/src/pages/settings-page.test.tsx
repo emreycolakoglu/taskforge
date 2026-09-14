@@ -103,6 +103,18 @@ describe('SettingsPage Email tab', () => {
     const payload = mutate.mock.calls[0][0];
     expect('smtpPassword' in payload).toBe(false);
   });
+
+  it('sends an empty smtpPassword when Clear password is clicked', async () => {
+    const mutate = vi.fn();
+    mockUseUpdateSettings.mockReturnValue({ mutate, isPending: false } as never);
+    render(<SettingsPage />);
+    await userEvent.click(screen.getByRole('tab', { name: 'Email' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Clear password' }));
+    expect(screen.getByText('Password will be cleared on save')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    const payload = mutate.mock.calls[0][0];
+    expect(payload.smtpPassword).toBe('');
+  });
 });
 
 describe('SettingsPage Invites tab', () => {

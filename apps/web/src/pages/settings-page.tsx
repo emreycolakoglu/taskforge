@@ -398,9 +398,11 @@ function EmailTab() {
     smtpSecure: true,
   });
   const [testTo, setTestTo] = useState('');
+  const [clearPassword, setClearPassword] = useState(false);
 
   useEffect(() => {
     if (!settings) return;
+    setClearPassword(false);
     setForm({
       smtpHost: settings.smtpHost ?? '',
       smtpPort: settings.smtpPort?.toString() ?? '',
@@ -422,7 +424,8 @@ function EmailTab() {
       smtpFromName: form.smtpFromName || null,
       smtpSecure: form.smtpSecure,
     };
-    if (form.smtpPassword !== '') payload.smtpPassword = form.smtpPassword;
+    if (clearPassword) payload.smtpPassword = '';
+    else if (form.smtpPassword !== '') payload.smtpPassword = form.smtpPassword;
     return payload;
   };
 
@@ -481,14 +484,31 @@ function EmailTab() {
                 aria-label="Password"
                 type="password"
                 value={form.smtpPassword}
-                placeholder={settings?.smtpPasswordSet ? '••••••' : ''}
+                placeholder={settings?.smtpPasswordSet && !clearPassword ? '••••••' : ''}
                 onChange={(e) => setForm({ ...form, smtpPassword: e.target.value })}
+                disabled={clearPassword}
               />
               <p className="text-xs text-muted-foreground">
-                {settings?.smtpPasswordSet
-                  ? 'A password is set — leave blank to keep it.'
-                  : 'No password set.'}
+                {clearPassword
+                  ? 'Password will be cleared on save'
+                  : settings?.smtpPasswordSet
+                    ? 'A password is set — leave blank to keep it.'
+                    : 'No password set.'}
               </p>
+              {settings?.smtpPasswordSet && !clearPassword && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="self-start px-2 text-xs"
+                  onClick={() => {
+                    setClearPassword(true);
+                    setForm({ ...form, smtpPassword: '' });
+                  }}
+                >
+                  Clear password
+                </Button>
+              )}
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="smtp-from">From Email</Label>
