@@ -14,13 +14,7 @@ export interface Board {
 }
 
 export type StatusType =
-  | 'triage'
-  | 'backlog'
-  | 'todo'
-  | 'in_progress'
-  | 'done'
-  | 'cancelled'
-  | 'duplicate';
+  'triage' | 'backlog' | 'todo' | 'in_progress' | 'done' | 'cancelled' | 'duplicate';
 
 export interface Status {
   id: string;
