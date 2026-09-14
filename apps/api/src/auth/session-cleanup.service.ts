@@ -28,9 +28,18 @@ export class SessionCleanupService {
       where: { usedAt: { not: null } },
     });
 
+    const expiredResets = await this.prisma.passwordResetToken.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+
+    const usedResets = await this.prisma.passwordResetToken.deleteMany({
+      where: { usedAt: { not: null } },
+    });
+
     this.logger.log(
       `Cleaned up ${expired.count} expired sessions, ${revoked.count} old revoked sessions, ` +
-        `${expiredInvites.count} expired invites, ${usedInvites.count} used invites`,
+        `${expiredInvites.count} expired invites, ${usedInvites.count} used invites, ` +
+        `${expiredResets.count} expired resets, ${usedResets.count} used resets`,
     );
   }
 }

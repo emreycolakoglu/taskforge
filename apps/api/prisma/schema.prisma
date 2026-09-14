@@ -27,6 +27,7 @@ model User {
   subscriptions  TaskSubscription[]
   notifications  Notification[]
   views          View[]              @relation("ViewOwner")
+  passwordResets PasswordResetToken[] @relation("PasswordResets")
 
   @@map("users")
 }
@@ -80,6 +81,19 @@ model InviteToken {
   @@index([token])
   @@index([createdBy])
   @@map("invite_tokens")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  tokenHash String    @unique
+  userId    String
+  user      User      @relation("PasswordResets", fields: [userId], references: [id], onDelete: Cascade)
+  usedAt    DateTime?
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model Board {
