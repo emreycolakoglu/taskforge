@@ -32,6 +32,13 @@ export class SettingsService {
         id: 'singleton',
         title: 'TaskForge',
         onboarded: false,
+        smtpHost: null,
+        smtpPort: null,
+        smtpUsername: null,
+        smtpPassword: null,
+        smtpFromEmail: null,
+        smtpFromName: null,
+        smtpSecure: false,
         createdAt: null,
         updatedAt: null,
       };

@@ -3,6 +3,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { SettingsModule } from './settings/settings.module';
+import { MailerModule } from './mailer/mailer.module';
 import { BoardsModule } from './boards/boards.module';
 import { StatusesModule } from './statuses/statuses.module';
 import { TasksModule } from './tasks/tasks.module';
@@ -26,6 +27,7 @@ import { MembersModule } from './members/members.module';
     ScheduleModule.forRoot(),
     AuthModule,
     SettingsModule,
+    MailerModule,
     BoardsModule,
     StatusesModule,
     TasksModule,
