@@ -20,12 +20,14 @@ import { PublicModule } from './public/public.module';
 import { ViewsModule } from './views/views.module';
 
 import { MembersModule } from './members/members.module';
+import { AttachmentsModule } from './attachments/attachments.module';
 
 @Module({
   imports: [
     PrismaModule,
     ScheduleModule.forRoot(),
     AuthModule,
+    AttachmentsModule,
     SettingsModule,
     MailerModule,
     BoardsModule,

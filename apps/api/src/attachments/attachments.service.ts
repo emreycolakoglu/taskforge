@@ -255,6 +255,21 @@ export class AttachmentsService {
     );
   }
 
+  async findForDownload(id: string) {
+    const att = await this.prisma.attachment.findUnique({ where: { id } });
+    if (!att) throw new NotFoundException('Attachment not found');
+    return att;
+  }
+
+  async readBytes(id: string): Promise<Buffer> {
+    const att = await this.findForDownload(id);
+    try {
+      return await this.driver.get(att.storageKey);
+    } catch {
+      throw new NotFoundException('Attachment object missing');
+    }
+  }
+
   async removeBySubject(subjectType: SubjectType, subjectId: string) {
     const rows = await this.prisma.attachment.findMany({
       where: { subjectType, subjectId },
