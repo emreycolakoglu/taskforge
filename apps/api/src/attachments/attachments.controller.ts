@@ -1,5 +1,4 @@
 import {
-  Body,
   Controller,
   Delete,
   Get,
@@ -17,9 +16,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { Response, Request } from 'express';
 import { promises as fs } from 'fs';
 import * as os from 'os';
-import { join } from 'path';
 import { AttachmentsService, SubjectType } from './attachments.service';
-import { SUBJECT_TYPE_VALUES } from './dto/attachment.dto';
 
 interface AuthedUser {
   id: string;
@@ -28,6 +25,8 @@ interface AuthedUser {
 }
 
 const ABSOLUTE_MAX_BYTES = 100 * 1024 * 1024;
+
+const SUBJECT_TYPE_VALUES = ['task', 'comment', 'document'] as const;
 
 /**
  * subjectType routes must not collide with existing controllers: the only
@@ -55,12 +54,14 @@ export class AttachmentsController {
     @UploadedFile() file: Express.Multer.File,
     @Req() req: Request,
   ) {
-    assertValidSubject(subjectType);
     if (!file) {
       throw new BadRequestException('Missing file field');
     }
     const user = (req as any).user as AuthedUser | undefined;
     try {
+      // First statement inside the try so an unknown-subject 404 still runs
+      // the finally block below and deletes the temp file Multer staged.
+      assertValidSubject(subjectType);
       return await this.service.create({
         subjectType: subjectType as any,
         subjectId,
@@ -82,6 +83,22 @@ export class AttachmentsController {
     return this.service.list(subjectType as any, subjectId);
   }
 
+  // Must stay above @Get('attachments/:id'): routes register in declaration
+  // order, and Express answers HEAD with the GET handler when no HEAD route
+  // matched first — which would make this handler dead code.
+  @Head('attachments/:id')
+  async head(@Param('id') id: string, @Res() res: Response) {
+    const att = await this.service.findForDownload(id);
+    res.setHeader('Content-Type', att.mimeType);
+    res.setHeader('Content-Length', String(att.sizeBytes));
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename*=UTF-8''${encodeURIComponent(att.filename)}`,
+    );
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.end();
+  }
+
   @Get('attachments/:id')
   async download(@Param('id') id: string, @Res() res: Response) {
     const att = await this.service.findForDownload(id);
@@ -94,19 +111,6 @@ export class AttachmentsController {
     );
     res.setHeader('Cache-Control', 'private, no-store');
     res.send(buf);
-  }
-
-  @Head('attachments/:id')
-  async head(@Param('id') id: string, @Res() res: Response) {
-    const att = await this.service.findForDownload(id);
-    res.setHeader('Content-Type', att.mimeType);
-    res.setHeader('Content-Length', String(att.sizeBytes));
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename*=UTF-8''${encodeURIComponent(att.filename)}`,
-    );
-    res.setHeader('Cache-Control', 'private, no-store');
-    res.end();
   }
 
   @Delete('attachments/:id')
