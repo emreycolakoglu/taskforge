@@ -108,16 +108,21 @@ export class SettingsService {
   /**
    * Password semantics: absent = keep, '' = clear, non-empty = set.
    * Other smtp fields: absent = unchanged, null = clear.
+   * Attachment fields: null/undefined = unchanged; clearing is not supported
+   * (schema defaults apply at creation, and null would break the update).
    */
   async updateSettings(data: UpdateSettingsDto) {
     const settings = await this.prisma.settings.findUnique({ where: { id: 'singleton' } });
     if (!settings) {
       throw new ConflictException('Settings not initialized');
     }
-    const { smtpPassword, allowedMimeTypes, ...rest } = data;
+    const { smtpPassword, allowedMimeTypes, maxFileSizeMb, ...rest } = data;
     const dbData: Prisma.SettingsUpdateInput = { ...rest };
-    if (data.maxFileSizeMb != null && data.maxFileSizeMb < 1) {
+    if (maxFileSizeMb != null && maxFileSizeMb < 1) {
       throw new BadRequestException('maxFileSizeMb must be at least 1');
+    }
+    if (maxFileSizeMb != null) {
+      dbData.maxFileSizeMb = maxFileSizeMb;
     }
     if (allowedMimeTypes != null) {
       if (allowedMimeTypes.length === 0) {

@@ -208,10 +208,12 @@ describe('SettingsService', () => {
     });
 
     it('getFullSettings falls back to defaults when no settings row exists', async () => {
+      await prisma.settings.deleteMany();
       const s = await service.getFullSettings();
       expect(s.maxFileSizeMb).toBe(10);
       expect(s.allowedMimeTypes).toEqual(DEFAULT_ALLOWED_MIME_TYPES);
       expect(s.smtpPasswordSet).toBe(false);
+      expect(s.onboarded).toBe(false);
     });
 
     it('updateSettings preserves existing attachment fields not in the payload', async () => {
