@@ -1,10 +1,17 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+  Optional,
+  Inject,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { RelationsService } from '../relations/relations.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MentionsService } from '../mentions/mentions.service';
+import { AttachmentsService, hydrateAttachments } from '../attachments/attachments.service';
 import { isTerminalType, stampsDoneAt } from '../statuses/status-types';
 import { CreateTaskDto, UpdateTaskDto, MoveTaskDto, ReorderTasksDto } from './dto/task.dto';
 
@@ -90,6 +97,9 @@ export class TasksService {
     private subscriptions: SubscriptionsService,
     private notifications: NotificationsService,
     private mentions: MentionsService,
+    // Optional: MCP spec harnesses construct TasksService's siblings without an
+    // attachments provider; production always resolves it via AttachmentsModule.
+    @Optional() private attachments?: AttachmentsService,
   ) {}
 
   async findByBoard(
@@ -117,7 +127,7 @@ export class TasksService {
       },
       orderBy: { position: 'asc' },
     });
-    return tasks.map(withTaskNumber);
+    return hydrateAttachments(this.prisma, tasks.map(withTaskNumber), 'task');
   }
 
   async findByStatus(
@@ -143,7 +153,7 @@ export class TasksService {
       },
       orderBy: { position: 'asc' },
     });
-    return tasks.map(withTaskNumber);
+    return hydrateAttachments(this.prisma, tasks.map(withTaskNumber), 'task');
   }
 
   async search(query: string, assigneeId?: string) {
@@ -223,7 +233,12 @@ export class TasksService {
       ...task,
       subTasks: (task.subTasks ?? []).map(withTaskNumber),
     };
-    return withTaskNumber(withSubNumbers);
+    const [hydrated] = await hydrateAttachments(
+      this.prisma,
+      [withTaskNumber(withSubNumbers)],
+      'task',
+    );
+    return hydrated;
   }
 
   async create(dto: CreateTaskDto, user?: { id: string; displayName: string }) {
@@ -567,6 +582,9 @@ export class TasksService {
     // Relation cleanup: hard-delete relation rows touching this task, emit
     // relation:deleted per row. (Sub-task orphan promotion handled above.)
     await this.relations.cleanupForTask(id);
+
+    // Attachment cascade: rows + storage objects for this subject.
+    await this.attachments?.removeBySubject('task', id);
 
     await this.prisma.task.delete({ where: { id } });
 

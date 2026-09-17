@@ -1,14 +1,23 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { DocumentsService } from './documents.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { AttachmentsService } from '../attachments/attachments.service';
+import { MembersService } from '../members/members.service';
+import { LocalDiskDriver } from '../storage/local-disk.driver';
 import { createTestPrisma, seedBoard, seedTask, seedDocument, seedUser } from '../../test/setup';
 
 describe('DocumentsService', () => {
   let service: DocumentsService;
   let prisma: PrismaService;
   let events: EventsService;
+  let attachments: AttachmentsService;
+  let driver: LocalDiskDriver;
+  let storageRoot: string;
   let board: any;
   let task: any;
   let user: { id: string; displayName: string };
@@ -16,17 +25,25 @@ describe('DocumentsService', () => {
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     events = new EventsService();
+    storageRoot = mkdtempSync(join(tmpdir(), 'tf-doc-att-'));
+    driver = new LocalDiskDriver(storageRoot);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DocumentsService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
+        {
+          provide: AttachmentsService,
+          useValue: new AttachmentsService(prisma, events, new MembersService(prisma), driver),
+        },
       ],
     }).compile();
     service = module.get<DocumentsService>(DocumentsService);
+    attachments = module.get<AttachmentsService>(AttachmentsService);
   });
 
   afterAll(async () => {
+    rmSync(storageRoot, { recursive: true, force: true });
     await prisma.$disconnect();
   });
 
@@ -38,6 +55,7 @@ describe('DocumentsService', () => {
   });
 
   afterEach(async () => {
+    await prisma.attachment.deleteMany();
     await prisma.notification.deleteMany();
     await prisma.taskSubscription.deleteMany();
     await prisma.taskRelation.deleteMany();
@@ -145,6 +163,33 @@ describe('DocumentsService', () => {
         where: { taskId: task.id, action: 'doc_deleted' },
       });
       expect(activity).toBeDefined();
+    });
+
+    it('removes attachment rows and storage objects on document delete', async () => {
+      const doc = await seedDocument(prisma, task.id);
+      const staged = join(tmpdir(), `tf-doc-del-${Date.now()}.txt`);
+      writeFileSync(staged, 'payload');
+      await attachments.create({
+        subjectType: 'document',
+        subjectId: doc.id,
+        filename: 'notes.txt',
+        mimeType: 'text/plain',
+        tempPath: staged,
+        user: { id: user.id, displayName: user.displayName, role: 'member' },
+      });
+      const stored = await prisma.attachment.findFirst({
+        where: { subjectType: 'document', subjectId: doc.id },
+      });
+      const storageKey = stored!.storageKey;
+      expect(await driver.stat(storageKey)).not.toBeNull();
+
+      await service.remove(doc.id, user);
+
+      const rows = await prisma.attachment.findMany({
+        where: { subjectType: 'document', subjectId: doc.id },
+      });
+      expect(rows).toHaveLength(0);
+      expect(await driver.stat(storageKey)).toBeNull();
     });
   });
 

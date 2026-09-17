@@ -23,6 +23,54 @@ export type SubjectType = 'task' | 'comment' | 'document';
 
 export const SUBJECT_TYPES: SubjectType[] = ['task', 'comment', 'document'];
 
+/** Attachment metadata shape used in task/comment/document payloads. */
+export interface AttachmentMeta {
+  id: string;
+  subjectType: string;
+  subjectId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploaderId: string | null;
+  createdAt: Date;
+}
+
+/**
+ * Attach attachment metadata to payload rows.
+ *
+ * The Attachment model links subjects by (subjectType, subjectId) strings —
+ * there is no typed relation, so Prisma includes cannot cross it. Instead the
+ * metadata is fetched in one query over all subject ids and grouped here.
+ */
+export async function hydrateAttachments<T extends { id: string }>(
+  prisma: PrismaService,
+  rows: T[],
+  subjectType: SubjectType,
+): Promise<(T & { attachments: AttachmentMeta[] })[]> {
+  if (rows.length === 0) return [];
+  const metas: AttachmentMeta[] = await prisma.attachment.findMany({
+    where: { subjectType, subjectId: { in: rows.map((r) => r.id) } },
+    orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+    select: {
+      id: true,
+      subjectType: true,
+      subjectId: true,
+      filename: true,
+      mimeType: true,
+      sizeBytes: true,
+      uploaderId: true,
+      createdAt: true,
+    },
+  });
+  const bySubject = new Map<string, AttachmentMeta[]>();
+  for (const m of metas) {
+    const list = bySubject.get(m.subjectId);
+    if (list) list.push(m);
+    else bySubject.set(m.subjectId, [m]);
+  }
+  return rows.map((r) => ({ ...r, attachments: bySubject.get(r.id) ?? [] }));
+}
+
 /** Max decoded payload accepted over MCP (base64 field). */
 export const MCP_MAX_BYTES = 1024 * 1024;
 

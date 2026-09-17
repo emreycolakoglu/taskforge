@@ -6,6 +6,7 @@ import { RelationsModule } from '../relations/relations.module';
 import { SubscriptionsModule } from '../subscriptions/subscriptions.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { MentionsModule } from '../mentions/mentions.module';
+import { AttachmentsModule } from '../attachments/attachments.module';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { MentionsModule } from '../mentions/mentions.module';
     SubscriptionsModule,
     NotificationsModule,
     MentionsModule,
+    AttachmentsModule,
   ],
   controllers: [TasksController],
   providers: [TasksService],

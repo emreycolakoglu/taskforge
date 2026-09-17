@@ -3,11 +3,13 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
+  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MentionsService } from '../mentions/mentions.service';
+import { AttachmentsService, hydrateAttachments } from '../attachments/attachments.service';
 import { CreateCommentDto } from './dto/comment.dto';
 import { groupReactions, isValidReaction, toggleCommentReaction } from './reactions';
 
@@ -18,6 +20,9 @@ export class CommentsService {
     private events: EventsService,
     private notifications: NotificationsService,
     private mentions: MentionsService,
+    // Optional: MCP spec harnesses construct CommentsService without an
+    // attachments provider; production always resolves it via AttachmentsModule.
+    @Optional() private attachments?: AttachmentsService,
   ) {}
 
   /**
@@ -34,24 +39,18 @@ export class CommentsService {
         reactions: { select: { userId: true, emoji: true } },
       },
     });
+    const hydrated = await hydrateAttachments(this.prisma, comments, 'comment');
 
-    const byId = new Map<
-      string,
-      Omit<(typeof comments)[number], 'reactions'> & {
-        reactions: ReturnType<typeof groupReactions>;
-        replies: any[];
-      }
-    >();
-    for (const c of comments) {
+    type Node = Omit<(typeof hydrated)[number], 'reactions'> & {
+      reactions: ReturnType<typeof groupReactions>;
+      replies: any[];
+    };
+    const byId = new Map<string, Node>();
+    for (const c of hydrated) {
       byId.set(c.id, { ...c, reactions: groupReactions(c.reactions), replies: [] });
     }
 
-    const roots: Array<
-      Omit<(typeof comments)[number], 'reactions'> & {
-        reactions: ReturnType<typeof groupReactions>;
-        replies: any[];
-      }
-    > = [];
+    const roots: Node[] = [];
     for (const node of byId.values()) {
       const parent = node.parentId ? byId.get(node.parentId) : undefined;
       if (parent) parent.replies.push(node);
@@ -137,6 +136,10 @@ export class CommentsService {
     } else {
       await this.prisma.comment.delete({ where: { id } });
     }
+
+    // Cascade in BOTH branches: a tombstoned comment is content-blanked, so
+    // its attachments are orphans either way.
+    await this.attachments?.removeBySubject('comment', id);
 
     // Activity log — content not logged, just the action
     await this.prisma.activity.create({

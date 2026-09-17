@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Optional } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { AttachmentsService, hydrateAttachments } from '../attachments/attachments.service';
 import { CreateDocumentDto, UpdateDocumentDto } from './dto/document.dto';
 
 export function withDocNumber(doc: any): any {
@@ -16,6 +17,9 @@ export class DocumentsService {
   constructor(
     private prisma: PrismaService,
     private events: EventsService,
+    // Optional: MCP spec harnesses construct DocumentsService without an
+    // attachments provider; production always resolves it via AttachmentsModule.
+    @Optional() private attachments?: AttachmentsService,
   ) {}
 
   private actorInfo(user?: { id: string; displayName: string }) {
@@ -31,9 +35,10 @@ export class DocumentsService {
       },
       orderBy: { updatedAt: 'desc' },
     });
-    return docs.map(({ body, ...d }) =>
+    const stripped = docs.map(({ body, ...d }) =>
       withDocNumber({ ...d, taskNumber: `${d.board?.identifier ?? ''}-${d.task?.number}` }),
     );
+    return hydrateAttachments(this.prisma, stripped, 'document');
   }
 
   async findByTask(taskId: string) {
@@ -45,7 +50,8 @@ export class DocumentsService {
       },
       orderBy: { createdAt: 'desc' },
     });
-    return docs.map(({ body, ...d }) => withDocNumber(d));
+    const stripped = docs.map(({ body, ...d }) => withDocNumber(d));
+    return hydrateAttachments(this.prisma, stripped, 'document');
   }
 
   async findOne(id: string) {
@@ -57,12 +63,14 @@ export class DocumentsService {
       },
     });
     if (!doc) throw new NotFoundException('Document not found');
-    return withDocNumber({
+    const shaped = withDocNumber({
       ...doc,
       boardIdentifier: doc.board.identifier,
       taskNumber: `${doc.board.identifier}-${doc.task.number}`,
       taskTitle: doc.task.title,
     });
+    const [hydrated] = await hydrateAttachments(this.prisma, [shaped], 'document');
+    return hydrated;
   }
 
   async create(taskId: string, dto: CreateDocumentDto, user?: { id: string; displayName: string }) {
@@ -144,6 +152,7 @@ export class DocumentsService {
     const { actorId, actor } = this.actorInfo(user);
 
     await this.prisma.document.delete({ where: { id } });
+    await this.attachments?.removeBySubject('document', id);
 
     await this.prisma.activity.create({
       data: {

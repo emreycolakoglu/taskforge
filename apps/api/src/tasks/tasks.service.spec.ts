@@ -1,4 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { TasksService } from './tasks.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
@@ -6,13 +9,26 @@ import { RelationsService } from '../relations/relations.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MentionsService } from '../mentions/mentions.service';
-import { createTestPrisma, seedBoard, seedTask, seedLabel, seedUser } from '../../test/setup';
+import { AttachmentsService } from '../attachments/attachments.service';
+import { MembersService } from '../members/members.service';
+import { LocalDiskDriver } from '../storage/local-disk.driver';
+import {
+  createTestPrisma,
+  seedBoard,
+  seedTask,
+  seedLabel,
+  seedUser,
+  seedAttachment,
+} from '../../test/setup';
 
 describe('TasksService', () => {
   let service: TasksService;
   let prisma: PrismaService;
   let events: EventsService;
   let relations: RelationsService;
+  let attachments: AttachmentsService;
+  let driver: LocalDiskDriver;
+  let storageRoot: string;
   let board: any;
   let user: { id: string; displayName: string };
 
@@ -20,6 +36,8 @@ describe('TasksService', () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     events = new EventsService();
     relations = new RelationsService(prisma, events);
+    storageRoot = mkdtempSync(join(tmpdir(), 'tf-task-att-'));
+    driver = new LocalDiskDriver(storageRoot);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TasksService,
@@ -32,12 +50,18 @@ describe('TasksService', () => {
           provide: MentionsService,
           useValue: new MentionsService(prisma, new NotificationsService(prisma, events)),
         },
+        {
+          provide: AttachmentsService,
+          useValue: new AttachmentsService(prisma, events, new MembersService(prisma), driver),
+        },
       ],
     }).compile();
     service = module.get<TasksService>(TasksService);
+    attachments = module.get<AttachmentsService>(AttachmentsService);
   });
 
   afterAll(async () => {
+    rmSync(storageRoot, { recursive: true, force: true });
     await prisma.$disconnect();
   });
 
@@ -48,6 +72,7 @@ describe('TasksService', () => {
   });
 
   afterEach(async () => {
+    await prisma.attachment.deleteMany();
     await prisma.notification.deleteMany();
     await prisma.taskSubscription.deleteMany();
     await prisma.taskRelation.deleteMany();
@@ -496,6 +521,33 @@ describe('TasksService', () => {
       const seeded = await seedTask(prisma, board.statuses[0].id);
       await service.remove(seeded.id, user);
       await expect(prisma.task.findUnique({ where: { id: seeded.id } })).resolves.toBeNull();
+    });
+
+    it('removes attachment rows and storage objects on task delete', async () => {
+      const seeded = await seedTask(prisma, board.statuses[0].id);
+      const staged = join(tmpdir(), `tf-task-del-${Date.now()}.txt`);
+      writeFileSync(staged, 'payload');
+      await attachments.create({
+        subjectType: 'task',
+        subjectId: seeded.id,
+        filename: 'notes.txt',
+        mimeType: 'text/plain',
+        tempPath: staged,
+        user: { id: user.id, displayName: user.displayName, role: 'member' },
+      });
+      const stored = await prisma.attachment.findFirst({
+        where: { subjectType: 'task', subjectId: seeded.id },
+      });
+      const storageKey = stored!.storageKey;
+      expect(await driver.stat(storageKey)).not.toBeNull();
+
+      await service.remove(seeded.id, user);
+
+      const rows = await prisma.attachment.findMany({
+        where: { subjectType: 'task', subjectId: seeded.id },
+      });
+      expect(rows).toHaveLength(0);
+      expect(await driver.stat(storageKey)).toBeNull();
     });
   });
 
