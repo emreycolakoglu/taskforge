@@ -3,7 +3,7 @@ import { SettingsService } from './settings.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { MailerService } from '../mailer/mailer.service';
 import { createTestPrisma } from '../../test/setup';
-import { ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 
 describe('SettingsService', () => {
   let service: SettingsService;
@@ -165,6 +165,45 @@ describe('SettingsService', () => {
         smtpSecure: false,
         smtpPasswordSet: false,
       });
+    });
+  });
+
+  describe('attachment settings', () => {
+    beforeEach(async () => {
+      await prisma.settings.create({ data: { id: 'singleton', title: 'T', onboarded: true } });
+    });
+
+    it('getFullSettings defaults maxFileSizeMb=10 and full allowlist', async () => {
+      const s = await service.getFullSettings();
+      expect(s.maxFileSizeMb).toBe(10);
+      expect(s.allowedMimeTypes).toContain('image/png');
+      expect(s.allowedMimeTypes).toContain('application/pdf');
+      expect(s.allowedMimeTypes).not.toContain('image/svg+xml');
+    });
+
+    it('PATCH round-trips both fields', async () => {
+      const s = await service.updateSettings({
+        maxFileSizeMb: 25,
+        allowedMimeTypes: ['text/plain'],
+      });
+      expect(s.maxFileSizeMb).toBe(25);
+      expect(s.allowedMimeTypes).toEqual(['text/plain']);
+    });
+
+    it('rejects maxFileSizeMb < 1', async () => {
+      await expect(service.updateSettings({ maxFileSizeMb: 0 } as any)).rejects.toThrow();
+    });
+
+    it('rejects empty allowlist', async () => {
+      await expect(service.updateSettings({ allowedMimeTypes: [] } as any)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('rejects malformed MIME entries', async () => {
+      await expect(
+        service.updateSettings({ allowedMimeTypes: ['not-a-mime'] } as any),
+      ).rejects.toThrow(BadRequestException);
     });
   });
 });

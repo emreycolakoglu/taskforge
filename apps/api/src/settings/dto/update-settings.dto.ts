@@ -1,4 +1,15 @@
-import { IsString, IsOptional, IsInt, IsBoolean, IsEmail, Min, Max } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsInt,
+  IsBoolean,
+  IsEmail,
+  IsArray,
+  ArrayNotEmpty,
+  Matches,
+  Min,
+  Max,
+} from 'class-validator';
 
 export class UpdateSettingsDto {
   @IsOptional()
@@ -34,4 +45,15 @@ export class UpdateSettingsDto {
   @IsOptional()
   @IsBoolean()
   smtpSecure?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  maxFileSizeMb?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @Matches(/^[a-z]+\/[a-z0-9.+-]+$/i, { each: true })
+  allowedMimeTypes?: string[];
 }

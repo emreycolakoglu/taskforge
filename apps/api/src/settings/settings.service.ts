@@ -1,6 +1,7 @@
-import { Injectable, ConflictException } from '@nestjs/common';
+import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { DEFAULT_ALLOWED_MIME_TYPES } from '../storage/storage.types';
 import { UpdateSettingsDto } from './dto/update-settings.dto';
 
 @Injectable()
@@ -45,12 +46,21 @@ export class SettingsService {
         smtpFromEmail: null,
         smtpFromName: 'TaskForge',
         smtpSecure: true,
+        maxFileSizeMb: 10,
+        allowedMimeTypes: DEFAULT_ALLOWED_MIME_TYPES,
         createdAt: null,
         updatedAt: null,
       };
     }
     const { smtpPassword, ...rest } = settings;
-    return { ...rest, smtpPasswordSet: !!smtpPassword };
+    return {
+      ...rest,
+      smtpPasswordSet: !!smtpPassword,
+      maxFileSizeMb: settings.maxFileSizeMb ?? 10,
+      allowedMimeTypes: settings.allowedMimeTypes
+        ? JSON.parse(settings.allowedMimeTypes)
+        : DEFAULT_ALLOWED_MIME_TYPES,
+    };
   }
 
   /**
@@ -104,8 +114,23 @@ export class SettingsService {
     if (!settings) {
       throw new ConflictException('Settings not initialized');
     }
-    const { smtpPassword, ...rest } = data;
+    const { smtpPassword, allowedMimeTypes, ...rest } = data;
     const dbData: Prisma.SettingsUpdateInput = { ...rest };
+    if (allowedMimeTypes !== undefined) {
+      dbData.allowedMimeTypes = JSON.stringify(allowedMimeTypes);
+    }
+    if (data.maxFileSizeMb !== undefined && data.maxFileSizeMb < 1) {
+      throw new BadRequestException('maxFileSizeMb must be at least 1');
+    }
+    if (allowedMimeTypes !== undefined) {
+      if (allowedMimeTypes.length === 0) {
+        throw new BadRequestException('allowedMimeTypes must not be empty');
+      }
+      const mimePattern = /^[a-z]+\/[a-z0-9.+-]+$/i;
+      if (allowedMimeTypes.some((mime) => !mimePattern.test(mime))) {
+        throw new BadRequestException('allowedMimeTypes contains invalid MIME types');
+      }
+    }
     if (rest.smtpFromName === null) {
       dbData.smtpFromName = '';
     }
