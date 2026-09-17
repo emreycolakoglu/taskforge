@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { AttachmentsService, hydrateAttachments } from '../attachments/attachments.service';
@@ -17,9 +17,7 @@ export class DocumentsService {
   constructor(
     private prisma: PrismaService,
     private events: EventsService,
-    // Optional: MCP spec harnesses construct DocumentsService without an
-    // attachments provider; production always resolves it via AttachmentsModule.
-    @Optional() private attachments?: AttachmentsService,
+    private attachments: AttachmentsService,
   ) {}
 
   private actorInfo(user?: { id: string; displayName: string }) {

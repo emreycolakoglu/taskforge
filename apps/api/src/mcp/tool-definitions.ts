@@ -481,6 +481,47 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     description: 'Delete a document.',
     inputSchema: { id: idField('Document') },
   },
+
+  // attachments
+  {
+    name: 'attachments_list',
+    title: 'List attachments',
+    description: 'List file attachments on a task, comment, or document.',
+    inputSchema: {
+      subjectType: z.enum(['task', 'comment', 'document']),
+      subjectId: idField('Subject'),
+    },
+  },
+  {
+    name: 'attachments_get_meta',
+    title: 'Get attachment metadata',
+    description: 'Get attachment metadata (no file bytes).',
+    inputSchema: {
+      id: idField('Attachment'),
+    },
+  },
+  {
+    name: 'attachments_upload',
+    title: 'Upload attachment',
+    description:
+      'Upload a file to a task, comment, or document. base64Content decoded payload must be ≤ 1 MiB. Returns attachment metadata.',
+    inputSchema: {
+      subjectType: z.enum(['task', 'comment', 'document']),
+      subjectId: idField('Subject'),
+      filename: z.string(),
+      mimeType: z.string(),
+      base64Content: z.string(),
+    },
+  },
+  {
+    name: 'attachments_delete',
+    title: 'Delete attachment',
+    description:
+      'Delete an attachment (row + stored object). Uploader, board admin, or global admin only.',
+    inputSchema: {
+      id: idField('Attachment'),
+    },
+  },
 ];
 
 export const TOOL_NAMES = TOOL_DEFINITIONS.map((t) => t.name);

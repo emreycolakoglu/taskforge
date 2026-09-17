@@ -1,10 +1,4 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-  Optional,
-  Inject,
-} from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { RelationsService } from '../relations/relations.service';
@@ -97,9 +91,7 @@ export class TasksService {
     private subscriptions: SubscriptionsService,
     private notifications: NotificationsService,
     private mentions: MentionsService,
-    // Optional: MCP spec harnesses construct TasksService's siblings without an
-    // attachments provider; production always resolves it via AttachmentsModule.
-    @Optional() private attachments?: AttachmentsService,
+    private attachments: AttachmentsService,
   ) {}
 
   async findByBoard(

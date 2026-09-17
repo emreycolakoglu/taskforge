@@ -13,6 +13,7 @@ import { MembersModule } from '../members/members.module';
 import { LabelsModule } from '../labels/labels.module';
 import { StatusesModule } from '../statuses/statuses.module';
 import { ViewsModule } from '../views/views.module';
+import { AttachmentsModule } from '../attachments/attachments.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { ViewsModule } from '../views/views.module';
     LabelsModule,
     StatusesModule,
     ViewsModule,
+    AttachmentsModule,
   ],
   controllers: [McpTransportController],
   providers: [McpService, McpServerFactory],

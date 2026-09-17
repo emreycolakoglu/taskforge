@@ -1,4 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { McpService } from './mcp.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
@@ -12,6 +15,8 @@ import { MembersService } from '../members/members.service';
 import { LabelsService } from '../labels/labels.service';
 import { StatusesService } from '../statuses/statuses.service';
 import { ViewsService } from '../views/views.service';
+import { AttachmentsService } from '../attachments/attachments.service';
+import { LocalDiskDriver } from '../storage/local-disk.driver';
 import {
   createTestPrisma,
   seedBoard,
@@ -22,6 +27,7 @@ import {
   seedRelation,
   seedDocument,
   seedView,
+  seedAttachment,
 } from '../../test/setup';
 
 describe('McpService', () => {
@@ -30,10 +36,12 @@ describe('McpService', () => {
   let events: EventsService;
   let board: any;
   let user: any;
+  let storageRoot: string;
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     events = new EventsService();
+    storageRoot = mkdtempSync(join(tmpdir(), 'tf-mcp-'));
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         McpService,
@@ -48,13 +56,35 @@ describe('McpService', () => {
         { provide: EventsService, useValue: events },
         { provide: SubscriptionsService, useValue: new SubscriptionsService(prisma) },
         { provide: NotificationsService, useValue: new NotificationsService(prisma, events) },
-        { provide: DocumentsService, useValue: new DocumentsService(prisma, events) },
+        {
+          provide: AttachmentsService,
+          useValue: new AttachmentsService(
+            prisma,
+            events,
+            new MembersService(prisma),
+            new LocalDiskDriver(storageRoot),
+          ),
+        },
+        {
+          provide: DocumentsService,
+          useValue: new DocumentsService(
+            prisma,
+            events,
+            new AttachmentsService(
+              prisma,
+              events,
+              new MembersService(prisma),
+              new LocalDiskDriver(storageRoot),
+            ),
+          ),
+        },
       ],
     }).compile();
     service = module.get<McpService>(McpService);
   });
 
   afterAll(async () => {
+    rmSync(storageRoot, { recursive: true, force: true });
     await prisma.$disconnect();
   });
 
@@ -66,6 +96,7 @@ describe('McpService', () => {
   });
 
   afterEach(async () => {
+    await prisma.attachment.deleteMany();
     await prisma.notification.deleteMany();
     await prisma.taskSubscription.deleteMany();
     await prisma.taskRelation.deleteMany();
@@ -1583,6 +1614,118 @@ describe('McpService', () => {
         user,
       );
       expect(res.result.deleted).toBe(true);
+    });
+  });
+
+  // ─── Attachments (MCP parity) ─────────────────────────────────────────────
+
+  describe('attachments_*', () => {
+    it('uploads via base64 and lists metadata', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const b64 = Buffer.from('mcp-upload').toString('base64');
+      const up = await service.handleRequest(
+        {
+          method: 'attachments_upload',
+          params: {
+            subjectType: 'task',
+            subjectId: task.id,
+            filename: 'm.txt',
+            mimeType: 'text/plain',
+            base64Content: b64,
+          },
+          id: 1,
+        },
+        user,
+      );
+      expect(up.error).toBeUndefined();
+      expect(up.result.filename).toBe('m.txt');
+      const list = await service.handleRequest(
+        { method: 'attachments_list', params: { subjectType: 'task', subjectId: task.id }, id: 2 },
+        user,
+      );
+      expect(list.result).toHaveLength(1);
+      expect(list.result[0].storageKey).toBeUndefined();
+    });
+
+    it('rejects payloads over 1 MiB', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const big = Buffer.alloc(1024 * 1024 + 1, 7).toString('base64');
+      const res = await service.handleRequest(
+        {
+          method: 'attachments_upload',
+          params: {
+            subjectType: 'task',
+            subjectId: task.id,
+            filename: 'big.bin',
+            mimeType: 'application/zip',
+            base64Content: big,
+          },
+          id: 3,
+        },
+        user,
+      );
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toMatch(/1 MiB/i);
+    });
+
+    it('rejects invalid base64', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const res = await service.handleRequest(
+        {
+          method: 'attachments_upload',
+          params: {
+            subjectType: 'task',
+            subjectId: task.id,
+            filename: 'x.txt',
+            mimeType: 'text/plain',
+            base64Content: '!!!!',
+          },
+          id: 4,
+        },
+        user,
+      );
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toMatch(/base64/i);
+    });
+
+    it('get_meta returns metadata without storageKey', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const att = await seedAttachment(prisma, 'task', task.id);
+      const res = await service.handleRequest(
+        { method: 'attachments_get_meta', params: { id: att.id }, id: 5 },
+        user,
+      );
+      expect(res.result.id).toBe(att.id);
+      expect(res.result.storageKey).toBeUndefined();
+    });
+
+    it('deletes with permission', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const att = await seedAttachment(prisma, 'task', task.id, { uploaderId: user.id });
+      const res = await service.handleRequest(
+        { method: 'attachments_delete', params: { id: att.id }, id: 6 },
+        user,
+      );
+      expect(res.result.success).toBe(true);
+      expect(await prisma.attachment.findUnique({ where: { id: att.id } })).toBeNull();
+    });
+
+    it('rejects upload without an authenticated user', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const b64 = Buffer.from('anon').toString('base64');
+      const res = await service.handleRequest({
+        method: 'attachments_upload',
+        params: {
+          subjectType: 'task',
+          subjectId: task.id,
+          filename: 'anon.txt',
+          mimeType: 'text/plain',
+          base64Content: b64,
+        },
+        id: 7,
+      });
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('Authentication required');
     });
   });
 });

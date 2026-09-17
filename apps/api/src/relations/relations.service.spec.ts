@@ -1,5 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException, NotFoundException, ConflictException } from '@nestjs/common';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { RelationsService } from './relations.service';
 import { TasksService } from '../tasks/tasks.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -7,6 +10,9 @@ import { EventsService } from '../events/events.service';
 import { SubscriptionsService } from '../subscriptions/subscriptions.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { MentionsService } from '../mentions/mentions.service';
+import { AttachmentsService } from '../attachments/attachments.service';
+import { MembersService } from '../members/members.service';
+import { LocalDiskDriver } from '../storage/local-disk.driver';
 import { createTestPrisma, seedBoard, seedTask, seedRelation } from '../../test/setup';
 
 describe('RelationsService', () => {
@@ -16,10 +22,12 @@ describe('RelationsService', () => {
   let events: EventsService;
   let board: any;
   let tA: any, tB: any, tC: any;
+  let storageRoot: string;
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     events = new EventsService();
+    storageRoot = mkdtempSync(join(tmpdir(), 'tf-rel-att-'));
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         RelationsService,
@@ -32,6 +40,15 @@ describe('RelationsService', () => {
           provide: MentionsService,
           useValue: new MentionsService(prisma, new NotificationsService(prisma, events)),
         },
+        {
+          provide: AttachmentsService,
+          useValue: new AttachmentsService(
+            prisma,
+            events,
+            new MembersService(prisma),
+            new LocalDiskDriver(storageRoot),
+          ),
+        },
       ],
     }).compile();
     service = module.get<RelationsService>(RelationsService);
@@ -39,6 +56,7 @@ describe('RelationsService', () => {
   });
 
   afterAll(async () => {
+    rmSync(storageRoot, { recursive: true, force: true });
     await prisma.$disconnect();
   });
 
@@ -54,6 +72,7 @@ describe('RelationsService', () => {
 
   afterEach(async () => {
     // reverse dependency order: relations before tasks
+    await prisma.attachment.deleteMany();
     await prisma.notification.deleteMany();
     await prisma.taskSubscription.deleteMany();
     await prisma.taskRelation.deleteMany();

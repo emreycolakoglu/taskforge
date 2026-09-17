@@ -14,7 +14,12 @@ import { MembersService } from '../members/members.service';
 import { LabelsService } from '../labels/labels.service';
 import { StatusesService } from '../statuses/statuses.service';
 import { ViewsService } from '../views/views.service';
+import { AttachmentsService } from '../attachments/attachments.service';
+import { LocalDiskDriver } from '../storage/local-disk.driver';
 import { PrismaService } from '../prisma/prisma.service';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { createTestPrisma, seedUser, seedBoard } from '../../test/setup';
 
 interface HttpResponse {
@@ -139,6 +144,7 @@ describe('McpTransportController', () => {
   let controller: McpTransportController;
   let user: any;
   let board: any;
+  let storageRoot: string;
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
@@ -146,24 +152,33 @@ describe('McpTransportController', () => {
     const relations = new RelationsService(prisma as any, events);
     const subscriptions = new SubscriptionsService(prisma as any);
     const notifications = new NotificationsService(prisma as any, events);
+    storageRoot = mkdtempSync(join(tmpdir(), 'tf-mcp-transport-'));
+    const attachments = new AttachmentsService(
+      prisma as any,
+      events,
+      new MembersService(prisma as any),
+      new LocalDiskDriver(storageRoot),
+    );
     const mcpService = new McpService(
       prisma as any,
       events,
       relations,
       subscriptions,
       notifications,
-      new DocumentsService(prisma as any, events),
+      new DocumentsService(prisma as any, events, attachments),
       new CommentsService(
         prisma as any,
         events,
         notifications,
         new MentionsService(prisma as any, notifications),
+        attachments,
       ),
       new MentionsService(prisma as any, notifications),
       new MembersService(prisma as any),
       new LabelsService(prisma as any, events, new MembersService(prisma as any)),
       new StatusesService(prisma as any, events, new MembersService(prisma as any)),
       new ViewsService(prisma as any, events, new MembersService(prisma as any)),
+      attachments,
     );
     const factory = new McpServerFactory(mcpService);
     controller = new McpTransportController(factory);
@@ -171,6 +186,7 @@ describe('McpTransportController', () => {
   });
 
   afterAll(async () => {
+    rmSync(storageRoot, { recursive: true, force: true });
     await prisma.$disconnect();
   });
 

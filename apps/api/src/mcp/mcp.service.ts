@@ -11,6 +11,7 @@ import { MembersService } from '../members/members.service';
 import { LabelsService } from '../labels/labels.service';
 import { StatusesService } from '../statuses/statuses.service';
 import { ViewsService } from '../views/views.service';
+import { AttachmentsService, SubjectType } from '../attachments/attachments.service';
 import { DEFAULT_STATUSES } from '../statuses/status-defaults';
 import { isTerminalType, stampsDoneAt } from '../statuses/status-types';
 
@@ -82,6 +83,7 @@ export class McpService {
     private labelsService: LabelsService,
     private statusesService: StatusesService,
     private views: ViewsService,
+    private attachments: AttachmentsService,
   ) {}
 
   async handleRequest(req: McpRequest, user?: AuthUser): Promise<McpResponse> {
@@ -130,6 +132,9 @@ export class McpService {
           break;
         case 'documents':
           result = await this.handleDocuments(action, req.params, user);
+          break;
+        case 'attachments':
+          result = await this.handleAttachments(action, req.params, user);
           break;
         default:
           return {
@@ -888,6 +893,44 @@ export class McpService {
       }
       default:
         throw new Error(`Unknown action: documents_${action}`);
+    }
+  }
+
+  private async handleAttachments(action: string, params: any, user?: AuthUser) {
+    switch (action) {
+      case 'list': {
+        return this.attachments.list(params.subjectType as SubjectType, params.subjectId);
+      }
+      case 'get_meta': {
+        const { storageKey, ...meta } = await this.attachments.findForDownload(params.id);
+        return meta;
+      }
+      case 'upload': {
+        if (typeof params.base64Content !== 'string') {
+          throw new Error('base64Content is required');
+        }
+        const content = Buffer.from(params.base64Content, 'base64');
+        // Round-trip sanity: Buffer.from ignores invalid chars; compare lengths
+        if (
+          content.toString('base64').replace(/=+$/, '') !== params.base64Content.replace(/=+$/, '')
+        ) {
+          throw new Error('base64Content is not valid base64');
+        }
+        return this.attachments.create({
+          subjectType: params.subjectType as SubjectType,
+          subjectId: params.subjectId,
+          filename: params.filename,
+          mimeType: params.mimeType,
+          content,
+          user,
+        });
+      }
+      case 'delete': {
+        await this.attachments.remove(params.id, user);
+        return { success: true };
+      }
+      default:
+        throw new Error(`Unknown action: attachments_${action}`);
     }
   }
 

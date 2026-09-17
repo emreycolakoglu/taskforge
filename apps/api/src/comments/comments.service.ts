@@ -3,7 +3,6 @@ import {
   NotFoundException,
   ForbiddenException,
   BadRequestException,
-  Optional,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
@@ -20,9 +19,7 @@ export class CommentsService {
     private events: EventsService,
     private notifications: NotificationsService,
     private mentions: MentionsService,
-    // Optional: MCP spec harnesses construct CommentsService without an
-    // attachments provider; production always resolves it via AttachmentsModule.
-    @Optional() private attachments?: AttachmentsService,
+    private attachments: AttachmentsService,
   ) {}
 
   /**

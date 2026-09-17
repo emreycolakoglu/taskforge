@@ -11,15 +11,21 @@ import { MembersService } from '../members/members.service';
 import { LabelsService } from '../labels/labels.service';
 import { StatusesService } from '../statuses/statuses.service';
 import { ViewsService } from '../views/views.service';
+import { AttachmentsService } from '../attachments/attachments.service';
+import { LocalDiskDriver } from '../storage/local-disk.driver';
 import { PrismaService } from '../prisma/prisma.service';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { TOOL_NAMES } from './tool-definitions';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { createTestPrisma, seedUser } from '../../test/setup';
 
 describe('McpServerFactory', () => {
   let prisma: PrismaService;
   let factory: McpServerFactory;
   let user: any;
+  let storageRoot: string;
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
@@ -27,29 +33,39 @@ describe('McpServerFactory', () => {
     const relations = new RelationsService(prisma as any, events);
     const subscriptions = new SubscriptionsService(prisma as any);
     const notifications = new NotificationsService(prisma as any, events);
+    storageRoot = mkdtempSync(join(tmpdir(), 'tf-mcp-factory-'));
+    const attachments = new AttachmentsService(
+      prisma as any,
+      events,
+      new MembersService(prisma as any),
+      new LocalDiskDriver(storageRoot),
+    );
     const mcpService = new McpService(
       prisma as any,
       events,
       relations,
       subscriptions,
       notifications,
-      new DocumentsService(prisma as any, events),
+      new DocumentsService(prisma as any, events, attachments),
       new CommentsService(
         prisma as any,
         events,
         notifications,
         new MentionsService(prisma as any, notifications),
+        attachments,
       ),
       new MentionsService(prisma as any, notifications),
       new MembersService(prisma as any),
       new LabelsService(prisma as any, events, new MembersService(prisma as any)),
       new StatusesService(prisma as any, events, new MembersService(prisma as any)),
       new ViewsService(prisma as any, events, new MembersService(prisma as any)),
+      attachments,
     );
     factory = new McpServerFactory(mcpService);
   });
 
   afterAll(async () => {
+    rmSync(storageRoot, { recursive: true, force: true });
     await prisma.$disconnect();
   });
 
