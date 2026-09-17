@@ -1,8 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync } from 'fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  NotFoundException,
+  PayloadTooLargeException,
+} from '@nestjs/common';
 import { AttachmentsService } from './attachments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
@@ -29,7 +34,6 @@ describe('AttachmentsService', () => {
   let task: any;
   let memberUser: any;
   let viewerUser: any;
-  let adminUser: any;
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
@@ -58,7 +62,6 @@ describe('AttachmentsService', () => {
     task = await seedTask(prisma, board.statuses[0].id);
     memberUser = await seedUser(prisma);
     viewerUser = await seedUser(prisma, { email: `v${Date.now()}@test.dev` });
-    adminUser = await seedUser(prisma, { email: `a${Date.now()}@test.dev`, role: 'admin' });
     await prisma.member.create({
       data: { boardId: board.id, userId: memberUser.id, role: 'member' },
     });
@@ -126,6 +129,106 @@ describe('AttachmentsService', () => {
         user: { id: memberUser.id, displayName: memberUser.displayName, role: 'member' },
       });
       expect(att.sizeBytes).toBe(3);
+    });
+
+    it('rejects content over the 1 MiB MCP cap (413)', async () => {
+      await expect(
+        service.create({
+          subjectType: 'task',
+          subjectId: task.id,
+          filename: 'big.txt',
+          mimeType: 'text/plain',
+          content: Buffer.alloc(1024 * 1024 + 1),
+          user: { id: memberUser.id, displayName: 'M', role: 'member' },
+        }),
+      ).rejects.toThrow(PayloadTooLargeException);
+    });
+
+    it('accepts content of exactly 1 MiB when no stricter settings row exists', async () => {
+      const att = await service.create({
+        subjectType: 'task',
+        subjectId: task.id,
+        filename: 'edge.txt',
+        mimeType: 'text/plain',
+        content: Buffer.alloc(1024 * 1024),
+        user: { id: memberUser.id, displayName: 'M', role: 'member' },
+      });
+      expect(att.sizeBytes).toBe(1024 * 1024);
+    });
+
+    it('rejects content over a stricter settings.maxFileSizeMb', async () => {
+      // maxFileSizeMb is Int ≥ 1, so a settings row cannot be stricter than the
+      // 1 MiB MCP cap through normal settings UI; exercise the settings branch
+      // of the content-path guard directly with an out-of-range row.
+      await prisma.settings.create({
+        data: { id: 'singleton', onboarded: true, maxFileSizeMb: 0 } as any,
+      });
+      await expect(
+        service.create({
+          subjectType: 'task',
+          subjectId: task.id,
+          filename: 'small-capped.txt',
+          mimeType: 'text/plain',
+          content: Buffer.from('tiny'),
+          user: { id: memberUser.id, displayName: 'M', role: 'member' },
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('normalizes mimeType case and parameters', async () => {
+      const att = await service.create({
+        subjectType: 'task',
+        subjectId: task.id,
+        filename: 'n.txt',
+        mimeType: 'TEXT/PLAIN; charset=utf-8',
+        content: Buffer.from('z'),
+        user: { id: memberUser.id, displayName: 'M', role: 'member' },
+      });
+      expect(att.mimeType).toBe('text/plain');
+    });
+
+    it('rejects create with neither tempPath nor content', async () => {
+      await expect(
+        service.create({
+          subjectType: 'task',
+          subjectId: task.id,
+          filename: 'empty.txt',
+          mimeType: 'text/plain',
+          user: { id: memberUser.id, displayName: 'M', role: 'member' },
+        }),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rolls back the attachment row when storage.put fails', async () => {
+      const failingDriver = {
+        put: jest.fn().mockRejectedValue(new Error('disk full')),
+        get: jest.fn(),
+        delete: jest.fn(),
+        stat: jest.fn(),
+      };
+      const module = await Test.createTestingModule({
+        providers: [
+          AttachmentsService,
+          MembersService,
+          { provide: PrismaService, useValue: prisma },
+          { provide: EventsService, useValue: events },
+          { provide: STORAGE_DRIVER, useValue: failingDriver },
+        ],
+      }).compile();
+      const failingService = module.get<AttachmentsService>(AttachmentsService);
+
+      await expect(
+        failingService.create({
+          subjectType: 'task',
+          subjectId: task.id,
+          filename: 'doomed.txt',
+          mimeType: 'text/plain',
+          content: Buffer.from('z'),
+          user: { id: memberUser.id, displayName: 'M', role: 'member' },
+        }),
+      ).rejects.toThrow('disk full');
+
+      expect(await prisma.attachment.findMany({ where: { subjectId: task.id } })).toHaveLength(0);
     });
 
     it('rejects viewer (403)', async () => {
@@ -293,8 +396,6 @@ describe('AttachmentsService', () => {
       });
       await service.remove(att.id, { id: memberUser.id, role: 'member' });
       expect(await prisma.attachment.findUnique({ where: { id: att.id } })).toBeNull();
-      const row = await prisma.attachment.findUnique({ where: { id: att.id } });
-      // row gone — nothing to check in storage; instead check removal event
       const acts = await prisma.activity.findMany({ where: { action: 'attachment_removed' } });
       expect(acts).toHaveLength(1);
     });
@@ -309,11 +410,14 @@ describe('AttachmentsService', () => {
         tempPath: temp,
         user: { id: memberUser.id, displayName: 'M', role: 'member' },
       });
+      // Plain user (not a global admin) holding a board-level admin Member row,
+      // to prove the board-admin branch of assertCanDelete.
+      const boardAdmin = await seedUser(prisma, { email: `ba${Date.now()}@test.dev` });
       await prisma.member.create({
-        data: { boardId: board.id, userId: adminUser.id, role: 'admin' },
+        data: { boardId: board.id, userId: boardAdmin.id, role: 'admin' },
       });
       await expect(
-        service.remove(att.id, { id: adminUser.id, role: 'member' }),
+        service.remove(att.id, { id: boardAdmin.id, role: 'member' }),
       ).resolves.toBeUndefined();
       expect(await prisma.attachment.findUnique({ where: { id: att.id } })).toBeNull();
     });

@@ -149,16 +149,19 @@ export class AttachmentsService {
       throw new BadRequestException(`MIME type not allowed: ${mime}`);
     }
 
+    let size: number;
     if (input.content) {
-      if (input.content.byteLength > MCP_MAX_BYTES) {
+      size = input.content.byteLength;
+      if (size > MCP_MAX_BYTES) {
         throw new PayloadTooLargeException('MCP uploads are capped at 1 MiB');
       }
-      if (input.content.byteLength > maxFileSizeMb * 1024 * 1024) {
+      if (size > maxFileSizeMb * 1024 * 1024) {
         throw new BadRequestException('File exceeds max size');
       }
     } else if (input.tempPath) {
       const s = await fs.stat(input.tempPath);
-      if (s.size > maxFileSizeMb * 1024 * 1024) {
+      size = s.size;
+      if (size > maxFileSizeMb * 1024 * 1024) {
         await fs.rm(input.tempPath, { force: true });
         throw new BadRequestException('File exceeds max size');
       }
@@ -168,8 +171,6 @@ export class AttachmentsService {
 
     const safeName = sanitizeFilename(filename);
     const storageKey = `${randomUUID()}${extensionOf(safeName)}`;
-
-    const size = input.content ? input.content.byteLength : (await fs.stat(input.tempPath)).size;
 
     const att = await this.prisma.attachment.create({
       data: {
@@ -190,11 +191,19 @@ export class AttachmentsService {
       await fs.writeFile(staged, input.content);
       try {
         await this.driver.put(storageKey, staged);
+      } catch (err) {
+        await this.prisma.attachment.delete({ where: { id: att.id } }).catch(() => undefined);
+        throw err;
       } finally {
         await fs.rm(staged, { force: true });
       }
     } else {
-      await this.driver.put(storageKey, input.tempPath);
+      try {
+        await this.driver.put(storageKey, input.tempPath);
+      } catch (err) {
+        await this.prisma.attachment.delete({ where: { id: att.id } }).catch(() => undefined);
+        throw err;
+      }
     }
 
     if (ctx.taskId) {
