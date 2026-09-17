@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { MailerService } from '../mailer/mailer.service';
 import { createTestPrisma } from '../../test/setup';
 import { BadRequestException, ConflictException } from '@nestjs/common';
+import { DEFAULT_ALLOWED_MIME_TYPES } from '../storage/storage.types';
 
 describe('SettingsService', () => {
   let service: SettingsService;
@@ -204,6 +205,31 @@ describe('SettingsService', () => {
       await expect(
         service.updateSettings({ allowedMimeTypes: ['not-a-mime'] } as any),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('getFullSettings falls back to defaults when no settings row exists', async () => {
+      const s = await service.getFullSettings();
+      expect(s.maxFileSizeMb).toBe(10);
+      expect(s.allowedMimeTypes).toEqual(DEFAULT_ALLOWED_MIME_TYPES);
+      expect(s.smtpPasswordSet).toBe(false);
+    });
+
+    it('updateSettings preserves existing attachment fields not in the payload', async () => {
+      await prisma.settings.update({
+        where: { id: 'singleton' },
+        data: {
+          allowedMimeTypes: JSON.stringify(['text/plain']),
+          maxFileSizeMb: 25,
+        },
+      });
+      const updated = await service.updateSettings({ title: 'New Title' });
+      expect(updated.allowedMimeTypes).toEqual(['text/plain']);
+      expect(updated.maxFileSizeMb).toBe(25);
+    });
+
+    it('stores allowedMimeTypes verbatim, including uppercase entries', async () => {
+      const updated = await service.updateSettings({ allowedMimeTypes: ['IMAGE/PNG'] });
+      expect(updated.allowedMimeTypes).toEqual(['IMAGE/PNG']);
     });
   });
 });

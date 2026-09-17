@@ -116,13 +116,10 @@ export class SettingsService {
     }
     const { smtpPassword, allowedMimeTypes, ...rest } = data;
     const dbData: Prisma.SettingsUpdateInput = { ...rest };
-    if (allowedMimeTypes !== undefined) {
-      dbData.allowedMimeTypes = JSON.stringify(allowedMimeTypes);
-    }
-    if (data.maxFileSizeMb !== undefined && data.maxFileSizeMb < 1) {
+    if (data.maxFileSizeMb != null && data.maxFileSizeMb < 1) {
       throw new BadRequestException('maxFileSizeMb must be at least 1');
     }
-    if (allowedMimeTypes !== undefined) {
+    if (allowedMimeTypes != null) {
       if (allowedMimeTypes.length === 0) {
         throw new BadRequestException('allowedMimeTypes must not be empty');
       }
@@ -130,6 +127,10 @@ export class SettingsService {
       if (allowedMimeTypes.some((mime) => !mimePattern.test(mime))) {
         throw new BadRequestException('allowedMimeTypes contains invalid MIME types');
       }
+    }
+    // Stored verbatim; consumers lowercase at validation time.
+    if (allowedMimeTypes != null) {
+      dbData.allowedMimeTypes = JSON.stringify(allowedMimeTypes);
     }
     if (rest.smtpFromName === null) {
       dbData.smtpFromName = '';
