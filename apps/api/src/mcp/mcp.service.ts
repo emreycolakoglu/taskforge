@@ -910,7 +910,9 @@ export class McpService {
           throw new Error('base64Content is required');
         }
         const content = Buffer.from(params.base64Content, 'base64');
-        // Round-trip sanity: Buffer.from ignores invalid chars; compare lengths
+        // Round-trip sanity: re-encode the decoded buffer and compare with the input
+        // (padding-stripped). Buffer.from silently skips whitespace/garbage and
+        // misinterprets base64url (-/_), so a mismatch means the input was invalid base64.
         if (
           content.toString('base64').replace(/=+$/, '') !== params.base64Content.replace(/=+$/, '')
         ) {

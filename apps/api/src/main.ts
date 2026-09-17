@@ -1,11 +1,16 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { json } from 'express';
 import { join } from 'path';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // MCP attachments_upload sends up to ~1.37MB of base64; Nest's default json limit is 100kb.
+  // Nest's adapter skips its own body parser when one is already applied, so this takes over.
+  app.use(json({ limit: '2mb' }));
 
   app.enableCors({
     origin: process.env.CORS_ORIGIN || '*',

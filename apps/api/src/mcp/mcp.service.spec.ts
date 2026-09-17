@@ -42,6 +42,12 @@ describe('McpService', () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     events = new EventsService();
     storageRoot = mkdtempSync(join(tmpdir(), 'tf-mcp-'));
+    const attachments = new AttachmentsService(
+      prisma,
+      events,
+      new MembersService(prisma),
+      new LocalDiskDriver(storageRoot),
+    );
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         McpService,
@@ -56,27 +62,10 @@ describe('McpService', () => {
         { provide: EventsService, useValue: events },
         { provide: SubscriptionsService, useValue: new SubscriptionsService(prisma) },
         { provide: NotificationsService, useValue: new NotificationsService(prisma, events) },
-        {
-          provide: AttachmentsService,
-          useValue: new AttachmentsService(
-            prisma,
-            events,
-            new MembersService(prisma),
-            new LocalDiskDriver(storageRoot),
-          ),
-        },
+        { provide: AttachmentsService, useValue: attachments },
         {
           provide: DocumentsService,
-          useValue: new DocumentsService(
-            prisma,
-            events,
-            new AttachmentsService(
-              prisma,
-              events,
-              new MembersService(prisma),
-              new LocalDiskDriver(storageRoot),
-            ),
-          ),
+          useValue: new DocumentsService(prisma, events, attachments),
         },
       ],
     }).compile();
