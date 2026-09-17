@@ -79,6 +79,7 @@ Schema migrations run automatically on container startup via `apps/api/docker-en
 - **API serves the SPA in production** — `main.ts` uses `useStaticAssets` pointing to `../../web/dist` with SPA fallback.
 - **Migrations run on container startup** — `docker-entrypoint.sh` runs `prisma migrate deploy` before starting the app. The old `ensureSchema` method in `PrismaService` was removed; schema management is now the entrypoint's job, not the app's.
 - **Frontend must follow `design.md`** — read it before any `apps/web/` change; use the defined tokens, not hardcoded colors or ad-hoc styling.
+- **MCP `attachments_upload` needs the raised express json limit** (`main.ts`, `2mb`) — reverting it to default silently caps uploads at ~74KB with an opaque body-parser error.
 - Always use kebap-case filenames
 - Always write unit tests
 - Always write helpful little docs for the future guy
@@ -146,6 +147,35 @@ Users can persist a board's filter/group/sort/layout state as named views. The `
 - **Model**: personal views are visible only to their creator; shared views are visible to everyone on the board. Personal views are creator-only (no admin override); shared views can be written (update/delete) by their creator or a board admin (`ViewsService`). Legacy boards (zero Member rows) allow shared-view writes for all users.
 - **REST**: `GET /api/boards/:boardId/views`, `GET/POST /api/views`, `PATCH/DELETE /api/views/:id` → `views/` module. Also `views_*` MCP tools.
 - **Web**: `hooks/use-views.ts` (React Query `['views', boardId]`), `lib/apply-view.ts` (filter/group/sort engine), `hooks/use-view-state.ts` (active view selection, `?view=` URL param + localStorage fallback), `view-selector` + `save-view-dialog` components, socket `view:created/updated/deleted` invalidation in `hooks/use-socket.ts`.
+
+## Attachments
+
+Polymorphic file attachments on tasks, comments, and documents. Local disk storage behind a
+`StorageDriver` interface (`apps/api/src/storage/`); the driver is picked by `STORAGE_DRIVER` env
+(`s3` throws "not yet implemented"). Objects live under `ATTACHMENTS_DIR` (default
+`<cwd>/data/attachments`; Dockerfile + compose set `/data/attachments` under the `/data` volume).
+
+- **Payloads carry an `attachments` metadata list, not Prisma includes** — the Attachment model
+  links subjects by the `(subjectType, subjectId)` string pair, so `include` cannot traverse it.
+  `hydrateAttachments` (attachments.service.ts) instead fetches all metadata for a batch of rows in
+  one `findMany` and groups it by subject id; `TasksService`, `CommentsService` and
+  `DocumentsService` run their rows through it. `storageKey` is stripped in the service and never
+  leaves it (`toMeta` strips, `AttachmentMeta` is the curated shape).
+- **Limits live in Settings**: `maxFileSizeMb` (default 10) and `allowedMimeTypes` (stored as a JSON
+  array string; default allowlist excludes `image/svg+xml` — XSS vector). Every upload validates
+  against both; PATCH validates format and rejects empty arrays.
+- **Storage keys are server-generated UUIDs** (plus a sanitized extension) — the original filename
+  never touches the filesystem path. Downloads are always
+  `Content-Disposition: attachment` (never inline).
+- **Gates**: download = any authenticated user; upload = non-viewer board member or global admin
+  (legacy boards with zero Member rows fall open); delete = uploader, board admin, or global admin.
+- **Cascade**: `AttachmentsService.removeBySubject` is called from `TasksService.remove`,
+  `CommentsService.remove` (**both** branches — a tombstoned comment with children is
+  content-blanked, so its attachments are orphans either way), and `DocumentsService.remove`.
+- **MCP**: `attachments_list | get_meta | upload | delete`; upload is base64 with a hard 1 MiB
+  decoded cap (the web limit is the settings value, MCP is lower regardless).
+- **No notifications** — activity rows only (`attachment_added`, `attachment_removed`).
+- **UI ships later** (follow-up task) — REST + MCP only; no public-page exposure either.
 
 ## @-Mentions
 
