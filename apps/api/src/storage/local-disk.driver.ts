@@ -6,6 +6,9 @@ export class LocalDiskDriver implements StorageDriver {
   constructor(private root: string) {}
 
   private path(key: string): string {
+    if (key === '.' || key === '..') {
+      throw new Error(`Invalid storage key: ${key}`);
+    }
     // Flat keyspace; keys are server-generated UUIDs, but defend anyway.
     return join(this.root, key.replace(/[/\\]/g, '_'));
   }
@@ -13,7 +16,13 @@ export class LocalDiskDriver implements StorageDriver {
   async put(key: string, sourcePath: string): Promise<void> {
     const dest = this.path(key);
     await fs.mkdir(dirname(dest), { recursive: true });
-    await fs.rename(sourcePath, dest);
+    try {
+      await fs.rename(sourcePath, dest);
+    } catch (err: any) {
+      if (err?.code !== 'EXDEV') throw err;
+      await fs.copyFile(sourcePath, dest);
+      await fs.rm(sourcePath, { force: true });
+    }
   }
 
   async get(key: string): Promise<Buffer> {
@@ -28,8 +37,9 @@ export class LocalDiskDriver implements StorageDriver {
     try {
       const s = await fs.stat(this.path(key));
       return { size: s.size };
-    } catch {
-      return null;
+    } catch (err: any) {
+      if (err?.code === 'ENOENT' || err?.code === 'ENOTDIR') return null;
+      throw err;
     }
   }
 }

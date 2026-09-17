@@ -1,7 +1,20 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { mkdtempSync, rmSync, existsSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import { LocalDiskDriver } from './local-disk.driver';
+
+jest.mock('fs', () => {
+  const actual = jest.requireActual<typeof import('fs')>('fs');
+  return {
+    ...actual,
+    promises: {
+      ...actual.promises,
+      rename: jest.fn(actual.promises.rename.bind(actual.promises)),
+    },
+  };
+});
+
+const renameMock = (jest.requireMock('fs') as any).promises.rename as jest.Mock;
 
 describe('LocalDiskDriver', () => {
   const root = mkdtempSync(join(tmpdir(), 'tf-storage-'));
@@ -35,5 +48,46 @@ describe('LocalDiskDriver', () => {
 
   it('delete of missing key is idempotent', async () => {
     await expect(driver.delete('nope')).resolves.toBeUndefined();
+  });
+
+  it('put falls back to copy+delete when rename fails with EXDEV', async () => {
+    const otherRoot = mkdtempSync(join(tmpdir(), 'tf-storage-src-'));
+    const src = join(otherRoot, 'cross-device.txt');
+    writeFileSync(src, 'exdev');
+    renameMock.mockClear();
+    const renameSpy = renameMock.mockRejectedValueOnce(
+      Object.assign(new Error('cross-device link'), { code: 'EXDEV' }),
+    );
+    try {
+      await driver.put('k-exdev.txt', src);
+      expect(await driver.get('k-exdev.txt')).toEqual(Buffer.from('exdev'));
+      expect(existsSync(src)).toBe(false);
+      expect(renameSpy).toHaveBeenCalledTimes(1);
+    } finally {
+      renameMock.mockRestore();
+      rmSync(otherRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('put rethrows non-EXDEV rename errors', async () => {
+    const src = join(root, 'src-enoent.txt');
+    renameMock.mockClear();
+    const renameSpy = renameMock.mockRejectedValueOnce(
+      Object.assign(new Error('gone'), { code: 'ENOENT' }),
+    );
+    try {
+      await expect(driver.put('k-err.txt', src)).rejects.toMatchObject({ code: 'ENOENT' });
+    } finally {
+      renameMock.mockRestore();
+    }
+  });
+
+  it('rejects dot keys', async () => {
+    await expect(driver.put('.', join(root, 'src.txt'))).rejects.toThrow('Invalid storage key');
+    await expect(driver.put('..', join(root, 'src.txt'))).rejects.toThrow('Invalid storage key');
+    await expect(driver.get('.')).rejects.toThrow('Invalid storage key');
+    await expect(driver.get('..')).rejects.toThrow('Invalid storage key');
+    await expect(driver.delete('.')).rejects.toThrow('Invalid storage key');
+    await expect(driver.stat('..')).rejects.toThrow('Invalid storage key');
   });
 });
