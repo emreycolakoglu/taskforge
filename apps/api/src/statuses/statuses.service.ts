@@ -7,6 +7,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { MembersService } from '../members/members.service';
+import { AttachmentsService } from '../attachments/attachments.service';
 import { CreateStatusDto, UpdateStatusDto, ReorderStatusesDto } from './dto/status.dto';
 import { STATUS_TYPES, defaultProgressForType, isProgressEditable } from './status-types';
 
@@ -21,6 +22,7 @@ export class StatusesService {
     private prisma: PrismaService,
     private events: EventsService,
     private members: MembersService,
+    private attachments: AttachmentsService,
   ) {}
 
   async findByBoard(boardId: string) {
@@ -117,6 +119,12 @@ export class StatusesService {
   async remove(id: string, user?: AuthedUser) {
     const status = await this.findOne(id);
     await this.assertBoardAdmin(status.boardId, user, 'delete statuses');
+    // Attachment cleanup before the delete: status removal cascades its tasks
+    // at the DB level, which would otherwise orphan their attachment rows.
+    const taskIds = (
+      await this.prisma.task.findMany({ where: { statusId: id }, select: { id: true } })
+    ).map((t) => t.id);
+    for (const taskId of taskIds) await this.attachments.removeByTask(taskId);
     await this.prisma.status.delete({ where: { id } });
     this.events.emit('status:deleted', { id }, status.boardId);
   }

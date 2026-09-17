@@ -176,7 +176,7 @@ describe('McpTransportController', () => {
       new MentionsService(prisma as any, notifications),
       new MembersService(prisma as any),
       new LabelsService(prisma as any, events, new MembersService(prisma as any)),
-      new StatusesService(prisma as any, events, new MembersService(prisma as any)),
+      new StatusesService(prisma as any, events, new MembersService(prisma as any), attachments),
       new ViewsService(prisma as any, events, new MembersService(prisma as any)),
       attachments,
     );

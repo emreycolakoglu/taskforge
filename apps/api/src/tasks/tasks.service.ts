@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Inject } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { RelationsService } from '../relations/relations.service';
@@ -575,8 +575,10 @@ export class TasksService {
     // relation:deleted per row. (Sub-task orphan promotion handled above.)
     await this.relations.cleanupForTask(id);
 
-    // Attachment cascade: rows + storage objects for this subject.
-    await this.attachments?.removeBySubject('task', id);
+    // Attachment cascade: rows + storage objects for this task and its
+    // comments/documents (whose attachment rows would otherwise survive the
+    // DB-level cascade of the task delete).
+    await this.attachments?.removeByTask(id);
 
     await this.prisma.task.delete({ where: { id } });
 

@@ -1677,6 +1677,26 @@ describe('McpService', () => {
       expect(res.error.message).toMatch(/base64/i);
     });
 
+    it('rejects empty base64Content', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const res = await service.handleRequest(
+        {
+          method: 'attachments_upload',
+          params: {
+            subjectType: 'task',
+            subjectId: task.id,
+            filename: 'empty.txt',
+            mimeType: 'text/plain',
+            base64Content: '',
+          },
+          id: 8,
+        },
+        user,
+      );
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('base64Content is required');
+    });
+
     it('get_meta returns metadata without storageKey', async () => {
       const task = await seedTask(prisma, board.statuses[0].id);
       const att = await seedAttachment(prisma, 'task', task.id);

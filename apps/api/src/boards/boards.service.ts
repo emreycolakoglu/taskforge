@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { LabelsService } from '../labels/labels.service';
+import { AttachmentsService } from '../attachments/attachments.service';
 import { withTaskNumber } from '../tasks/tasks.service';
 import { DEFAULT_STATUSES } from '../statuses/status-defaults';
 import { CreateBoardDto, UpdateBoardDto } from './dto/board.dto';
@@ -20,6 +21,7 @@ export class BoardsService {
     private prisma: PrismaService,
     private events: EventsService,
     private labelsService: LabelsService,
+    private attachments: AttachmentsService,
   ) {}
 
   async findAll() {
@@ -130,6 +132,9 @@ export class BoardsService {
   async remove(id: string, _user?: { id: string; displayName: string }) {
     await this.assertBoardAdmin(id, _user);
     await this.findOne(id);
+    // Attachment cleanup before the delete: the bare board delete cascades the
+    // whole subtree at the DB level, which would orphan attachment rows.
+    await this.attachments.removeByBoard(id);
     await this.prisma.board.delete({ where: { id } });
     this.events.emit('board:deleted', { id }, id);
   }

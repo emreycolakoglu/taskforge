@@ -1,34 +1,50 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { StatusesService } from './statuses.service';
 import { MembersService } from '../members/members.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { AttachmentsService } from '../attachments/attachments.service';
+import { LocalDiskDriver } from '../storage/local-disk.driver';
 import { createTestPrisma, seedBoard, seedTask, seedUser } from '../../test/setup';
 
 describe('StatusesService', () => {
   let service: StatusesService;
   let prisma: PrismaService;
+  let attachments: AttachmentsService;
+  let driver: LocalDiskDriver;
+  let storageRoot: string;
   let board: any;
   let adminUser: any;
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     const events = new EventsService();
+    storageRoot = mkdtempSync(join(tmpdir(), 'tf-status-att-'));
+    driver = new LocalDiskDriver(storageRoot);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         StatusesService,
         MembersService,
+        {
+          provide: AttachmentsService,
+          useValue: new AttachmentsService(prisma, events, new MembersService(prisma), driver),
+        },
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
       ],
     }).compile();
     service = module.get<StatusesService>(StatusesService);
+    attachments = module.get<AttachmentsService>(AttachmentsService);
     // Global admin: passes isBoardAdmin on any board, for legacy CRUD tests.
     adminUser = await seedUser(prisma, { role: 'admin', email: 'statuses-admin@example.com' });
   });
 
   afterAll(async () => {
+    rmSync(storageRoot, { recursive: true, force: true });
     await prisma.$disconnect();
   });
 
@@ -37,9 +53,11 @@ describe('StatusesService', () => {
   });
 
   afterEach(async () => {
+    await prisma.attachment.deleteMany();
     await prisma.taskLabel.deleteMany();
     await prisma.activity.deleteMany();
     await prisma.comment.deleteMany();
+    await prisma.document.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
     await prisma.status.deleteMany();
@@ -282,6 +300,27 @@ describe('StatusesService', () => {
     it('should delete a status', async () => {
       await service.remove(board.statuses[0].id, adminUser);
       await expect(service.findOne(board.statuses[0].id)).rejects.toThrow('Status not found');
+    });
+
+    it('removes attachments of tasks on a status when the status is deleted', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const staged = join(tmpdir(), `tf-status-del-${Date.now()}.txt`);
+      writeFileSync(staged, 'payload');
+      const att = await attachments.create({
+        subjectType: 'task',
+        subjectId: task.id,
+        filename: 'notes.txt',
+        mimeType: 'text/plain',
+        tempPath: staged,
+        user: { id: adminUser.id, displayName: adminUser.displayName, role: 'member' },
+      });
+      const row = await prisma.attachment.findUnique({ where: { id: att.id } });
+      expect(await driver.stat(row.storageKey)).not.toBeNull();
+
+      await service.remove(board.statuses[0].id, adminUser);
+
+      expect(await prisma.attachment.findUnique({ where: { id: att.id } })).toBeNull();
+      expect(await driver.stat(row.storageKey)).toBeNull();
     });
 
     it('should reject status delete by a non-admin member', async () => {

@@ -17,8 +17,8 @@ import {
   seedBoard,
   seedTask,
   seedLabel,
+  seedDocument,
   seedUser,
-  seedAttachment,
 } from '../../test/setup';
 
 describe('TasksService', () => {
@@ -548,6 +548,49 @@ describe('TasksService', () => {
       });
       expect(rows).toHaveLength(0);
       expect(await driver.stat(storageKey)).toBeNull();
+    });
+
+    it('removes comments and documents attachments when a task is deleted', async () => {
+      const seeded = await seedTask(prisma, board.statuses[0].id);
+      const comment = await prisma.comment.create({
+        data: { taskId: seeded.id, author: 'tester', body: 'with attachment' },
+      });
+      const doc = await seedDocument(prisma, seeded.id, { title: 'Doc with attachment' });
+      const uploader = { id: user.id, displayName: user.displayName, role: 'member' };
+      const staged = (name: string) => {
+        const p = join(tmpdir(), `tf-task-cascade-${Date.now()}-${name}`);
+        writeFileSync(p, 'payload');
+        return p;
+      };
+      const atts = [];
+      for (const [subjectType, subjectId] of [
+        ['task', seeded.id],
+        ['comment', comment.id],
+        ['document', doc.id],
+      ] as const) {
+        atts.push(
+          await attachments.create({
+            subjectType,
+            subjectId,
+            filename: `${subjectType}.txt`,
+            mimeType: 'text/plain',
+            tempPath: staged(subjectType),
+            user: uploader,
+          }),
+        );
+      }
+      const rows = [];
+      for (const att of atts) {
+        rows.push(await prisma.attachment.findUnique({ where: { id: att.id } }));
+      }
+      for (const row of rows) expect(await driver.stat(row.storageKey)).not.toBeNull();
+
+      await service.remove(seeded.id, user);
+
+      for (const att of atts) {
+        expect(await prisma.attachment.findUnique({ where: { id: att.id } })).toBeNull();
+      }
+      for (const row of rows) expect(await driver.stat(row.storageKey)).toBeNull();
     });
   });
 

@@ -467,4 +467,97 @@ describe('AttachmentsService', () => {
       ).toHaveLength(0);
     });
   });
+
+  describe('removeByTask / removeByBoard (DB-cascade cleanup)', () => {
+    it('removeByTask removes rows and objects for the task, its comments and documents', async () => {
+      const comment = await seedComment(prisma, task.id);
+      const doc = await seedDocument(prisma, task.id);
+      const uploader = { id: memberUser.id, displayName: 'M', role: 'member' };
+      const atts = [];
+      for (const [subjectType, subjectId] of [
+        ['task', task.id],
+        ['comment', comment.id],
+        ['document', doc.id],
+      ] as const) {
+        atts.push(
+          await service.create({
+            subjectType,
+            subjectId,
+            filename: `${subjectType}.txt`,
+            mimeType: 'text/plain',
+            content: Buffer.from('x'),
+            user: uploader,
+          }),
+        );
+      }
+      const rows = [];
+      for (const att of atts) {
+        rows.push(await prisma.attachment.findUnique({ where: { id: att.id } }));
+      }
+
+      await service.removeByTask(task.id);
+
+      for (const att of atts) {
+        expect(await prisma.attachment.findUnique({ where: { id: att.id } })).toBeNull();
+      }
+      for (const row of rows) expect(await driver.stat(row.storageKey)).toBeNull();
+    });
+
+    it('removeByBoard removes attachments of every task on the board', async () => {
+      const otherTask = await seedTask(prisma, board.statuses[1].id);
+      const uploader = { id: memberUser.id, displayName: 'M', role: 'member' };
+      const atts = [];
+      for (const t of [task, otherTask]) {
+        atts.push(
+          await service.create({
+            subjectType: 'task',
+            subjectId: t.id,
+            filename: `${t.id}.txt`,
+            mimeType: 'text/plain',
+            content: Buffer.from('x'),
+            user: uploader,
+          }),
+        );
+      }
+      const rows = [];
+      for (const att of atts) {
+        rows.push(await prisma.attachment.findUnique({ where: { id: att.id } }));
+      }
+
+      await service.removeByBoard(board.id);
+
+      for (const att of atts) {
+        expect(await prisma.attachment.findUnique({ where: { id: att.id } })).toBeNull();
+      }
+      for (const row of rows) expect(await driver.stat(row.storageKey)).toBeNull();
+    });
+
+    it('removeByTask logs storage-delete failures instead of silently swallowing them', async () => {
+      const failingDriver = {
+        put: jest.fn(),
+        get: jest.fn(),
+        delete: jest.fn().mockRejectedValue(new Error('disk gone')),
+        stat: jest.fn(),
+      };
+      const module = await Test.createTestingModule({
+        providers: [
+          AttachmentsService,
+          MembersService,
+          { provide: PrismaService, useValue: prisma },
+          { provide: EventsService, useValue: events },
+          { provide: STORAGE_DRIVER, useValue: failingDriver },
+        ],
+      }).compile();
+      const failingService = module.get<AttachmentsService>(AttachmentsService);
+      const loggerSpy = jest
+        .spyOn((failingService as any).logger, 'error')
+        .mockImplementation(() => undefined);
+
+      await seedAttachment(prisma, 'task', task.id);
+      await expect(failingService.removeByTask(task.id)).resolves.toBeUndefined();
+
+      expect(loggerSpy).toHaveBeenCalled();
+      loggerSpy.mockRestore();
+    });
+  });
 });

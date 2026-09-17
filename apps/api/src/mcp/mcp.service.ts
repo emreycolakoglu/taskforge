@@ -906,7 +906,7 @@ export class McpService {
         return meta;
       }
       case 'upload': {
-        if (typeof params.base64Content !== 'string') {
+        if (typeof params.base64Content !== 'string' || !params.base64Content) {
           throw new Error('base64Content is required');
         }
         const content = Buffer.from(params.base64Content, 'base64');

@@ -5,6 +5,7 @@ import {
   ForbiddenException,
   BadRequestException,
   PayloadTooLargeException,
+  Logger,
 } from '@nestjs/common';
 import { promises as fs } from 'fs';
 import { basename, join } from 'path';
@@ -102,6 +103,8 @@ interface Actor {
 
 @Injectable()
 export class AttachmentsService {
+  private readonly logger = new Logger(AttachmentsService.name);
+
   constructor(
     private prisma: PrismaService,
     private events: EventsService,
@@ -280,8 +283,10 @@ export class AttachmentsService {
     await this.assertCanDelete(ctx.boardId, att, user);
 
     await this.prisma.attachment.delete({ where: { id } });
-    await this.driver.delete(att.storageKey).catch(() => {
-      // best-effort: row is gone, a dangling object is harmless
+    await this.driver.delete(att.storageKey).catch((err) => {
+      this.logger.error(
+        `Failed to delete storage object ${att.storageKey} for attachment ${id}: ${err?.message ?? err}`,
+      );
     });
 
     if (ctx.taskId) {
@@ -324,6 +329,39 @@ export class AttachmentsService {
     });
     if (rows.length === 0) return;
     await this.prisma.attachment.deleteMany({ where: { subjectType, subjectId } });
-    await Promise.all(rows.map((r) => this.driver.delete(r.storageKey).catch(() => undefined)));
+    await Promise.all(
+      rows.map((r) =>
+        this.driver.delete(r.storageKey).catch((err) => {
+          this.logger.error(
+            `Failed to delete storage object ${r.storageKey} for attachment ${r.id}: ${err?.message ?? err}`,
+          );
+        }),
+      ),
+    );
+  }
+
+  /**
+   * Full cleanup for a task: its own attachment rows plus those of its comments
+   * and documents, whose rows would otherwise survive SQLite's cascade when the
+   * task row is deleted (Attachment has no FK across the string subject pair).
+   */
+  async removeByTask(taskId: string) {
+    const commentIds = (
+      await this.prisma.comment.findMany({ where: { taskId }, select: { id: true } })
+    ).map((c) => c.id);
+    const docIds = (
+      await this.prisma.document.findMany({ where: { taskId }, select: { id: true } })
+    ).map((d) => d.id);
+    await this.removeBySubject('task', taskId);
+    await Promise.all([
+      ...commentIds.map((id) => this.removeBySubject('comment', id)),
+      ...docIds.map((id) => this.removeBySubject('document', id)),
+    ]);
+  }
+
+  /** Cleanup for a whole board: per-task cleanup before the bare board delete. */
+  async removeByBoard(boardId: string) {
+    const tasks = await this.prisma.task.findMany({ where: { boardId }, select: { id: true } });
+    for (const t of tasks) await this.removeByTask(t.id);
   }
 }

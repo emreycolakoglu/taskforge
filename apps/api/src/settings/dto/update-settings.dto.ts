@@ -49,6 +49,9 @@ export class UpdateSettingsDto {
   @IsOptional()
   @IsInt()
   @Min(1)
+  // Upload endpoint's static Multer/FileInterceptor cap is 100mb — settings
+  // above that would be silently ignored, so they're rejected here.
+  @Max(100)
   maxFileSizeMb?: number;
 
   @IsOptional()

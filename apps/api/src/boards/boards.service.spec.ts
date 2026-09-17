@@ -1,9 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { BoardsService } from './boards.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { LabelsService } from '../labels/labels.service';
 import { MembersService } from '../members/members.service';
+import { AttachmentsService } from '../attachments/attachments.service';
+import { LocalDiskDriver } from '../storage/local-disk.driver';
 import {
   createTestPrisma,
   seedBoard,
@@ -16,31 +21,44 @@ import {
 describe('BoardsService', () => {
   let service: BoardsService;
   let prisma: PrismaService;
+  let attachments: AttachmentsService;
+  let driver: LocalDiskDriver;
+  let storageRoot: string;
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     const events = new EventsService();
     const labelsService = new LabelsService(prisma, events, new MembersService(prisma));
+    storageRoot = mkdtempSync(join(tmpdir(), 'tf-board-att-'));
+    driver = new LocalDiskDriver(storageRoot);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BoardsService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
         { provide: LabelsService, useValue: labelsService },
+        {
+          provide: AttachmentsService,
+          useValue: new AttachmentsService(prisma, events, new MembersService(prisma), driver),
+        },
       ],
     }).compile();
     service = module.get<BoardsService>(BoardsService);
+    attachments = module.get<AttachmentsService>(AttachmentsService);
   });
 
   afterAll(async () => {
+    rmSync(storageRoot, { recursive: true, force: true });
     await prisma.$disconnect();
   });
 
   afterEach(async () => {
     // Clean all data between tests
+    await prisma.attachment.deleteMany();
     await prisma.taskLabel.deleteMany();
     await prisma.activity.deleteMany();
     await prisma.comment.deleteMany();
+    await prisma.document.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
     await prisma.status.deleteMany();
@@ -346,6 +364,46 @@ describe('BoardsService', () => {
       await service.remove(seeded.id, { id: admin.id, displayName: admin.displayName });
       const statuses = await prisma.status.findMany({ where: { boardId: seeded.id } });
       expect(statuses).toHaveLength(0);
+    });
+
+    it('removes all attachments on the board when the board is deleted', async () => {
+      const seeded = await seedBoard(prisma);
+      const admin = await seedUser(prisma);
+      await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
+      const uploader = { id: admin.id, displayName: admin.displayName, role: 'member' };
+
+      const taskA = await seedTask(prisma, seeded.statuses[0].id);
+      const taskB = await seedTask(prisma, seeded.statuses[1].id);
+      const staged = (name: string) => {
+        const p = join(tmpdir(), `tf-board-del-${Date.now()}-${name}`);
+        writeFileSync(p, 'payload');
+        return p;
+      };
+      const atts = [];
+      for (const task of [taskA, taskB]) {
+        atts.push(
+          await attachments.create({
+            subjectType: 'task',
+            subjectId: task.id,
+            filename: `${task.id}.txt`,
+            mimeType: 'text/plain',
+            tempPath: staged(task.id),
+            user: uploader,
+          }),
+        );
+      }
+      const rows = [];
+      for (const att of atts) {
+        rows.push(await prisma.attachment.findUnique({ where: { id: att.id } }));
+      }
+      for (const row of rows) expect(await driver.stat(row.storageKey)).not.toBeNull();
+
+      await service.remove(seeded.id, { id: admin.id, displayName: admin.displayName });
+
+      for (const att of atts) {
+        expect(await prisma.attachment.findUnique({ where: { id: att.id } })).toBeNull();
+      }
+      for (const row of rows) expect(await driver.stat(row.storageKey)).toBeNull();
     });
 
     it('should forbid non-admin user from deleting', async () => {

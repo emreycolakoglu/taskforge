@@ -172,6 +172,10 @@ Polymorphic file attachments on tasks, comments, and documents. Local disk stora
 - **Cascade**: `AttachmentsService.removeBySubject` is called from `TasksService.remove`,
   `CommentsService.remove` (**both** branches — a tombstoned comment with children is
   content-blanked, so its attachments are orphans either way), and `DocumentsService.remove`.
+  Because Attachment rows have no FK across the string subject pair, DB-level cascades bypass
+  any per-subject cleanup: `removeByTask` (task + its comments + documents), `removeByBoard`
+  (per-task), and `StatusesService.remove` (per task on the status) run **before** the bare
+  Prisma delete so attachment rows and storage objects don't survive as downloadable orphans.
 - **MCP**: `attachments_list | get_meta | upload | delete`; upload is base64 with a hard 1 MiB
   decoded cap (the web limit is the settings value, MCP is lower regardless).
 - **No notifications** — activity rows only (`attachment_added`, `attachment_removed`).
