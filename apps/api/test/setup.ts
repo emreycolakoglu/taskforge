@@ -268,6 +268,30 @@ export async function seedSubscription(prisma: PrismaClient, taskId: string, use
 }
 
 /**
+ * Seed an attachment row for a polymorphic subject (task | comment | document).
+ * Storage objects are NOT created — the storageKey is a random UUID, so tests
+ * that need a real object should go through AttachmentsService.create().
+ */
+export async function seedAttachment(
+  prisma: PrismaClient,
+  subjectType: 'task' | 'comment' | 'document',
+  subjectId: string,
+  overrides: Record<string, any> = {},
+) {
+  return prisma.attachment.create({
+    data: {
+      subjectType,
+      subjectId,
+      filename: overrides.filename ?? 'test.txt',
+      mimeType: overrides.mimeType ?? 'text/plain',
+      sizeBytes: overrides.sizeBytes ?? 5,
+      storageKey: overrides.storageKey ?? `${randomUUID()}.txt`,
+      uploaderId: overrides.uploaderId ?? null,
+    },
+  });
+}
+
+/**
  * Seed a notification. Requires an activity row to exist for the task.
  */
 export async function seedNotification(
