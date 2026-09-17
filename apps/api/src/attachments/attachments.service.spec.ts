@@ -12,7 +12,7 @@ import { AttachmentsService } from './attachments.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { MembersService } from '../members/members.service';
-import { STORAGE_DRIVER, StorageDriver } from '../storage/storage.types';
+import { STORAGE_DRIVER } from '../storage/storage.types';
 import { LocalDiskDriver } from '../storage/local-disk.driver';
 import {
   createTestPrisma,
@@ -369,8 +369,9 @@ describe('AttachmentsService', () => {
 
   describe('list', () => {
     it('returns metadata without storageKey, newest first', async () => {
-      await seedAttachment(prisma, 'task', task.id, { filename: 'one.txt' });
-      await seedAttachment(prisma, 'task', task.id, { filename: 'two.txt' });
+      const older = new Date(Date.now() - 10000);
+      await seedAttachment(prisma, 'task', task.id, { filename: 'one.txt', createdAt: older });
+      await seedAttachment(prisma, 'task', task.id, { filename: 'two.txt', createdAt: new Date() });
       const list = await service.list('task', task.id);
       expect(list).toHaveLength(2);
       expect(list[0].filename).toBe('two.txt');

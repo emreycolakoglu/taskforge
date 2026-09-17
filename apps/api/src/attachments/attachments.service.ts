@@ -125,7 +125,7 @@ export class AttachmentsService {
     const rows = await this.prisma.attachment.findMany({
       where: { subjectType, subjectId },
       include: { uploader: { select: { id: true, displayName: true } } },
-      orderBy: { createdAt: 'desc' },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
     });
     return rows.map((a) => this.toMeta(a));
   }

@@ -287,6 +287,7 @@ export async function seedAttachment(
       sizeBytes: overrides.sizeBytes ?? 5,
       storageKey: overrides.storageKey ?? `${randomUUID()}.txt`,
       uploaderId: overrides.uploaderId ?? null,
+      createdAt: overrides.createdAt,
     },
   });
 }
