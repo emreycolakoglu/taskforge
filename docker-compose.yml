@@ -12,6 +12,7 @@ services:
       - PORT=3000
       - DATABASE_URL=file:/data/taskforge.db
       - CORS_ORIGIN=*
+      - ATTACHMENTS_DIR=/data/attachments
 
 volumes:
   taskforge-data:

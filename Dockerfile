@@ -34,6 +34,7 @@ ENV NODE_ENV=production
 ENV PORT=3000
 ENV DATABASE_URL="file:/data/taskforge.db"
 ENV CORS_ORIGIN="*"
+ENV ATTACHMENTS_DIR="/data/attachments"
 
 # Copy built API
 COPY --from=builder /app/apps/api/dist ./apps/api/dist
