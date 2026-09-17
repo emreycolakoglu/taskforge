@@ -8,26 +8,27 @@ datasource db {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
+  id           String   @id @default(cuid())
+  email        String   @unique
   passwordHash String
   displayName  String
-  role         String    @default("member") // "admin" | "member"
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  role         String   @default("member") // "admin" | "member"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   sessions       Session[]
-  createdInvites InviteToken[] @relation("CreatedInvites")
-  usedInvites    InviteToken[] @relation("UsedInvites")
-  tasks          Task[]        @relation("TaskAssignee")
-  comments       Comment[]     @relation("CommentAuthor")
+  createdInvites InviteToken[]        @relation("CreatedInvites")
+  usedInvites    InviteToken[]        @relation("UsedInvites")
+  tasks          Task[]               @relation("TaskAssignee")
+  comments       Comment[]            @relation("CommentAuthor")
   reactions      CommentReaction[]
-  activities     Activity[]    @relation("ActivityActor")
+  activities     Activity[]           @relation("ActivityActor")
   members        Member[]
   subscriptions  TaskSubscription[]
   notifications  Notification[]
-  views          View[]              @relation("ViewOwner")
+  views          View[]               @relation("ViewOwner")
   passwordResets PasswordResetToken[] @relation("PasswordResets")
+  attachments    Attachment[]         @relation("AttachmentUploader")
 
   @@map("users")
 }
@@ -50,18 +51,20 @@ model Session {
 }
 
 model Settings {
-  id            String   @id @default("singleton")
-  title         String   @default("TaskForge")
-  onboarded     Boolean  @default(false)
-  smtpHost      String?
-  smtpPort      Int?
-  smtpUsername  String?
-  smtpPassword  String?
-  smtpFromEmail String?
-  smtpFromName  String   @default("TaskForge")
-  smtpSecure    Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id               String   @id @default("singleton")
+  title            String   @default("TaskForge")
+  onboarded        Boolean  @default(false)
+  smtpHost         String?
+  smtpPort         Int?
+  smtpUsername     String?
+  smtpPassword     String?
+  smtpFromEmail    String?
+  smtpFromName     String   @default("TaskForge")
+  smtpSecure       Boolean  @default(true)
+  maxFileSizeMb    Int      @default(10)
+  allowedMimeTypes String   @default("[\"image/png\",\"image/jpeg\",\"image/gif\",\"image/webp\",\"text/plain\",\"text/markdown\",\"text/csv\",\"application/json\",\"application/pdf\",\"application/zip\"]")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   @@map("settings")
 }
@@ -145,25 +148,26 @@ model Task {
   dueDate     DateTime?
   assigneeId  String?
   metadata    String?
-  estimate    Float?    // effort estimate, freeform positive number
+  estimate    Float? // effort estimate, freeform positive number
   parentId    String?
   isPublic    Boolean   @default(false)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  status         Status         @relation(fields: [statusId], references: [id], onDelete: Cascade)
-  board          Board          @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  assignee       User?          @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  parent         Task?          @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: SetNull)
-  subTasks       Task[]         @relation("TaskSubtasks")
-  labels         TaskLabel[]
-  comments       Comment[]
-  activity       Activity[]
-  relationsFrom  TaskRelation[] @relation("TaskRelationsFrom")
-  relationsTo    TaskRelation[] @relation("TaskRelationsTo")
-  subscriptions  TaskSubscription[]
-  notifications  Notification[]
-  documents      Document[]
+  status        Status             @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  board         Board              @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  assignee      User?              @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  parent        Task?              @relation("TaskSubtasks", fields: [parentId], references: [id], onDelete: SetNull)
+  subTasks      Task[]             @relation("TaskSubtasks")
+  labels        TaskLabel[]
+  comments      Comment[]
+  activity      Activity[]
+  relationsFrom TaskRelation[]     @relation("TaskRelationsFrom")
+  relationsTo   TaskRelation[]     @relation("TaskRelationsTo")
+  subscriptions TaskSubscription[]
+  notifications Notification[]
+  documents     Document[]
+  attachments   Attachment[]
 
   @@unique([boardId, number])
   @@index([boardId])
@@ -172,35 +176,35 @@ model Task {
 }
 
 model TaskRelation {
-  id          String   @id @default(cuid())
-  type        String   // "blocks" | "related_to" | "duplicate_of"
-  fromTaskId  String   // "blocks": blocker; "related_to": lower-ordered; "duplicate_of": the duplicate
-  toTaskId    String   // "blocks": blocked; "related_to": higher-ordered; "duplicate_of": the canonical original
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  type       String // "blocks" | "related_to" | "duplicate_of"
+  fromTaskId String // "blocks": blocker; "related_to": lower-ordered; "duplicate_of": the duplicate
+  toTaskId   String // "blocks": blocked; "related_to": higher-ordered; "duplicate_of": the canonical original
+  createdAt  DateTime @default(now())
 
   fromTask Task @relation("TaskRelationsFrom", fields: [fromTaskId], references: [id], onDelete: Cascade)
-  toTask   Task @relation("TaskRelationsTo",   fields: [toTaskId],   references: [id], onDelete: Cascade)
+  toTask   Task @relation("TaskRelationsTo", fields: [toTaskId], references: [id], onDelete: Cascade)
 
+  @@unique([type, fromTaskId, toTaskId])
   @@index([fromTaskId])
   @@index([toTaskId])
   @@index([type])
-  @@unique([type, fromTaskId, toTaskId])
   @@map("task_relations")
 }
 
 model Document {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   boardId   String
-  taskId    String            // every document belongs to exactly one task
-  number    Int               // board-level counter: D-1, D-2, ...
+  taskId    String // every document belongs to exactly one task
+  number    Int // board-level counter: D-1, D-2, ...
   title     String
-  body      String            // markdown, default ""
-  isPublic  Boolean   @default(false)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  body      String // markdown, default ""
+  isPublic  Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  board  Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
 
   @@unique([boardId, number])
   @@index([boardId])
@@ -216,8 +220,8 @@ model Label {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  board  Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  tasks  TaskLabel[]
+  board Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tasks TaskLabel[]
 }
 
 model TaskLabel {
@@ -243,10 +247,10 @@ model Comment {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  task    Task      @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
-  replies Comment[] @relation("CommentReplies")
-  authorRel User?   @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  task      Task              @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  parent    Comment?          @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies   Comment[]         @relation("CommentReplies")
+  authorRel User?             @relation("CommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
   reactions CommentReaction[]
 
   @@index([authorId])
@@ -277,8 +281,8 @@ model Activity {
   detail    String?
   createdAt DateTime @default(now())
 
-  task     Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  actorRel User? @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+  task         Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actorRel     User?          @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
   notification Notification[]
 
   @@index([actorId])
@@ -324,8 +328,8 @@ model Notification {
   readAt     DateTime?
   createdAt  DateTime  @default(now())
 
-  user     User     @relation(fields: [userId],     references: [id], onDelete: Cascade)
-  task     Task     @relation(fields: [taskId],     references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task     Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt])
@@ -334,10 +338,10 @@ model Notification {
 }
 
 model View {
-  id       String  @id @default(cuid())
-  boardId  String
-  userId   String
-  isShared Boolean @default(false)
+  id        String   @id @default(cuid())
+  boardId   String
+  userId    String
+  isShared  Boolean  @default(false)
   name      String
   filters   String // JSON string: { labelIds?, assigneeIds?, priorities?, dueDateRange?, searchQuery? }
   groupBy   String   @default("status") // status | assignee | priority | label | none
@@ -352,4 +356,25 @@ model View {
 
   @@index([boardId])
   @@map("views")
+}
+
+model Attachment {
+  id          String   @id @default(cuid())
+  subjectType String // "task" | "comment" | "document"
+  subjectId   String
+  filename    String
+  mimeType    String
+  sizeBytes   Int
+  storageKey  String   @unique
+  uploaderId  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  uploader User?   @relation("AttachmentUploader", fields: [uploaderId], references: [id], onDelete: SetNull)
+  task     Task?   @relation(fields: [taskId], references: [id])
+  taskId   String?
+
+  @@index([subjectType, subjectId])
+  @@index([uploaderId])
+  @@map("attachments")
 }
