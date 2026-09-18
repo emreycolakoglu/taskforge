@@ -10,6 +10,7 @@
  */
 
 import { useCallback } from 'react';
+import { toast } from 'sonner';
 import { useTask, useUpdateTask, useTasksByBoard, useCreateTask } from '@/hooks/use-tasks';
 import { useTaskRelations, useCreateRelation, useRemoveRelation } from '@/hooks/use-relations';
 import { useBoardFull } from '@/hooks/use-boards';
@@ -34,6 +35,7 @@ import { DetailActivity } from '@/components/detail-activity';
 import { DetailComments } from '@/components/detail-comments';
 import { DetailPropertiesSidebar } from '@/components/detail-properties-sidebar';
 import { AttachmentSection } from '@/components/attachment-section';
+import { useUploadAttachment } from '@/hooks/use-attachments';
 import type { RelationType, Task } from '@/types';
 
 interface TaskDetailViewProps {
@@ -67,6 +69,7 @@ export function TaskDetailView({
   const deleteComment = useDeleteComment();
   const updateComment = useUpdateComment();
   const reactToComment = useReactToComment();
+  const uploadAttachment = useUploadAttachment();
   const createTask = useCreateTask();
   const { data: relations } = useTaskRelations(taskId);
   const createRelation = useCreateRelation();
@@ -83,11 +86,34 @@ export function TaskDetailView({
   );
 
   const handleAddComment = useCallback(
-    (body: string, parentId?: string) => {
+    async (body: string, parentId?: string, files: File[] = []) => {
       if (!task) return;
-      createComment.mutate({ taskId: task.id, author: 'user', body, parentId });
+      const comment = await createComment.mutateAsync({
+        taskId: task.id,
+        author: 'user',
+        body,
+        parentId,
+      });
+      try {
+        await Promise.all(
+          files.map((file) =>
+            uploadAttachment.mutateAsync({
+              subjectType: 'comment',
+              subjectId: comment.id,
+              taskId: task.id,
+              file,
+            }),
+          ),
+        );
+      } catch (error) {
+        toast.error('Failed to upload attachment', {
+          description: error instanceof Error ? error.message : 'Please try again.',
+        });
+        throw error;
+      }
+      return comment;
     },
-    [task, createComment],
+    [task, createComment, uploadAttachment],
   );
 
   const handleDeleteComment = useCallback(
@@ -99,11 +125,29 @@ export function TaskDetailView({
   );
 
   const handleEditComment = useCallback(
-    (commentId: string, body: string) => {
+    async (commentId: string, body: string, files: File[] = []) => {
       if (!task) return;
-      updateComment.mutate({ id: commentId, body, taskId: task.id });
+      const comment = await updateComment.mutateAsync({ id: commentId, body, taskId: task.id });
+      try {
+        await Promise.all(
+          files.map((file) =>
+            uploadAttachment.mutateAsync({
+              subjectType: 'comment',
+              subjectId: comment.id,
+              taskId: task.id,
+              file,
+            }),
+          ),
+        );
+      } catch (error) {
+        toast.error('Failed to upload attachment', {
+          description: error instanceof Error ? error.message : 'Please try again.',
+        });
+        throw error;
+      }
+      return comment;
     },
-    [task, updateComment],
+    [task, updateComment, uploadAttachment],
   );
 
   const handleReactToComment = useCallback(
@@ -227,6 +271,8 @@ export function TaskDetailView({
             onEdit={handleEditComment}
             onReact={handleReactToComment}
             formatTimestamp={formatTimestamp}
+            boardId={boardId}
+            taskId={task.id}
           />
         </div>
       </ScrollArea>

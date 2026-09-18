@@ -6,6 +6,10 @@ const mockUseSocket = vi.hoisted(() => vi.fn(() => ({ on: vi.fn() })));
 const mockUseUsers = vi.hoisted(() => vi.fn(() => ({ data: [] })));
 const mockUseUserDirectory = vi.hoisted(() => vi.fn(() => ({ data: [] })));
 const mockAttachmentSection = vi.hoisted(() => vi.fn());
+const mockCreateComment = vi.hoisted(() => vi.fn());
+const mockUpdateComment = vi.hoisted(() => vi.fn());
+const mockUploadAttachment = vi.hoisted(() => vi.fn());
+const mockDetailComments = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/use-socket', () => ({
   useSocket: mockUseSocket,
@@ -43,10 +47,14 @@ vi.mock('@/hooks/use-boards', () => ({
 
 vi.mock('@/hooks/use-comments', () => ({
   useComments: () => ({ data: [] }),
-  useCreateComment: () => ({ mutate: vi.fn() }),
+  useCreateComment: () => ({ mutateAsync: mockCreateComment }),
   useDeleteComment: () => ({ mutate: vi.fn() }),
-  useUpdateComment: () => ({ mutate: vi.fn() }),
+  useUpdateComment: () => ({ mutateAsync: mockUpdateComment }),
   useReactToComment: () => ({ mutate: vi.fn() }),
+}));
+
+vi.mock('@/hooks/use-attachments', () => ({
+  useUploadAttachment: () => ({ mutateAsync: mockUploadAttachment }),
 }));
 
 vi.mock('@/hooks/use-users', () => ({
@@ -86,7 +94,12 @@ vi.mock('@/components/attachment-section', () => ({
 vi.mock('@/components/detail-activity', () => ({
   DetailActivity: () => <div data-testid="activity" />,
 }));
-vi.mock('@/components/detail-comments', () => ({ DetailComments: () => null }));
+vi.mock('@/components/detail-comments', () => ({
+  DetailComments: (props: unknown) => {
+    mockDetailComments(props);
+    return null;
+  },
+}));
 vi.mock('@/components/detail-properties-sidebar', () => ({
   DetailPropertiesSidebar: () => null,
 }));
@@ -126,5 +139,54 @@ describe('TaskDetailView', () => {
     expect(getByTestId('attachments').compareDocumentPosition(getByTestId('activity'))).toBe(
       Node.DOCUMENT_POSITION_FOLLOWING,
     );
+  });
+
+  it('creates a comment before uploading its queued files', async () => {
+    const file = new File(['x'], 'note.txt', { type: 'text/plain' });
+    mockCreateComment.mockResolvedValue({ id: 'comment-1' });
+    mockUploadAttachment.mockResolvedValue({ id: 'attachment-1' });
+    render(<TaskDetailView taskId="task-1" boardId="board-1" />);
+
+    const props = mockDetailComments.mock.calls.at(-1)?.[0] as {
+      onSubmit: (body: string, parentId?: string, files?: File[]) => Promise<unknown>;
+    };
+    await props.onSubmit('Body', undefined, [file]);
+
+    expect(mockCreateComment).toHaveBeenCalledWith({
+      taskId: 'task-1',
+      author: 'user',
+      body: 'Body',
+      parentId: undefined,
+    });
+    expect(mockUploadAttachment).toHaveBeenCalledWith({
+      subjectType: 'comment',
+      subjectId: 'comment-1',
+      taskId: 'task-1',
+      file,
+    });
+  });
+
+  it('updates a comment before uploading its queued files', async () => {
+    const file = new File(['x'], 'note.txt', { type: 'text/plain' });
+    mockUpdateComment.mockResolvedValue({ id: 'comment-1' });
+    mockUploadAttachment.mockResolvedValue({ id: 'attachment-1' });
+    render(<TaskDetailView taskId="task-1" boardId="board-1" />);
+
+    const props = mockDetailComments.mock.calls.at(-1)?.[0] as {
+      onEdit: (id: string, body: string, files?: File[]) => Promise<unknown>;
+    };
+    await props.onEdit('comment-1', 'Edited', [file]);
+
+    expect(mockUpdateComment).toHaveBeenCalledWith({
+      id: 'comment-1',
+      body: 'Edited',
+      taskId: 'task-1',
+    });
+    expect(mockUploadAttachment).toHaveBeenCalledWith({
+      subjectType: 'comment',
+      subjectId: 'comment-1',
+      taskId: 'task-1',
+      file,
+    });
   });
 });

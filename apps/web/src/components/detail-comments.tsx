@@ -31,7 +31,17 @@
 
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { MessageSquare, MoreHorizontal, Trash2, Pencil, Smile, Reply } from 'lucide-react';
+import {
+  MessageSquare,
+  MoreHorizontal,
+  Paperclip,
+  Trash2,
+  Pencil,
+  Smile,
+  Reply,
+  X,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
 import {
@@ -54,18 +64,23 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Badge } from '@/components/ui/badge';
 import { MarkdownEditor } from '@/components/markdown';
+import { AttachmentChips } from '@/components/attachment-chips';
+import { validateAttachmentFile, type AttachmentSettings } from '@/components/attachment-section';
 import { useAuth } from '@/contexts/auth-context';
+import { useSettings } from '@/hooks/use-settings';
 import { useUserDirectory } from '@/hooks/use-users';
 import { REACTION_EMOJIS } from '@/lib/reactions';
 import type { Comment } from '@/types';
 
 interface DetailCommentsProps {
   comments: Comment[];
-  onSubmit: (body: string, parentId?: string) => void;
+  onSubmit: (body: string, parentId?: string, files?: File[]) => Promise<Comment | void> | void;
   onDelete?: (commentId: string) => void;
-  onEdit?: (commentId: string, body: string) => void;
+  onEdit?: (commentId: string, body: string, files?: File[]) => Promise<Comment | void> | void;
   onReact?: (commentId: string, emoji: string) => void;
   formatTimestamp: (ts: string) => string;
+  boardId?: string;
+  taskId?: string;
 }
 
 function countVisible(comments: Comment[] | undefined): number {
@@ -80,22 +95,49 @@ export function DetailComments({
   onEdit,
   onReact,
   formatTimestamp,
+  boardId,
+  taskId,
 }: DetailCommentsProps) {
   const [text, setText] = useState('');
+  const [files, setFiles] = useState<File[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState('');
+  const [editFiles, setEditFiles] = useState<File[]>([]);
   const [reactPickerFor, setReactPickerFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [replyFiles, setReplyFiles] = useState<File[]>([]);
   const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<string>>(new Set());
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: directory = [] } = useUserDirectory();
+  const { data: settings } = useSettings();
+  const attachmentSettings = settings as AttachmentSettings | undefined;
+
+  const addFiles = (
+    selected: File[],
+    setPendingFiles: (files: File[]) => void,
+    pendingFiles: File[],
+  ) => {
+    const validFiles = selected.filter((file) => {
+      const error = validateAttachmentFile(file, attachmentSettings);
+      if (error) toast.error(error);
+      return !error;
+    });
+    if (validFiles.length > 0) setPendingFiles([...pendingFiles, ...validFiles]);
+  };
 
   const submit = () => {
     if (!text.trim()) return;
-    onSubmit(text.trim());
-    setText('');
+    const submitted =
+      files.length > 0 ? onSubmit(text.trim(), undefined, files) : onSubmit(text.trim());
+    const clear = () => {
+      setText('');
+      setFiles([]);
+    };
+    if (submitted && typeof submitted.then === 'function')
+      void submitted.then(clear).catch(() => {});
+    else clear();
   };
 
   const visibleCount = useMemo(() => countVisible(comments), [comments]);
@@ -103,17 +145,24 @@ export function DetailComments({
   const closeReply = () => {
     setReplyTo(null);
     setReplyText('');
+    setReplyFiles([]);
   };
 
   const submitReply = () => {
     if (!replyTo || !replyText.trim()) return;
-    onSubmit(replyText.trim(), replyTo);
-    closeReply();
+    const submitted =
+      replyFiles.length > 0
+        ? onSubmit(replyText.trim(), replyTo, replyFiles)
+        : onSubmit(replyText.trim(), replyTo);
+    if (submitted && typeof submitted.then === 'function')
+      void submitted.then(closeReply).catch(() => {});
+    else closeReply();
   };
 
   const openReply = (commentId: string) => {
     setReplyTo((prev) => (prev === commentId ? null : commentId));
     setReplyText('');
+    setReplyFiles([]);
   };
 
   const toggleCollapsed = (id: string) =>
@@ -141,18 +190,29 @@ export function DetailComments({
   const startEdit = (c: Comment) => {
     setEditingId(c.id);
     setEditBody(c.body);
+    setEditFiles([]);
   };
 
   const saveEdit = () => {
     if (!editingId || !editBody.trim()) return;
-    onEdit!(editingId, editBody.trim());
-    setEditingId(null);
-    setEditBody('');
+    const submitted =
+      editFiles.length > 0
+        ? onEdit!(editingId, editBody.trim(), editFiles)
+        : onEdit!(editingId, editBody.trim());
+    const clear = () => {
+      setEditingId(null);
+      setEditBody('');
+      setEditFiles([]);
+    };
+    if (submitted && typeof submitted.then === 'function')
+      void submitted.then(clear).catch(() => {});
+    else clear();
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditBody('');
+    setEditFiles([]);
   };
 
   const hasReacted = (c: Comment, emoji: string) =>
@@ -270,6 +330,13 @@ export function DetailComments({
               rows={3}
               aria-label="Edit comment"
             />
+            <PendingFiles
+              files={editFiles}
+              inputId={`edit-comment-attachment-${c.id}`}
+              label="Attach to edit"
+              onAdd={(selected) => addFiles(selected, setEditFiles, editFiles)}
+              onRemove={(file) => setEditFiles(editFiles.filter((item) => item !== file))}
+            />
             <div className="flex gap-2">
               <Button size="sm" variant="outline" onClick={saveEdit} disabled={!editBody.trim()}>
                 Save
@@ -289,6 +356,20 @@ export function DetailComments({
           />
         )}
 
+        {!isDeleted &&
+          !isEditing &&
+          c.attachments &&
+          c.attachments.length > 0 &&
+          boardId &&
+          taskId && (
+            <AttachmentChips
+              attachments={c.attachments}
+              subjectId={c.id}
+              boardId={boardId}
+              taskId={taskId}
+            />
+          )}
+
         {/* Reply composer — one open at a time */}
         {replyTo === c.id && !isDeleted && (
           <div className="mt-2 flex flex-col gap-2">
@@ -304,6 +385,13 @@ export function DetailComments({
               rows={2}
               placeholder={`Reply to ${c.author}…`}
               aria-label="Reply composer"
+            />
+            <PendingFiles
+              files={replyFiles}
+              inputId={`reply-comment-attachment-${c.id}`}
+              label="Attach to reply"
+              onAdd={(selected) => addFiles(selected, setReplyFiles, replyFiles)}
+              onRemove={(file) => setReplyFiles(replyFiles.filter((item) => item !== file))}
             />
             <div className="flex gap-2">
               <Button
@@ -415,6 +503,13 @@ export function DetailComments({
           rows={2}
           placeholder="Add a comment…"
         />
+        <PendingFiles
+          files={files}
+          inputId="comment-attachment"
+          label="Attach to comment"
+          onAdd={(selected) => addFiles(selected, setFiles, files)}
+          onRemove={(file) => setFiles(files.filter((item) => item !== file))}
+        />
         <div>
           <Button size="sm" variant="outline" onClick={submit} disabled={!text.trim()}>
             Submit comment
@@ -430,5 +525,55 @@ export function DetailComments({
         )}
       </div>
     </section>
+  );
+}
+
+function PendingFiles({
+  files,
+  inputId,
+  label = 'Attach to comment',
+  onAdd,
+  onRemove,
+}: {
+  files: File[];
+  inputId: string;
+  label?: string;
+  onAdd: (files: File[]) => void;
+  onRemove: (file: File) => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      <input
+        id={inputId}
+        className="sr-only"
+        type="file"
+        multiple
+        aria-label={label}
+        onChange={(event) => {
+          onAdd(Array.from(event.target.files ?? []));
+          event.target.value = '';
+        }}
+      />
+      <Button size="sm" variant="ghost" asChild>
+        <label htmlFor={inputId}>
+          <span>
+            <Paperclip className="size-3.5" />
+            Attach
+          </span>
+          <span className="sr-only">{label}</span>
+        </label>
+      </Button>
+      {files.map((file) => (
+        <span
+          key={`${file.name}-${file.lastModified}`}
+          className="flex items-center gap-1 text-xs text-muted-foreground"
+        >
+          {file.name}
+          <button type="button" aria-label={`Remove ${file.name}`} onClick={() => onRemove(file)}>
+            <X className="size-3" />
+          </button>
+        </span>
+      ))}
+    </div>
   );
 }

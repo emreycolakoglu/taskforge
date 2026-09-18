@@ -36,6 +36,10 @@ vi.mock('@/hooks/use-users', () => ({
   useUserDirectory: () => ({ data: [] }),
 }));
 
+vi.mock('@/hooks/use-settings', () => ({
+  useSettings: () => ({ data: undefined }),
+}));
+
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
@@ -282,6 +286,61 @@ describe('DetailComments — threaded replies', () => {
     fireEvent.click(screen.getByText('Reply'));
     expect(onSubmit).toHaveBeenCalledWith('my reply', 'c1');
     expect(screen.queryByPlaceholderText('Reply to Alice…')).not.toBeInTheDocument();
+  });
+
+  it('queues root files with the body until a new comment is created', async () => {
+    const onSubmit = vi.fn().mockResolvedValue(makeComment({ id: 'c-new' }));
+    const file = new File(['x'], 'note.txt', { type: 'text/plain' });
+    render(<DetailComments comments={[]} onSubmit={onSubmit} formatTimestamp={(value) => value} />);
+
+    await userEvent.upload(screen.getByLabelText('Attach to comment'), file);
+    await userEvent.type(screen.getByPlaceholderText('Add a comment…'), 'Body');
+    await userEvent.click(screen.getByRole('button', { name: 'Submit comment' }));
+
+    expect(onSubmit).toHaveBeenCalledWith('Body', undefined, [file]);
+  });
+
+  it('retains a root draft and its files when comment creation fails', async () => {
+    const onSubmit = vi.fn().mockRejectedValue(new Error('Request failed'));
+    const file = new File(['x'], 'note.txt', { type: 'text/plain' });
+    render(<DetailComments comments={[]} onSubmit={onSubmit} formatTimestamp={(value) => value} />);
+
+    await userEvent.upload(screen.getByLabelText('Attach to comment'), file);
+    await userEvent.type(screen.getByPlaceholderText('Add a comment…'), 'Body');
+    await userEvent.click(screen.getByRole('button', { name: 'Submit comment' }));
+
+    expect(screen.getByPlaceholderText('Add a comment…')).toHaveValue('Body');
+    expect(screen.getByText('note.txt')).toBeInTheDocument();
+  });
+
+  it('queues reply files with the parent id', async () => {
+    const parent = makeComment({ id: 'c1', body: 'root body' });
+    const onSubmit = vi.fn().mockResolvedValue(makeComment({ id: 'c-new' }));
+    const file = new File(['x'], 'reply.txt', { type: 'text/plain' });
+    render(
+      <DetailComments comments={[parent]} onSubmit={onSubmit} formatTimestamp={(value) => value} />,
+    );
+
+    await userEvent.click(screen.getByLabelText('Reply to Alice'));
+    await userEvent.upload(screen.getByLabelText('Attach to reply'), file);
+    await userEvent.type(screen.getByPlaceholderText('Reply to Alice…'), 'Reply');
+    await userEvent.click(screen.getByRole('button', { name: 'Reply' }));
+
+    expect(onSubmit).toHaveBeenCalledWith('Reply', 'c1', [file]);
+  });
+
+  it('queues edit files with the updated body', async () => {
+    const comment = makeComment({ authorId: 'user-1' });
+    const onEdit = vi.fn().mockResolvedValue(comment);
+    const file = new File(['x'], 'edit.txt', { type: 'text/plain' });
+    renderComments([comment], undefined, undefined, onEdit);
+
+    await userEvent.click(screen.getByLabelText('Comment actions'));
+    await userEvent.click(screen.getByText('Edit'));
+    await userEvent.upload(screen.getByLabelText('Attach to edit'), file);
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(onEdit).toHaveBeenCalledWith('c1', 'Looks good', [file]);
   });
 
   it('cancels the reply composer without submitting', async () => {
