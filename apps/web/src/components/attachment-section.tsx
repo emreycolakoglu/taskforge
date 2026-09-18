@@ -13,10 +13,10 @@ interface AttachmentSectionProps {
   subjectType: AttachmentSubjectType;
   subjectId: string;
   boardId: string;
-  taskId: string;
+  taskId?: string;
 }
 
-type AttachmentSettings = {
+export type AttachmentSettings = {
   maxFileSizeMb?: number;
   allowedMimeTypes?: string[];
 };
@@ -44,6 +44,20 @@ function AttachmentIcon({ mimeType }: { mimeType: string }) {
   return <File className="size-4" />;
 }
 
+export function validateAttachmentFile(
+  file: File,
+  settings?: AttachmentSettings,
+): string | undefined {
+  const maxSize = settings?.maxFileSizeMb;
+  if (maxSize && file.size > maxSize * 1024 * 1024) {
+    return `File exceeds the ${maxSize} MB limit`;
+  }
+  const allowedMimeTypes = settings?.allowedMimeTypes;
+  if (allowedMimeTypes && !allowedMimeTypes.includes(file.type)) {
+    return `File type ${file.type || 'unknown'} is not allowed`;
+  }
+}
+
 export function AttachmentSection({
   subjectType,
   subjectId,
@@ -61,21 +75,17 @@ export function AttachmentSection({
   const member = members?.find((item) => item.userId === user?.id);
   const canUpload =
     user?.role === 'admin' ||
-    (members !== undefined && (!members.length || member?.role !== 'viewer'));
+    (members !== undefined &&
+      (members.length === 0 || (member !== undefined && member.role !== 'viewer')));
 
   const canDelete = (attachment: Attachment) =>
     user?.role === 'admin' || attachment.uploaderId === user?.id || member?.role === 'admin';
 
   const handleFile = (file: File | undefined) => {
     if (!file) return;
-    const maxSize = attachmentSettings?.maxFileSizeMb;
-    if (maxSize && file.size > maxSize * 1024 * 1024) {
-      toast.error(`File exceeds the ${maxSize} MB limit`);
-      return;
-    }
-    const allowedMimeTypes = attachmentSettings?.allowedMimeTypes;
-    if (allowedMimeTypes && !allowedMimeTypes.includes(file.type)) {
-      toast.error(`File type ${file.type || 'unknown'} is not allowed`);
+    const error = validateAttachmentFile(file, attachmentSettings);
+    if (error) {
+      toast.error(error);
       return;
     }
     upload.mutate({

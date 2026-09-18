@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
+import * as attachmentSection from './attachment-section';
 import { AttachmentSection } from './attachment-section';
 
 const mocks = vi.hoisted(() => ({
@@ -95,6 +96,42 @@ describe('AttachmentSection', () => {
     expect(toast.error).toHaveBeenCalledWith('File type image/png is not allowed');
   });
 
+  it('defers validation to the API when settings are absent', async () => {
+    mocks.settings.mockReturnValue({ data: undefined });
+    renderSection();
+    const file = new File(['image'], 'image.png', { type: 'image/png' });
+
+    await userEvent.upload(screen.getByLabelText('Upload attachment'), file);
+
+    expect(mocks.upload).toHaveBeenCalledWith(
+      expect.objectContaining({
+        subjectType: 'task',
+        subjectId: 't1',
+        file,
+      }),
+    );
+  });
+
+  it('exports file validation for attachment consumers', () => {
+    const validate = (
+      attachmentSection as typeof attachmentSection & {
+        validateAttachmentFile?: (file: File, settings?: unknown) => string | undefined;
+      }
+    ).validateAttachmentFile;
+    const largeFile = new File([new Uint8Array(1024 * 1024 + 1)], 'large.txt', {
+      type: 'text/plain',
+    });
+    const imageFile = new File(['image'], 'image.png', { type: 'image/png' });
+
+    expect(validate).toBeTypeOf('function');
+    if (!validate) return;
+    expect(validate(imageFile)).toBeUndefined();
+    expect(validate(largeFile, { maxFileSizeMb: 1 })).toBe('File exceeds the 1 MB limit');
+    expect(validate(imageFile, { allowedMimeTypes: ['text/plain'] })).toBe(
+      'File type image/png is not allowed',
+    );
+  });
+
   it('uploads an allowed file with the attachment subject payload', async () => {
     renderSection();
     const file = new File(['report'], 'report.txt', { type: 'text/plain' });
@@ -150,6 +187,13 @@ describe('AttachmentSection', () => {
     renderSection();
 
     expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
+  });
+
+  it('hides upload from non-members when board members exist', () => {
+    mocks.members.mockReturnValue({ data: [{ userId: 'u1', role: 'member' }] });
+    renderSection();
+
+    expect(screen.queryByRole('button', { name: 'Upload' })).not.toBeInTheDocument();
   });
 
   it('associates the hidden file input with an upload label', () => {
