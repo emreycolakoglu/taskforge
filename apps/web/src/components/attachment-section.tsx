@@ -59,7 +59,9 @@ export function AttachmentSection({
   const remove = useDeleteAttachment();
   const attachmentSettings = settings as AttachmentSettings | undefined;
   const member = members?.find((item) => item.userId === user?.id);
-  const canUpload = user?.role === 'admin' || !members?.length || member?.role !== 'viewer';
+  const canUpload =
+    user?.role === 'admin' ||
+    (members !== undefined && (!members.length || member?.role !== 'viewer'));
 
   const canDelete = (attachment: Attachment) =>
     user?.role === 'admin' || attachment.uploaderId === user?.id || member?.role === 'admin';
@@ -99,12 +101,14 @@ export function AttachmentSection({
               id={`attachment-upload-${subjectType}-${subjectId}`}
               className="sr-only"
               type="file"
-              aria-label="Upload attachment"
               onChange={(event) => {
                 handleFile(event.target.files?.[0]);
                 event.target.value = '';
               }}
             />
+            <label className="sr-only" htmlFor={`attachment-upload-${subjectType}-${subjectId}`}>
+              Upload attachment
+            </label>
             <Button
               type="button"
               size="sm"

@@ -5,6 +5,7 @@ import { TaskDetailView } from './task-detail-view';
 const mockUseSocket = vi.hoisted(() => vi.fn(() => ({ on: vi.fn() })));
 const mockUseUsers = vi.hoisted(() => vi.fn(() => ({ data: [] })));
 const mockUseUserDirectory = vi.hoisted(() => vi.fn(() => ({ data: [] })));
+const mockAttachmentSection = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/use-socket', () => ({
   useSocket: mockUseSocket,
@@ -73,9 +74,18 @@ vi.mock('@/components/ui/sheet', () => ({
 vi.mock('@/components/detail-title-block', () => ({ DetailTitleBlock: () => null }));
 vi.mock('@/components/detail-description-editor', () => ({ DetailDescriptionEditor: () => null }));
 vi.mock('@/components/detail-sub-issues', () => ({ DetailSubIssues: () => null }));
-vi.mock('@/components/detail-documents', () => ({ DetailDocuments: () => null }));
-vi.mock('@/components/attachment-section', () => ({ AttachmentSection: () => null }));
-vi.mock('@/components/detail-activity', () => ({ DetailActivity: () => null }));
+vi.mock('@/components/detail-documents', () => ({
+  DetailDocuments: () => <div data-testid="documents" />,
+}));
+vi.mock('@/components/attachment-section', () => ({
+  AttachmentSection: (props: unknown) => {
+    mockAttachmentSection(props);
+    return <div data-testid="attachments" />;
+  },
+}));
+vi.mock('@/components/detail-activity', () => ({
+  DetailActivity: () => <div data-testid="activity" />,
+}));
 vi.mock('@/components/detail-comments', () => ({ DetailComments: () => null }));
 vi.mock('@/components/detail-properties-sidebar', () => ({
   DetailPropertiesSidebar: () => null,
@@ -99,5 +109,22 @@ describe('TaskDetailView', () => {
 
     expect(mockUseUserDirectory).toHaveBeenCalled();
     expect(mockUseUsers).not.toHaveBeenCalled();
+  });
+
+  it('places task attachments after documents and before activity', () => {
+    const { getByTestId } = render(<TaskDetailView taskId="task-1" boardId="board-1" />);
+
+    expect(mockAttachmentSection).toHaveBeenCalledWith({
+      subjectType: 'task',
+      subjectId: 'task-1',
+      boardId: 'board-1',
+      taskId: 'task-1',
+    });
+    expect(getByTestId('documents').compareDocumentPosition(getByTestId('attachments'))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(getByTestId('attachments').compareDocumentPosition(getByTestId('activity'))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
   });
 });

@@ -11,6 +11,7 @@ const mockUseDocument = vi.fn();
 const mockUseDeleteDocument = vi.fn();
 const mockUseSetDocumentPublic = vi.fn();
 const mockWriteText = vi.fn().mockResolvedValue(undefined);
+const mockAttachmentSection = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/use-documents', () => ({
   useDocument: (...args: any[]) => mockUseDocument(...args),
@@ -22,7 +23,10 @@ vi.mock('@/components/markdown', () => ({
   MarkdownEditor: ({ value }: { value: string }) => <div data-testid="markdown">{value}</div>,
 }));
 vi.mock('@/components/attachment-section', () => ({
-  AttachmentSection: () => <div data-testid="attachments">Attachments</div>,
+  AttachmentSection: (props: unknown) => {
+    mockAttachmentSection(props);
+    return <div data-testid="attachments">Attachments</div>;
+  },
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
@@ -109,5 +113,20 @@ describe('DocumentEditorPage', () => {
       { id: 'd1', boardId: 'b1', taskId: 't1' },
       expect.objectContaining({ onSuccess: expect.any(Function) }),
     );
+  });
+
+  it('places document attachments after the editor in the content column', () => {
+    const { getByTestId } = renderPage();
+
+    expect(mockAttachmentSection).toHaveBeenCalledWith({
+      subjectType: 'document',
+      subjectId: 'd1',
+      boardId: 'b1',
+      taskId: 't1',
+    });
+    expect(getByTestId('markdown').compareDocumentPosition(getByTestId('attachments'))).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(getByTestId('attachments').closest('.max-w-3xl')).not.toBeNull();
   });
 });
