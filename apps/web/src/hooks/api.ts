@@ -24,6 +24,8 @@ import {
   Document,
   View,
   ViewFilters,
+  Attachment,
+  AttachmentSubjectType,
 } from '../types';
 
 const TOKEN_KEY = 'taskforge_token';
@@ -75,6 +77,46 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   } catch {
     return undefined as T;
   }
+}
+
+async function formRequest<T>(url: string, body: FormData): Promise<T> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}${url}`, {
+    method: 'POST',
+    body,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (res.status === 401) {
+    clearToken();
+    onUnauthorized?.();
+    throw new Error('Unauthorized');
+  }
+
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+async function downloadAttachment(attachment: Attachment): Promise<void> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}/attachments/${attachment.id}`, {
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  });
+
+  if (res.status === 401) {
+    clearToken();
+    onUnauthorized?.();
+    throw new Error('Unauthorized');
+  }
+
+  if (!res.ok) throw new Error(await res.text());
+
+  const url = URL.createObjectURL(await res.blob());
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = attachment.filename;
+  link.click();
+  URL.revokeObjectURL(url);
 }
 
 // The API stores view filters as a JSON string column; parse it defensively so
@@ -264,6 +306,19 @@ export const api = {
     delete: (id: string) => request<void>(`/documents/${id}`, { method: 'DELETE' }),
     publish: (id: string) => request<Document>(`/documents/${id}/publish`, { method: 'PUT' }),
     unpublish: (id: string) => request<Document>(`/documents/${id}/publish`, { method: 'DELETE' }),
+  },
+
+  // Attachments
+  attachments: {
+    list: (subjectType: AttachmentSubjectType, subjectId: string) =>
+      request<Attachment[]>(`/${subjectType}/${subjectId}/attachments`),
+    upload: (subjectType: AttachmentSubjectType, subjectId: string, file: File) => {
+      const body = new FormData();
+      body.append('file', file);
+      return formRequest<Attachment>(`/${subjectType}/${subjectId}/attachments`, body);
+    },
+    download: downloadAttachment,
+    delete: (id: string) => request<void>(`/attachments/${id}`, { method: 'DELETE' }),
   },
 
   // Labels

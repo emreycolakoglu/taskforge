@@ -33,6 +33,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
+import { AttachmentSection } from '@/components/attachment-section';
 
 const AUTOSAVE_DELAY_MS = 1000;
 
@@ -217,6 +218,12 @@ export function DocumentEditorPage() {
               saverRef.current?.schedule(body);
               saverRef.current?.flush();
             }}
+          />
+          <AttachmentSection
+            subjectType="document"
+            subjectId={doc.id}
+            boardId={doc.boardId}
+            taskId={doc.taskId}
           />
         </div>
       </main>

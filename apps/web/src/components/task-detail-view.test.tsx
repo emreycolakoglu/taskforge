@@ -74,6 +74,7 @@ vi.mock('@/components/detail-title-block', () => ({ DetailTitleBlock: () => null
 vi.mock('@/components/detail-description-editor', () => ({ DetailDescriptionEditor: () => null }));
 vi.mock('@/components/detail-sub-issues', () => ({ DetailSubIssues: () => null }));
 vi.mock('@/components/detail-documents', () => ({ DetailDocuments: () => null }));
+vi.mock('@/components/attachment-section', () => ({ AttachmentSection: () => null }));
 vi.mock('@/components/detail-activity', () => ({ DetailActivity: () => null }));
 vi.mock('@/components/detail-comments', () => ({ DetailComments: () => null }));
 vi.mock('@/components/detail-properties-sidebar', () => ({

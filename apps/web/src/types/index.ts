@@ -61,6 +61,7 @@ export interface Task {
   taskLabels?: TaskLabel[];
   comments?: Comment[];
   activity?: Activity[];
+  attachments?: Attachment[];
   _count?: { comments: number };
   blockedByCount?: number;
   blockingCount?: number;
@@ -116,6 +117,7 @@ export interface Comment {
   editedAt?: string | null;
   deletedAt?: string | null;
   reactions?: CommentReaction[];
+  attachments?: Attachment[];
   replies: Comment[];
   createdAt: string;
 }
@@ -143,6 +145,20 @@ export interface User {
   role: 'admin' | 'member';
   createdAt: string;
   updatedAt: string;
+}
+
+export type AttachmentSubjectType = 'task' | 'comment' | 'document';
+
+export interface Attachment {
+  id: string;
+  subjectType: AttachmentSubjectType;
+  subjectId: string;
+  filename: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploaderId: string | null;
+  uploader: Pick<User, 'id' | 'displayName'> | null;
+  createdAt: string;
 }
 
 export interface AuthStatus {
@@ -240,6 +256,7 @@ export interface Document {
   title: string;
   body: string;
   isPublic: boolean;
+  attachments?: Attachment[];
   createdAt: string;
   updatedAt: string;
 }

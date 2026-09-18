@@ -33,6 +33,7 @@ import { DetailDocuments } from '@/components/detail-documents';
 import { DetailActivity } from '@/components/detail-activity';
 import { DetailComments } from '@/components/detail-comments';
 import { DetailPropertiesSidebar } from '@/components/detail-properties-sidebar';
+import { AttachmentSection } from '@/components/attachment-section';
 import type { RelationType, Task } from '@/types';
 
 interface TaskDetailViewProps {
@@ -209,6 +210,13 @@ export function TaskDetailView({
           />
 
           <DetailDocuments taskId={task.id} boardId={boardId} />
+
+          <AttachmentSection
+            subjectType="task"
+            subjectId={task.id}
+            boardId={boardId}
+            taskId={task.id}
+          />
 
           <DetailActivity activity={task.activity ?? []} formatTimestamp={formatTimestamp} />
 

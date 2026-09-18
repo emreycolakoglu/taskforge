@@ -21,6 +21,9 @@ vi.mock('@/hooks/use-documents', () => ({
 vi.mock('@/components/markdown', () => ({
   MarkdownEditor: ({ value }: { value: string }) => <div data-testid="markdown">{value}</div>,
 }));
+vi.mock('@/components/attachment-section', () => ({
+  AttachmentSection: () => <div data-testid="attachments">Attachments</div>,
+}));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 beforeEach(() => {

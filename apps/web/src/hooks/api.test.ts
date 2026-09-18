@@ -28,6 +28,71 @@ beforeEach(() => {
 });
 
 describe('api', () => {
+  const attachment = {
+    id: 'a1',
+    subjectType: 'task' as const,
+    subjectId: 't1',
+    filename: 'note.txt',
+    mimeType: 'text/plain',
+    sizeBytes: 4,
+    uploaderId: 'u1',
+    uploader: { id: 'u1', displayName: 'Alice' },
+    createdAt: '2026-09-17T00:00:00.000Z',
+  };
+
+  it('uploads a file as multipart with the bearer token and no JSON content type', async () => {
+    localStorageMock.setItem('taskforge_token', 'token');
+    mockFetch.mockResolvedValueOnce({ ok: true, json: async () => attachment });
+    const { api } = await import('./api');
+
+    await api.attachments.upload(
+      'task',
+      't1',
+      new File(['note'], 'note.txt', { type: 'text/plain' }),
+    );
+
+    const [, options] = mockFetch.mock.calls[0];
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/api/task/t1/attachments',
+      expect.objectContaining({ method: 'POST' }),
+    );
+    expect(options.headers).toEqual({ Authorization: 'Bearer token' });
+    expect(options.body).toBeInstanceOf(FormData);
+    expect((options.body as FormData).get('file')).toBeInstanceOf(File);
+  });
+
+  it('downloads an attachment as a named blob with authorization', async () => {
+    localStorageMock.setItem('taskforge_token', 'token');
+    mockFetch.mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['note']) });
+    const createObjectURL = vi.fn(() => 'blob:note');
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    const { api } = await import('./api');
+
+    await api.attachments.download(attachment);
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/attachments/a1', {
+      headers: { Authorization: 'Bearer token' },
+    });
+    expect(click).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:note');
+    click.mockRestore();
+    vi.unstubAllGlobals();
+  });
+
+  it('deletes an attachment', async () => {
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 204 });
+    const { api } = await import('./api');
+
+    await api.attachments.delete('a1');
+
+    expect(mockFetch).toHaveBeenCalledWith('/api/attachments/a1', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+    });
+  });
+
   it('should make GET request to boards list', async () => {
     const boards = [{ id: 'b1', name: 'Test Board' }];
     mockFetch.mockResolvedValueOnce({
