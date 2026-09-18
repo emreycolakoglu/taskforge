@@ -29,7 +29,7 @@
  * muted). Set on first edit only (server-side).
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   MessageSquare,
@@ -68,6 +68,7 @@ import { AttachmentChips } from '@/components/attachment-chips';
 import { validateAttachmentFile, type AttachmentSettings } from '@/components/attachment-section';
 import { useAuth } from '@/contexts/auth-context';
 import { useSettings } from '@/hooks/use-settings';
+import { useMembers } from '@/hooks/use-members';
 import { useUserDirectory } from '@/hooks/use-users';
 import { REACTION_EMOJIS } from '@/lib/reactions';
 import type { Comment } from '@/types';
@@ -116,21 +117,33 @@ export function DetailComments({
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [submittedCommentId, setSubmittedCommentId] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState('');
   const [editFiles, setEditFiles] = useState<File[]>([]);
   const [editWasSaved, setEditWasSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [reactPickerFor, setReactPickerFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
   const [replyCommentId, setReplyCommentId] = useState<string | null>(null);
+  const [isReplying, setIsReplying] = useState(false);
   const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<string>>(new Set());
+  const submitInFlight = useRef(false);
+  const replyInFlight = useRef(false);
+  const saveInFlight = useRef(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: directory = [] } = useUserDirectory();
   const { data: settings } = useSettings();
+  const { data: members } = useMembers(boardId ?? '');
   const attachmentSettings = settings as AttachmentSettings | undefined;
+  const member = members?.find((item) => item.userId === user?.id);
+  const canUpload =
+    user?.role === 'admin' ||
+    (members !== undefined &&
+      (members.length === 0 || (member !== undefined && member.role !== 'viewer')));
 
   const addFiles = (
     selected: File[],
@@ -146,7 +159,9 @@ export function DetailComments({
   };
 
   const submit = () => {
-    if (!text.trim()) return;
+    if (!text.trim() || submitInFlight.current) return;
+    submitInFlight.current = true;
+    setIsSubmitting(true);
     const submitted = submittedCommentId
       ? onSubmit(text.trim(), undefined, files, submittedCommentId)
       : files.length > 0
@@ -165,9 +180,19 @@ export function DetailComments({
         clear();
       }
     };
+    const finish = () => {
+      submitInFlight.current = false;
+      setIsSubmitting(false);
+    };
     if (submitted && typeof submitted.then === 'function')
-      void submitted.then(complete).catch(() => {});
-    else clear();
+      void submitted
+        .then(complete)
+        .catch(() => {})
+        .finally(finish);
+    else {
+      clear();
+      finish();
+    }
   };
 
   const visibleCount = useMemo(() => countVisible(comments), [comments]);
@@ -180,7 +205,9 @@ export function DetailComments({
   };
 
   const submitReply = () => {
-    if (!replyTo || !replyText.trim()) return;
+    if (!replyTo || !replyText.trim() || replyInFlight.current) return;
+    replyInFlight.current = true;
+    setIsReplying(true);
     const submitted = replyCommentId
       ? onSubmit(replyText.trim(), replyTo, replyFiles, replyCommentId)
       : replyFiles.length > 0
@@ -194,9 +221,19 @@ export function DetailComments({
         closeReply();
       }
     };
+    const finish = () => {
+      replyInFlight.current = false;
+      setIsReplying(false);
+    };
     if (submitted && typeof submitted.then === 'function')
-      void submitted.then(complete).catch(() => {});
-    else closeReply();
+      void submitted
+        .then(complete)
+        .catch(() => {})
+        .finally(finish);
+    else {
+      closeReply();
+      finish();
+    }
   };
 
   const openReply = (commentId: string) => {
@@ -236,7 +273,9 @@ export function DetailComments({
   };
 
   const saveEdit = () => {
-    if (!editingId || !editBody.trim()) return;
+    if (!editingId || !editBody.trim() || saveInFlight.current) return;
+    saveInFlight.current = true;
+    setIsSaving(true);
     const submitted = editWasSaved
       ? onEdit!(editingId, editBody.trim(), editFiles, true)
       : editFiles.length > 0
@@ -256,9 +295,19 @@ export function DetailComments({
         clear();
       }
     };
+    const finish = () => {
+      saveInFlight.current = false;
+      setIsSaving(false);
+    };
     if (submitted && typeof submitted.then === 'function')
-      void submitted.then(complete).catch(() => {});
-    else clear();
+      void submitted
+        .then(complete)
+        .catch(() => {})
+        .finally(finish);
+    else {
+      clear();
+      finish();
+    }
   };
 
   const cancelEdit = () => {
@@ -382,16 +431,25 @@ export function DetailComments({
               }}
               rows={3}
               aria-label="Edit comment"
+              disabled={isSaving || editWasSaved}
             />
-            <PendingFiles
-              files={editFiles}
-              inputId={`edit-comment-attachment-${c.id}`}
-              label="Attach to edit"
-              onAdd={(selected) => addFiles(selected, setEditFiles, editFiles)}
-              onRemove={(file) => setEditFiles(editFiles.filter((item) => item !== file))}
-            />
+            {canUpload && (
+              <PendingFiles
+                files={editFiles}
+                inputId={`edit-comment-attachment-${c.id}`}
+                label="Attach to edit"
+                disabled={isSaving}
+                onAdd={(selected) => addFiles(selected, setEditFiles, editFiles)}
+                onRemove={(file) => setEditFiles(editFiles.filter((item) => item !== file))}
+              />
+            )}
             <div className="flex gap-2">
-              <Button size="sm" variant="outline" onClick={saveEdit} disabled={!editBody.trim()}>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={saveEdit}
+                disabled={!editBody.trim() || isSaving}
+              >
                 Save
               </Button>
               <Button size="sm" variant="ghost" onClick={cancelEdit}>
@@ -438,20 +496,24 @@ export function DetailComments({
               rows={2}
               placeholder={`Reply to ${c.author}…`}
               aria-label="Reply composer"
+              disabled={isReplying || replyCommentId !== null}
             />
-            <PendingFiles
-              files={replyFiles}
-              inputId={`reply-comment-attachment-${c.id}`}
-              label="Attach to reply"
-              onAdd={(selected) => addFiles(selected, setReplyFiles, replyFiles)}
-              onRemove={(file) => setReplyFiles(replyFiles.filter((item) => item !== file))}
-            />
+            {canUpload && (
+              <PendingFiles
+                files={replyFiles}
+                inputId={`reply-comment-attachment-${c.id}`}
+                label="Attach to reply"
+                disabled={isReplying}
+                onAdd={(selected) => addFiles(selected, setReplyFiles, replyFiles)}
+                onRemove={(file) => setReplyFiles(replyFiles.filter((item) => item !== file))}
+              />
+            )}
             <div className="flex gap-2">
               <Button
                 size="sm"
                 variant="outline"
                 onClick={submitReply}
-                disabled={!replyText.trim()}
+                disabled={!replyText.trim() || isReplying}
               >
                 Reply
               </Button>
@@ -555,16 +617,25 @@ export function DetailComments({
           }}
           rows={2}
           placeholder="Add a comment…"
+          disabled={isSubmitting || submittedCommentId !== null}
         />
-        <PendingFiles
-          files={files}
-          inputId="comment-attachment"
-          label="Attach to comment"
-          onAdd={(selected) => addFiles(selected, setFiles, files)}
-          onRemove={(file) => setFiles(files.filter((item) => item !== file))}
-        />
+        {canUpload && (
+          <PendingFiles
+            files={files}
+            inputId="comment-attachment"
+            label="Attach to comment"
+            disabled={isSubmitting}
+            onAdd={(selected) => addFiles(selected, setFiles, files)}
+            onRemove={(file) => setFiles(files.filter((item) => item !== file))}
+          />
+        )}
         <div>
-          <Button size="sm" variant="outline" onClick={submit} disabled={!text.trim()}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={submit}
+            disabled={!text.trim() || isSubmitting}
+          >
             Submit comment
           </Button>
         </div>
@@ -585,12 +656,14 @@ function PendingFiles({
   files,
   inputId,
   label = 'Attach to comment',
+  disabled,
   onAdd,
   onRemove,
 }: {
   files: File[];
   inputId: string;
   label?: string;
+  disabled?: boolean;
   onAdd: (files: File[]) => void;
   onRemove: (file: File) => void;
 }) {
@@ -602,12 +675,13 @@ function PendingFiles({
         type="file"
         multiple
         aria-label={label}
+        disabled={disabled}
         onChange={(event) => {
           onAdd(Array.from(event.target.files ?? []));
           event.target.value = '';
         }}
       />
-      <Button size="sm" variant="ghost" asChild>
+      <Button size="sm" variant="ghost" asChild disabled={disabled}>
         <label htmlFor={inputId}>
           <span>
             <Paperclip className="size-3.5" />
@@ -622,7 +696,12 @@ function PendingFiles({
           className="flex items-center gap-1 text-xs text-muted-foreground"
         >
           {file.name}
-          <button type="button" aria-label={`Remove ${file.name}`} onClick={() => onRemove(file)}>
+          <button
+            type="button"
+            aria-label={`Remove ${file.name}`}
+            onClick={() => onRemove(file)}
+            disabled={disabled}
+          >
             <X className="size-3" />
           </button>
         </span>

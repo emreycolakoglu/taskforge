@@ -12,7 +12,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { DetailComments } from './detail-comments';
 import type { Comment } from '@/types';
@@ -23,6 +23,7 @@ let mockUser: { id: string; role: string } | null = {
   id: 'user-1',
   role: 'member',
 };
+let mockMembers: { userId: string; role: string }[] | undefined = [];
 
 vi.mock('@/contexts/auth-context', () => ({
   useAuth: () => ({ user: mockUser }),
@@ -41,7 +42,7 @@ vi.mock('@/hooks/use-settings', () => ({
 }));
 
 vi.mock('@/hooks/use-members', () => ({
-  useMembers: () => ({ data: [] }),
+  useMembers: () => ({ data: mockMembers }),
 }));
 
 vi.mock('@/hooks/use-attachments', () => ({
@@ -83,6 +84,8 @@ function renderComments(
       onEdit={onEdit}
       onReact={onReact}
       formatTimestamp={(ts) => ts}
+      boardId="b1"
+      taskId="t1"
     />,
   );
 }
@@ -92,6 +95,7 @@ describe('DetailComments — delete feature (TFG-8)', () => {
     vi.clearAllMocks();
     // Reset mockUser to default (non-admin member)
     mockUser = { id: 'user-1', role: 'member' };
+    mockMembers = [];
   });
 
   it('does not show delete button when onDelete is not provided', () => {
@@ -249,6 +253,7 @@ describe('DetailComments — threaded replies', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUser = { id: 'user-1', role: 'member' };
+    mockMembers = [];
   });
 
   it('renders replies nested under their parent', async () => {
@@ -299,7 +304,15 @@ describe('DetailComments — threaded replies', () => {
   it('queues root files with the body until a new comment is created', async () => {
     const onSubmit = vi.fn().mockResolvedValue(makeComment({ id: 'c-new' }));
     const file = new File(['x'], 'note.txt', { type: 'text/plain' });
-    render(<DetailComments comments={[]} onSubmit={onSubmit} formatTimestamp={(value) => value} />);
+    render(
+      <DetailComments
+        comments={[]}
+        onSubmit={onSubmit}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
 
     await userEvent.upload(screen.getByLabelText('Attach to comment'), file);
     await userEvent.type(screen.getByPlaceholderText('Add a comment…'), 'Body');
@@ -311,7 +324,15 @@ describe('DetailComments — threaded replies', () => {
   it('retains a root draft and its files when comment creation fails', async () => {
     const onSubmit = vi.fn().mockRejectedValue(new Error('Request failed'));
     const file = new File(['x'], 'note.txt', { type: 'text/plain' });
-    render(<DetailComments comments={[]} onSubmit={onSubmit} formatTimestamp={(value) => value} />);
+    render(
+      <DetailComments
+        comments={[]}
+        onSubmit={onSubmit}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
 
     await userEvent.upload(screen.getByLabelText('Attach to comment'), file);
     await userEvent.type(screen.getByPlaceholderText('Add a comment…'), 'Body');
@@ -328,7 +349,15 @@ describe('DetailComments — threaded replies', () => {
       .fn()
       .mockResolvedValueOnce({ commentId: 'c-new', failedFiles: [failed] })
       .mockResolvedValueOnce({ commentId: 'c-new', failedFiles: [] });
-    render(<DetailComments comments={[]} onSubmit={onSubmit} formatTimestamp={(value) => value} />);
+    render(
+      <DetailComments
+        comments={[]}
+        onSubmit={onSubmit}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
 
     await userEvent.upload(screen.getByLabelText('Attach to comment'), [uploaded, failed]);
     await userEvent.type(screen.getByPlaceholderText('Add a comment…'), 'Body');
@@ -343,12 +372,59 @@ describe('DetailComments — threaded replies', () => {
     expect(onSubmit).toHaveBeenLastCalledWith('Body', undefined, [failed], 'c-new');
   });
 
+  it('locks the root composer while submitting and after a partial upload until retry', async () => {
+    const uploaded = new File(['uploaded'], 'uploaded.txt', { type: 'text/plain' });
+    const failed = new File(['failed'], 'failed.txt', { type: 'text/plain' });
+    let resolve: (value: { commentId: string; failedFiles: File[] }) => void;
+    const onSubmit = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ commentId: string; failedFiles: File[] }>((done) => {
+            resolve = done;
+          }),
+      )
+      .mockResolvedValueOnce({ commentId: 'c-new', failedFiles: [] });
+    render(
+      <DetailComments
+        comments={[]}
+        onSubmit={onSubmit}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
+
+    await userEvent.upload(screen.getByLabelText('Attach to comment'), [uploaded, failed]);
+    await userEvent.type(screen.getByPlaceholderText('Add a comment…'), 'Body');
+    await userEvent.click(screen.getByRole('button', { name: 'Submit comment' }));
+
+    expect(screen.getByRole('button', { name: 'Submit comment' })).toBeDisabled();
+    expect(screen.getByLabelText('Attach to comment')).toBeDisabled();
+    expect(screen.getByPlaceholderText('Add a comment…')).toBeDisabled();
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+
+    resolve!({ commentId: 'c-new', failedFiles: [failed] });
+    await waitFor(() => expect(screen.getByText('failed.txt')).toBeInTheDocument());
+
+    expect(screen.getByPlaceholderText('Add a comment…')).toBeDisabled();
+    expect(screen.queryByText('uploaded.txt')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Submit comment' }));
+    expect(onSubmit).toHaveBeenLastCalledWith('Body', undefined, [failed], 'c-new');
+  });
+
   it('queues reply files with the parent id', async () => {
     const parent = makeComment({ id: 'c1', body: 'root body' });
     const onSubmit = vi.fn().mockResolvedValue(makeComment({ id: 'c-new' }));
     const file = new File(['x'], 'reply.txt', { type: 'text/plain' });
     render(
-      <DetailComments comments={[parent]} onSubmit={onSubmit} formatTimestamp={(value) => value} />,
+      <DetailComments
+        comments={[parent]}
+        onSubmit={onSubmit}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
     );
 
     await userEvent.click(screen.getByLabelText('Reply to Alice'));
@@ -357,6 +433,45 @@ describe('DetailComments — threaded replies', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Reply' }));
 
     expect(onSubmit).toHaveBeenCalledWith('Reply', 'c1', [file]);
+  });
+
+  it('locks a reply while submitting and retries only failed files', async () => {
+    const parent = makeComment({ id: 'c1', body: 'root body' });
+    const uploaded = new File(['uploaded'], 'uploaded.txt', { type: 'text/plain' });
+    const failed = new File(['failed'], 'failed.txt', { type: 'text/plain' });
+    let resolve: (value: { commentId: string; failedFiles: File[] }) => void;
+    const onSubmit = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ commentId: string; failedFiles: File[] }>((done) => {
+            resolve = done;
+          }),
+      )
+      .mockResolvedValueOnce({ commentId: 'reply-new', failedFiles: [] });
+    render(
+      <DetailComments
+        comments={[parent]}
+        onSubmit={onSubmit}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
+
+    await userEvent.click(screen.getByLabelText('Reply to Alice'));
+    await userEvent.upload(screen.getByLabelText('Attach to reply'), [uploaded, failed]);
+    await userEvent.type(screen.getByPlaceholderText('Reply to Alice…'), 'Reply');
+    await userEvent.click(screen.getByRole('button', { name: 'Reply' }));
+
+    expect(screen.getByRole('button', { name: 'Reply' })).toBeDisabled();
+    expect(screen.getByLabelText('Attach to reply')).toBeDisabled();
+    resolve!({ commentId: 'reply-new', failedFiles: [failed] });
+    await waitFor(() => expect(screen.getByText('failed.txt')).toBeInTheDocument());
+
+    expect(screen.getByPlaceholderText('Reply to Alice…')).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Reply' }));
+    expect(onSubmit).toHaveBeenLastCalledWith('Reply', 'c1', [failed], 'reply-new');
   });
 
   it('queues edit files with the updated body', async () => {
@@ -371,6 +486,107 @@ describe('DetailComments — threaded replies', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(onEdit).toHaveBeenCalledWith('c1', 'Looks good', [file]);
+  });
+
+  it('locks an edit while saving and retries only failed files without another update', async () => {
+    const comment = makeComment({ authorId: 'user-1' });
+    const uploaded = new File(['uploaded'], 'uploaded.txt', { type: 'text/plain' });
+    const failed = new File(['failed'], 'failed.txt', { type: 'text/plain' });
+    let resolve: (value: { commentId: string; failedFiles: File[] }) => void;
+    const onEdit = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<{ commentId: string; failedFiles: File[] }>((done) => {
+            resolve = done;
+          }),
+      )
+      .mockResolvedValueOnce({ commentId: 'c1', failedFiles: [] });
+    render(
+      <DetailComments
+        comments={[comment]}
+        onSubmit={vi.fn()}
+        onEdit={onEdit}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
+
+    await userEvent.click(screen.getByLabelText('Comment actions'));
+    await userEvent.click(screen.getByText('Edit'));
+    await userEvent.upload(screen.getByLabelText('Attach to edit'), [uploaded, failed]);
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
+    expect(screen.getByLabelText('Attach to edit')).toBeDisabled();
+    resolve!({ commentId: 'c1', failedFiles: [failed] });
+    await waitFor(() => expect(screen.getByText('failed.txt')).toBeInTheDocument());
+
+    expect(screen.getByLabelText('Edit comment')).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(onEdit).toHaveBeenLastCalledWith('c1', 'Looks good', [failed], true);
+  });
+
+  it('only shows comment attachment controls to authorized users', () => {
+    const { rerender } = render(
+      <DetailComments
+        comments={[]}
+        onSubmit={vi.fn()}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
+    expect(screen.getByLabelText('Attach to comment')).toBeInTheDocument();
+
+    mockMembers = [{ userId: 'user-1', role: 'viewer' }];
+    rerender(
+      <DetailComments
+        comments={[]}
+        onSubmit={vi.fn()}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
+    expect(screen.queryByLabelText('Attach to comment')).not.toBeInTheDocument();
+
+    mockMembers = [{ userId: 'other', role: 'member' }];
+    rerender(
+      <DetailComments
+        comments={[]}
+        onSubmit={vi.fn()}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
+    expect(screen.queryByLabelText('Attach to comment')).not.toBeInTheDocument();
+
+    mockMembers = [{ userId: 'user-1', role: 'member' }];
+    rerender(
+      <DetailComments
+        comments={[]}
+        onSubmit={vi.fn()}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
+    expect(screen.getByLabelText('Attach to comment')).toBeInTheDocument();
+
+    mockUser = { id: 'admin-1', role: 'admin' };
+    rerender(
+      <DetailComments
+        comments={[]}
+        onSubmit={vi.fn()}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
+    expect(screen.getByLabelText('Attach to comment')).toBeInTheDocument();
   });
 
   it('cancels the reply composer without submitting', async () => {
