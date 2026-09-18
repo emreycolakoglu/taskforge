@@ -109,6 +109,7 @@ describe('AttachmentSection', () => {
         subjectId: 't1',
         file,
       }),
+      expect.any(Object),
     );
   });
 
@@ -138,12 +139,29 @@ describe('AttachmentSection', () => {
 
     await userEvent.upload(screen.getByLabelText('Upload attachment'), file);
 
-    expect(mocks.upload).toHaveBeenCalledWith({
-      subjectType: 'task',
-      subjectId: 't1',
-      taskId: 't1',
-      documentId: undefined,
-      file,
+    expect(mocks.upload).toHaveBeenCalledWith(
+      {
+        subjectType: 'task',
+        subjectId: 't1',
+        taskId: 't1',
+        documentId: undefined,
+        file,
+      },
+      expect.any(Object),
+    );
+  });
+
+  it('shows an error when an upload mutation fails', async () => {
+    mocks.upload.mockImplementationOnce((_, options) =>
+      options?.onError?.(new Error('Server rejected file')),
+    );
+    renderSection();
+    const file = new File(['report'], 'report.txt', { type: 'text/plain' });
+
+    await userEvent.upload(screen.getByLabelText('Upload attachment'), file);
+
+    expect(toast.error).toHaveBeenCalledWith('Failed to upload attachment', {
+      description: 'Server rejected file',
     });
   });
 
@@ -159,6 +177,44 @@ describe('AttachmentSection', () => {
     renderSection();
 
     expect(screen.getByLabelText('Delete report.pdf')).toBeInTheDocument();
+  });
+
+  it('confirms before deleting an attachment', async () => {
+    mocks.user.mockReturnValue({ id: 'u1', role: 'member' });
+    mocks.members.mockReturnValue({ data: [{ userId: 'u1', role: 'member' }] });
+    renderSection();
+
+    await userEvent.click(screen.getByLabelText('Delete report.pdf'));
+
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Delete attachment?' })).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(mocks.remove).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'a1',
+        subjectType: 'task',
+        subjectId: 't1',
+      }),
+      expect.any(Object),
+    );
+  });
+
+  it('shows an error when a delete mutation fails', async () => {
+    mocks.user.mockReturnValue({ id: 'u1', role: 'member' });
+    mocks.members.mockReturnValue({ data: [{ userId: 'u1', role: 'member' }] });
+    mocks.remove.mockImplementationOnce((_, options) =>
+      options?.onError?.(new Error('Server could not delete file')),
+    );
+    renderSection();
+
+    await userEvent.click(screen.getByLabelText('Delete report.pdf'));
+    await userEvent.click(screen.getByRole('button', { name: 'Delete' }));
+
+    expect(toast.error).toHaveBeenCalledWith('Failed to delete attachment', {
+      description: 'Server could not delete file',
+    });
   });
 
   it('shows delete to a board admin', () => {

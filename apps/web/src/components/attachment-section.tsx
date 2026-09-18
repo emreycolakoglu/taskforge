@@ -6,6 +6,17 @@ import { useAttachments, useDeleteAttachment, useUploadAttachment } from '@/hook
 import { api } from '@/hooks/api';
 import { useMembers } from '@/hooks/use-members';
 import { useSettings } from '@/hooks/use-settings';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import type { Attachment, AttachmentSubjectType } from '@/types';
 
@@ -88,13 +99,21 @@ export function AttachmentSection({
       toast.error(error);
       return;
     }
-    upload.mutate({
-      subjectType,
-      subjectId,
-      taskId,
-      documentId: subjectType === 'document' ? subjectId : undefined,
-      file,
-    });
+    upload.mutate(
+      {
+        subjectType,
+        subjectId,
+        taskId,
+        documentId: subjectType === 'document' ? subjectId : undefined,
+        file,
+      },
+      {
+        onError: (error) =>
+          toast.error('Failed to upload attachment', {
+            description: error instanceof Error ? error.message : 'Please try again.',
+          }),
+      },
+    );
   };
 
   return (
@@ -163,25 +182,54 @@ export function AttachmentSection({
                 <Download className="size-3.5" />
               </Button>
               {canDelete(attachment) && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-7 text-muted-foreground hover:text-destructive"
-                  aria-label={`Delete ${attachment.filename}`}
-                  disabled={remove.isPending}
-                  onClick={() =>
-                    remove.mutate({
-                      id: attachment.id,
-                      subjectType,
-                      subjectId,
-                      taskId,
-                      documentId: subjectType === 'document' ? subjectId : undefined,
-                    })
-                  }
-                >
-                  <Trash2 className="size-3.5" />
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 text-muted-foreground hover:text-destructive"
+                      aria-label={`Delete ${attachment.filename}`}
+                      disabled={remove.isPending}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete attachment?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This attachment will be permanently deleted. This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        disabled={remove.isPending}
+                        onClick={() =>
+                          remove.mutate(
+                            {
+                              id: attachment.id,
+                              subjectType,
+                              subjectId,
+                              taskId,
+                              documentId: subjectType === 'document' ? subjectId : undefined,
+                            },
+                            {
+                              onError: (error) =>
+                                toast.error('Failed to delete attachment', {
+                                  description:
+                                    error instanceof Error ? error.message : 'Please try again.',
+                                }),
+                            },
+                          )
+                        }
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               )}
             </div>
           ))}
