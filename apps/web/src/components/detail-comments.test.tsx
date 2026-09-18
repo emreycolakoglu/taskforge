@@ -40,6 +40,14 @@ vi.mock('@/hooks/use-settings', () => ({
   useSettings: () => ({ data: undefined }),
 }));
 
+vi.mock('@/hooks/use-members', () => ({
+  useMembers: () => ({ data: [] }),
+}));
+
+vi.mock('@/hooks/use-attachments', () => ({
+  useDeleteAttachment: () => ({ mutate: vi.fn(), isPending: false }),
+}));
+
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn() },
 }));
@@ -313,6 +321,28 @@ describe('DetailComments — threaded replies', () => {
     expect(screen.getByText('note.txt')).toBeInTheDocument();
   });
 
+  it('retains only failed root files and retries them against the created comment', async () => {
+    const uploaded = new File(['uploaded'], 'uploaded.txt', { type: 'text/plain' });
+    const failed = new File(['failed'], 'failed.txt', { type: 'text/plain' });
+    const onSubmit = vi
+      .fn()
+      .mockResolvedValueOnce({ commentId: 'c-new', failedFiles: [failed] })
+      .mockResolvedValueOnce({ commentId: 'c-new', failedFiles: [] });
+    render(<DetailComments comments={[]} onSubmit={onSubmit} formatTimestamp={(value) => value} />);
+
+    await userEvent.upload(screen.getByLabelText('Attach to comment'), [uploaded, failed]);
+    await userEvent.type(screen.getByPlaceholderText('Add a comment…'), 'Body');
+    await userEvent.click(screen.getByRole('button', { name: 'Submit comment' }));
+
+    expect(screen.getByPlaceholderText('Add a comment…')).toHaveValue('Body');
+    expect(screen.queryByText('uploaded.txt')).not.toBeInTheDocument();
+    expect(screen.getByText('failed.txt')).toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Submit comment' }));
+
+    expect(onSubmit).toHaveBeenLastCalledWith('Body', undefined, [failed], 'c-new');
+  });
+
   it('queues reply files with the parent id', async () => {
     const parent = makeComment({ id: 'c1', body: 'root body' });
     const onSubmit = vi.fn().mockResolvedValue(makeComment({ id: 'c-new' }));
@@ -380,6 +410,55 @@ describe('DetailComments — threaded replies', () => {
     expect(screen.queryByLabelText('Reply to Alice')).not.toBeInTheDocument();
     // The live reply (different author) keeps its actions under the tombstone.
     expect(screen.getByLabelText('Reply to Bob')).toBeInTheDocument();
+  });
+
+  it('renders chips beneath live comments but not tombstones', () => {
+    const live = makeComment({
+      id: 'live',
+      attachments: [
+        {
+          id: 'a1',
+          subjectType: 'comment',
+          subjectId: 'live',
+          filename: 'live.txt',
+          mimeType: 'text/plain',
+          sizeBytes: 1,
+          uploaderId: 'user-1',
+          uploader: null,
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    });
+    const tombstone = makeComment({
+      id: 'deleted',
+      body: '',
+      deletedAt: '2026-01-02T00:00:00Z',
+      attachments: [
+        {
+          id: 'a2',
+          subjectType: 'comment',
+          subjectId: 'deleted',
+          filename: 'deleted.txt',
+          mimeType: 'text/plain',
+          sizeBytes: 1,
+          uploaderId: 'user-1',
+          uploader: null,
+          createdAt: '2026-01-01T00:00:00Z',
+        },
+      ],
+    });
+    render(
+      <DetailComments
+        comments={[live, tombstone]}
+        onSubmit={vi.fn()}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
+
+    expect(screen.getByText('live.txt')).toBeInTheDocument();
+    expect(screen.queryByText('deleted.txt')).not.toBeInTheDocument();
   });
 
   it('counts only visible (non-deleted) comments in the header', async () => {

@@ -72,11 +72,26 @@ import { useUserDirectory } from '@/hooks/use-users';
 import { REACTION_EMOJIS } from '@/lib/reactions';
 import type { Comment } from '@/types';
 
+interface CommentUploadResult {
+  commentId: string;
+  failedFiles: File[];
+}
+
 interface DetailCommentsProps {
   comments: Comment[];
-  onSubmit: (body: string, parentId?: string, files?: File[]) => Promise<Comment | void> | void;
+  onSubmit: (
+    body: string,
+    parentId?: string,
+    files?: File[],
+    commentId?: string,
+  ) => Promise<CommentUploadResult | void> | void;
   onDelete?: (commentId: string) => void;
-  onEdit?: (commentId: string, body: string, files?: File[]) => Promise<Comment | void> | void;
+  onEdit?: (
+    commentId: string,
+    body: string,
+    files?: File[],
+    skipUpdate?: boolean,
+  ) => Promise<CommentUploadResult | void> | void;
   onReact?: (commentId: string, emoji: string) => void;
   formatTimestamp: (ts: string) => string;
   boardId?: string;
@@ -100,13 +115,16 @@ export function DetailComments({
 }: DetailCommentsProps) {
   const [text, setText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
+  const [submittedCommentId, setSubmittedCommentId] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editBody, setEditBody] = useState('');
   const [editFiles, setEditFiles] = useState<File[]>([]);
+  const [editWasSaved, setEditWasSaved] = useState(false);
   const [reactPickerFor, setReactPickerFor] = useState<string | null>(null);
   const [replyTo, setReplyTo] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
   const [replyFiles, setReplyFiles] = useState<File[]>([]);
+  const [replyCommentId, setReplyCommentId] = useState<string | null>(null);
   const [collapsedIds, setCollapsedIds] = useState<ReadonlySet<string>>(new Set());
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -129,14 +147,26 @@ export function DetailComments({
 
   const submit = () => {
     if (!text.trim()) return;
-    const submitted =
-      files.length > 0 ? onSubmit(text.trim(), undefined, files) : onSubmit(text.trim());
+    const submitted = submittedCommentId
+      ? onSubmit(text.trim(), undefined, files, submittedCommentId)
+      : files.length > 0
+        ? onSubmit(text.trim(), undefined, files)
+        : onSubmit(text.trim());
     const clear = () => {
       setText('');
       setFiles([]);
+      setSubmittedCommentId(null);
+    };
+    const complete = (result: CommentUploadResult | void) => {
+      if (result?.failedFiles?.length) {
+        setFiles(result.failedFiles);
+        setSubmittedCommentId(result.commentId);
+      } else {
+        clear();
+      }
     };
     if (submitted && typeof submitted.then === 'function')
-      void submitted.then(clear).catch(() => {});
+      void submitted.then(complete).catch(() => {});
     else clear();
   };
 
@@ -146,16 +176,26 @@ export function DetailComments({
     setReplyTo(null);
     setReplyText('');
     setReplyFiles([]);
+    setReplyCommentId(null);
   };
 
   const submitReply = () => {
     if (!replyTo || !replyText.trim()) return;
-    const submitted =
-      replyFiles.length > 0
+    const submitted = replyCommentId
+      ? onSubmit(replyText.trim(), replyTo, replyFiles, replyCommentId)
+      : replyFiles.length > 0
         ? onSubmit(replyText.trim(), replyTo, replyFiles)
         : onSubmit(replyText.trim(), replyTo);
+    const complete = (result: CommentUploadResult | void) => {
+      if (result?.failedFiles?.length) {
+        setReplyFiles(result.failedFiles);
+        setReplyCommentId(result.commentId);
+      } else {
+        closeReply();
+      }
+    };
     if (submitted && typeof submitted.then === 'function')
-      void submitted.then(closeReply).catch(() => {});
+      void submitted.then(complete).catch(() => {});
     else closeReply();
   };
 
@@ -163,6 +203,7 @@ export function DetailComments({
     setReplyTo((prev) => (prev === commentId ? null : commentId));
     setReplyText('');
     setReplyFiles([]);
+    setReplyCommentId(null);
   };
 
   const toggleCollapsed = (id: string) =>
@@ -191,21 +232,32 @@ export function DetailComments({
     setEditingId(c.id);
     setEditBody(c.body);
     setEditFiles([]);
+    setEditWasSaved(false);
   };
 
   const saveEdit = () => {
     if (!editingId || !editBody.trim()) return;
-    const submitted =
-      editFiles.length > 0
+    const submitted = editWasSaved
+      ? onEdit!(editingId, editBody.trim(), editFiles, true)
+      : editFiles.length > 0
         ? onEdit!(editingId, editBody.trim(), editFiles)
         : onEdit!(editingId, editBody.trim());
     const clear = () => {
       setEditingId(null);
       setEditBody('');
       setEditFiles([]);
+      setEditWasSaved(false);
+    };
+    const complete = (result: CommentUploadResult | void) => {
+      if (result?.failedFiles?.length) {
+        setEditFiles(result.failedFiles);
+        setEditWasSaved(true);
+      } else {
+        clear();
+      }
     };
     if (submitted && typeof submitted.then === 'function')
-      void submitted.then(clear).catch(() => {});
+      void submitted.then(complete).catch(() => {});
     else clear();
   };
 
@@ -213,6 +265,7 @@ export function DetailComments({
     setEditingId(null);
     setEditBody('');
     setEditFiles([]);
+    setEditWasSaved(false);
   };
 
   const hasReacted = (c: Comment, emoji: string) =>

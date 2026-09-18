@@ -52,7 +52,23 @@ describe('AttachmentChips', () => {
     expect(screen.getByLabelText('Download report.pdf')).toBeInTheDocument();
   });
 
-  it('only shows delete to the uploader, a board admin, or a global admin', () => {
+  it('shows delete to a board admin', () => {
+    mocks.members.mockReturnValue({ data: [{ userId: 'u2', role: 'admin' }] });
+
+    render(<AttachmentChips attachments={[attachment]} subjectId="c1" boardId="b1" taskId="t1" />);
+
+    expect(screen.getByLabelText('Delete report.pdf')).toBeInTheDocument();
+  });
+
+  it('shows delete to a global admin', () => {
+    mocks.user.mockReturnValue({ id: 'u2', role: 'admin' });
+
+    render(<AttachmentChips attachments={[attachment]} subjectId="c1" boardId="b1" taskId="t1" />);
+
+    expect(screen.getByLabelText('Delete report.pdf')).toBeInTheDocument();
+  });
+
+  it('shows delete to the uploader', () => {
     const { rerender } = render(
       <AttachmentChips attachments={[attachment]} subjectId="c1" boardId="b1" taskId="t1" />,
     );

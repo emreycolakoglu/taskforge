@@ -75,6 +75,30 @@ export function TaskDetailView({
   const createRelation = useCreateRelation();
   const removeRelation = useRemoveRelation();
 
+  const uploadFiles = useCallback(
+    async (commentId: string, files: File[], taskId: string) => {
+      const results = await Promise.allSettled(
+        files.map((file) =>
+          uploadAttachment.mutateAsync({
+            subjectType: 'comment',
+            subjectId: commentId,
+            taskId,
+            file,
+          }),
+        ),
+      );
+      const failedFiles = files.filter((_, index) => results[index].status === 'rejected');
+      const failed = results.find((result) => result.status === 'rejected');
+      if (failed?.status === 'rejected') {
+        toast.error('Failed to upload attachment', {
+          description: failed.reason instanceof Error ? failed.reason.message : 'Please try again.',
+        });
+      }
+      return { commentId, failedFiles };
+    },
+    [uploadAttachment],
+  );
+
   // ── Handlers ───────────────────────────────────────────────────────────────
 
   const handleUpdate = useCallback(
@@ -86,34 +110,21 @@ export function TaskDetailView({
   );
 
   const handleAddComment = useCallback(
-    async (body: string, parentId?: string, files: File[] = []) => {
+    async (body: string, parentId?: string, files: File[] = [], commentId?: string) => {
       if (!task) return;
-      const comment = await createComment.mutateAsync({
-        taskId: task.id,
-        author: 'user',
-        body,
-        parentId,
-      });
-      try {
-        await Promise.all(
-          files.map((file) =>
-            uploadAttachment.mutateAsync({
-              subjectType: 'comment',
-              subjectId: comment.id,
-              taskId: task.id,
-              file,
-            }),
-          ),
-        );
-      } catch (error) {
-        toast.error('Failed to upload attachment', {
-          description: error instanceof Error ? error.message : 'Please try again.',
-        });
-        throw error;
-      }
-      return comment;
+      const uploadedCommentId =
+        commentId ??
+        (
+          await createComment.mutateAsync({
+            taskId: task.id,
+            author: 'user',
+            body,
+            parentId,
+          })
+        ).id;
+      return uploadFiles(uploadedCommentId, files, task.id);
     },
-    [task, createComment, uploadAttachment],
+    [task, createComment, uploadFiles],
   );
 
   const handleDeleteComment = useCallback(
@@ -125,29 +136,12 @@ export function TaskDetailView({
   );
 
   const handleEditComment = useCallback(
-    async (commentId: string, body: string, files: File[] = []) => {
+    async (commentId: string, body: string, files: File[] = [], skipUpdate = false) => {
       if (!task) return;
-      const comment = await updateComment.mutateAsync({ id: commentId, body, taskId: task.id });
-      try {
-        await Promise.all(
-          files.map((file) =>
-            uploadAttachment.mutateAsync({
-              subjectType: 'comment',
-              subjectId: comment.id,
-              taskId: task.id,
-              file,
-            }),
-          ),
-        );
-      } catch (error) {
-        toast.error('Failed to upload attachment', {
-          description: error instanceof Error ? error.message : 'Please try again.',
-        });
-        throw error;
-      }
-      return comment;
+      if (!skipUpdate) await updateComment.mutateAsync({ id: commentId, body, taskId: task.id });
+      return uploadFiles(commentId, files, task.id);
     },
-    [task, updateComment, uploadAttachment],
+    [task, updateComment, uploadFiles],
   );
 
   const handleReactToComment = useCallback(

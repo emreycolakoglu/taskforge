@@ -189,4 +189,98 @@ describe('TaskDetailView', () => {
       file,
     });
   });
+
+  it('retries only failed root files without creating another comment', async () => {
+    const uploaded = new File(['uploaded'], 'uploaded.txt', { type: 'text/plain' });
+    const failed = new File(['failed'], 'failed.txt', { type: 'text/plain' });
+    mockCreateComment.mockResolvedValue({ id: 'comment-1' });
+    mockUploadAttachment.mockResolvedValueOnce({ id: 'attachment-1' });
+    mockUploadAttachment.mockRejectedValueOnce(new Error('Upload failed'));
+    mockUploadAttachment.mockResolvedValueOnce({ id: 'attachment-2' });
+    render(<TaskDetailView taskId="task-1" boardId="board-1" />);
+
+    const props = mockDetailComments.mock.calls.at(-1)?.[0] as {
+      onSubmit: (
+        body: string,
+        parentId?: string,
+        files?: File[],
+        commentId?: string,
+      ) => Promise<{ commentId: string; failedFiles: File[] }>;
+    };
+    const result = await props.onSubmit('Body', undefined, [uploaded, failed]);
+    await props.onSubmit('Body', undefined, result.failedFiles, result.commentId);
+
+    expect(result).toEqual({ commentId: 'comment-1', failedFiles: [failed] });
+    expect(mockCreateComment).toHaveBeenCalledTimes(1);
+    expect(mockUploadAttachment).toHaveBeenNthCalledWith(3, {
+      subjectType: 'comment',
+      subjectId: 'comment-1',
+      taskId: 'task-1',
+      file: failed,
+    });
+  });
+
+  it('retries only failed reply files without creating another reply', async () => {
+    const uploaded = new File(['uploaded'], 'uploaded.txt', { type: 'text/plain' });
+    const failed = new File(['failed'], 'failed.txt', { type: 'text/plain' });
+    mockCreateComment.mockResolvedValue({ id: 'reply-1' });
+    mockUploadAttachment.mockResolvedValueOnce({ id: 'attachment-1' });
+    mockUploadAttachment.mockRejectedValueOnce(new Error('Upload failed'));
+    mockUploadAttachment.mockResolvedValueOnce({ id: 'attachment-2' });
+    render(<TaskDetailView taskId="task-1" boardId="board-1" />);
+
+    const props = mockDetailComments.mock.calls.at(-1)?.[0] as {
+      onSubmit: (
+        body: string,
+        parentId?: string,
+        files?: File[],
+        commentId?: string,
+      ) => Promise<{ commentId: string; failedFiles: File[] }>;
+    };
+    const result = await props.onSubmit('Reply', 'parent-1', [uploaded, failed]);
+    await props.onSubmit('Reply', 'parent-1', result.failedFiles, result.commentId);
+
+    expect(mockCreateComment).toHaveBeenCalledTimes(1);
+    expect(mockCreateComment).toHaveBeenCalledWith({
+      taskId: 'task-1',
+      author: 'user',
+      body: 'Reply',
+      parentId: 'parent-1',
+    });
+    expect(mockUploadAttachment).toHaveBeenNthCalledWith(3, {
+      subjectType: 'comment',
+      subjectId: 'reply-1',
+      taskId: 'task-1',
+      file: failed,
+    });
+  });
+
+  it('retries only failed edit files without updating the comment again', async () => {
+    const uploaded = new File(['uploaded'], 'uploaded.txt', { type: 'text/plain' });
+    const failed = new File(['failed'], 'failed.txt', { type: 'text/plain' });
+    mockUpdateComment.mockResolvedValue({ id: 'comment-1' });
+    mockUploadAttachment.mockResolvedValueOnce({ id: 'attachment-1' });
+    mockUploadAttachment.mockRejectedValueOnce(new Error('Upload failed'));
+    mockUploadAttachment.mockResolvedValueOnce({ id: 'attachment-2' });
+    render(<TaskDetailView taskId="task-1" boardId="board-1" />);
+
+    const props = mockDetailComments.mock.calls.at(-1)?.[0] as {
+      onEdit: (
+        id: string,
+        body: string,
+        files?: File[],
+        skipUpdate?: boolean,
+      ) => Promise<{ commentId: string; failedFiles: File[] }>;
+    };
+    const result = await props.onEdit('comment-1', 'Edited', [uploaded, failed]);
+    await props.onEdit('comment-1', 'Edited', result.failedFiles, true);
+
+    expect(mockUpdateComment).toHaveBeenCalledTimes(1);
+    expect(mockUploadAttachment).toHaveBeenNthCalledWith(3, {
+      subjectType: 'comment',
+      subjectId: 'comment-1',
+      taskId: 'task-1',
+      file: failed,
+    });
+  });
 });
