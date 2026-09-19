@@ -136,7 +136,7 @@ export class AttachmentsService {
   private async loadSettings() {
     const s = await this.prisma.settings.findUnique({ where: { id: 'singleton' } });
     const allowed = s?.allowedMimeTypes
-      ? JSON.parse(s.allowedMimeTypes)
+      ? JSON.parse(s.allowedMimeTypes).map((mime: string) => mime.toLowerCase())
       : DEFAULT_ALLOWED_MIME_TYPES;
     return { maxFileSizeMb: s?.maxFileSizeMb ?? 10, allowedMimeTypes: allowed };
   }

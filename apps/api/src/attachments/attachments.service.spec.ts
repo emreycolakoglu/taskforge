@@ -187,6 +187,27 @@ describe('AttachmentsService', () => {
       expect(att.mimeType).toBe('text/plain');
     });
 
+    it('accepts a lowercase upload allowed by a persisted uppercase MIME allowlist', async () => {
+      await prisma.settings.create({
+        data: {
+          id: 'singleton',
+          onboarded: true,
+          allowedMimeTypes: JSON.stringify(['TEXT/PLAIN']),
+        },
+      });
+
+      await expect(
+        service.create({
+          subjectType: 'task',
+          subjectId: task.id,
+          filename: 'legacy.txt',
+          mimeType: 'text/plain',
+          content: Buffer.from('legacy'),
+          user: { id: memberUser.id, displayName: 'M', role: 'member' },
+        }),
+      ).resolves.toMatchObject({ mimeType: 'text/plain' });
+    });
+
     it('rejects create with neither tempPath nor content', async () => {
       await expect(
         service.create({
