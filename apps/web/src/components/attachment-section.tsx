@@ -78,7 +78,10 @@ export function AttachmentSection({
   const { user } = useAuth();
   const { data: members } = useMembers(boardId);
   const { data: attachmentPolicy } = useAttachmentPolicy();
-  const { data: attachments = [] } = useAttachments(subjectType, subjectId);
+  const { data: attachments = [], isLoading: isLoadingAttachments } = useAttachments(
+    subjectType,
+    subjectId,
+  );
   const upload = useUploadAttachment();
   const remove = useDeleteAttachment();
   const member = members?.find((item) => item.userId === user?.id);
@@ -144,13 +147,15 @@ export function AttachmentSection({
               disabled={upload.isPending}
               onClick={() => inputRef.current?.click()}
             >
-              {upload.isPending ? 'Uploading...' : 'Upload'}
+              {upload.isPending ? 'Uploading…' : 'Upload'}
             </Button>
           </>
         )}
       </div>
 
-      {attachments.length === 0 ? (
+      {isLoadingAttachments ? (
+        <p className="text-sm text-muted-foreground">Loading attachments…</p>
+      ) : attachments.length === 0 ? (
         <p className="text-sm text-muted-foreground">No attachments yet.</p>
       ) : (
         <div className="space-y-1.5">

@@ -17,6 +17,7 @@ export function useUpdateSettings() {
     onSuccess: () => {
       toast.success('Settings saved');
       queryClient.invalidateQueries({ queryKey: ['settings'] });
+      queryClient.invalidateQueries({ queryKey: ['attachment-policy'] });
     },
     onError: (error) => {
       toast.error('Failed to update settings', { description: error.message });

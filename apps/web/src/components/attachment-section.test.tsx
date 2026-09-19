@@ -81,6 +81,22 @@ describe('AttachmentSection', () => {
     expect(screen.getByText('1.0 KB · Alice · Yesterday')).toBeInTheDocument();
   });
 
+  it('renders a loading state while attachments are loading', () => {
+    mocks.attachments.mockReturnValue({ data: undefined, isLoading: true });
+    renderSection();
+
+    expect(screen.getByText('Loading attachments…')).toBeInTheDocument();
+    expect(screen.queryByText('No attachments yet.')).not.toBeInTheDocument();
+  });
+
+  it('renders the empty state after attachments are confirmed empty', () => {
+    mocks.attachments.mockReturnValue({ data: [], isLoading: false });
+    renderSection();
+
+    expect(screen.getByText('No attachments yet.')).toBeInTheDocument();
+    expect(screen.queryByText('Loading attachments…')).not.toBeInTheDocument();
+  });
+
   it('rejects a file that exceeds the configured size without uploading', async () => {
     renderSection();
     const file = new File([new Uint8Array(1024 * 1024 + 1)], 'large.txt', { type: 'text/plain' });
