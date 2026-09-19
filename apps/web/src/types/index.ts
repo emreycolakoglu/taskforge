@@ -213,6 +213,8 @@ export interface Settings {
   smtpFromEmail: string | null;
   smtpFromName: string;
   smtpSecure: boolean;
+  maxFileSizeMb: number;
+  allowedMimeTypes: string[];
   createdAt: string | null;
   updatedAt: string | null;
 }
@@ -226,6 +228,8 @@ export interface UpdateSettingsPayload {
   smtpFromEmail?: string | null;
   smtpFromName?: string | null;
   smtpSecure?: boolean;
+  maxFileSizeMb?: number;
+  allowedMimeTypes?: string[];
 }
 
 export interface Notification {

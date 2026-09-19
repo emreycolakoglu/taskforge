@@ -69,4 +69,28 @@ describe('TaskCard', () => {
     renderWithClient(<TaskCard task={makeTask({ blockingCount: 0 })} />);
     expect(screen.queryByLabelText(/Blocking/)).not.toBeInTheDocument();
   });
+
+  it('shows an attachment count when the task has attachments', () => {
+    renderWithClient(
+      <TaskCard
+        task={makeTask({
+          attachments: [
+            {
+              id: 'a1',
+              subjectType: 'task',
+              subjectId: 't1',
+              filename: 'note.txt',
+              mimeType: 'text/plain',
+              sizeBytes: 1,
+              uploaderId: null,
+              uploader: null,
+              createdAt: '2026-09-17T00:00:00Z',
+            },
+          ],
+        })}
+      />,
+    );
+
+    expect(screen.getByLabelText('1 attachment')).toBeInTheDocument();
+  });
 });

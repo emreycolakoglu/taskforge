@@ -14,15 +14,14 @@ const mockSettings = {
   smtpFromEmail: 'from@tf.dev',
   smtpFromName: 'TF Mailer',
   smtpSecure: true,
+  maxFileSizeMb: 10,
+  allowedMimeTypes: ['image/png', 'text/plain'],
   createdAt: null,
   updatedAt: null,
 };
 
-vi.mock('@/contexts/auth-context', () => ({
-  useAuth: () => ({
-    user: { id: 'u1', role: 'admin', displayName: 'Admin', email: 'admin@tf.dev' },
-  }),
-}));
+const mockUseAuth = vi.fn();
+vi.mock('@/contexts/auth-context', () => ({ useAuth: () => mockUseAuth() }));
 vi.mock('@/hooks/use-users', () => ({
   useUsers: vi.fn(),
   useInvites: vi.fn(),
@@ -58,6 +57,9 @@ const mockUseDeleteUser = vi.mocked(useDeleteUser);
 describe('SettingsPage Email tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u1', role: 'admin', displayName: 'Admin', email: 'admin@tf.dev' },
+    });
     mockUseSettings.mockReturnValue({
       data: mockSettings,
       isLoading: false,
@@ -120,6 +122,9 @@ describe('SettingsPage Email tab', () => {
 describe('SettingsPage Invites tab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u1', role: 'admin', displayName: 'Admin', email: 'admin@tf.dev' },
+    });
     mockUseSettings.mockReturnValue({
       data: mockSettings,
       isLoading: false,
@@ -172,5 +177,83 @@ describe('SettingsPage Invites tab', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Create Invite' }));
     expect(mutateAsync).toHaveBeenCalledWith('x@y.dev');
     expect(screen.getByLabelText('Invite recipient email')).toHaveValue('');
+  });
+});
+
+describe('SettingsPage Attachments tab', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u1', role: 'admin', displayName: 'Admin', email: 'admin@tf.dev' },
+    });
+    mockUseSettings.mockReturnValue({
+      data: mockSettings,
+      isLoading: false,
+      isError: false,
+    } as never);
+    mockUseUpdateSettings.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+    mockUseSendTestEmail.mockReturnValue({ mutate: vi.fn(), isPending: false } as never);
+  });
+
+  it('only shows the Attachments tab to admins', () => {
+    mockUseAuth.mockReturnValue({
+      user: { id: 'u2', role: 'member', displayName: 'Member', email: 'member@tf.dev' },
+    });
+
+    render(<SettingsPage />);
+
+    expect(screen.queryByRole('tab', { name: 'Attachments' })).not.toBeInTheDocument();
+  });
+
+  it('rejects an empty MIME type list and does not save', async () => {
+    const mutate = vi.fn();
+    mockUseUpdateSettings.mockReturnValue({ mutate, isPending: false } as never);
+    render(<SettingsPage />);
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Attachments' }));
+    await userEvent.clear(screen.getByLabelText('Allowed MIME types'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save attachment settings' }));
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(screen.getByText('Enter at least one MIME type.')).toBeInTheDocument();
+  });
+
+  it('rejects a non-integer attachment file size and malformed MIME types', async () => {
+    const mutate = vi.fn();
+    mockUseUpdateSettings.mockReturnValue({ mutate, isPending: false } as never);
+    render(<SettingsPage />);
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Attachments' }));
+    await userEvent.clear(screen.getByLabelText('Maximum file size (MB)'));
+    await userEvent.type(screen.getByLabelText('Maximum file size (MB)'), '1.5');
+    await userEvent.click(screen.getByRole('button', { name: 'Save attachment settings' }));
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(screen.getByText('File size must be a whole number from 1 to 100.')).toBeInTheDocument();
+
+    await userEvent.clear(screen.getByLabelText('Maximum file size (MB)'));
+    await userEvent.type(screen.getByLabelText('Maximum file size (MB)'), '10');
+    await userEvent.clear(screen.getByLabelText('Allowed MIME types'));
+    await userEvent.type(screen.getByLabelText('Allowed MIME types'), 'not-a-mime');
+    await userEvent.click(screen.getByRole('button', { name: 'Save attachment settings' }));
+
+    expect(mutate).not.toHaveBeenCalled();
+    expect(screen.getByText('Each MIME type must use type/subtype format.')).toBeInTheDocument();
+  });
+
+  it('normalizes MIME types before saving attachment settings', async () => {
+    const mutate = vi.fn();
+    mockUseUpdateSettings.mockReturnValue({ mutate, isPending: false } as never);
+    render(<SettingsPage />);
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Attachments' }));
+    await userEvent.clear(screen.getByLabelText('Allowed MIME types'));
+    await userEvent.type(screen.getByLabelText('Allowed MIME types'), ' Image/PNG \n text/plain ');
+    await userEvent.click(screen.getByRole('button', { name: 'Save attachment settings' }));
+
+    expect(mutate).toHaveBeenCalledWith({
+      maxFileSizeMb: 10,
+      allowedMimeTypes: ['image/png', 'text/plain'],
+    });
   });
 });

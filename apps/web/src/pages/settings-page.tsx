@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -48,6 +49,8 @@ function formatRelativeDate(dateStr: string) {
   if (diffDays < 30) return `${diffDays}d ago`;
   return date.toLocaleDateString();
 }
+
+const MIME_TYPE = /^[a-z]+\/[a-z0-9.+-]+$/i;
 
 function CopyButton({ text, label }: { text: string; label: string }) {
   const [copied, setCopied] = useState(false);
@@ -566,6 +569,87 @@ function EmailTab() {
   );
 }
 
+function AttachmentsTab() {
+  const { data: settings } = useSettings();
+  const updateSettings = useUpdateSettings();
+  const [form, setForm] = useState({ maxFileSizeMb: '', allowedMimeTypes: '' });
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!settings) return;
+    setForm({
+      maxFileSizeMb: settings.maxFileSizeMb.toString(),
+      allowedMimeTypes: settings.allowedMimeTypes.join('\n'),
+    });
+  }, [settings]);
+
+  const handleSave = (e: FormEvent) => {
+    e.preventDefault();
+    const size = Number(form.maxFileSizeMb);
+    const mimeTypes = form.allowedMimeTypes
+      .split('\n')
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+
+    if (!Number.isInteger(size) || size < 1 || size > 100) {
+      setError('File size must be a whole number from 1 to 100.');
+    } else if (mimeTypes.length === 0) {
+      setError('Enter at least one MIME type.');
+    } else if (mimeTypes.some((value) => !MIME_TYPE.test(value))) {
+      setError('Each MIME type must use type/subtype format.');
+    } else {
+      setError('');
+      updateSettings.mutate({ maxFileSizeMb: size, allowedMimeTypes: mimeTypes });
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-base">Attachments</CardTitle>
+        <CardDescription>
+          Configure the file types and maximum size users can upload.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <form noValidate onSubmit={handleSave} className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="attachment-max-size">Maximum file size (MB)</Label>
+            <Input
+              id="attachment-max-size"
+              aria-label="Maximum file size (MB)"
+              type="number"
+              min="1"
+              max="100"
+              step="1"
+              value={form.maxFileSizeMb}
+              onChange={(e) => setForm({ ...form, maxFileSizeMb: e.target.value })}
+              disabled={updateSettings.isPending}
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="attachment-mime-types">Allowed MIME types</Label>
+            <Textarea
+              id="attachment-mime-types"
+              aria-label="Allowed MIME types"
+              value={form.allowedMimeTypes}
+              onChange={(e) => setForm({ ...form, allowedMimeTypes: e.target.value })}
+              disabled={updateSettings.isPending}
+            />
+            <p className="text-xs text-muted-foreground">Enter one MIME type per line.</p>
+          </div>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          <div>
+            <Button type="submit" variant="outline" disabled={updateSettings.isPending}>
+              {updateSettings.isPending ? 'Saving...' : 'Save attachment settings'}
+            </Button>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
 export function SettingsPage() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -581,6 +665,7 @@ export function SettingsPage() {
         <TabsList>
           <TabsTrigger value="general">General</TabsTrigger>
           {isAdmin && <TabsTrigger value="email">Email</TabsTrigger>}
+          {isAdmin && <TabsTrigger value="attachments">Attachments</TabsTrigger>}
           {isAdmin && <TabsTrigger value="users">Users</TabsTrigger>}
           {isAdmin && <TabsTrigger value="invites">Invites</TabsTrigger>}
         </TabsList>
@@ -590,6 +675,11 @@ export function SettingsPage() {
         {isAdmin && (
           <TabsContent value="email" className="mt-4">
             <EmailTab />
+          </TabsContent>
+        )}
+        {isAdmin && (
+          <TabsContent value="attachments" className="mt-4">
+            <AttachmentsTab />
           </TabsContent>
         )}
         {isAdmin && (

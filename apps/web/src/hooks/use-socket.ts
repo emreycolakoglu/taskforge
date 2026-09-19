@@ -2,6 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { io, Socket } from 'socket.io-client';
 import { getToken } from './api';
+import type { AttachmentSubjectType } from '@/types';
 
 // Module-level singleton: survives React StrictMode mount/unmount/remount cycle
 // and avoids EPIPE errors from rapid connect/disconnect cycles.
@@ -151,6 +152,25 @@ export function useSocket(boardId?: string) {
           queryClient.invalidateQueries({ queryKey: ['documents', 'task', doc.taskId] });
       }
 
+      if (eventName === 'attachment:created' || eventName === 'attachment:deleted') {
+        const attachment = eventData as { subjectType?: AttachmentSubjectType; subjectId?: string };
+        if (attachment.subjectType && attachment.subjectId) {
+          queryClient.invalidateQueries({
+            queryKey: ['attachments', attachment.subjectType, attachment.subjectId],
+          });
+          if (attachment.subjectType === 'task') {
+            queryClient.invalidateQueries({ queryKey: ['tasks', attachment.subjectId] });
+          }
+          if (attachment.subjectType === 'comment') {
+            queryClient.invalidateQueries({ queryKey: ['comments'] });
+          }
+          if (attachment.subjectType === 'document') {
+            queryClient.invalidateQueries({ queryKey: ['documents', attachment.subjectId] });
+            queryClient.invalidateQueries({ queryKey: ['documents'] });
+          }
+        }
+      }
+
       if (
         eventName === 'label:created' ||
         eventName === 'label:updated' ||
@@ -218,6 +238,8 @@ export function useSocket(boardId?: string) {
       'document:created',
       'document:updated',
       'document:deleted',
+      'attachment:created',
+      'attachment:deleted',
       'label:created',
       'label:updated',
       'label:deleted',

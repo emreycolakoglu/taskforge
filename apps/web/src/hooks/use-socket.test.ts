@@ -409,4 +409,39 @@ describe('useSocket', () => {
       queryKey: ['documents', 'task', 't1'],
     });
   });
+
+  it('invalidates comment attachment queries through the parent task query prefixes', () => {
+    renderHook(() => useSocket());
+    const attachmentHandler = (mockSocket.on.mock.calls as Array<[string, ...unknown[]]>).find(
+      ([event]) => event === 'attachment:created',
+    )?.[1] as ((data: unknown) => void) | undefined;
+
+    expect(attachmentHandler).toBeDefined();
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => attachmentHandler!({ subjectType: 'comment', subjectId: 'c1' }));
+
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['attachments', 'comment', 'c1'],
+    });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['comments'] });
+  });
+
+  it('invalidates document attachment detail and list query prefixes', () => {
+    renderHook(() => useSocket());
+    const attachmentHandler = (mockSocket.on.mock.calls as Array<[string, ...unknown[]]>).find(
+      ([event]) => event === 'attachment:deleted',
+    )?.[1] as ((data: unknown) => void) | undefined;
+
+    expect(attachmentHandler).toBeDefined();
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => attachmentHandler!({ subjectType: 'document', subjectId: 'd1' }));
+
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['attachments', 'document', 'd1'],
+    });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['documents', 'd1'],
+    });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['documents'] });
+  });
 });

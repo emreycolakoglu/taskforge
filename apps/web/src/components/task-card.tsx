@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/types';
-import { CircleSmallIcon, Plus } from 'lucide-react';
+import { CircleSmallIcon, Paperclip, Plus } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { BlockerPill } from './blocker-pill';
 import { LabelManager } from './label-manager';
@@ -75,6 +75,7 @@ export function TaskCard({
     visibleLabels.length > 0 ||
     task.estimate != null ||
     (task._count && task._count.comments > 0) ||
+    (task.attachments && task.attachments.length > 0) ||
     (task.blockedByCount != null && task.blockedByCount > 0) ||
     (task.blockingCount != null && task.blockingCount > 0);
 
@@ -160,6 +161,18 @@ export function TaskCard({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
+          )}
+
+          {task.attachments && task.attachments.length > 0 && (
+            <Badge
+              variant="outline"
+              style={{ color: '#f7f8f8' }}
+              className="shrink-0"
+              aria-label={`${task.attachments.length} attachment${task.attachments.length === 1 ? '' : 's'}`}
+            >
+              <Paperclip className="size-3" />
+              {task.attachments.length}
+            </Badge>
           )}
 
           {task.blockedByCount != null && task.blockedByCount > 0 && (
