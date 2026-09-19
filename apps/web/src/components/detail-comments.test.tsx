@@ -314,7 +314,7 @@ describe('DetailComments — threaded replies', () => {
       />,
     );
 
-    await userEvent.upload(screen.getByLabelText('Attach to comment'), file);
+    await userEvent.upload(screen.getByLabelText('Choose file: Attach to comment'), file);
     await userEvent.type(screen.getByPlaceholderText('Add a comment…'), 'Body');
     await userEvent.click(screen.getByRole('button', { name: 'Submit comment' }));
 
@@ -334,7 +334,7 @@ describe('DetailComments — threaded replies', () => {
       />,
     );
 
-    await userEvent.upload(screen.getByLabelText('Attach to comment'), file);
+    await userEvent.upload(screen.getByLabelText('Choose file: Attach to comment'), file);
     await userEvent.type(screen.getByPlaceholderText('Add a comment…'), 'Body');
     await userEvent.click(screen.getByRole('button', { name: 'Submit comment' }));
 
@@ -359,7 +359,10 @@ describe('DetailComments — threaded replies', () => {
       />,
     );
 
-    await userEvent.upload(screen.getByLabelText('Attach to comment'), [uploaded, failed]);
+    await userEvent.upload(screen.getByLabelText('Choose file: Attach to comment'), [
+      uploaded,
+      failed,
+    ]);
     await userEvent.type(screen.getByPlaceholderText('Add a comment…'), 'Body');
     await userEvent.click(screen.getByRole('button', { name: 'Submit comment' }));
 
@@ -395,7 +398,10 @@ describe('DetailComments — threaded replies', () => {
       />,
     );
 
-    await userEvent.upload(screen.getByLabelText('Attach to comment'), [uploaded, failed]);
+    await userEvent.upload(screen.getByLabelText('Choose file: Attach to comment'), [
+      uploaded,
+      failed,
+    ]);
     await userEvent.type(screen.getByPlaceholderText('Add a comment…'), 'Body');
     await userEvent.click(screen.getByRole('button', { name: 'Submit comment' }));
 
@@ -428,7 +434,7 @@ describe('DetailComments — threaded replies', () => {
     );
 
     await userEvent.click(screen.getByLabelText('Reply to Alice'));
-    await userEvent.upload(screen.getByLabelText('Attach to reply'), file);
+    await userEvent.upload(screen.getByLabelText('Choose file: Attach to reply'), file);
     await userEvent.type(screen.getByPlaceholderText('Reply to Alice…'), 'Reply');
     await userEvent.click(screen.getByRole('button', { name: 'Reply' }));
 
@@ -460,7 +466,10 @@ describe('DetailComments — threaded replies', () => {
     );
 
     await userEvent.click(screen.getByLabelText('Reply to Alice'));
-    await userEvent.upload(screen.getByLabelText('Attach to reply'), [uploaded, failed]);
+    await userEvent.upload(screen.getByLabelText('Choose file: Attach to reply'), [
+      uploaded,
+      failed,
+    ]);
     await userEvent.type(screen.getByPlaceholderText('Reply to Alice…'), 'Reply');
     await userEvent.click(screen.getByRole('button', { name: 'Reply' }));
 
@@ -474,6 +483,40 @@ describe('DetailComments — threaded replies', () => {
     expect(onSubmit).toHaveBeenLastCalledWith('Reply', 'c1', [failed], 'reply-new');
   });
 
+  it('keeps an in-flight reply open when cancel or another reply entry point is used', async () => {
+    const first = makeComment({ id: 'c1', author: 'Alice' });
+    const second = makeComment({ id: 'c2', author: 'Bob', authorId: 'user-2' });
+    let resolve: (value: { commentId: string; failedFiles: File[] }) => void;
+    const onSubmit = vi.fn(
+      () =>
+        new Promise<{ commentId: string; failedFiles: File[] }>((done) => {
+          resolve = done;
+        }),
+    );
+    render(
+      <DetailComments
+        comments={[first, second]}
+        onSubmit={onSubmit}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
+
+    await userEvent.click(screen.getByLabelText('Reply to Alice'));
+    await userEvent.type(screen.getByPlaceholderText('Reply to Alice…'), 'Reply');
+    await userEvent.click(screen.getByRole('button', { name: 'Reply' }));
+
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    expect(screen.getByLabelText('Reply to Bob')).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await userEvent.click(screen.getByLabelText('Reply to Bob'));
+    expect(screen.getByPlaceholderText('Reply to Alice…')).toHaveValue('Reply');
+    expect(screen.queryByPlaceholderText('Reply to Bob…')).not.toBeInTheDocument();
+
+    resolve!({ commentId: 'reply-1', failedFiles: [] });
+  });
+
   it('queues edit files with the updated body', async () => {
     const comment = makeComment({ authorId: 'user-1' });
     const onEdit = vi.fn().mockResolvedValue(comment);
@@ -482,7 +525,7 @@ describe('DetailComments — threaded replies', () => {
 
     await userEvent.click(screen.getByLabelText('Comment actions'));
     await userEvent.click(screen.getByText('Edit'));
-    await userEvent.upload(screen.getByLabelText('Attach to edit'), file);
+    await userEvent.upload(screen.getByLabelText('Choose file: Attach to edit'), file);
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(onEdit).toHaveBeenCalledWith('c1', 'Looks good', [file]);
@@ -515,7 +558,10 @@ describe('DetailComments — threaded replies', () => {
 
     await userEvent.click(screen.getByLabelText('Comment actions'));
     await userEvent.click(screen.getByText('Edit'));
-    await userEvent.upload(screen.getByLabelText('Attach to edit'), [uploaded, failed]);
+    await userEvent.upload(screen.getByLabelText('Choose file: Attach to edit'), [
+      uploaded,
+      failed,
+    ]);
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
 
     expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled();
@@ -526,6 +572,51 @@ describe('DetailComments — threaded replies', () => {
     expect(screen.getByLabelText('Edit comment')).toBeDisabled();
     await userEvent.click(screen.getByRole('button', { name: 'Save' }));
     expect(onEdit).toHaveBeenLastCalledWith('c1', 'Looks good', [failed], true);
+  });
+
+  it('keeps an in-flight edit open when cancel or another edit entry point is used', async () => {
+    const first = makeComment({
+      id: 'c1',
+      author: 'Alice',
+      authorId: 'user-1',
+      body: 'first draft',
+    });
+    const second = makeComment({
+      id: 'c2',
+      author: 'Bob',
+      authorId: 'user-1',
+      body: 'second draft',
+    });
+    let resolve: (value: { commentId: string; failedFiles: File[] }) => void;
+    const onEdit = vi.fn(
+      () =>
+        new Promise<{ commentId: string; failedFiles: File[] }>((done) => {
+          resolve = done;
+        }),
+    );
+    render(
+      <DetailComments
+        comments={[first, second]}
+        onSubmit={vi.fn()}
+        onEdit={onEdit}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
+
+    await userEvent.click(screen.getAllByLabelText('Comment actions')[0]);
+    await userEvent.click(screen.getByText('Edit'));
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeDisabled();
+    await userEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    await userEvent.click(screen.getAllByLabelText('Comment actions')[1]);
+    expect(screen.getByText('Edit')).toHaveAttribute('data-disabled');
+    await userEvent.click(screen.getByText('Edit'));
+    expect(screen.getByLabelText('Edit comment')).toHaveValue('first draft');
+
+    resolve!({ commentId: 'c1', failedFiles: [] });
   });
 
   it('only shows comment attachment controls to authorized users', () => {
@@ -587,6 +678,26 @@ describe('DetailComments — threaded replies', () => {
       />,
     );
     expect(screen.getByLabelText('Attach to comment')).toBeInTheDocument();
+  });
+
+  it('uses a keyboard-focusable button to open the attachment file input', async () => {
+    render(
+      <DetailComments
+        comments={[]}
+        onSubmit={vi.fn()}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
+
+    const input = screen.getByLabelText('Choose file: Attach to comment');
+    const click = vi.spyOn(input, 'click');
+    const button = screen.getByRole('button', { name: 'Attach to comment' });
+    button.focus();
+    expect(button).toHaveFocus();
+    await userEvent.click(button);
+    expect(click).toHaveBeenCalledOnce();
   });
 
   it('cancels the reply composer without submitting', async () => {

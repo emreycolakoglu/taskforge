@@ -197,7 +197,8 @@ export function DetailComments({
 
   const visibleCount = useMemo(() => countVisible(comments), [comments]);
 
-  const closeReply = () => {
+  const closeReply = (force = false) => {
+    if (replyInFlight.current && !force) return;
     setReplyTo(null);
     setReplyText('');
     setReplyFiles([]);
@@ -218,7 +219,7 @@ export function DetailComments({
         setReplyFiles(result.failedFiles);
         setReplyCommentId(result.commentId);
       } else {
-        closeReply();
+        closeReply(true);
       }
     };
     const finish = () => {
@@ -231,12 +232,13 @@ export function DetailComments({
         .catch(() => {})
         .finally(finish);
     else {
-      closeReply();
+      closeReply(true);
       finish();
     }
   };
 
   const openReply = (commentId: string) => {
+    if (replyInFlight.current) return;
     setReplyTo((prev) => (prev === commentId ? null : commentId));
     setReplyText('');
     setReplyFiles([]);
@@ -266,6 +268,7 @@ export function DetailComments({
   };
 
   const startEdit = (c: Comment) => {
+    if (saveInFlight.current) return;
     setEditingId(c.id);
     setEditBody(c.body);
     setEditFiles([]);
@@ -311,6 +314,7 @@ export function DetailComments({
   };
 
   const cancelEdit = () => {
+    if (saveInFlight.current) return;
     setEditingId(null);
     setEditBody('');
     setEditFiles([]);
@@ -357,6 +361,7 @@ export function DetailComments({
                   className="size-6 text-muted-foreground hover:text-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
                   aria-label={`Reply to ${c.author}`}
                   onClick={() => openReply(c.id)}
+                  disabled={isReplying}
                 >
                   <Reply className="size-3.5" />
                 </Button>
@@ -376,7 +381,7 @@ export function DetailComments({
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
                     {canModify(c) && (
-                      <DropdownMenuItem onClick={() => startEdit(c)}>
+                      <DropdownMenuItem onClick={() => startEdit(c)} disabled={isSaving}>
                         <Pencil className="size-3.5" />
                         Edit
                       </DropdownMenuItem>
@@ -452,7 +457,7 @@ export function DetailComments({
               >
                 Save
               </Button>
-              <Button size="sm" variant="ghost" onClick={cancelEdit}>
+              <Button size="sm" variant="ghost" onClick={cancelEdit} disabled={isSaving}>
                 Cancel
               </Button>
             </div>
@@ -517,7 +522,7 @@ export function DetailComments({
               >
                 Reply
               </Button>
-              <Button size="sm" variant="ghost" onClick={closeReply}>
+              <Button size="sm" variant="ghost" onClick={() => closeReply()} disabled={isReplying}>
                 Cancel
               </Button>
             </div>
@@ -667,28 +672,33 @@ function PendingFiles({
   onAdd: (files: File[]) => void;
   onRemove: (file: File) => void;
 }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
   return (
     <div className="flex flex-wrap items-center gap-1.5">
       <input
         id={inputId}
+        ref={inputRef}
         className="sr-only"
         type="file"
         multiple
-        aria-label={label}
+        aria-label={`Choose file: ${label}`}
         disabled={disabled}
         onChange={(event) => {
           onAdd(Array.from(event.target.files ?? []));
           event.target.value = '';
         }}
       />
-      <Button size="sm" variant="ghost" asChild disabled={disabled}>
-        <label htmlFor={inputId}>
-          <span>
-            <Paperclip className="size-3.5" />
-            Attach
-          </span>
-          <span className="sr-only">{label}</span>
-        </label>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        disabled={disabled}
+        aria-label={label}
+        onClick={() => inputRef.current?.click()}
+      >
+        <Paperclip className="size-3.5" />
+        Attach
       </Button>
       {files.map((file) => (
         <span
