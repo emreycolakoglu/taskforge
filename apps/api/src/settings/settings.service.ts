@@ -133,9 +133,8 @@ export class SettingsService {
         throw new BadRequestException('allowedMimeTypes contains invalid MIME types');
       }
     }
-    // Stored verbatim; consumers lowercase at validation time.
     if (allowedMimeTypes != null) {
-      dbData.allowedMimeTypes = JSON.stringify(allowedMimeTypes);
+      dbData.allowedMimeTypes = JSON.stringify(allowedMimeTypes.map((mime) => mime.toLowerCase()));
     }
     if (rest.smtpFromName === null) {
       dbData.smtpFromName = '';

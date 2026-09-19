@@ -229,9 +229,9 @@ describe('SettingsService', () => {
       expect(updated.maxFileSizeMb).toBe(25);
     });
 
-    it('stores allowedMimeTypes verbatim, including uppercase entries', async () => {
+    it('normalizes allowedMimeTypes to lowercase', async () => {
       const updated = await service.updateSettings({ allowedMimeTypes: ['IMAGE/PNG'] });
-      expect(updated.allowedMimeTypes).toEqual(['IMAGE/PNG']);
+      expect(updated.allowedMimeTypes).toEqual(['image/png']);
     });
   });
 });
