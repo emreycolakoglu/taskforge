@@ -164,6 +164,45 @@ describe('BoardsService', () => {
       expect(found._count).toEqual({ comments: 0, relationsTo: 0, relationsFrom: 0 });
       expect(found.taskNumber).toBe(`${seeded.identifier}-${task.number}`);
     });
+
+    it('hydrates curated attachment metadata for all status tasks in one query', async () => {
+      const seeded = await seedBoard(prisma);
+      const first = await seedTask(prisma, seeded.statuses[0].id);
+      const second = await seedTask(prisma, seeded.statuses[1].id);
+      await prisma.attachment.createMany({
+        data: [
+          {
+            subjectType: 'task',
+            subjectId: first.id,
+            filename: 'first.txt',
+            mimeType: 'text/plain',
+            sizeBytes: 10,
+            storageKey: 'secret-first.txt',
+          },
+          {
+            subjectType: 'task',
+            subjectId: second.id,
+            filename: 'second.txt',
+            mimeType: 'text/plain',
+            sizeBytes: 20,
+            storageKey: 'secret-second.txt',
+          },
+        ],
+      });
+      const findMany = jest.spyOn(prisma.attachment, 'findMany');
+
+      const board = await service.findFull(seeded.id);
+      const tasks = board.statuses.flatMap((status: any) => status.tasks);
+
+      expect(findMany).toHaveBeenCalledTimes(1);
+      expect(tasks.find((task: any) => task.id === first.id).attachments).toEqual([
+        expect.objectContaining({ filename: 'first.txt', sizeBytes: 10 }),
+      ]);
+      expect(tasks.find((task: any) => task.id === second.id).attachments).toEqual([
+        expect.objectContaining({ filename: 'second.txt', sizeBytes: 20 }),
+      ]);
+      expect(tasks[0].attachments[0]).not.toHaveProperty('storageKey');
+    });
   });
 
   describe('create', () => {

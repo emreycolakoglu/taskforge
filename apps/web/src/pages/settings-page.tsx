@@ -638,10 +638,14 @@ function AttachmentsTab() {
             />
             <p className="text-xs text-muted-foreground">Enter one MIME type per line.</p>
           </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
           <div>
             <Button type="submit" variant="outline" disabled={updateSettings.isPending}>
-              {updateSettings.isPending ? 'Saving...' : 'Save attachment settings'}
+              {updateSettings.isPending ? 'Saving…' : 'Save attachment settings'}
             </Button>
           </div>
         </form>

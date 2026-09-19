@@ -426,6 +426,21 @@ describe('useSocket', () => {
     expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['comments'] });
   });
 
+  it('invalidates the active board-full query when a task attachment changes', () => {
+    renderHook(() => useSocket('b1'));
+    const attachmentHandler = (mockSocket.on.mock.calls as Array<[string, ...unknown[]]>).find(
+      ([event]) => event === 'attachment:created',
+    )?.[1] as ((data: unknown) => void) | undefined;
+
+    expect(attachmentHandler).toBeDefined();
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => attachmentHandler!({ subjectType: 'task', subjectId: 't1' }));
+
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['boards', 'b1', 'full'],
+    });
+  });
+
   it('invalidates document attachment detail and list query prefixes', () => {
     renderHook(() => useSocket());
     const attachmentHandler = (mockSocket.on.mock.calls as Array<[string, ...unknown[]]>).find(

@@ -160,6 +160,7 @@ export function useSocket(boardId?: string) {
           });
           if (attachment.subjectType === 'task') {
             queryClient.invalidateQueries({ queryKey: ['tasks', attachment.subjectId] });
+            if (bid) queryClient.invalidateQueries({ queryKey: ['boards', bid, 'full'] });
           }
           if (attachment.subjectType === 'comment') {
             queryClient.invalidateQueries({ queryKey: ['comments'] });

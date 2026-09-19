@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { LabelsService } from '../labels/labels.service';
-import { AttachmentsService } from '../attachments/attachments.service';
+import { AttachmentsService, hydrateAttachments } from '../attachments/attachments.service';
 import { withTaskNumber } from '../tasks/tasks.service';
 import { DEFAULT_STATUSES } from '../statuses/status-defaults';
 import { CreateBoardDto, UpdateBoardDto } from './dto/board.dto';
@@ -77,9 +77,13 @@ export class BoardsService {
     });
     if (!board) throw new NotFoundException('Board not found');
 
-    // Apply taskNumber transform to each task
+    const tasks = board.statuses.flatMap((status) => status.tasks).map(withTaskNumber);
+    const hydratedTasks = await hydrateAttachments(this.prisma, tasks, 'task');
+    const taskById = new Map(hydratedTasks.map((task) => [task.id, task]));
+
+    // Apply taskNumber transform and attachment metadata to each task.
     for (const status of board.statuses) {
-      status.tasks = status.tasks.map(withTaskNumber);
+      status.tasks = status.tasks.map((task) => taskById.get(task.id)!);
     }
 
     return board;

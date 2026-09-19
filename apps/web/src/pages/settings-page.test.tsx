@@ -215,7 +215,7 @@ describe('SettingsPage Attachments tab', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Save attachment settings' }));
 
     expect(mutate).not.toHaveBeenCalled();
-    expect(screen.getByText('Enter at least one MIME type.')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('Enter at least one MIME type.');
   });
 
   it('rejects a non-integer attachment file size and malformed MIME types', async () => {
@@ -255,5 +255,14 @@ describe('SettingsPage Attachments tab', () => {
       maxFileSizeMb: 10,
       allowedMimeTypes: ['image/png', 'text/plain'],
     });
+  });
+
+  it('uses the project ellipsis while attachment settings save', async () => {
+    mockUseUpdateSettings.mockReturnValue({ mutate: vi.fn(), isPending: true } as never);
+    render(<SettingsPage />);
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Attachments' }));
+
+    expect(screen.getByRole('button', { name: 'Saving…' })).toBeInTheDocument();
   });
 });
