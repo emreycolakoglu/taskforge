@@ -141,6 +141,10 @@ export class AttachmentsService {
     return { maxFileSizeMb: s?.maxFileSizeMb ?? 10, allowedMimeTypes: allowed };
   }
 
+  async getAttachmentPolicy() {
+    return this.loadSettings();
+  }
+
   private async assertCanWrite(boardId: string, user?: Actor) {
     if (!user?.id) throw new ForbiddenException('Authentication required');
     if (user.role === 'admin') return;

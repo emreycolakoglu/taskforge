@@ -161,6 +161,7 @@ describe('TaskDetailView', () => {
     expect(mockUploadAttachment).toHaveBeenCalledWith({
       subjectType: 'comment',
       subjectId: 'comment-1',
+      boardId: 'board-1',
       taskId: 'task-1',
       file,
     });
@@ -185,6 +186,7 @@ describe('TaskDetailView', () => {
     expect(mockUploadAttachment).toHaveBeenCalledWith({
       subjectType: 'comment',
       subjectId: 'comment-1',
+      boardId: 'board-1',
       taskId: 'task-1',
       file,
     });
@@ -215,6 +217,7 @@ describe('TaskDetailView', () => {
     expect(mockUploadAttachment).toHaveBeenNthCalledWith(3, {
       subjectType: 'comment',
       subjectId: 'comment-1',
+      boardId: 'board-1',
       taskId: 'task-1',
       file: failed,
     });
@@ -250,6 +253,7 @@ describe('TaskDetailView', () => {
     expect(mockUploadAttachment).toHaveBeenNthCalledWith(3, {
       subjectType: 'comment',
       subjectId: 'reply-1',
+      boardId: 'board-1',
       taskId: 'task-1',
       file: failed,
     });
@@ -279,6 +283,7 @@ describe('TaskDetailView', () => {
     expect(mockUploadAttachment).toHaveBeenNthCalledWith(3, {
       subjectType: 'comment',
       subjectId: 'comment-1',
+      boardId: 'board-1',
       taskId: 'task-1',
       file: failed,
     });

@@ -1,10 +1,11 @@
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import type { Attachment, AttachmentSubjectType } from '../types';
+import type { Attachment, AttachmentPolicy, AttachmentSubjectType } from '../types';
 import { api } from './api';
 
 export interface AttachmentSubjectInput {
   subjectType: AttachmentSubjectType;
   subjectId: string;
+  boardId?: string;
   taskId?: string;
   documentId?: string;
 }
@@ -19,9 +20,12 @@ export interface DeleteAttachmentInput extends AttachmentSubjectInput {
 
 export function invalidateAttachmentSubject(
   queryClient: QueryClient,
-  { subjectType, subjectId, taskId, documentId }: AttachmentSubjectInput,
+  { subjectType, subjectId, boardId, taskId, documentId }: AttachmentSubjectInput,
 ): void {
   queryClient.invalidateQueries({ queryKey: ['attachments', subjectType, subjectId] });
+  if (boardId) {
+    queryClient.invalidateQueries({ queryKey: ['boards', boardId, 'full'] });
+  }
 
   if (subjectType === 'task') {
     queryClient.invalidateQueries({ queryKey: ['tasks', subjectId] });
@@ -40,6 +44,13 @@ export function useAttachments(subjectType: AttachmentSubjectType, subjectId: st
   return useQuery({
     queryKey: ['attachments', subjectType, subjectId],
     queryFn: () => api.attachments.list(subjectType, subjectId),
+  });
+}
+
+export function useAttachmentPolicy() {
+  return useQuery<AttachmentPolicy>({
+    queryKey: ['attachment-policy'],
+    queryFn: () => api.attachments.policy(),
   });
 }
 

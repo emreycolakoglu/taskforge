@@ -219,6 +219,11 @@ export interface Settings {
   updatedAt: string | null;
 }
 
+export interface AttachmentPolicy {
+  maxFileSizeMb: number;
+  allowedMimeTypes: string[];
+}
+
 export interface UpdateSettingsPayload {
   title?: string;
   smtpHost?: string | null;

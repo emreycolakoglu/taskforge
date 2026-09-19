@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import * as fs from 'fs';
 import { AttachmentsController } from './attachments.controller';
 import { AttachmentsService } from './attachments.service';
+import { IS_ADMIN_KEY } from '../auth/admin.decorator';
+import { IS_PUBLIC_KEY } from '../auth/public.decorator';
 
 describe('AttachmentsController', () => {
   it('uploads with the right args and removes the staged temp file', async () => {
@@ -10,6 +12,7 @@ describe('AttachmentsController', () => {
       create: jest.fn().mockResolvedValue({ id: 'a1' }),
       remove: jest.fn(),
       list: jest.fn(),
+      getAttachmentPolicy: jest.fn(),
     };
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AttachmentsController],
@@ -41,6 +44,7 @@ describe('AttachmentsController', () => {
       create: jest.fn(),
       remove: jest.fn(),
       list: jest.fn(),
+      getAttachmentPolicy: jest.fn(),
     };
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AttachmentsController],
@@ -63,5 +67,33 @@ describe('AttachmentsController', () => {
     expect(service.create).not.toHaveBeenCalled();
     expect(rmSpy).toHaveBeenCalledWith('/tmp/definitely-gone-xyz', { force: true });
     rmSpy.mockRestore();
+  });
+
+  it('returns the narrow attachment policy without opting out of authentication', async () => {
+    const policy = { maxFileSizeMb: 25, allowedMimeTypes: ['text/plain'] };
+    const service = {
+      create: jest.fn(),
+      remove: jest.fn(),
+      list: jest.fn(),
+      getAttachmentPolicy: jest.fn().mockResolvedValue(policy),
+    };
+    const module: TestingModule = await Test.createTestingModule({
+      controllers: [AttachmentsController],
+    })
+      .useMocker((token) => {
+        if (token === AttachmentsService) return service;
+        return jest.fn();
+      })
+      .compile();
+    const ctrl = module.get(AttachmentsController);
+
+    await expect((ctrl as any).attachmentPolicy()).resolves.toEqual(policy);
+    expect(service.getAttachmentPolicy).toHaveBeenCalledTimes(1);
+    expect(
+      Reflect.getMetadata(IS_PUBLIC_KEY, AttachmentsController.prototype.attachmentPolicy),
+    ).toBe(undefined);
+    expect(
+      Reflect.getMetadata(IS_ADMIN_KEY, AttachmentsController.prototype.attachmentPolicy),
+    ).toBe(undefined);
   });
 });

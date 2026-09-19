@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { toast } from 'sonner';
 import { AttachmentChips } from './attachment-chips';
 
 const mocks = vi.hoisted(() => ({
@@ -26,6 +27,8 @@ vi.mock('@/hooks/api', () => ({
   api: { attachments: { download: mocks.download } },
 }));
 
+vi.mock('sonner', () => ({ toast: { error: vi.fn() } }));
+
 const attachment = {
   id: 'a1',
   subjectType: 'comment' as const,
@@ -43,6 +46,7 @@ describe('AttachmentChips', () => {
     vi.clearAllMocks();
     mocks.user.mockReturnValue({ id: 'u2', role: 'member' });
     mocks.members.mockReturnValue({ data: [{ userId: 'u2', role: 'member' }] });
+    mocks.download.mockResolvedValue(undefined);
   });
 
   it('renders a comment attachment chip with its filename and download action', () => {
@@ -88,5 +92,16 @@ describe('AttachmentChips', () => {
     await userEvent.click(screen.getByLabelText('Download report.pdf'));
 
     expect(mocks.download).toHaveBeenCalledWith(attachment);
+  });
+
+  it('shows an error when download fails', async () => {
+    mocks.download.mockRejectedValueOnce(new Error('Object missing'));
+    render(<AttachmentChips attachments={[attachment]} subjectId="c1" boardId="b1" taskId="t1" />);
+
+    await userEvent.click(screen.getByLabelText('Download report.pdf'));
+
+    expect(toast.error).toHaveBeenCalledWith('Failed to download attachment', {
+      description: 'Object missing',
+    });
   });
 });

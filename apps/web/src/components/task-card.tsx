@@ -166,7 +166,6 @@ export function TaskCard({
           {task.attachments && task.attachments.length > 0 && (
             <Badge
               variant="outline"
-              style={{ color: '#f7f8f8' }}
               className="shrink-0"
               aria-label={`${task.attachments.length} attachment${task.attachments.length === 1 ? '' : 's'}`}
             >

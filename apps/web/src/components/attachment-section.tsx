@@ -2,10 +2,14 @@ import { useRef } from 'react';
 import { Archive, Download, File, FileText, Image, Paperclip, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/auth-context';
-import { useAttachments, useDeleteAttachment, useUploadAttachment } from '@/hooks/use-attachments';
+import {
+  useAttachmentPolicy,
+  useAttachments,
+  useDeleteAttachment,
+  useUploadAttachment,
+} from '@/hooks/use-attachments';
 import { api } from '@/hooks/api';
 import { useMembers } from '@/hooks/use-members';
-import { useSettings } from '@/hooks/use-settings';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,7 +22,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import type { Attachment, AttachmentSubjectType } from '@/types';
+import type { Attachment, AttachmentPolicy, AttachmentSubjectType } from '@/types';
 
 interface AttachmentSectionProps {
   subjectType: AttachmentSubjectType;
@@ -26,11 +30,6 @@ interface AttachmentSectionProps {
   boardId: string;
   taskId?: string;
 }
-
-export type AttachmentSettings = {
-  maxFileSizeMb?: number;
-  allowedMimeTypes?: string[];
-};
 
 function formatSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -57,7 +56,7 @@ function AttachmentIcon({ mimeType }: { mimeType: string }) {
 
 export function validateAttachmentFile(
   file: File,
-  settings?: AttachmentSettings,
+  settings?: AttachmentPolicy,
 ): string | undefined {
   const maxSize = settings?.maxFileSizeMb;
   if (maxSize && file.size > maxSize * 1024 * 1024) {
@@ -78,11 +77,10 @@ export function AttachmentSection({
   const inputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
   const { data: members } = useMembers(boardId);
-  const { data: settings } = useSettings();
+  const { data: attachmentPolicy } = useAttachmentPolicy();
   const { data: attachments = [] } = useAttachments(subjectType, subjectId);
   const upload = useUploadAttachment();
   const remove = useDeleteAttachment();
-  const attachmentSettings = settings as AttachmentSettings | undefined;
   const member = members?.find((item) => item.userId === user?.id);
   const canUpload =
     user?.role === 'admin' ||
@@ -94,7 +92,7 @@ export function AttachmentSection({
 
   const handleFile = (file: File | undefined) => {
     if (!file) return;
-    const error = validateAttachmentFile(file, attachmentSettings);
+    const error = validateAttachmentFile(file, attachmentPolicy);
     if (error) {
       toast.error(error);
       return;
@@ -103,6 +101,7 @@ export function AttachmentSection({
       {
         subjectType,
         subjectId,
+        boardId,
         taskId,
         documentId: subjectType === 'document' ? subjectId : undefined,
         file,
@@ -177,7 +176,13 @@ export function AttachmentSection({
                 size="icon"
                 className="size-7 text-muted-foreground hover:text-foreground"
                 aria-label={`Download ${attachment.filename}`}
-                onClick={() => api.attachments.download(attachment)}
+                onClick={() =>
+                  void api.attachments.download(attachment).catch((error) =>
+                    toast.error('Failed to download attachment', {
+                      description: error instanceof Error ? error.message : 'Please try again.',
+                    }),
+                  )
+                }
               >
                 <Download className="size-3.5" />
               </Button>
@@ -212,6 +217,7 @@ export function AttachmentSection({
                               id: attachment.id,
                               subjectType,
                               subjectId,
+                              boardId,
                               taskId,
                               documentId: subjectType === 'document' ? subjectId : undefined,
                             },

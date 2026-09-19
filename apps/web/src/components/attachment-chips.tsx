@@ -51,7 +51,13 @@ export function AttachmentChips({ attachments, subjectId, boardId, taskId }: Att
             size="icon"
             className="size-5 text-muted-foreground hover:text-foreground"
             aria-label={`Download ${attachment.filename}`}
-            onClick={() => api.attachments.download(attachment)}
+            onClick={() =>
+              void api.attachments.download(attachment).catch((error) =>
+                toast.error('Failed to download attachment', {
+                  description: error instanceof Error ? error.message : 'Please try again.',
+                }),
+              )
+            }
           >
             <Download className="size-3" />
           </Button>
@@ -82,7 +88,7 @@ export function AttachmentChips({ attachments, subjectId, boardId, taskId }: Att
                     disabled={remove.isPending}
                     onClick={() =>
                       remove.mutate(
-                        { id: attachment.id, subjectType: 'comment', subjectId, taskId },
+                        { id: attachment.id, subjectType: 'comment', subjectId, boardId, taskId },
                         {
                           onError: (error) =>
                             toast.error('Failed to delete attachment', {

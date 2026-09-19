@@ -9,6 +9,7 @@ const mocks = vi.hoisted(() => ({
   attachments: vi.fn(),
   members: vi.fn(),
   settings: vi.fn(),
+  policy: vi.fn(),
   user: vi.fn(),
   upload: vi.fn(),
   remove: vi.fn(),
@@ -18,6 +19,7 @@ vi.mock('@/hooks/use-attachments', () => ({
   useAttachments: () => mocks.attachments(),
   useUploadAttachment: () => ({ mutate: mocks.upload, isPending: false }),
   useDeleteAttachment: () => ({ mutate: mocks.remove, isPending: false }),
+  useAttachmentPolicy: () => mocks.policy(),
 }));
 
 vi.mock('@/hooks/use-settings', () => ({
@@ -58,6 +60,9 @@ describe('AttachmentSection', () => {
     mocks.settings.mockReturnValue({
       data: { maxFileSizeMb: 1, allowedMimeTypes: ['text/plain'] },
     });
+    mocks.policy.mockReturnValue({
+      data: { maxFileSizeMb: 1, allowedMimeTypes: ['text/plain'] },
+    });
     mocks.user.mockReturnValue({ id: 'u2', role: 'member' });
   });
 
@@ -96,8 +101,24 @@ describe('AttachmentSection', () => {
     expect(toast.error).toHaveBeenCalledWith('File type image/png is not allowed');
   });
 
-  it('defers validation to the API when settings are absent', async () => {
+  it('uses the member attachment policy instead of admin settings', async () => {
+    mocks.policy.mockReturnValue({
+      data: { maxFileSizeMb: 1, allowedMimeTypes: ['image/png'] },
+    });
+    renderSection();
+    const file = new File(['image'], 'image.png', { type: 'image/png' });
+
+    await userEvent.upload(screen.getByLabelText('Upload attachment'), file);
+
+    expect(mocks.upload).toHaveBeenCalledWith(
+      expect.objectContaining({ file }),
+      expect.any(Object),
+    );
+  });
+
+  it('defers validation to the API when the attachment policy is absent', async () => {
     mocks.settings.mockReturnValue({ data: undefined });
+    mocks.policy.mockReturnValue({ data: undefined });
     renderSection();
     const file = new File(['image'], 'image.png', { type: 'image/png' });
 
@@ -143,6 +164,7 @@ describe('AttachmentSection', () => {
       {
         subjectType: 'task',
         subjectId: 't1',
+        boardId: 'b1',
         taskId: 't1',
         documentId: undefined,
         file,
@@ -162,6 +184,18 @@ describe('AttachmentSection', () => {
 
     expect(toast.error).toHaveBeenCalledWith('Failed to upload attachment', {
       description: 'Server rejected file',
+    });
+  });
+
+  it('shows an error when attachment download fails', async () => {
+    const { api } = await import('@/hooks/api');
+    vi.mocked(api.attachments.download).mockRejectedValueOnce(new Error('Object missing'));
+    renderSection();
+
+    await userEvent.click(screen.getByLabelText('Download report.pdf'));
+
+    expect(toast.error).toHaveBeenCalledWith('Failed to download attachment', {
+      description: 'Object missing',
     });
   });
 

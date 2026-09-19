@@ -82,6 +82,7 @@ export function TaskDetailView({
           uploadAttachment.mutateAsync({
             subjectType: 'comment',
             subjectId: commentId,
+            boardId,
             taskId,
             file,
           }),

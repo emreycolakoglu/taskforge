@@ -208,6 +208,22 @@ describe('AttachmentsService', () => {
       ).resolves.toMatchObject({ mimeType: 'text/plain' });
     });
 
+    it('returns a lowercase narrow policy for legacy uppercase MIME entries', async () => {
+      await prisma.settings.create({
+        data: {
+          id: 'singleton',
+          onboarded: true,
+          maxFileSizeMb: 25,
+          allowedMimeTypes: JSON.stringify(['TEXT/PLAIN']),
+        },
+      });
+
+      await expect((service as any).getAttachmentPolicy()).resolves.toEqual({
+        maxFileSizeMb: 25,
+        allowedMimeTypes: ['text/plain'],
+      });
+    });
+
     it('rejects create with neither tempPath nor content', async () => {
       await expect(
         service.create({

@@ -91,6 +91,6 @@ describe('TaskCard', () => {
       />,
     );
 
-    expect(screen.getByLabelText('1 attachment')).toBeInTheDocument();
+    expect(screen.getByLabelText('1 attachment')).not.toHaveAttribute('style');
   });
 });

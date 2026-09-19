@@ -65,9 +65,9 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Badge } from '@/components/ui/badge';
 import { MarkdownEditor } from '@/components/markdown';
 import { AttachmentChips } from '@/components/attachment-chips';
-import { validateAttachmentFile, type AttachmentSettings } from '@/components/attachment-section';
+import { validateAttachmentFile } from '@/components/attachment-section';
 import { useAuth } from '@/contexts/auth-context';
-import { useSettings } from '@/hooks/use-settings';
+import { useAttachmentPolicy } from '@/hooks/use-attachments';
 import { useMembers } from '@/hooks/use-members';
 import { useUserDirectory } from '@/hooks/use-users';
 import { REACTION_EMOJIS } from '@/lib/reactions';
@@ -136,9 +136,8 @@ export function DetailComments({
   const { user } = useAuth();
   const navigate = useNavigate();
   const { data: directory = [] } = useUserDirectory();
-  const { data: settings } = useSettings();
+  const { data: attachmentPolicy } = useAttachmentPolicy();
   const { data: members } = useMembers(boardId ?? '');
-  const attachmentSettings = settings as AttachmentSettings | undefined;
   const member = members?.find((item) => item.userId === user?.id);
   const canUpload =
     user?.role === 'admin' ||
@@ -151,7 +150,7 @@ export function DetailComments({
     pendingFiles: File[],
   ) => {
     const validFiles = selected.filter((file) => {
-      const error = validateAttachmentFile(file, attachmentSettings);
+      const error = validateAttachmentFile(file, attachmentPolicy);
       if (error) toast.error(error);
       return !error;
     });

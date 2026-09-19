@@ -26,6 +26,7 @@ import {
   ViewFilters,
   Attachment,
   AttachmentSubjectType,
+  AttachmentPolicy,
 } from '../types';
 
 const TOKEN_KEY = 'taskforge_token';
@@ -310,6 +311,7 @@ export const api = {
 
   // Attachments
   attachments: {
+    policy: () => request<AttachmentPolicy>('/attachments/policy'),
     list: (subjectType: AttachmentSubjectType, subjectId: string) =>
       request<Attachment[]>(`/${subjectType}/${subjectId}/attachments`),
     upload: (subjectType: AttachmentSubjectType, subjectId: string, file: File) => {

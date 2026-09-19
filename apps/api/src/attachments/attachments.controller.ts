@@ -83,6 +83,11 @@ export class AttachmentsController {
     return this.service.list(subjectType as any, subjectId);
   }
 
+  @Get('attachments/policy')
+  async attachmentPolicy() {
+    return this.service.getAttachmentPolicy();
+  }
+
   // Must stay above @Get('attachments/:id'): routes register in declaration
   // order, and Express answers HEAD with the GET handler when no HEAD route
   // matched first — which would make this handler dead code.

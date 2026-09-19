@@ -61,6 +61,18 @@ describe('api', () => {
     expect((options.body as FormData).get('file')).toBeInstanceOf(File);
   });
 
+  it('gets only the attachment policy with the bearer token', async () => {
+    localStorageMock.setItem('taskforge_token', 'token');
+    const policy = { maxFileSizeMb: 10, allowedMimeTypes: ['text/plain'] };
+    mockFetch.mockResolvedValueOnce({ ok: true, status: 200, json: async () => policy });
+    const { api } = await import('./api');
+
+    await expect((api.attachments as any).policy()).resolves.toEqual(policy);
+    expect(mockFetch).toHaveBeenCalledWith('/api/attachments/policy', {
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer token' },
+    });
+  });
+
   it('downloads an attachment as a named blob with authorization', async () => {
     localStorageMock.setItem('taskforge_token', 'token');
     mockFetch.mockResolvedValueOnce({ ok: true, blob: async () => new Blob(['note']) });

@@ -24,6 +24,8 @@ let mockUser: { id: string; role: string } | null = {
   role: 'member',
 };
 let mockMembers: { userId: string; role: string }[] | undefined = [];
+let mockSettings: { maxFileSizeMb: number; allowedMimeTypes: string[] } | undefined;
+let mockAttachmentPolicy: { maxFileSizeMb: number; allowedMimeTypes: string[] } | undefined;
 
 vi.mock('@/contexts/auth-context', () => ({
   useAuth: () => ({ user: mockUser }),
@@ -38,7 +40,7 @@ vi.mock('@/hooks/use-users', () => ({
 }));
 
 vi.mock('@/hooks/use-settings', () => ({
-  useSettings: () => ({ data: undefined }),
+  useSettings: () => ({ data: mockSettings }),
 }));
 
 vi.mock('@/hooks/use-members', () => ({
@@ -47,6 +49,7 @@ vi.mock('@/hooks/use-members', () => ({
 
 vi.mock('@/hooks/use-attachments', () => ({
   useDeleteAttachment: () => ({ mutate: vi.fn(), isPending: false }),
+  useAttachmentPolicy: () => ({ data: mockAttachmentPolicy }),
 }));
 
 vi.mock('sonner', () => ({
@@ -96,6 +99,8 @@ describe('DetailComments — delete feature (TFG-8)', () => {
     // Reset mockUser to default (non-admin member)
     mockUser = { id: 'user-1', role: 'member' };
     mockMembers = [];
+    mockSettings = undefined;
+    mockAttachmentPolicy = undefined;
   });
 
   it('does not show delete button when onDelete is not provided', () => {
@@ -698,6 +703,25 @@ describe('DetailComments — threaded replies', () => {
     expect(button).toHaveFocus();
     await userEvent.click(button);
     expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('validates files using the member attachment policy instead of admin settings', async () => {
+    mockSettings = { maxFileSizeMb: 1, allowedMimeTypes: ['text/plain'] };
+    mockAttachmentPolicy = { maxFileSizeMb: 1, allowedMimeTypes: ['image/png'] };
+    render(
+      <DetailComments
+        comments={[]}
+        onSubmit={vi.fn()}
+        formatTimestamp={(value) => value}
+        boardId="b1"
+        taskId="t1"
+      />,
+    );
+    const file = new File(['image'], 'image.png', { type: 'image/png' });
+
+    await userEvent.upload(screen.getByLabelText('Choose file: Attach to comment'), file);
+
+    expect(screen.getByText('image.png')).toBeInTheDocument();
   });
 
   it('cancels the reply composer without submitting', async () => {
