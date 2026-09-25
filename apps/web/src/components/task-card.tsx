@@ -29,6 +29,7 @@ import type { ReactNode } from 'react';
 import { BlockerPill } from './blocker-pill';
 import { LabelManager } from './label-manager';
 import { PriorityIcon } from './priority-icons';
+import { ProgressIcon } from './progress-icon';
 
 function CommentIcon() {
   return (
@@ -65,19 +66,20 @@ export function TaskCard({
   const labels = task.taskLabels ?? task.labels ?? [];
   const isSubTask = !!task.parentId;
 
-  const priorityIcon = (): ReactNode => <PriorityIcon priority={task.priority} />;
+  const priorityIcon = (): ReactNode => (
+    <Badge
+      key={'priority'}
+      variant={'outline'}
+      style={{
+        color: '#f7f8f8',
+      }}
+    >
+      <PriorityIcon size={12} priority={task.priority} />
+    </Badge>
+  );
 
   const visibleLabels = labels.slice(0, 2);
   const overflowCount = labels.length > 2 ? labels.length - 2 : 0;
-
-  const hasRow2 =
-    !!parentTaskNumber ||
-    visibleLabels.length > 0 ||
-    task.estimate != null ||
-    (task._count && task._count.comments > 0) ||
-    (task.attachments && task.attachments.length > 0) ||
-    (task.blockedByCount != null && task.blockedByCount > 0) ||
-    (task.blockingCount != null && task.blockingCount > 0);
 
   return (
     <div
@@ -90,11 +92,8 @@ export function TaskCard({
     >
       {/* Row 1 — priority icon + task number + parent task name + assignee */}
       <div className="flex items-center gap-2 min-w-0">
-        {priorityIcon()}
         {task.taskNumber && (
-          <span className="text-xs font-mono text-muted-foreground shrink-0">
-            {task.taskNumber}
-          </span>
+          <span className="text-xs text-muted-foreground shrink-0">{task.taskNumber}</span>
         )}
         {parentTaskName && (
           <>
@@ -114,117 +113,106 @@ export function TaskCard({
       </div>
 
       {/* Title row — clamped to two lines */}
-      <span className="text-sm text-foreground line-clamp-2">{task.title}</span>
+      <div className="flex items-start gap-2 min-w-0 mb-1">
+        <span className="pt-1">
+          <ProgressIcon
+            progress={task?.status?.progress ?? 0}
+            type={task?.status?.type}
+            size={16}
+          />
+        </span>
+        <span className="text-sm text-foreground line-clamp-2">{task.title}</span>
+      </div>
 
-      {/* Row 3 — only if metadata exists */}
-      {hasRow2 && (
-        <div className="flex items-center gap-1.5 text-muted-foreground text-xs min-w-0">
-          {visibleLabels.length > 0 && (
-            <div className="flex items-center gap-1 shrink-0">
-              {visibleLabels.map((tl) => (
-                <Badge
-                  key={tl.labelId}
-                  variant={'outline'}
-                  style={{
-                    color: '#f7f8f8',
-                  }}
-                >
-                  <CircleSmallIcon
-                    data-icon="inline-start"
-                    style={{ color: tl.label.color, fill: tl.label.color }}
-                  />
-                  {tl.label.name}
-                </Badge>
-              ))}
-              {overflowCount > 0 && (
-                <span className="text-[10px] text-muted-foreground">+{overflowCount}</span>
-              )}
-            </div>
-          )}
-
-          {task._count && task._count.comments > 0 && (
-            <TooltipProvider delayDuration={300}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge
-                    variant={'outline'}
-                    style={{ color: '#f7f8f8' }}
-                    className="shrink-0"
-                    aria-label={`${task._count.comments} comments`}
-                  >
-                    <CommentIcon />
-                    {task._count.comments}
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent side="top">
-                  {task._count.comments} comment{task._count.comments === 1 ? '' : 's'}
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-
-          {task.attachments && task.attachments.length > 0 && (
+      {/* Row 3  */}
+      <div className="flex items-center gap-1.5 text-muted-foreground text-xs min-w-0">
+        <div className="flex items-center gap-1 shrink-0">
+          {priorityIcon()}
+          {visibleLabels.map((tl) => (
             <Badge
-              variant="outline"
-              className="shrink-0"
-              aria-label={`${task.attachments.length} attachment${task.attachments.length === 1 ? '' : 's'}`}
+              key={tl.labelId}
+              variant={'outline'}
+              style={{
+                color: '#f7f8f8',
+              }}
             >
-              <Paperclip className="size-3" />
-              {task.attachments.length}
+              <CircleSmallIcon
+                data-icon="inline-start"
+                style={{ color: tl.label.color, fill: tl.label.color }}
+              />
+              {tl.label.name}
             </Badge>
-          )}
-
-          {task.blockedByCount != null && task.blockedByCount > 0 && (
-            <BlockerPill taskId={task.id} count={task.blockedByCount} direction="blockedBy" />
-          )}
-
-          {task.blockingCount != null && task.blockingCount > 0 && (
-            <BlockerPill taskId={task.id} count={task.blockingCount} direction="blocking" />
-          )}
-
-          {task.estimate != null && (
-            <TooltipProvider delayDuration={300}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Badge
-                    variant={'outline'}
-                    style={{ color: '#f7f8f8' }}
-                    className="shrink-0"
-                    aria-label={`Estimation: ${task.estimate}`}
-                  >
-                    {task.estimate}
-                  </Badge>
-                </TooltipTrigger>
-                <TooltipContent side="top">Estimation: {task.estimate}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          )}
-
-          {/* Label manager (+) — hover-revealed, far right */}
-          {boardId && (
-            <div className="opacity-0 group-hover/card:opacity-100 transition-opacity ml-auto shrink-0">
-              <LabelManager task={task} boardId={boardId} />
-            </div>
+          ))}
+          {overflowCount > 0 && (
+            <span className="text-[10px] text-muted-foreground">+{overflowCount}</span>
           )}
         </div>
-      )}
 
-      {/* Sub-task hover + — lives on the card, far right of row 1 area */}
-      {onAddSubTask && (
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-1 right-1 size-5 rounded bg-secondary text-muted-foreground opacity-0 group-hover/card:opacity-100 transition-opacity [&_svg]:size-3"
-          aria-label="Add sub-task"
-          title="Add sub-task"
-          onClick={(e) => {
-            e.stopPropagation();
-            onAddSubTask();
-          }}
-        >
-          <Plus />
-        </Button>
-      )}
+        {task._count && task._count.comments > 0 && (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge
+                  variant={'outline'}
+                  style={{ color: '#f7f8f8' }}
+                  className="shrink-0"
+                  aria-label={`${task._count.comments} comments`}
+                >
+                  <CommentIcon />
+                  {task._count.comments}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="top">
+                {task._count.comments} comment{task._count.comments === 1 ? '' : 's'}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
+        {task.attachments && task.attachments.length > 0 && (
+          <Badge
+            variant="outline"
+            className="shrink-0"
+            aria-label={`${task.attachments.length} attachment${task.attachments.length === 1 ? '' : 's'}`}
+          >
+            <Paperclip className="size-3" />
+            {task.attachments.length}
+          </Badge>
+        )}
+
+        {task.blockedByCount != null && task.blockedByCount > 0 && (
+          <BlockerPill taskId={task.id} count={task.blockedByCount} direction="blockedBy" />
+        )}
+
+        {task.blockingCount != null && task.blockingCount > 0 && (
+          <BlockerPill taskId={task.id} count={task.blockingCount} direction="blocking" />
+        )}
+
+        {task.estimate != null && (
+          <TooltipProvider delayDuration={300}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge
+                  variant={'outline'}
+                  style={{ color: '#f7f8f8' }}
+                  className="shrink-0"
+                  aria-label={`Estimation: ${task.estimate}`}
+                >
+                  {task.estimate}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="top">Estimation: {task.estimate}</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+
+        {/* Label manager (+) — hover-revealed, far right */}
+        {boardId && (
+          <div className="opacity-0 group-hover/card:opacity-100 transition-opacity ml-auto shrink-0">
+            <LabelManager task={task} boardId={boardId} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }

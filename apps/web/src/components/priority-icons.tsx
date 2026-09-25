@@ -15,15 +15,15 @@
  *   low     — ChevronDown  (points down)
  */
 
-import { ChevronDown, ChevronUp, Minus, OctagonAlert } from 'lucide-react';
+import { SignalHighIcon, SignalLowIcon, SignalMediumIcon, SignalZero } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Task } from '@/types';
 
 const PRIORITY_ICONS: Record<Task['priority'], LucideIcon> = {
-  urgent: OctagonAlert,
-  high: ChevronUp,
-  medium: Minus,
-  low: ChevronDown,
+  low: SignalZero,
+  medium: SignalLowIcon,
+  high: SignalMediumIcon,
+  urgent: SignalHighIcon,
 };
 
 const PRIORITY_COLORS: Record<Task['priority'], string> = {
@@ -51,6 +51,7 @@ interface PriorityIconProps {
 /** Renders the icon for a given priority, colored per design.md semantic accents. */
 export function PriorityIcon({ priority, className, size = 14 }: PriorityIconProps) {
   const Icon = PRIORITY_ICONS[priority];
+
   return (
     <span
       title={PRIORITY_LABELS[priority]}

@@ -66,6 +66,7 @@ export class BoardsService {
                     relationsFrom: { where: { type: 'blocks' } },
                   },
                 },
+                status: true,
                 board: { select: { identifier: true } },
               },
             },
