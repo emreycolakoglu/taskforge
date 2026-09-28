@@ -111,6 +111,20 @@ describe('TaskDetailView', () => {
     mockUseUserDirectory.mockReturnValue({ data: [] } as never);
   });
 
+  it('centers the content column in fixed mode (TFG-59)', () => {
+    const { container } = render(<TaskDetailView taskId="task-1" boardId="board-1" />);
+
+    const column = container.querySelector('.max-w-3xl');
+    expect(column).not.toBeNull();
+    expect(column).toHaveClass('mx-auto');
+  });
+
+  it('drops the max width in wide mode (TFG-59)', () => {
+    const { container } = render(<TaskDetailView taskId="task-1" boardId="board-1" wide />);
+
+    expect(container.querySelector('.max-w-3xl')).toBeNull();
+  });
+
   it('joins the task board socket room', () => {
     render(<TaskDetailView taskId="task-1" boardId="board-1" />);
 

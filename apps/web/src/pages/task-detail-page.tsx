@@ -15,6 +15,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, PanelRight } from 'lucide-react';
 import { useTask, useSetTaskPublic } from '@/hooks/use-tasks';
 import { useBoardFull } from '@/hooks/use-boards';
+import { useDetailWidth } from '@/hooks/use-detail-width';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { DetailBreadcrumbBar } from '@/components/detail-breadcrumb-bar';
@@ -28,6 +29,9 @@ export function TaskDetailPage() {
   const { data: task, isLoading: taskLoading, error: taskError } = useTask(taskId!);
   const { data: board } = useBoardFull(boardId!);
   const setPublic = useSetTaskPublic();
+
+  // TFG-59: fixed/centered vs full width, persisted per browser in localStorage.
+  const [wide, toggleWidth] = useDetailWidth();
 
   const handleSetPublic = useCallback(
     async (isPublic: boolean) => {
@@ -85,6 +89,8 @@ export function TaskDetailPage() {
         taskId={task.id}
         boardId={boardId!}
         isPublic={task.isPublic ?? false}
+        wide={wide}
+        onToggleWidth={toggleWidth}
         onBack={() => navigate(`/board/${boardId}`)}
         onSetPublic={handleSetPublic}
         propertiesTrigger={
@@ -107,6 +113,7 @@ export function TaskDetailPage() {
         onNavigateTask={navigateToTask}
         propertiesSheetOpen={propertiesOpen}
         onPropertiesSheetOpenChange={setPropertiesOpen}
+        wide={wide}
       />
     </div>
   );

@@ -2,9 +2,10 @@
  * DetailBreadcrumbBar — sticky breadcrumb row above the task detail.
  *
  * Left: back chevron → breadcrumb text (Board › Status › TF-730) + a Public
- * badge when the task is shared. Right: actions DropdownMenu (⋯) with Copy ID /
- * Copy URL and the public-sharing toggle, followed by the mobile-only
- * properties trigger (PanelRight).
+ * badge when the task is shared. Right: the desktop-only content-width toggle
+ * (TFG-59), actions DropdownMenu (⋯) with Copy ID / Copy URL and the
+ * public-sharing toggle, followed by the mobile-only properties trigger
+ * (PanelRight).
  *
  * The Public badge is not decoration: publishing is one click in an overflow
  * menu, so the badge is the only thing that makes "which tasks are currently
@@ -15,7 +16,16 @@
  * since Lime is reserved for a single primary CTA per screen.
  */
 
-import { ArrowLeft, MoreHorizontal, Copy, Link2, Globe, GlobeLock } from 'lucide-react';
+import {
+  ArrowLeft,
+  MoreHorizontal,
+  Copy,
+  Link2,
+  Globe,
+  GlobeLock,
+  Maximize2,
+  Minimize2,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -50,6 +60,9 @@ interface DetailBreadcrumbBarProps {
   taskId: string;
   boardId: string;
   isPublic: boolean;
+  /** TFG-59: present only on desktop — the toggle is hidden on phone viewports. */
+  wide?: boolean;
+  onToggleWidth?: () => void;
   onBack: () => void;
   onSetPublic: (isPublic: boolean) => Promise<void>;
   /** Optional slot rendered in the right action group (e.g. mobile Properties button). */
@@ -61,6 +74,8 @@ export function DetailBreadcrumbBar({
   statusName,
   taskNumber,
   isPublic,
+  wide,
+  onToggleWidth,
   onBack,
   onSetPublic,
   propertiesTrigger,
@@ -150,8 +165,20 @@ export function DetailBreadcrumbBar({
         )}
       </div>
 
-      {/* Right — actions + properties trigger */}
+      {/* Right — actions + width toggle + properties trigger */}
       <div className="flex items-center gap-1 shrink-0">
+        {onToggleWidth && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="hidden md:inline-flex size-7 text-muted-foreground hover:text-foreground"
+            aria-label="Toggle content width"
+            title={wide ? 'Switch to fixed width' : 'Switch to full width'}
+            onClick={onToggleWidth}
+          >
+            {wide ? <Minimize2 className="size-4" /> : <Maximize2 className="size-4" />}
+          </Button>
+        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button

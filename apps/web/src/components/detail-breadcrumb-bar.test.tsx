@@ -96,3 +96,30 @@ describe('DetailBreadcrumbBar — public sharing', () => {
     );
   });
 });
+
+describe('DetailBreadcrumbBar — width toggle (TFG-59)', () => {
+  it('hides the toggle when no handler is given', () => {
+    renderBar();
+
+    expect(screen.queryByLabelText('Toggle content width')).not.toBeInTheDocument();
+  });
+
+  it('shows the expand icon in fixed mode and fires onToggle', async () => {
+    const onToggleWidth = vi.fn();
+    renderBar({ wide: false, onToggleWidth });
+
+    const button = screen.getByLabelText('Toggle content width');
+    expect(button).toHaveAttribute('title', 'Switch to full width');
+    await userEvent.click(button);
+    expect(onToggleWidth).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows the collapse icon in wide mode', () => {
+    renderBar({ wide: true, onToggleWidth: vi.fn() });
+
+    expect(screen.getByLabelText('Toggle content width')).toHaveAttribute(
+      'title',
+      'Switch to fixed width',
+    );
+  });
+});

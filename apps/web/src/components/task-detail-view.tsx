@@ -45,6 +45,11 @@ interface TaskDetailViewProps {
   /** Controlled Sheet state for the mobile properties sidebar. */
   propertiesSheetOpen?: boolean;
   onPropertiesSheetOpenChange?: (open: boolean) => void;
+  /**
+   * TFG-59: full-width layout (no max-w cap); fixed/centered when false.
+   * Optional so the inbox pane (no width toggle) gets the centered default.
+   */
+  wide?: boolean;
 }
 
 export function TaskDetailView({
@@ -53,6 +58,7 @@ export function TaskDetailView({
   onNavigateTask,
   propertiesSheetOpen,
   onPropertiesSheetOpenChange,
+  wide = false,
 }: TaskDetailViewProps) {
   const navigateToTask = onNavigateTask ?? ((id: string) => {});
 
@@ -231,8 +237,15 @@ export function TaskDetailView({
     <div className="flex flex-1 min-h-0">
       {/* Main content column */}
       <ScrollArea className="flex-1">
-        {/* TFG-57: collapse the 32px gutters on phones. */}
-        <div className="px-4 sm:px-8 py-6 space-y-8 bg-background max-w-3xl">
+        {/* TFG-57: collapse the 32px gutters on phones.
+            TFG-59: fixed mode centers the column; wide mode drops the cap. */}
+        <div
+          className={
+            wide
+              ? 'px-4 sm:px-8 py-6 space-y-8 bg-background'
+              : 'px-4 sm:px-8 py-6 space-y-8 bg-background max-w-3xl mx-auto'
+          }
+        >
           <DetailTitleBlock
             task={task}
             onSaveTitle={(title) => handleUpdate({ title })}
