@@ -45,7 +45,7 @@ export function useCreateTask() {
         number: 0,
         taskNumber: '',
         title: variables.title,
-        description: variables.description ?? null,
+        description: variables.description ?? undefined,
         position: 999999,
         priority: (variables as any).priority ?? 'medium',
         doneAt: null,

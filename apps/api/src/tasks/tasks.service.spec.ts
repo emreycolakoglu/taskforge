@@ -170,6 +170,28 @@ describe('TasksService', () => {
     it('should throw on non-existent task', async () => {
       await expect(service.findOne('nonexistent')).rejects.toThrow('Task not found');
     });
+
+    it('should include labels, status and assignee on sub-tasks', async () => {
+      const label = await seedLabel(prisma, board.id);
+      const assignee = await seedUser(prisma);
+      const parent = await seedTask(prisma, board.statuses[0].id);
+      const child = await seedTask(prisma, board.statuses[1].id, { parentId: parent.id });
+      await prisma.task.update({
+        where: { id: child.id },
+        data: { assigneeId: assignee.id, labels: { create: [{ labelId: label.id }] } },
+      });
+
+      const task = await service.findOne(parent.id);
+      expect(task.subTasks).toHaveLength(1);
+      const sub = task.subTasks![0];
+      expect(sub.id).toBe(child.id);
+      expect(sub.status?.id).toBe(board.statuses[1].id);
+      expect(sub.assignee?.id).toBe(assignee.id);
+      expect(sub.assignee?.displayName).toBe(assignee.displayName);
+      expect(sub.labels).toHaveLength(1);
+      expect(sub.labels![0].label.name).toBe('bug');
+      expect(sub.labels![0].label.color).toBe('#ef4444');
+    });
   });
 
   describe('create', () => {

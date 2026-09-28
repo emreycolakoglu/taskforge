@@ -206,7 +206,14 @@ export class TasksService {
         activity: { orderBy: { createdAt: 'desc' }, take: 20 },
         subTasks: {
           orderBy: { position: 'asc' },
-          include: { board: { select: { identifier: true } } },
+          include: {
+            labels: {
+              include: { label: true },
+            },
+            status: true,
+            board: { select: { identifier: true } },
+            assignee: { select: { id: true, email: true, displayName: true, role: true } },
+          },
         },
         parent: {
           select: { id: true, number: true, title: true, board: { select: { identifier: true } } },

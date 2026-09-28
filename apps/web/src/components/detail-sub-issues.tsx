@@ -2,7 +2,10 @@
  * DetailSubIssues — inline sub-task list with add affordance.
  *
  * Heading + count badge, rows reuse task-card.tsx row styling (border-defined,
- * bg-card, hover:bg-accent/30). "Add sub-issue" renders QuickAddInput inline
+ * bg-card, hover:bg-accent/30). Row-1 rendering (progress icon, label badges,
+ * avatar) intentionally mirrors task-card.tsx — if you change how a card renders
+ * labels or avatars, update both places.
+ * "Add sub-issue" renders QuickAddInput inline
  * in place of the add button when active (no full-screen modal overlay).
  *
  * "Add related" opens a CMDK-style search dialog that searches across
@@ -11,7 +14,7 @@
  */
 
 import { useState, useCallback, useRef } from 'react';
-import { Plus, Search, Link } from 'lucide-react';
+import { Plus, Search, Link, CircleSmallIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -27,6 +30,8 @@ import {
 import { QuickAddInput } from './quick-add-input';
 import { api } from '@/hooks/api';
 import type { Task } from '@/types';
+import { ProgressIcon } from './progress-icon';
+import { Avatar, AvatarFallback } from './ui/avatar';
 
 interface DetailSubIssuesProps {
   task: Task;
@@ -111,15 +116,39 @@ export function DetailSubIssues({
             className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 cursor-pointer hover:bg-accent/30"
             onClick={() => onNavigate(st.id)}
           >
+            <ProgressIcon progress={st?.status?.progress ?? 0} type={st?.status?.type} size={16} />
             {st.taskNumber && (
               <span className="text-xs text-muted-foreground font-mono shrink-0">
                 {st.taskNumber}
               </span>
             )}
             <span className="text-sm text-foreground truncate flex-1">{st.title}</span>
-            <Badge variant="secondary" className="text-[10px] shrink-0">
-              {st.status?.name ?? '—'}
-            </Badge>
+            {st.labels?.map((tl) => (
+              <Badge
+                key={tl.labelId}
+                variant={'outline'}
+                style={{
+                  color: '#f7f8f8',
+                }}
+              >
+                <CircleSmallIcon
+                  data-icon="inline-start"
+                  style={{ color: tl.label.color, fill: tl.label.color }}
+                />
+                {tl.label.name}
+              </Badge>
+            ))}
+
+            {st.assignee && (
+              <Avatar className="size-5 ml-auto shrink-0">
+                <AvatarFallback
+                  className="text-[9px] font-semibold"
+                  title={st.assignee.displayName}
+                >
+                  {st.assignee.displayName.charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+            )}
           </div>
         ))}
         {subTasks.length === 0 && !adding && (
