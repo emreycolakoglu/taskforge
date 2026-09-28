@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ExternalLink, Loader2 } from 'lucide-react';
+import { ExternalLink, Loader2, PanelRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { useTask } from '@/hooks/use-tasks';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { TaskDetailView } from '@/components/task-detail-view';
 import type { Notification } from '@/types';
 
@@ -11,6 +14,10 @@ interface InboxTaskDetailProps {
 
 export function InboxTaskDetail({ notification, onNavigateTask }: InboxTaskDetailProps) {
   const { data: task, isLoading } = useTask(notification.taskId);
+  // TFG-57: on mobile the properties sidebar is unreachable without Sheet
+  // wiring — mirror the task detail page's trigger-in-header pattern.
+  const [propertiesOpen, setPropertiesOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   if (isLoading || !task) {
     return (
@@ -22,20 +29,35 @@ export function InboxTaskDetail({ notification, onNavigateTask }: InboxTaskDetai
 
   return (
     <div className="flex flex-1 min-h-0 flex-col">
-      <div className="flex items-center justify-between h-11 px-6 border-b border-border bg-background">
+      <div className="flex items-center justify-between h-11 px-3 sm:px-6 border-b border-border bg-background">
         <span className="text-sm text-muted-foreground">Notification detail</span>
-        <Link
-          to={`/board/${task.boardId}/task/${task.id}`}
-          className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ExternalLink className="size-3.5" />
-          Open in full page
-        </Link>
+        <div className="flex items-center gap-1">
+          {isMobile && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 text-muted-foreground hover:text-foreground"
+              aria-label="Properties"
+              onClick={() => setPropertiesOpen(true)}
+            >
+              <PanelRight className="size-4" />
+            </Button>
+          )}
+          <Link
+            to={`/board/${task.boardId}/task/${task.id}`}
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ExternalLink className="size-3.5" />
+            Open in full page
+          </Link>
+        </div>
       </div>
       <TaskDetailView
         taskId={notification.taskId}
         boardId={task.boardId}
         onNavigateTask={onNavigateTask}
+        propertiesSheetOpen={propertiesOpen}
+        onPropertiesSheetOpenChange={setPropertiesOpen}
       />
     </div>
   );

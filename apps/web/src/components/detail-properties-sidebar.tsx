@@ -13,7 +13,7 @@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import type { Board, RelationType, Task, TaskRelations } from '@/types';
 import type { AssigneeOption } from './detail-assignee-select';
-import { Calendar } from 'lucide-react';
+import { Calendar, X } from 'lucide-react';
 import { DetailAssigneeSelect } from './detail-assignee-select';
 import { DetailGroup } from './detail-group';
 import { DetailGroupTitle } from './detail-group-title';
@@ -21,6 +21,7 @@ import { DetailPrioritySelect } from './detail-priority-select';
 import { DetailEstimateInput } from './detail-estimate-input';
 import { DetailPropertyRow } from './detail-property-row';
 import { DetailStatusSelect } from './detail-status-select';
+import { DetailAddParentPopover } from './detail-add-parent-popover';
 import { LabelManager } from './label-manager';
 import { LabelPill } from './label-pill';
 import { DetailRelations } from './detail-relations';
@@ -54,10 +55,11 @@ export function DetailPropertiesSidebar({
 }: DetailPropertiesSidebarProps) {
   const taskLabels = task.taskLabels ?? task.labels ?? [];
 
+  // TFG-57: full-width inside the mobile Sheet, fixed 260px docked on ≥md.
   return (
-    <aside className="w-[260px] max-w-[260px] shrink-0 border-l border-border bg-secondary">
+    <aside className="w-full max-w-full md:w-[260px] md:max-w-[260px] md:shrink-0 border-l border-border bg-secondary">
       <ScrollArea className="h-full">
-        <div className="w-[260px] max-w-[260px] p-4">
+        <div className="w-full max-w-full md:w-[260px] md:max-w-[260px] p-4">
           {relations?.duplicateOf && relations.duplicateOf.length > 0 && (
             <div className="rounded-lg border border-border bg-background px-3 py-2 mb-3 text-sm text-muted-foreground">
               This is a duplicate of{' '}
@@ -77,6 +79,37 @@ export function DetailPropertiesSidebar({
           {/* Group 1 — Properties */}
           <DetailGroup>
             <DetailGroupTitle>Properties</DetailGroupTitle>
+
+            {/* TFG-58 — set / change / clear the parent task. */}
+            <DetailPropertyRow label="Parent">
+              {task.parent ? (
+                <>
+                  <button
+                    className="font-mono text-xs text-muted-foreground hover:text-foreground hover:underline"
+                    onClick={() => onNavigate(task.parent!.id)}
+                  >
+                    {task.parent.board?.identifier
+                      ? `${task.parent.board.identifier}-${task.parent.number}`
+                      : `#${task.parent.number}`}
+                  </button>
+                  <button
+                    aria-label="Unlink parent"
+                    title="Unlink parent"
+                    className="text-muted-foreground hover:text-foreground [&_svg]:size-3.5"
+                    onClick={() => onUpdate({ parentId: null })}
+                  >
+                    <X />
+                  </button>
+                </>
+              ) : (
+                <DetailAddParentPopover
+                  boardTasks={boardTasks}
+                  currentTaskId={task.id}
+                  currentSubTaskIds={new Set((task.subTasks ?? []).map((st) => st.id))}
+                  onAdd={(id) => onUpdate({ parentId: id })}
+                />
+              )}
+            </DetailPropertyRow>
 
             <DetailStatusSelect
               board={board}

@@ -200,4 +200,44 @@ describe('useCreateTask — optimistic rendering (TFG-9)', () => {
       });
     });
   });
+
+  it('invalidates the parent task detail query on success when creating a sub-task (TFG-56)', async () => {
+    const { queryClient, wrapper } = createWrapper();
+
+    // Simulate the parent's detail query in the cache — this is what the
+    // task detail page renders sub-tasks from.
+    const parentDetail = { id: 'parent-1', title: 'Parent', subTasks: [] };
+    queryClient.setQueryData(['tasks', 'parent-1'], parentDetail);
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+
+    const realTask: Task = {
+      id: 'child-1',
+      statusId: STATUS_ID,
+      boardId: BOARD_ID,
+      number: 2,
+      taskNumber: 'TFG-2',
+      title: 'Sub Task',
+      description: null as unknown as string,
+      position: 0,
+      priority: 'medium',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-01T00:00:00Z',
+      parentId: 'parent-1',
+    };
+    mockCreateTask.mockResolvedValueOnce(realTask);
+
+    const { useCreateTask } = await import('./use-tasks');
+    const { result } = renderHook(() => useCreateTask(), { wrapper });
+
+    result.current.mutate({
+      statusId: STATUS_ID,
+      title: 'Sub Task',
+      boardId: BOARD_ID,
+      parentId: 'parent-1',
+    });
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'parent-1'] });
+    });
+  });
 });

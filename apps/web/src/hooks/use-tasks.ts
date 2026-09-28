@@ -73,6 +73,12 @@ export function useCreateTask() {
       queryClient.setQueryData<Task[]>(['tasks', 'board', variables.boardId], (old = []) =>
         old.map((t) => (t.isOptimistic ? { ...data, isOptimistic: false } : t)),
       );
+      // TFG-56: the parent's detail payload embeds its subTasks array —
+      // without invalidating it, a newly created sub-task is invisible on
+      // the detail page until a full reload.
+      if (variables.parentId) {
+        queryClient.invalidateQueries({ queryKey: ['tasks', variables.parentId] });
+      }
       queryClient.invalidateQueries({ queryKey: ['boards'] });
       queryClient.invalidateQueries({ queryKey: ['boards', variables.boardId, 'full'] });
     },
@@ -84,8 +90,31 @@ export function useUpdateTask() {
   return useMutation({
     mutationFn: ({ id, data, boardId }: { id: string; data: Partial<Task>; boardId: string }) =>
       api.tasks.update(id, data),
-    onSuccess: (_data, variables) => {
+    onMutate: (variables) => {
+      // Remember the task's previous parent so onSuccess can invalidate both
+      // sides of the move (the detail payload embeds the subTasks array).
+      // Read from the detail cache, which carries the parentId scalar.
+      // Known race: two parent changes inside one refetch window read a stale
+      // previousParentId — self-heals because ['tasks', id] is invalidated
+      // in onSuccess, but see TFG-56 follow-up for the optimistic-write fix.
+      const previous = queryClient.getQueryData<Task>(['tasks', variables.id]);
+      return { previousParentId: previous?.parentId ?? null };
+    },
+    onSuccess: (_data, variables, context) => {
       queryClient.invalidateQueries({ queryKey: ['tasks', variables.id] });
+      // TFG-58: when the parentage changed, both affected parents' detail
+      // payloads embed their subTasks arrays — invalidate them too.
+      const nextParentId = (variables.data as { parentId?: unknown }).parentId;
+      if (nextParentId !== undefined) {
+        const parentId = typeof nextParentId === 'string' ? nextParentId : null;
+        // The new parent's sub-task list gains an entry…
+        if (parentId) queryClient.invalidateQueries({ queryKey: ['tasks', parentId] });
+        // …and the previous parent's list loses one (null = un-nest).
+        const oldParentId = context?.previousParentId ?? null;
+        if (oldParentId && oldParentId !== parentId) {
+          queryClient.invalidateQueries({ queryKey: ['tasks', oldParentId] });
+        }
+      }
       queryClient.invalidateQueries({ queryKey: ['tasks', 'board', variables.boardId] });
       queryClient.invalidateQueries({ queryKey: ['boards', variables.boardId, 'full'] });
     },

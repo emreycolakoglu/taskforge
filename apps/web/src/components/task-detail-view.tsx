@@ -192,6 +192,11 @@ export function TaskDetailView({
     document.getElementById(anchor)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
+  // TFG-57: hooks must run before any early return — calling useIsMobile only
+  // after `if (!task) return null` crashes on cold navigation when the query
+  // resolves mid-mount ("Rendered more hooks than during the previous render").
+  const isMobile = useIsMobile();
+
   if (!task) return null;
 
   const formatTimestamp = (ts: string) => {
@@ -205,8 +210,6 @@ export function TaskDetailView({
   };
 
   // ── Render ──────────────────────────────────────────────────────────────────
-
-  const isMobile = useIsMobile();
 
   const sidebar = (
     <DetailPropertiesSidebar
@@ -228,7 +231,8 @@ export function TaskDetailView({
     <div className="flex flex-1 min-h-0">
       {/* Main content column */}
       <ScrollArea className="flex-1">
-        <div className="px-8 py-6 space-y-8 bg-background max-w-3xl">
+        {/* TFG-57: collapse the 32px gutters on phones. */}
+        <div className="px-4 sm:px-8 py-6 space-y-8 bg-background max-w-3xl">
           <DetailTitleBlock
             task={task}
             onSaveTitle={(title) => handleUpdate({ title })}

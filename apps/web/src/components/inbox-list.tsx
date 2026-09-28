@@ -25,7 +25,7 @@ function relativeTime(iso: string): string {
 
 export function InboxList({ notifications, selectedId, onSelect, onMarkAllRead }: InboxListProps) {
   return (
-    <aside className="w-[360px] shrink-0 border-r border-border bg-secondary flex flex-col">
+    <aside className="w-full md:w-[360px] shrink-0 border-r border-border bg-secondary flex flex-col">
       <div className="flex items-center justify-between h-11 px-4 border-b border-border">
         <span className="text-sm font-medium text-foreground">Inbox</span>
         {notifications.some((n) => n.readAt === null) && (

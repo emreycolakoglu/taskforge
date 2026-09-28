@@ -109,7 +109,7 @@ export function DetailBreadcrumbBar({
   };
 
   return (
-    <header className="flex h-11 items-center justify-between px-6 border-b border-border bg-secondary shrink-0">
+    <header className="flex h-11 items-center justify-between px-3 sm:px-6 border-b border-border bg-secondary shrink-0">
       {/* Left — back + breadcrumb */}
       <div className="flex items-center gap-2 min-w-0">
         {/* Mobile-only: toggles the off-canvas sidebar. Hidden ≥md where the

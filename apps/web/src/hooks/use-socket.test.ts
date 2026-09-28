@@ -344,7 +344,88 @@ describe('useSocket', () => {
     second.unmount();
   });
 
-  it('should invalidate notifications queries on notification:created event', () => {
+  it('invalidates the parent task detail query on task:created with parentId', () => {
+    mockGetToken.mockReturnValue('tok');
+    renderHook(() => useSocket());
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const taskHandler = calls.find((c) => c[0] === 'task:created')?.[1] as
+      ((data: unknown) => void) | undefined;
+    expect(taskHandler).toBeDefined();
+
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => {
+      taskHandler!({ id: 'child-1', parentId: 'parent-1', boardId: 'b1' });
+    });
+
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['tasks', 'parent-1'],
+    });
+  });
+
+  it('invalidates the parent task detail query on task:updated with parentId', () => {
+    mockGetToken.mockReturnValue('tok');
+    renderHook(() => useSocket());
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const taskHandler = calls.find((c) => c[0] === 'task:updated')?.[1] as
+      ((data: unknown) => void) | undefined;
+    expect(taskHandler).toBeDefined();
+
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => {
+      taskHandler!({ id: 'child-1', parentId: 'parent-1', boardId: 'b1' });
+    });
+
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['tasks', 'parent-1'],
+    });
+  });
+
+  it('invalidates the previous parent task detail query on task:updated with previousParentId', () => {
+    mockGetToken.mockReturnValue('tok');
+    renderHook(() => useSocket());
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const taskHandler = calls.find((c) => c[0] === 'task:updated')?.[1] as
+      ((data: unknown) => void) | undefined;
+    expect(taskHandler).toBeDefined();
+
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => {
+      // Re-parent A → B: previousParentId is the old parent A (null when un-nesting).
+      taskHandler!({
+        id: 'child-1',
+        parentId: 'parent-b',
+        previousParentId: 'parent-a',
+        boardId: 'b1',
+      });
+    });
+
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['tasks', 'parent-a'],
+    });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['tasks', 'parent-b'],
+    });
+  });
+
+  it('does not invalidate a parent query when the task has no parentId', () => {
+    mockGetToken.mockReturnValue('tok');
+    renderHook(() => useSocket());
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const taskHandler = calls.find((c) => c[0] === 'task:created')?.[1] as
+      ((data: unknown) => void) | undefined;
+    expect(taskHandler).toBeDefined();
+
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => {
+      taskHandler!({ id: 'task-1', boardId: 'b1' });
+    });
+
+    expect(mockQueryClient.invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: ['tasks', null],
+    });
+  });
+
+  it('invalidates notifications queries on notification:created event', () => {
     mockGetToken.mockReturnValue('tok');
     renderHook(() => useSocket());
 

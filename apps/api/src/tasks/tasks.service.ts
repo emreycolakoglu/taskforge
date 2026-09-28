@@ -382,7 +382,19 @@ export class TasksService {
       await this.notifications.dispatchFromActivity(activity);
     }
 
-    this.events.emit('task:updated', task, task.status.boardId);
+    // TFG-56 follow-up: when parentage changed, tell clients which parent the
+    // task moved AWAY from — the emitted payload only carries the new parentId,
+    // so without previousParentId other clients cannot invalidate the old
+    // parent's detail query and its embedded subTasks list goes stale.
+    if (parentChanged) {
+      this.events.emit(
+        'task:updated',
+        { ...task, previousParentId: existing.parentId },
+        task.status.boardId,
+      );
+    } else {
+      this.events.emit('task:updated', task, task.status.boardId);
+    }
     if (dto.description !== undefined && dto.description !== existing.description) {
       await this.mentions.processMentions(id, dto.description, user);
     }
@@ -582,7 +594,9 @@ export class TasksService {
 
     await this.prisma.task.delete({ where: { id } });
 
-    this.events.emit('task:deleted', { id }, boardId);
+    // boardId in the payload lets clients invalidate ['tasks','board',boardId]
+    // for deletions (the room scope alone does not identify the board).
+    this.events.emit('task:deleted', { id, boardId }, boardId);
   }
 
   async attachLabel(taskId: string, labelId: string) {

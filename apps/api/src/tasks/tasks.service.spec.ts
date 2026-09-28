@@ -812,6 +812,64 @@ describe('TasksService', () => {
       const refreshedParent = await prisma.task.findUnique({ where: { id: parent.id } });
       expect(refreshedParent!.statusId).toBe(board.statuses[0].id);
     });
+
+    it('17. re-parent emits task:updated with previousParentId so clients can invalidate the old parent', async () => {
+      const parentA = await seedTask(prisma, board.statuses[0].id, { title: 'ParentA' });
+      const parentB = await seedTask(prisma, board.statuses[0].id, { title: 'ParentB' });
+      const child = await seedTask(prisma, board.statuses[0].id, {
+        title: 'Child',
+        parentId: parentA.id,
+      });
+      const emitSpy = jest.spyOn(events, 'emit');
+      await service.update(child.id, { parentId: parentB.id }, user);
+      const updateEvents = emitSpy.mock.calls.filter(([event]) => event === 'task:updated');
+      expect(updateEvents).toHaveLength(1);
+      const [, payload] = updateEvents[0] as [
+        string,
+        { parentId?: string; previousParentId?: string },
+      ];
+      expect(payload.parentId).toBe(parentB.id);
+      expect(payload.previousParentId).toBe(parentA.id);
+      emitSpy.mockRestore();
+    });
+
+    it('18. update without parent change does not include previousParentId in the emit', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id, { title: 'Plain' });
+      const emitSpy = jest.spyOn(events, 'emit');
+      await service.update(task.id, { title: 'Renamed' }, user);
+      const updateEvents = emitSpy.mock.calls.filter(([event]) => event === 'task:updated');
+      expect(updateEvents).toHaveLength(1);
+      const [, payload] = updateEvents[0] as [string, { previousParentId?: string }];
+      expect(payload.previousParentId).toBeUndefined();
+      emitSpy.mockRestore();
+    });
+
+    it('19. un-nest emits task:updated with previousParentId = old parent', async () => {
+      const parent = await seedTask(prisma, board.statuses[0].id, { title: 'Parent' });
+      const child = await seedTask(prisma, board.statuses[0].id, {
+        title: 'Child',
+        parentId: parent.id,
+      });
+      const emitSpy = jest.spyOn(events, 'emit');
+      await service.update(child.id, { parentId: null }, user);
+      const updateEvents = emitSpy.mock.calls.filter(([event]) => event === 'task:updated');
+      expect(updateEvents).toHaveLength(1);
+      const [, payload] = updateEvents[0] as [string, { previousParentId?: string | null }];
+      expect(payload.previousParentId).toBe(parent.id);
+      emitSpy.mockRestore();
+    });
+
+    it('20. task:deleted payload carries boardId so clients can invalidate board queries', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id, { title: 'Doomed' });
+      const emitSpy = jest.spyOn(events, 'emit');
+      await service.remove(task.id, user);
+      const deleteEvents = emitSpy.mock.calls.filter(([event]) => event === 'task:deleted');
+      expect(deleteEvents).toHaveLength(1);
+      const [, payload] = deleteEvents[0] as [string, { id?: string; boardId?: string }];
+      expect(payload.id).toBe(task.id);
+      expect(payload.boardId).toBe(board.id);
+      emitSpy.mockRestore();
+    });
   });
 
   describe('subscriptions + notifications integration', () => {

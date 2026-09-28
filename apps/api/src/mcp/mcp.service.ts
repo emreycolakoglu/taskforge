@@ -494,7 +494,18 @@ export class McpService {
           });
         }
 
-        this.events.emit('task:updated', task, task.status?.boardId);
+        // TFG-56 follow-up: parity with TasksService.update — clients need the
+        // parent the task moved away from to invalidate the old parent's
+        // detail query (its payload embeds the subTasks array).
+        if (parentChanged) {
+          this.events.emit(
+            'task:updated',
+            { ...task, previousParentId: existing.parentId },
+            task.status?.boardId,
+          );
+        } else {
+          this.events.emit('task:updated', task, task.status?.boardId);
+        }
         if (params.description !== undefined && params.description !== existing.description) {
           await this.mentions.processMentions(params.id, params.description, user);
         }
@@ -597,7 +608,13 @@ export class McpService {
         });
         await this.relations.cleanupForTask(params.id);
         await this.prisma.task.delete({ where: { id: params.id } });
-        this.events.emit('task:deleted', { id: params.id }, existingTask?.boardId);
+        // boardId in the payload lets clients invalidate board queries
+        // (parity with TasksService.remove).
+        this.events.emit(
+          'task:deleted',
+          { id: params.id, boardId: existingTask?.boardId },
+          existingTask?.boardId,
+        );
         return { deleted: true };
       }
       case 'subscribe': {

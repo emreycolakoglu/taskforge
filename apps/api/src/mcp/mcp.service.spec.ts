@@ -550,6 +550,22 @@ describe('McpService', () => {
       const gone = await prisma.task.findUnique({ where: { id: task.id } });
       expect(gone).toBeNull();
     });
+
+    it('emits task:deleted with boardId in the payload (parity with REST remove)', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const emitted: Array<{ event: string; data: { id?: string; boardId?: string } }> = [];
+      const subscription = events.observe().subscribe((payload) => {
+        if (payload.event === 'task:deleted') emitted.push(payload);
+      });
+      await service.handleRequest(
+        { method: 'tasks_delete', params: { id: task.id }, id: 21 },
+        user,
+      );
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].data.id).toBe(task.id);
+      expect(emitted[0].data.boardId).toBe(board.id);
+      subscription.unsubscribe();
+    });
   });
 
   // ─── Sub-tasks (MCP parity) ────────────────────────────────────────────────
@@ -581,6 +597,50 @@ describe('McpService', () => {
       );
       expect(res.result).toBeDefined();
       expect(res.result.parentId).toBe(foreignParent.id);
+    });
+
+    it('tasks_update with parentId change emits previousParentId (parity with REST update)', async () => {
+      const parentA = await seedTask(prisma, board.statuses[0].id, { title: 'ParentA' });
+      const parentB = await seedTask(prisma, board.statuses[0].id, { title: 'ParentB' });
+      const child = await seedTask(prisma, board.statuses[0].id, {
+        title: 'Child',
+        parentId: parentA.id,
+      });
+      const emitted: Array<{
+        event: string;
+        data: { id?: string; parentId?: string; previousParentId?: string };
+      }> = [];
+      const subscription = events.observe().subscribe((payload) => {
+        if (payload.event === 'task:updated') emitted.push(payload);
+      });
+      await service.handleRequest(
+        {
+          method: 'tasks_update',
+          params: { id: child.id, parentId: parentB.id },
+          id: 304,
+        },
+        user,
+      );
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].data.id).toBe(child.id);
+      expect(emitted[0].data.parentId).toBe(parentB.id);
+      expect(emitted[0].data.previousParentId).toBe(parentA.id);
+      subscription.unsubscribe();
+    });
+
+    it('tasks_update without parent change omits previousParentId from the emit', async () => {
+      const task = await seedTask(prisma, board.statuses[0].id, { title: 'Plain' });
+      const emitted: Array<{ event: string; data: { previousParentId?: string } }> = [];
+      const subscription = events.observe().subscribe((payload) => {
+        if (payload.event === 'task:updated') emitted.push(payload);
+      });
+      await service.handleRequest(
+        { method: 'tasks_update', params: { id: task.id, title: 'Renamed' }, id: 305 },
+        user,
+      );
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].data.previousParentId).toBeUndefined();
+      subscription.unsubscribe();
     });
 
     it('tasks_list with include="top" excludes sub-tasks', async () => {

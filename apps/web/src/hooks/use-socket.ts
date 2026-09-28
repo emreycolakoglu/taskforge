@@ -112,9 +112,26 @@ export function useSocket(boardId?: string) {
         eventName === 'task:deleted' ||
         eventName === 'task:moved'
       ) {
-        const task = eventData as { id?: string; statusId?: string; boardId?: string };
+        // TFG-56: a child task's parentage changed — the parent's detail
+        // payload embeds its subTasks array, so the parent's detail query
+        // must be invalidated too or the detail page shows a stale list.
+        // previousParentId (sent only when parentage changed) covers the
+        // parent the task moved away from, including un-nest to null.
+        const task = eventData as {
+          id?: string;
+          statusId?: string;
+          boardId?: string;
+          parentId?: string | null;
+          previousParentId?: string | null;
+        };
         if (task.id) {
           queryClient.invalidateQueries({ queryKey: ['tasks', task.id] });
+        }
+        if (task.parentId) {
+          queryClient.invalidateQueries({ queryKey: ['tasks', task.parentId] });
+        }
+        if (task.previousParentId) {
+          queryClient.invalidateQueries({ queryKey: ['tasks', task.previousParentId] });
         }
         if (task.boardId) {
           queryClient.invalidateQueries({ queryKey: ['tasks', 'board', task.boardId] });
