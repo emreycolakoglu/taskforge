@@ -607,6 +607,7 @@ export class McpService {
           include: {
             status: { include: { board: true } },
             board: { select: { identifier: true } },
+            project: { select: { id: true, name: true, icon: true } },
           },
         });
 

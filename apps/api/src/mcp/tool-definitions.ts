@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { PROJECT_STATUSES } from '../projects/project-statuses';
 
 export type ZodRawShape = Record<string, z.ZodTypeAny>;
 
@@ -358,10 +359,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       description: z.string().optional(),
       icon: z.string().optional().describe('Emoji icon for the project, defaults to 📦'),
       leadId: optionalId('Lead user'),
-      status: z
-        .enum(['planned', 'started', 'completed', 'paused', 'canceled'])
-        .optional()
-        .describe('Defaults to planned'),
+      status: z.enum(PROJECT_STATUSES).optional().describe('Defaults to planned'),
       startDate: z.string().optional().describe('ISO date string'),
       targetDate: z.string().optional().describe('ISO date string'),
     },
@@ -377,7 +375,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       description: z.string().optional(),
       icon: z.string().optional(),
       leadId: optionalId('Lead user'),
-      status: z.enum(['planned', 'started', 'completed', 'paused', 'canceled']).optional(),
+      status: z.enum(PROJECT_STATUSES).optional(),
       startDate: z.string().optional().describe('ISO date string'),
       targetDate: z.string().optional().describe('ISO date string'),
       position: z.number().optional(),

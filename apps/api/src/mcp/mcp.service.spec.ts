@@ -488,13 +488,26 @@ describe('McpService', () => {
         title: 'Linked',
         projectId: project.id,
       });
+      const emitted: Array<{
+        event: string;
+        data: { id?: string; previousProjectId?: string | null };
+      }> = [];
+      const subscription = events.observe().subscribe((payload) => {
+        if (payload.event === 'task.project.updated') emitted.push(payload);
+      });
       const res = await service.handleRequest(
         { method: 'tasks_update', params: { id: task.id, projectId: null }, id: 26 },
         user,
       );
+      subscription.unsubscribe();
       expect(res.error).toBeUndefined();
       expect(res.result.projectId).toBeNull();
       expect(res.result.project).toBeNull();
+      // TasksService parity pin: clearing must also fire the dedicated emit,
+      // carrying the removed project's id as previousProjectId.
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].data.id).toBe(task.id);
+      expect(emitted[0].data.previousProjectId).toBe(project.id);
       const activity = await prisma.activity.findFirst({
         where: { taskId: task.id, action: 'updated' },
         orderBy: { createdAt: 'desc' },
