@@ -22,6 +22,7 @@ import {
   seedDocument,
   seedUser,
   seedAttachment,
+  seedProject,
 } from '../../test/setup';
 
 describe('AttachmentsService', () => {
@@ -79,6 +80,7 @@ describe('AttachmentsService', () => {
     await prisma.activity.deleteMany();
     await prisma.comment.deleteMany();
     await prisma.document.deleteMany();
+    await prisma.project.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
     await prisma.status.deleteMany();
@@ -473,6 +475,80 @@ describe('AttachmentsService', () => {
       await expect(service.remove(att.id, { id: viewerUser.id, role: 'member' })).rejects.toThrow(
         ForbiddenException,
       );
+    });
+  });
+
+  // Project documents (Projects v2) have no board and no task: any
+  // authenticated user may upload, there is no board-admin branch for deletes,
+  // no Activity row (Activity.taskId is required), and events broadcast.
+  describe('project documents', () => {
+    let doc: any;
+    let outsider: any;
+
+    beforeEach(async () => {
+      const project = await seedProject(prisma, { name: 'Roadmap' });
+      doc = await seedDocument(prisma, '', { projectId: project.id });
+      // No Member row anywhere — project docs are open to every human.
+      outsider = await seedUser(prisma, { email: `o${Date.now()}@test.dev` });
+    });
+
+    const upload = (userId: string) =>
+      service.create({
+        subjectType: 'document',
+        subjectId: doc.id,
+        filename: 'p.txt',
+        mimeType: 'text/plain',
+        content: Buffer.from('project'),
+        user: { id: userId, displayName: 'U', role: 'member' },
+      });
+
+    it('any authenticated user can upload; no activity, global event', async () => {
+      const emitted: any[] = [];
+      const orig = events.emit.bind(events);
+      (events as any).emit = (...args: any[]) => {
+        emitted.push({ event: args[0], boardId: args[2] });
+        return orig(...args);
+      };
+      try {
+        const att = await upload(outsider.id);
+        expect(att.subjectId).toBe(doc.id);
+      } finally {
+        (events as any).emit = orig;
+      }
+      expect(await prisma.activity.count()).toBe(0);
+      expect(emitted).toEqual([{ event: 'attachment:created', boardId: undefined }]);
+    });
+
+    it('rejects anonymous uploads', async () => {
+      await expect(
+        service.create({
+          subjectType: 'document',
+          subjectId: doc.id,
+          filename: 'p.txt',
+          mimeType: 'text/plain',
+          content: Buffer.from('x'),
+        }),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('uploader can delete; row and object disappear; no activity', async () => {
+      const att = await upload(outsider.id);
+      const { storageKey } = await prisma.attachment.findUniqueOrThrow({ where: { id: att.id } });
+      await service.remove(att.id, { id: outsider.id, role: 'member' });
+      expect(await prisma.attachment.findUnique({ where: { id: att.id } })).toBeNull();
+      expect(await driver.stat(storageKey)).toBeNull();
+      expect(await prisma.activity.count()).toBe(0);
+    });
+
+    it('another member cannot delete; a global admin can', async () => {
+      const att = await upload(outsider.id);
+      await expect(service.remove(att.id, { id: memberUser.id, role: 'member' })).rejects.toThrow(
+        ForbiddenException,
+      );
+      const admin = await seedUser(prisma, { email: `ga${Date.now()}@test.dev`, role: 'admin' });
+      await expect(
+        service.remove(att.id, { id: admin.id, role: 'admin' }),
+      ).resolves.toBeUndefined();
     });
   });
 

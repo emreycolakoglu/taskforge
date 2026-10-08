@@ -159,7 +159,9 @@ export class PublicService {
       },
     });
 
-    if (!doc) throw new NotFoundException('Document not found');
+    // Project documents have no board/task (and can't be published), but a
+    // null here must 404 rather than 500.
+    if (!doc || !doc.board || !doc.task) throw new NotFoundException('Document not found');
 
     return {
       docNumber: `D-${doc.number}`,

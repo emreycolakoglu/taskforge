@@ -504,25 +504,29 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: 'documents_list',
     title: 'List documents',
     description:
-      'List documents for a board or a task, newest first. Excludes bodies. With neither boardId nor taskId, lists every document across all boards.',
+      'List documents for a board, a task, or a project, newest first. Excludes bodies. With no filter, lists every document (task and project documents alike).',
     inputSchema: {
       boardId: optionalId('Board'),
       taskId: optionalId('Task'),
+      projectId: optionalId('Project'),
       limit: z.number().optional(),
     },
   },
   {
     name: 'documents_get',
     title: 'Get document',
-    description: 'Get a single document with its full markdown body and linked task.',
+    description:
+      'Get a single document with its full markdown body and its linked task or project (taskNumber is null for project documents).',
     inputSchema: { id: idField('Document') },
   },
   {
     name: 'documents_create',
     title: 'Create document',
-    description: 'Create a markdown document attached to a task.',
+    description:
+      'Create a markdown document attached to a task OR a project — pass exactly one of taskId / projectId.',
     inputSchema: {
-      taskId: idField('Task'),
+      taskId: optionalId('Task'),
+      projectId: optionalId('Project'),
       title: z.string(),
       body: z.string().optional(),
     },

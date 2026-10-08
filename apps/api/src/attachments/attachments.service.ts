@@ -90,8 +90,13 @@ function extensionOf(filename: string): string {
   return /^(\.[a-z0-9]+){1,3}$/i.test(ext) ? ext.toLowerCase() : '';
 }
 
+/**
+ * Where an attachment's subject lives. Both are null for a project document
+ * (Projects v2): writes then need only an authenticated user, no Activity row
+ * is written, and events broadcast instead of going to a board room.
+ */
 interface SubjectContext {
-  boardId: string;
+  boardId: string | null;
   taskId: string | null;
 }
 
@@ -145,9 +150,10 @@ export class AttachmentsService {
     return this.loadSettings();
   }
 
-  private async assertCanWrite(boardId: string, user?: Actor) {
+  private async assertCanWrite(boardId: string | null, user?: Actor) {
     if (!user?.id) throw new ForbiddenException('Authentication required');
     if (user.role === 'admin') return;
+    if (!boardId) return; // project document: open to every authenticated user
     const members = await this.prisma.member.findMany({ where: { boardId } });
     if (members.length === 0) return; // legacy board fallback
     const member = members.find((m) => m.userId === user.id);
@@ -156,11 +162,11 @@ export class AttachmentsService {
     }
   }
 
-  private async assertCanDelete(boardId: string, att, user?: Actor) {
+  private async assertCanDelete(boardId: string | null, att, user?: Actor) {
     if (!user?.id) throw new ForbiddenException('Authentication required');
     if (att.uploaderId === user.id) return;
     if (user.role === 'admin') return;
-    const isAdmin = await this.members.isBoardAdmin(boardId, user.id);
+    const isAdmin = boardId ? await this.members.isBoardAdmin(boardId, user.id) : false;
     if (isAdmin) return;
     throw new ForbiddenException('You can only delete your own attachments');
   }
@@ -273,7 +279,7 @@ export class AttachmentsService {
       });
     }
 
-    this.events.emit('attachment:created', this.toMeta(att), ctx.boardId);
+    this.events.emit('attachment:created', this.toMeta(att), ctx.boardId ?? undefined);
     return this.toMeta(att);
   }
 
@@ -308,7 +314,7 @@ export class AttachmentsService {
     this.events.emit(
       'attachment:deleted',
       { id, subjectType: att.subjectType, subjectId: att.subjectId },
-      ctx.boardId,
+      ctx.boardId ?? undefined,
     );
   }
 

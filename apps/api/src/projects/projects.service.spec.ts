@@ -1,9 +1,22 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { mkdtempSync, rmSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
-import { createTestPrisma, seedBoard, seedProject, seedTask, seedUser } from '../../test/setup';
+import { AttachmentsService } from '../attachments/attachments.service';
+import { MembersService } from '../members/members.service';
+import { LocalDiskDriver } from '../storage/local-disk.driver';
+import {
+  createTestPrisma,
+  seedBoard,
+  seedDocument,
+  seedProject,
+  seedTask,
+  seedUser,
+} from '../../test/setup';
 
 describe('ProjectsService', () => {
   let service: ProjectsService;
@@ -13,21 +26,29 @@ describe('ProjectsService', () => {
   let owner: any;
   let member: any;
   let globalAdmin: any;
+  let attachments: AttachmentsService;
+  let driver: LocalDiskDriver;
+  let storageRoot: string;
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
     events = new EventsService();
+    storageRoot = mkdtempSync(join(tmpdir(), 'tf-proj-att-'));
+    driver = new LocalDiskDriver(storageRoot);
+    attachments = new AttachmentsService(prisma, events, new MembersService(prisma), driver);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProjectsService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
+        { provide: AttachmentsService, useValue: attachments },
       ],
     }).compile();
     service = module.get<ProjectsService>(ProjectsService);
   });
 
   afterAll(async () => {
+    rmSync(storageRoot, { recursive: true, force: true });
     await prisma.$disconnect();
   });
 
@@ -46,6 +67,8 @@ describe('ProjectsService', () => {
   // Reverse dependency order per the brief; project deletes after task (tasks
   // hold the projectId FK, so tasks must go first).
   afterEach(async () => {
+    await prisma.attachment.deleteMany();
+    await prisma.document.deleteMany();
     await prisma.activity.deleteMany();
     await prisma.notification.deleteMany();
     await prisma.taskSubscription.deleteMany();
@@ -230,6 +253,32 @@ describe('ProjectsService', () => {
       const stillThere = await prisma.task.findUnique({ where: { id: task.id } });
       expect(stillThere).not.toBeNull();
       expect(stillThere!.projectId).toBeNull();
+    });
+
+    it('deletes its documents and their attachments (FK SetNull would orphan them)', async () => {
+      const project = await seedProject(prisma, { name: 'Doomed' });
+      const other = await seedProject(prisma, { name: 'Survivor' });
+      const doomedDoc = await seedDocument(prisma, '', { projectId: project.id });
+      const keptDoc = await seedDocument(prisma, '', { projectId: other.id });
+      const task = await seedTask(prisma, board.statuses[0].id, {});
+      const taskDoc = await seedDocument(prisma, task.id);
+      const att = await attachments.create({
+        subjectType: 'document',
+        subjectId: doomedDoc.id,
+        filename: 'spec.txt',
+        mimeType: 'text/plain',
+        content: Buffer.from('spec'),
+        user: { id: member.id, displayName: member.displayName, role: 'member' },
+      });
+      const { storageKey } = await prisma.attachment.findUniqueOrThrow({ where: { id: att.id } });
+
+      await service.remove(project.id, human(member));
+
+      expect(await prisma.document.findUnique({ where: { id: doomedDoc.id } })).toBeNull();
+      expect(await prisma.attachment.findUnique({ where: { id: att.id } })).toBeNull();
+      expect(await driver.stat(storageKey)).toBeNull();
+      expect(await prisma.document.findUnique({ where: { id: keptDoc.id } })).not.toBeNull();
+      expect(await prisma.document.findUnique({ where: { id: taskDoc.id } })).not.toBeNull();
     });
 
     it('rejects bot sessions', async () => {

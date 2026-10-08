@@ -953,11 +953,13 @@ export class McpService {
         const where: any = {};
         if (params.boardId) where.boardId = params.boardId;
         if (params.taskId) where.taskId = params.taskId;
+        if (params.projectId) where.projectId = params.projectId;
         const docs = await this.prisma.document.findMany({
           where,
           include: {
             board: { select: { identifier: true } },
             task: { select: { id: true, number: true, title: true } },
+            project: { select: { id: true, name: true, icon: true } },
           },
           orderBy: { createdAt: 'desc' },
           take: params.limit || 100,
@@ -973,18 +975,21 @@ export class McpService {
           include: {
             board: { select: { identifier: true } },
             task: { select: { id: true, number: true, title: true } },
+            project: { select: { id: true, name: true, icon: true } },
           },
         });
         if (!doc) throw new Error('Document not found');
         return {
           ...doc,
-          taskNumber: `${doc.board.identifier}-${doc.task.number}`,
+          // Project documents have no board or task.
+          taskNumber: doc.task ? `${doc.board.identifier}-${doc.task.number}` : null,
           docNumber: `D-${doc.number}`,
         };
       }
       case 'create': {
+        // Task XOR project — DocumentsService enforces it.
         const doc = await this.documents.create(
-          params.taskId,
+          { taskId: params.taskId, projectId: params.projectId },
           { title: params.title, body: params.body },
           { id: actorId, displayName: actor },
         );

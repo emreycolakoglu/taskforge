@@ -1980,6 +1980,75 @@ describe('McpService', () => {
     });
   });
 
+  describe('project documents', () => {
+    it('documents_create with projectId numbers from the project counter', async () => {
+      const project = await seedProject(prisma, { name: 'Roadmap' });
+      const res = await service.handleRequest(
+        {
+          method: 'documents_create',
+          params: { projectId: project.id, title: 'Plan', body: 'b' },
+          id: 910,
+        },
+        user,
+      );
+      expect(res.error).toBeUndefined();
+      expect(res.result.projectId).toBe(project.id);
+      expect(res.result.boardId).toBeNull();
+      expect(res.result.taskId).toBeNull();
+      expect(res.result.docNumber).toBe('D-1');
+      const refreshed = await prisma.project.findUniqueOrThrow({ where: { id: project.id } });
+      expect(refreshed.nextDocNum).toBe(2);
+    });
+
+    it('documents_create rejects taskId + projectId together', async () => {
+      const project = await seedProject(prisma);
+      const task = await seedTask(prisma, board.statuses[0].id);
+      const res = await service.handleRequest(
+        {
+          method: 'documents_create',
+          params: { taskId: task.id, projectId: project.id, title: 'X' },
+          id: 911,
+        },
+        user,
+      );
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('not both');
+      expect(await prisma.document.count()).toBe(0);
+    });
+
+    it('documents_list filters by projectId', async () => {
+      const project = await seedProject(prisma);
+      const task = await seedTask(prisma, board.statuses[0].id);
+      await seedDocument(prisma, '', { projectId: project.id, title: 'P', body: 'secret' });
+      await seedDocument(prisma, task.id, { title: 'T' });
+      const res = await service.handleRequest(
+        { method: 'documents_list', params: { projectId: project.id }, id: 912 },
+        user,
+      );
+      expect(res.result).toHaveLength(1);
+      expect(res.result[0].title).toBe('P');
+      expect(res.result[0]).not.toHaveProperty('body');
+      expect(res.result[0].project).toEqual({
+        id: project.id,
+        name: project.name,
+        icon: project.icon,
+      });
+    });
+
+    it('documents_get on a project doc returns null taskNumber instead of crashing', async () => {
+      const project = await seedProject(prisma);
+      const doc = await seedDocument(prisma, '', { projectId: project.id, body: '**p**' });
+      const res = await service.handleRequest(
+        { method: 'documents_get', params: { id: doc.id }, id: 913 },
+        user,
+      );
+      expect(res.error).toBeUndefined();
+      expect(res.result.body).toBe('**p**');
+      expect(res.result.taskNumber).toBeNull();
+      expect(res.result.project.id).toBe(project.id);
+    });
+  });
+
   // ─── Attachments (MCP parity) ─────────────────────────────────────────────
 
   describe('attachments_*', () => {

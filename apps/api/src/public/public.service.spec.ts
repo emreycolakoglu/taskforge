@@ -10,6 +10,7 @@ import {
   seedUser,
   seedComment,
   seedDocument,
+  seedProject,
 } from '../../test/setup';
 
 describe('PublicService', () => {
@@ -38,6 +39,7 @@ describe('PublicService', () => {
     await prisma.activity.deleteMany();
     await prisma.comment.deleteMany();
     await prisma.document.deleteMany();
+    await prisma.project.deleteMany();
     await prisma.task.deleteMany();
     await prisma.label.deleteMany();
     await prisma.status.deleteMany();
@@ -326,6 +328,16 @@ describe('PublicService', () => {
       expect(result).not.toHaveProperty('boardId');
       expect(result).not.toHaveProperty('board');
       expect(JSON.stringify(result)).not.toContain(board.slug);
+    });
+
+    it('404s for a project document even if forced public (no board address)', async () => {
+      // DocumentsService refuses to publish project docs; this pins that a row
+      // forced public in the DB still can't surface (or 500 on a null board).
+      const project = await seedProject(prisma);
+      const doc = await seedDocument(prisma, '', { projectId: project.id, isPublic: true });
+      await expect(service.findPublicDocument(board.identifier, doc.number)).rejects.toThrow(
+        NotFoundException,
+      );
     });
   });
 });

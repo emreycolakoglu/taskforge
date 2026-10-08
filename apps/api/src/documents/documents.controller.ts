@@ -46,7 +46,22 @@ export class DocumentsController {
   @Post('tasks/:taskId/documents')
   create(@Param('taskId') taskId: string, @Body() dto: CreateDocumentDto, @Req() req: Request) {
     const user = (req as any).user as AuthedUser | undefined;
-    return this.service.create(taskId, dto, user);
+    return this.service.create({ taskId }, dto, user);
+  }
+
+  @Get('projects/:projectId/documents')
+  findByProject(@Param('projectId') projectId: string) {
+    return this.service.findByProject(projectId);
+  }
+
+  @Post('projects/:projectId/documents')
+  createForProject(
+    @Param('projectId') projectId: string,
+    @Body() dto: CreateDocumentDto,
+    @Req() req: Request,
+  ) {
+    const user = (req as any).user as AuthedUser | undefined;
+    return this.service.create({ projectId }, dto, user);
   }
 
   @Get('documents/:id')

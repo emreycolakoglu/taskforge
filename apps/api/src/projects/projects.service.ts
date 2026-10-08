@@ -9,6 +9,7 @@ import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/commo
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
+import { AttachmentsService } from '../attachments/attachments.service';
 import { withTaskNumber } from '../tasks/tasks.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -29,6 +30,7 @@ export class ProjectsService {
   constructor(
     private prisma: PrismaService,
     private events: EventsService,
+    private attachments: AttachmentsService,
   ) {}
 
   async findAll() {
@@ -129,6 +131,16 @@ export class ProjectsService {
     if (user.bot) throw new ForbiddenException('Bot sessions cannot manage projects');
     const project = await this.prisma.project.findUnique({ where: { id } });
     if (!project) throw new NotFoundException('Project not found');
+    // Document.projectId is FK SetNull, which would leave project docs with no
+    // subject at all (a doc needs a task or a project). Delete them first, and
+    // their attachments too — Attachment has no FK across the string subject
+    // pair, so nothing else would clean those rows and storage objects up.
+    const docs = await this.prisma.document.findMany({
+      where: { projectId: id },
+      select: { id: true },
+    });
+    for (const doc of docs) await this.attachments.removeBySubject('document', doc.id);
+    await this.prisma.document.deleteMany({ where: { projectId: id } });
     await this.prisma.project.delete({ where: { id } });
     // Linked tasks survive with projectId = null (FK SetNull).
     this.events.emit('project:deleted', { id });
