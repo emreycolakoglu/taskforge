@@ -235,9 +235,17 @@ export class RelationsService {
             labels: { include: { label: true } },
             status: { include: { board: true } },
             board: { select: { identifier: true } },
+            project: { select: { id: true, name: true, icon: true } },
           },
         });
         this.events.emit('task:moved', movedTask, boardId);
+        // Project pages hold no board room — mirror TasksService.move's global emit.
+        if (movedTask.projectId !== null) {
+          this.events.emit('task.project.updated', {
+            ...movedTask,
+            previousProjectId: movedTask.projectId,
+          });
+        }
       }
       await this.prisma.activity.create({
         data: {

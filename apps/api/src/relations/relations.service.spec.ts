@@ -13,7 +13,7 @@ import { MentionsService } from '../mentions/mentions.service';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { MembersService } from '../members/members.service';
 import { LocalDiskDriver } from '../storage/local-disk.driver';
-import { createTestPrisma, seedBoard, seedTask, seedRelation } from '../../test/setup';
+import { createTestPrisma, seedBoard, seedTask, seedRelation, seedProject } from '../../test/setup';
 
 describe('RelationsService', () => {
   let service: RelationsService;
@@ -79,6 +79,7 @@ describe('RelationsService', () => {
     await prisma.activity.deleteMany();
     await prisma.comment.deleteMany();
     await prisma.task.deleteMany();
+    await prisma.project.deleteMany();
     await prisma.label.deleteMany();
     await prisma.status.deleteMany();
     await prisma.member.deleteMany();
@@ -369,7 +370,27 @@ describe('RelationsService', () => {
     const movedEvents = emitSpy.mock.calls.filter((c) => c[0] === 'task:moved');
     expect(movedEvents.length).toBe(1);
     expect(movedEvents[0][1].id).toBe(tA.id);
+    expect(emitSpy.mock.calls.filter((c) => c[0] === 'task.project.updated')).toHaveLength(0);
     emitSpy.mockRestore();
+  });
+
+  it('24b. create duplicate_of on a project-linked task also emits a global task.project.updated', async () => {
+    const project = await seedProject(prisma, { name: 'Roadmap' });
+    await prisma.task.update({ where: { id: tA.id }, data: { projectId: project.id } });
+    const emitSpy = jest.spyOn(events, 'emit');
+    try {
+      await service.create(tA.id, {
+        otherTaskId: tB.id,
+        type: 'duplicate_of',
+        direction: 'source',
+      });
+      const projectEvents = emitSpy.mock.calls.filter((c) => c[0] === 'task.project.updated');
+      expect(projectEvents).toHaveLength(1);
+      expect(projectEvents[0][1]).toMatchObject({ id: tA.id, previousProjectId: project.id });
+      expect(projectEvents[0][2]).toBeUndefined();
+    } finally {
+      emitSpy.mockRestore();
+    }
   });
 
   it('25. list → groups duplicateOf (outgoing) and duplicates (incoming)', async () => {
