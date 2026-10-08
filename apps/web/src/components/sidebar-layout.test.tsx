@@ -206,19 +206,41 @@ describe('SidebarLayout', () => {
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
-  it('renders a Docs link under an expanded board, above Settings', () => {
+  it('renders Docs and Projects links under an expanded board, above Settings', () => {
     renderSidebar('/board/b1');
 
     const docsLink = screen.getByRole('link', { name: 'Docs' });
     expect(docsLink).toHaveAttribute('href', '/board/b1/docs');
+
+    // Projects sits between Docs and Settings (TFG-34).
+    const projectsLink = screen.getByRole('link', { name: 'Projects' });
+    expect(projectsLink).toHaveAttribute('href', '/board/b1/projects');
 
     const boardSettingsLink = screen
       .getAllByRole('link', { name: 'Settings' })
       .find((l) => l.getAttribute('href') === '/board/b1/settings');
     expect(boardSettingsLink).toBeDefined();
     expect(
-      docsLink.compareDocumentPosition(boardSettingsLink!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      docsLink.compareDocumentPosition(projectsLink!) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
+    expect(
+      projectsLink.compareDocumentPosition(boardSettingsLink!) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).not.toBe(0);
+  });
+
+  it('highlights the Projects link when on the board projects page', () => {
+    renderSidebar('/board/b1/projects');
+
+    const projectsLink = screen.getByRole('link', { name: 'Projects' });
+    expect(projectsLink).toHaveAttribute('href', '/board/b1/projects');
+    expect(projectsLink.closest('[data-active="true"]')).not.toBeNull();
+  });
+
+  it('highlights the Projects link when on a project detail page', () => {
+    renderSidebar('/board/b1/projects/p1');
+
+    const projectsLink = screen.getByRole('link', { name: 'Projects' });
+    expect(projectsLink.closest('[data-active="true"]')).not.toBeNull();
   });
 
   it('highlights the Docs link when on a board docs page', () => {

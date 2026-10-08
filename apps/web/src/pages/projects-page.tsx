@@ -1,0 +1,309 @@
+/**
+ * ProjectsPage — per-board project list at /board/:boardId/projects (TFG-34).
+ *
+ * Lists every project on the board (icon, name, status chip, lead display
+ * name, progress bar, target date) and offers a single "New project" CTA —
+ * the screen's one Lime action per design.md. Progress is computed from the
+ * board's task list client-side (status.type === 'done'), scoped per project.
+ *
+ * design.md compliance: Obsidian card surfaces with 1px Graphite inset
+ * borders, neutral progress fill (no Lime — the CTA owns it), status chip is
+ * an outline Badge in Fog, JetBrains Mono for dates.
+ */
+import { useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { FolderKanban, Plus } from 'lucide-react';
+import { useProjects, useCreateProject } from '@/hooks/use-projects';
+import { useBoardFull } from '@/hooks/use-boards';
+import { useTasksByBoard } from '@/hooks/use-tasks';
+import { useUserDirectory } from '@/hooks/use-users';
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { EmojiPicker } from '@/components/emoji-picker';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import type { Project, ProjectStatus } from '@/types';
+
+/** Lifecycle chip label — capitalized status word, muted styling. */
+const STATUS_LABELS: Record<ProjectStatus, string> = {
+  planned: 'Planned',
+  started: 'Started',
+  completed: 'Completed',
+  paused: 'Paused',
+  canceled: 'Canceled',
+};
+
+interface CreateProjectFormData {
+  name: string;
+  description: string;
+  icon: string;
+  status: ProjectStatus;
+  targetDate: string;
+}
+
+/** Small create dialog (name, description, icon, status, target date). */
+function CreateProjectDialog({
+  open,
+  onOpenChange,
+  onCreate,
+  isPending,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onCreate: (data: CreateProjectFormData, onSuccess: () => void) => void;
+  isPending: boolean;
+}) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [icon, setIcon] = useState('📦');
+  const [status, setStatus] = useState<ProjectStatus>('planned');
+  const [targetDate, setTargetDate] = useState('');
+
+  const isValid = name.trim().length > 0;
+
+  const submit = () => {
+    if (!isValid) return;
+    onCreate(
+      {
+        name: name.trim(),
+        description: description.trim() || '',
+        icon: icon || '📦',
+        status,
+        targetDate: targetDate || '',
+      },
+      () => {
+        onOpenChange(false);
+        setName('');
+        setDescription('');
+        setIcon('📦');
+        setStatus('planned');
+        setTargetDate('');
+      },
+    );
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>New project</DialogTitle>
+          <DialogDescription>
+            Group related tasks into a named, trackable container.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="flex flex-col gap-4 py-2">
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="project-name">Name</Label>
+            <div className="flex gap-2">
+              <EmojiPicker
+                value={icon}
+                onChange={setIcon}
+                className="size-9 shrink-0 border border-border"
+              />
+              <Input
+                id="project-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Roadmap"
+                className="flex-1"
+                autoFocus
+              />
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Label htmlFor="project-description">Description</Label>
+            <Textarea
+              id="project-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="What is this project about?"
+              className="min-h-[60px]"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="project-status">Status</Label>
+              <select
+                id="project-status"
+                value={status}
+                onChange={(e) => setStatus(e.target.value as ProjectStatus)}
+                className="rounded-md border border-border bg-input px-3 py-2 text-sm"
+              >
+                {(Object.keys(STATUS_LABELS) as ProjectStatus[]).map((s) => (
+                  <option key={s} value={s}>
+                    {STATUS_LABELS[s]}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="project-target-date">Target date</Label>
+              <Input
+                id="project-target-date"
+                type="date"
+                value={targetDate}
+                onChange={(e) => setTargetDate(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={!isValid || isPending}>
+            Create project
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+export function ProjectsPage() {
+  const { boardId } = useParams<{ boardId: string }>();
+  const navigate = useNavigate();
+  const { data: board } = useBoardFull(boardId!);
+  const { data: projects = [], isLoading } = useProjects(boardId!);
+  const { data: tasks = [] } = useTasksByBoard(boardId!);
+  const { data: directory = [] } = useUserDirectory();
+  const createProject = useCreateProject(boardId!);
+  const [createOpen, setCreateOpen] = useState(false);
+
+  // Progress rollup: completed = tasks whose status.type === 'done', scoped
+  // per project. Tasks with no project don't contribute anywhere.
+  const progressByProject = new Map<string, { now: number; total: number }>();
+  for (const task of tasks) {
+    if (!task.projectId) continue;
+    const entry = progressByProject.get(task.projectId) ?? { now: 0, total: 0 };
+    entry.total += 1;
+    if (task.status?.type === 'done') entry.now += 1;
+    progressByProject.set(task.projectId, entry);
+  }
+
+  const leadName = (leadId: string | null | undefined) =>
+    directory.find((u) => u.id === leadId)?.displayName ?? null;
+
+  const formatDate = (ts: string) =>
+    new Date(ts).toLocaleDateString(undefined, {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+
+  return (
+    <div className="flex h-full flex-col bg-background">
+      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border bg-secondary px-6">
+        <div className="flex items-center gap-2 min-w-0">
+          <SidebarTrigger
+            className="md:hidden text-muted-foreground hover:text-foreground"
+            aria-label="Toggle sidebar"
+          />
+          <h1 className="text-sm font-medium text-foreground truncate">
+            {board?.icon ?? '⭐'} {board?.name ?? 'Board'} — Projects
+          </h1>
+        </div>
+        <Button size="sm" onClick={() => setCreateOpen(true)}>
+          <Plus className="size-4 mr-1.5" />
+          New project
+        </Button>
+      </header>
+
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : projects.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <FolderKanban className="h-12 w-12 text-muted-foreground" />
+            <h2 className="mt-4 text-lg font-medium text-foreground">No projects yet</h2>
+            <p className="text-sm text-muted-foreground">
+              Create one to group related tasks together.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {projects.map((project: Project) => {
+              const progress = progressByProject.get(project.id) ?? { now: 0, total: 0 };
+              const pct =
+                progress.total > 0 ? Math.round((progress.now / progress.total) * 100) : 0;
+              const lead = leadName(project.leadId);
+              return (
+                <button
+                  key={project.id}
+                  type="button"
+                  onClick={() => navigate(`/board/${boardId}/projects/${project.id}`)}
+                  className="flex w-full items-center gap-4 rounded-lg border border-border bg-card px-4 py-3 text-left shadow-sm transition-colors hover:border-foreground/20 hover:bg-accent/30"
+                  data-testid="project-row"
+                >
+                  <span className="text-base leading-none shrink-0">{project.icon ?? '📦'}</span>
+                  <span className="min-w-0 flex-1">
+                    <span className="flex items-center gap-2">
+                      <span className="truncate text-sm font-medium text-foreground">
+                        {project.name}
+                      </span>
+                      <Badge variant="outline" className="text-muted-foreground">
+                        {STATUS_LABELS[project.status as ProjectStatus] ?? project.status}
+                      </Badge>
+                    </span>
+                    <span className="mt-1.5 flex items-center gap-2">
+                      <span
+                        role="progressbar"
+                        aria-label={`${project.name} progress`}
+                        aria-valuenow={pct}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        className="h-1.5 w-40 max-w-full overflow-hidden rounded-full border border-border bg-secondary"
+                      >
+                        <span
+                          className="block h-full rounded-full bg-muted-foreground/40 transition-[width]"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {progress.now}/{progress.total}
+                      </span>
+                    </span>
+                  </span>
+                  {lead && <span className="text-xs text-muted-foreground shrink-0">{lead}</span>}
+                  {project.targetDate && (
+                    <span className="font-mono text-xs text-muted-foreground shrink-0">
+                      {formatDate(project.targetDate)}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <CreateProjectDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        isPending={createProject.isPending}
+        onCreate={(data, onSuccess) =>
+          createProject.mutate(
+            {
+              name: data.name,
+              description: data.description || undefined,
+              icon: data.icon,
+              status: data.status,
+              targetDate: data.targetDate || undefined,
+            },
+            { onSuccess },
+          )
+        }
+      />
+    </div>
+  );
+}

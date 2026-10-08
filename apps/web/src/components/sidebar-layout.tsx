@@ -189,8 +189,12 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                         const docsActive =
                           location.pathname === `/board/${board.id}/docs` ||
                           location.pathname.startsWith(`/board/${board.id}/doc/`);
+                        const projectsActive =
+                          location.pathname === `/board/${board.id}/projects` ||
+                          location.pathname.startsWith(`/board/${board.id}/projects/`);
                         const settingsActive = location.pathname === `/board/${board.id}/settings`;
-                        const boardActive = issuesActive || docsActive || settingsActive;
+                        const boardActive =
+                          issuesActive || projectsActive || docsActive || settingsActive;
                         return (
                           <Collapsible
                             key={board.id}
@@ -224,6 +228,14 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                                     className="pl-2"
                                   >
                                     <Link to={`/board/${board.id}/docs`}>Docs</Link>
+                                  </SidebarMenuButton>
+                                  <SidebarMenuButton
+                                    asChild
+                                    isActive={projectsActive}
+                                    size="sm"
+                                    className="pl-2"
+                                  >
+                                    <Link to={`/board/${board.id}/projects`}>Projects</Link>
                                   </SidebarMenuButton>
                                   <SidebarMenuButton
                                     asChild

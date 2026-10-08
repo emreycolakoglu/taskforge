@@ -239,6 +239,55 @@ export function useSocket(boardId?: string) {
         queryClient.invalidateQueries({ queryKey: ['notifications', 'unread-count'] });
       }
 
+      if (
+        eventName === 'project:created' ||
+        eventName === 'project:updated' ||
+        eventName === 'project:deleted'
+      ) {
+        // project:deleted carries only { id } — no boardId — so it needs the
+        // board-room fallback (bid) the view block uses.
+        const p = eventData as { id?: string; boardId?: string };
+        const target = p.boardId ?? bid;
+        if (target) {
+          queryClient.invalidateQueries({ queryKey: ['projects', target] });
+        }
+        // The detail page's query is keyed by project id, not board id — key
+        // the updated row's id too or the project detail header goes stale.
+        if (p.id) {
+          queryClient.invalidateQueries({ queryKey: ['projects', p.id] });
+        }
+      }
+
+      if (eventName === 'task.project.updated') {
+        // TFG-34: the task's project link changed. The payload is the task row
+        // plus previousProjectId (the project the task moved AWAY from, null
+        // when un-assigning) — mirroring the previousParentId handling above,
+        // so a project detail page's embedded task list goes stale on both
+        // sides of the move.
+        const task = eventData as {
+          id?: string;
+          boardId?: string;
+          projectId?: string | null;
+          previousProjectId?: string | null;
+        };
+        if (task.id) {
+          queryClient.invalidateQueries({ queryKey: ['tasks', task.id] });
+        }
+        if (task.projectId) {
+          queryClient.invalidateQueries({ queryKey: ['projects', task.projectId] });
+        }
+        if (task.previousProjectId) {
+          queryClient.invalidateQueries({ queryKey: ['projects', task.previousProjectId] });
+        }
+        if (task.boardId) {
+          queryClient.invalidateQueries({ queryKey: ['tasks', 'board', task.boardId] });
+        }
+        if (bid) {
+          queryClient.invalidateQueries({ queryKey: ['tasks', 'board', bid] });
+          queryClient.invalidateQueries({ queryKey: ['boards', bid, 'full'] });
+        }
+      }
+
       // Notify custom listeners
       const handlers = listenersRef.current.get(eventName);
       handlers?.forEach((h) => h(eventData));
@@ -271,6 +320,10 @@ export function useSocket(boardId?: string) {
       'view:created',
       'view:updated',
       'view:deleted',
+      'project:created',
+      'project:updated',
+      'project:deleted',
+      'task.project.updated',
       'notification:created',
     ];
 

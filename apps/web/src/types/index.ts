@@ -54,6 +54,9 @@ export interface Task {
   } | null;
   subTasks?: Task[];
   isPublic?: boolean;
+  projectId?: string | null;
+  /** Hydrated on task payloads for the project chip/badge (null when none). */
+  project?: { id: string; name: string; icon?: string | null } | null;
   createdAt: string;
   updatedAt: string;
   status?: Status;
@@ -309,6 +312,39 @@ export interface PublicDocument {
   title: string;
   body: string;
   updatedAt: string;
+}
+
+/**
+ * A board project (TFG-34) — a named roadmap container grouping tasks.
+ * Status is a lifecycle word, not a board column: planned | started |
+ * completed | paused | canceled. Dates travel as ISO strings and are
+ * null when unset (the create form omits them).
+ */
+export type ProjectStatus = 'planned' | 'started' | 'completed' | 'paused' | 'canceled';
+
+export interface Project {
+  id: string;
+  boardId: string;
+  name: string;
+  description?: string | null;
+  icon?: string | null;
+  leadId?: string | null;
+  status: ProjectStatus;
+  completedAt?: string | null;
+  startDate?: string | null;
+  targetDate?: string | null;
+  position: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * GET /api/projects/:id rollup: the project row plus its tasks and the
+ * completed/total count derived from task status.type === 'done'.
+ */
+export interface ProjectDetail extends Project {
+  tasks?: Task[];
+  progress?: { total: number; completed: number; byStatus: Record<string, number> };
 }
 
 export type ViewGroupBy = 'status' | 'assignee' | 'priority' | 'label' | 'none';

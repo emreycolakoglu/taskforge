@@ -24,6 +24,8 @@ import {
 } from '@/pages/board-settings-page';
 import { BoardDocumentsPage } from '@/pages/board-documents-page';
 import { DocumentEditorPage } from '@/pages/document-editor-page';
+import { ProjectsPage } from '@/pages/projects-page';
+import { ProjectDetailPage } from '@/pages/project-detail-page';
 import { BoardsPage } from '@/pages/boards-page';
 import { TaskDetailPage } from '@/pages/task-detail-page';
 import { InboxPage } from '@/pages/inbox-page';
@@ -104,6 +106,22 @@ function AuthedRoutes() {
           element={
             <SidebarLayout>
               <TaskDetailPage />
+            </SidebarLayout>
+          }
+        />
+        <Route
+          path="/board/:boardId/projects"
+          element={
+            <SidebarLayout>
+              <ProjectsPage />
+            </SidebarLayout>
+          }
+        />
+        <Route
+          path="/board/:boardId/projects/:projectId"
+          element={
+            <SidebarLayout>
+              <ProjectDetailPage />
             </SidebarLayout>
           }
         />

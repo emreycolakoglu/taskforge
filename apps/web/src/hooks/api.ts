@@ -24,6 +24,9 @@ import {
   Document,
   View,
   ViewFilters,
+  Project,
+  ProjectDetail,
+  ProjectStatus,
   Attachment,
   AttachmentSubjectType,
   AttachmentPolicy,
@@ -412,6 +415,40 @@ export const api = {
         parseViewRow,
       ),
     delete: (id: string) => request<void>(`/views/${id}`, { method: 'DELETE' }),
+  },
+
+  // Projects (TFG-34). The list endpoint returns plain Project rows; the
+  // detail endpoint embeds tasks + the progress rollup.
+  projects: {
+    list: (boardId: string) => request<Project[]>(`/boards/${boardId}/projects`),
+    get: (id: string) => request<ProjectDetail>(`/projects/${id}`),
+    create: (data: {
+      boardId: string;
+      name: string;
+      description?: string;
+      icon?: string;
+      leadId?: string;
+      status?: ProjectStatus;
+      startDate?: string;
+      targetDate?: string;
+    }) =>
+      request<Project>(`/boards/${data.boardId}/projects`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (
+      id: string,
+      data: Partial<{
+        name: string;
+        description: string | null;
+        icon: string;
+        leadId: string | null;
+        status: ProjectStatus;
+        startDate: string | null;
+        targetDate: string | null;
+      }>,
+    ) => request<Project>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    delete: (id: string) => request<void>(`/projects/${id}`, { method: 'DELETE' }),
   },
 
   // MCP

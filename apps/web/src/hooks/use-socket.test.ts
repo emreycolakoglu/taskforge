@@ -540,4 +540,91 @@ describe('useSocket', () => {
     });
     expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['documents'] });
   });
+
+  it('invalidates the board projects query on project:created/updated/deleted', () => {
+    renderHook(() => useSocket('b1'));
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+
+    for (const eventName of ['project:created', 'project:updated', 'project:deleted']) {
+      const handler = calls.find((c) => c[0] === eventName)?.[1] as
+        ((data: unknown) => void) | undefined;
+      expect(handler).toBeDefined();
+
+      mockQueryClient.invalidateQueries.mockClear();
+      act(() => handler!({ id: 'p1', boardId: 'b1' }));
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+        queryKey: ['projects', 'b1'],
+      });
+    }
+  });
+
+  it('falls back to the board room id when project:deleted carries no boardId', () => {
+    renderHook(() => useSocket('b1'));
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const deletedHandler = calls.find((c) => c[0] === 'project:deleted')?.[1] as
+      ((data: unknown) => void) | undefined;
+
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => deletedHandler!({ id: 'p1' }));
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['projects', 'b1'],
+    });
+  });
+
+  it('invalidates the project detail query by id on project:updated', () => {
+    renderHook(() => useSocket('b1'));
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const updatedHandler = calls.find((c) => c[0] === 'project:updated')?.[1] as
+      ((data: unknown) => void) | undefined;
+
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => updatedHandler!({ id: 'p1', boardId: 'b1' }));
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['projects', 'p1'],
+    });
+  });
+
+  it('invalidates task and both project queries on task.project.updated', () => {
+    renderHook(() => useSocket('b1'));
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const handler = calls.find((c) => c[0] === 'task.project.updated')?.[1] as
+      ((data: unknown) => void) | undefined;
+    expect(handler).toBeDefined();
+
+    mockQueryClient.invalidateQueries.mockClear();
+    // Task moved from project p-old to p-new.
+    act(() =>
+      handler!({ id: 't1', projectId: 'p-new', previousProjectId: 'p-old', boardId: 'b1' }),
+    );
+
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['tasks', 't1'] });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['projects', 'p-new'],
+    });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['projects', 'p-old'],
+    });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['tasks', 'board', 'b1'],
+    });
+  });
+
+  it('only invalidates the board task list when un-assigning via task.project.updated', () => {
+    renderHook(() => useSocket('b1'));
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const handler = calls.find((c) => c[0] === 'task.project.updated')?.[1] as
+      ((data: unknown) => void) | undefined;
+
+    mockQueryClient.invalidateQueries.mockClear();
+    // previousProjectId null (never assigned) and projectId null (un-assign) —
+    // neither may invalidate a ['projects', null] key.
+    act(() => handler!({ id: 't1', projectId: null, previousProjectId: null, boardId: 'b1' }));
+
+    expect(mockQueryClient.invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: ['projects', null],
+    });
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['tasks', 'board', 'b1'],
+    });
+  });
 });
