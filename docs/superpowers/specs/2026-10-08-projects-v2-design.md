@@ -1,6 +1,6 @@
 # Projects v2 — workspace-level projects, kanban view, documents (design)
 
-Status: awaiting human review. Builds on TFG-34 (v1, shipped 2026-10-08).
+Status: approved by human review 2026-10-08 (spec reviewed, changes requested and folded in).
 Human decisions recorded in chat 2026-10-08:
 
 - boardId **removed** from Project (all projects are workspace-level).
