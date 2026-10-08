@@ -78,9 +78,14 @@ export function EditProjectDialog({
   const [startDate, setStartDate] = useState(toDateInput(project.startDate));
   const [targetDate, setTargetDate] = useState(toDateInput(project.targetDate));
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  // Diff against the project as it was when the dialog opened, not the live
+  // prop — otherwise a concurrent edit arriving via socket would make the
+  // untouched field look changed and Save would revert it.
+  const [baseline, setBaseline] = useState(project);
 
   useEffect(() => {
     if (!open) return;
+    setBaseline(project);
     setName(project.name);
     setDescription(project.description ?? '');
     setIcon(project.icon ?? '📦');
@@ -95,14 +100,14 @@ export function EditProjectDialog({
 
   const changes = (): ProjectUpdate => {
     const data: ProjectUpdate = {};
-    if (name.trim() !== project.name) data.name = name.trim();
+    if (name.trim() !== baseline.name) data.name = name.trim();
     const nextDescription = description.trim() || null;
-    if (nextDescription !== (project.description ?? null)) data.description = nextDescription;
-    if (icon !== (project.icon ?? '📦')) data.icon = icon;
-    if (status !== project.status) data.status = status;
-    if (leadId !== (project.leadId ?? null)) data.leadId = leadId;
-    if (startDate !== toDateInput(project.startDate)) data.startDate = startDate || null;
-    if (targetDate !== toDateInput(project.targetDate)) data.targetDate = targetDate || null;
+    if (nextDescription !== (baseline.description ?? null)) data.description = nextDescription;
+    if (icon !== (baseline.icon ?? '📦')) data.icon = icon;
+    if (status !== baseline.status) data.status = status;
+    if (leadId !== (baseline.leadId ?? null)) data.leadId = leadId;
+    if (startDate !== toDateInput(baseline.startDate)) data.startDate = startDate || null;
+    if (targetDate !== toDateInput(baseline.targetDate)) data.targetDate = targetDate || null;
     return data;
   };
 

@@ -86,6 +86,21 @@ describe('EditProjectDialog', () => {
     );
   });
 
+  it('does not revert a concurrent change that arrives while the dialog is open', async () => {
+    const user = userEvent.setup();
+    const props = { open: true, onOpenChange: vi.fn() };
+    const { rerender } = render(<EditProjectDialog project={project} {...props} />);
+    // Someone else completes the project; the socket refetch re-renders us.
+    rerender(<EditProjectDialog project={{ ...project, status: 'completed' }} {...props} />);
+    await user.clear(screen.getByLabelText('Name'));
+    await user.type(screen.getByLabelText('Name'), 'Roadmap v2');
+    await save();
+    expect(updateMutate).toHaveBeenCalledWith(
+      { id: 'p1', data: { name: 'Roadmap v2' } },
+      expect.anything(),
+    );
+  });
+
   it('changes the status', async () => {
     const user = userEvent.setup();
     renderDialog();
@@ -208,5 +223,6 @@ describe('EditProjectDialog', () => {
     await user.click(within(confirm).getByRole('button', { name: 'Cancel' }));
     expect(deleteMutate).not.toHaveBeenCalled();
     expect(screen.queryByRole('alertdialog')).toBeNull();
+    expect(screen.queryByRole('dialog')).toBeNull();
   });
 });
