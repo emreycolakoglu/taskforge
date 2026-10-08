@@ -10,9 +10,8 @@
  * projects list page / MCP for v1.
  *
  * design.md compliance: Obsidian card surfaces with 1px Graphite inset
- * borders, no bright fills, no gradients; the progress bar is neutral fill
- * (muted-foreground) + border — no Lime, which stays reserved for a single
- * CTA per screen (none on this page); Inter weights ≤590 via the house
+ * borders, no bright fills, no gradients; the Add task button is the page's
+ * single primary CTA in Acid Lime; Inter weights ≤590 via the house
  * `font-medium` token; JetBrains Mono (`font-mono`) for task numbers and
  * dates; status dots take the status row's own color.
  */

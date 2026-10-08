@@ -148,6 +148,37 @@ Users can persist a board's filter/group/sort/layout state as named views. The `
 - **REST**: `GET /api/boards/:boardId/views`, `GET/POST /api/views`, `PATCH/DELETE /api/views/:id` → `views/` module. Also `views_*` MCP tools.
 - **Web**: `hooks/use-views.ts` (React Query `['views', boardId]`), `lib/apply-view.ts` (filter/group/sort engine), `hooks/use-view-state.ts` (active view selection, `?view=` URL param + localStorage fallback), `view-selector` + `save-view-dialog` components, socket `view:created/updated/deleted` invalidation in `hooks/use-socket.ts`.
 
+## Projects
+
+Board-scoped containers that group tasks into a lightweight roadmap. The `Project` row lives on
+`boardId` and carries `name`, `description?`, `icon` (default 📦), `leadId?`, `status`
+(`planned`/`started`/`completed`/`paused`/`canceled`), `completedAt?`, `startDate?`, `targetDate?`,
+and a float `position` (append = max+1). Tasks link via nullable `projectId` (FK SetNull).
+
+- **REST**: `GET/POST /api/boards/:boardId/projects`, `GET/PUT/DELETE /api/projects/:id` → `projects/`
+  module. `GET /api/projects/:id` embeds the board's tasks (ordered by status position, then
+  position) plus a progress rollup `{ total, completed, byStatus }`.
+- **Write-gating follows the views pattern**: create requires `boardId` (so board vs project id
+  mismatch can't sneak through), update/delete resolve the gate from the project's own board. Gate =
+  board admin (`MembersService.isBoardAdmin`) or global admin; legacy boards (zero Member rows) fall
+  open. Reads are unscoped.
+- **Progress counts only `status.type === 'done'`** — other terminal types (cancel, duplicate) do not
+  contribute to `completed`. `completedAt` is stamped when status moves to `completed` and cleared on
+  leaving; untouched when status doesn't change.
+- **THE projectId gotcha (twice over)**: `TasksService.update` and MCP `tasks_update` must handle
+  `projectId` with `!== undefined` checks and `=== null` comparisons — a truthy gate would silently
+  drop both the write and the activity log for un-assign, the same bug class as publish-on-UpdateTaskDto
+  (regression pinned in tests). Activity reads `removed from project` / `added to project: <name>`.
+- **Socket**: `project:created/updated/deleted` and, when a task changes project, a dedicated
+  `task.project.updated` with `previousProjectId` (the room scope can't identify the losing project for
+  invalidation). Web: `hooks/use-projects.ts`, socket invalidation in `hooks/use-socket.ts`,
+  `/board/:boardId/projects` + detail pages, task-detail project picker, kanban card badge.
+- **MCP**: `projects_list | get | create | update | delete`; `projectId` rides `tasks_create` /
+  `tasks_update`; MCP task payloads embed `project {id, name, icon}`.
+- **No attachments-style cleanup on project delete** — tasks survive with `projectId = null` via
+  SetNull; there is no per-subject cascade to run because nothing is stored against a Project beyond
+  the Project row itself.
+
 ## Attachments
 
 Polymorphic file attachments on tasks, comments, and documents. Local disk storage behind a
