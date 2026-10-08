@@ -226,6 +226,30 @@ export async function seedView(
 }
 
 /**
+ * Seed a project on a board.
+ */
+export async function seedProject(
+  prisma: PrismaClient,
+  boardId: string,
+  overrides: Record<string, any> = {},
+) {
+  return prisma.project.create({
+    data: {
+      boardId,
+      name: overrides.name || 'Test project',
+      description: overrides.description ?? null,
+      icon: overrides.icon || '📦',
+      leadId: overrides.leadId ?? null,
+      status: overrides.status || 'planned',
+      completedAt: overrides.completedAt ?? null,
+      startDate: overrides.startDate ?? null,
+      targetDate: overrides.targetDate ?? null,
+      position: overrides.position ?? 0,
+    },
+  });
+}
+
+/**
  * Seed a relation between two tasks. For "related_to", canonicalizes so
  * fromTaskId < toTaskId lexicographically (matches RelationsService).
  */
