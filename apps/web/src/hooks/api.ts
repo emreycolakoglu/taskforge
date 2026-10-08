@@ -442,14 +442,19 @@ export const api = {
       }),
     update: (
       id: string,
+      // startDate/targetDate/leadId are deliberately typed `string` (not
+      // `string | null`) until date/lead CLEARING is designed: JSON null today
+      // makes the API map new Date(null) → epoch, so sending null to clear
+      // would backdate the field. Restricting the type keeps callers from
+      // tripping that until the API-side null contract exists.
       data: Partial<{
         name: string;
         description: string | null;
         icon: string;
-        leadId: string | null;
+        leadId: string;
         status: ProjectStatus;
-        startDate: string | null;
-        targetDate: string | null;
+        startDate: string;
+        targetDate: string;
       }>,
     ) => request<Project>(`/projects/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     delete: (id: string) => request<void>(`/projects/${id}`, { method: 'DELETE' }),

@@ -76,6 +76,11 @@ describe('ProjectsService', () => {
     name: 'Roadmap v1',
   };
 
+  it('creates the FIRST project at position 0 (statuses house pattern, not ?? 0)', async () => {
+    const created = await service.create({ ...baseDto, boardId: board.id }, boardAdmin);
+    expect(created.position).toBe(0);
+  });
+
   it('creates a project appending at the end of the board (position = max+1)', async () => {
     await seedProject(prisma, board.id, { name: 'First', position: 3 });
     const created = await service.create({ ...baseDto, boardId: board.id }, boardAdmin);
@@ -136,6 +141,18 @@ describe('ProjectsService', () => {
       completed: 2,
       byStatus: { done: 2, in_progress: 1, cancelled: 1 },
     });
+  });
+
+  it('findOne task rows carry taskNumber matching identifier-number (detail page regression pin)', async () => {
+    const status = board.statuses[0];
+    const project = await seedProject(prisma, board.id, { name: 'Numbered' });
+    const task = await seedTask(prisma, status.id, { number: 101 });
+    await prisma.task.update({ where: { id: task.id }, data: { projectId: project.id } });
+
+    const found = await service.findOne(project.id);
+    // Same shape tasks.service payloads use — the detail page renders this
+    // chip with `task.taskNumber`.
+    expect(found.tasks[0].taskNumber).toBe(`${board.identifier}-101`);
   });
 
   it('update stamps completedAt when status becomes completed', async () => {

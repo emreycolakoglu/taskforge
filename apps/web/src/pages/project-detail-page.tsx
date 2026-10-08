@@ -22,6 +22,7 @@ import { useProject } from '@/hooks/use-projects';
 import { useBoardFull } from '@/hooks/use-boards';
 import { useCreateTask } from '@/hooks/use-tasks';
 import { useUserDirectory } from '@/hooks/use-users';
+import { useSocket } from '@/hooks/use-socket';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -87,6 +88,10 @@ export function ProjectDetailPage() {
   const { data: board } = useBoardFull(boardId!);
   const createTask = useCreateTask();
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  // Board-room socket so task:created / task.project.updated invalidations
+  // (['projects', projectId]) reach this page — see the create-affordance
+  // comment below for the full freshness contract.
+  useSocket(boardId);
 
   // The payload carries only leadId — resolve the display name through the
   // existing directory hook; no lead (or unknown id) renders nothing.
@@ -135,9 +140,11 @@ export function ProjectDetailPage() {
 
   // TFG-34 — the page's create affordance: the house New Issue dialog, preset
   // to this project. Status defaults to the board's first status (the dialog
-  // already does that when no defaultStatusId is given); tasks land here
-  // immediately because the socket's task.project.updated / task:created
-  // events invalidate ['projects', id].
+  // already does that when no defaultStatusId is given). Freshness comes from
+  // two layers: (1) useCreateTask.onSuccess invalidates ['projects', id] for
+  // the page's own mutation, and (2) the socket's task:created /
+  // task.project.updated handlers invalidate ['projects', projectId] so tasks
+  // created elsewhere (board kanban, MCP) land here too.
   const handleCreateTask = (data: {
     title: string;
     description?: string;

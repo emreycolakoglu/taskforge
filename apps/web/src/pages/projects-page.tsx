@@ -17,6 +17,7 @@ import { useProjects, useCreateProject } from '@/hooks/use-projects';
 import { useBoardFull } from '@/hooks/use-boards';
 import { useTasksByBoard } from '@/hooks/use-tasks';
 import { useUserDirectory } from '@/hooks/use-users';
+import { useSocket } from '@/hooks/use-socket';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -171,6 +172,9 @@ export function ProjectsPage() {
   const { data: directory = [] } = useUserDirectory();
   const createProject = useCreateProject(boardId!);
   const [createOpen, setCreateOpen] = useState(false);
+  // Board-room socket so project:created/updated/deleted + task.project.updated
+  // invalidations reach this page without a kanban/task-detail page mounted.
+  useSocket(boardId);
 
   // Progress rollup: completed = tasks whose status.type === 'done', scoped
   // per project. Tasks with no project don't contribute anywhere.

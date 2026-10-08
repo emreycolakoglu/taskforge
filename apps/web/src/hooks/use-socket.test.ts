@@ -425,6 +425,44 @@ describe('useSocket', () => {
     });
   });
 
+  it('invalidates the project detail query on task:created with projectId (TFG-34)', () => {
+    mockGetToken.mockReturnValue('tok');
+    renderHook(() => useSocket('b1'));
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const taskHandler = calls.find((c) => c[0] === 'task:created')?.[1] as
+      ((data: unknown) => void) | undefined;
+    expect(taskHandler).toBeDefined();
+
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => {
+      taskHandler!({ id: 'task-1', projectId: 'proj-1', boardId: 'b1' });
+    });
+
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['projects', 'proj-1'],
+    });
+  });
+
+  it('does not invalidate a project query on task:created without projectId', () => {
+    mockGetToken.mockReturnValue('tok');
+    renderHook(() => useSocket('b1'));
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const taskHandler = calls.find((c) => c[0] === 'task:created')?.[1] as
+      ((data: unknown) => void) | undefined;
+    expect(taskHandler).toBeDefined();
+
+    mockQueryClient.invalidateQueries.mockClear();
+    // task:deleted carries no projectId at all — no ['projects', null] key may
+    // be produced by the same shared handler block.
+    act(() => {
+      taskHandler!({ id: 'task-1', boardId: 'b1' });
+    });
+
+    expect(mockQueryClient.invalidateQueries).not.toHaveBeenCalledWith({
+      queryKey: ['projects', null],
+    });
+  });
+
   it('invalidates notifications queries on notification:created event', () => {
     mockGetToken.mockReturnValue('tok');
     renderHook(() => useSocket());

@@ -117,12 +117,18 @@ export function useSocket(boardId?: string) {
         // must be invalidated too or the detail page shows a stale list.
         // previousParentId (sent only when parentage changed) covers the
         // parent the task moved away from, including un-nest to null.
+        // TFG-34: same contract for the project detail payload — its embedded
+        // task list must refetch when a task lands in / leaves the project.
+        // projectId is null-guarded (task:deleted's payload is just
+        // { id, boardId }); `?? null` comparisons keep a null from producing
+        // a ['projects', null] key, mirroring previousParentId.
         const task = eventData as {
           id?: string;
           statusId?: string;
           boardId?: string;
           parentId?: string | null;
           previousParentId?: string | null;
+          projectId?: string | null;
         };
         if (task.id) {
           queryClient.invalidateQueries({ queryKey: ['tasks', task.id] });
@@ -132,6 +138,9 @@ export function useSocket(boardId?: string) {
         }
         if (task.previousParentId) {
           queryClient.invalidateQueries({ queryKey: ['tasks', task.previousParentId] });
+        }
+        if (task.projectId) {
+          queryClient.invalidateQueries({ queryKey: ['projects', task.projectId] });
         }
         if (task.boardId) {
           queryClient.invalidateQueries({ queryKey: ['tasks', 'board', task.boardId] });

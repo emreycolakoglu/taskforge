@@ -8,6 +8,7 @@ import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { MembersService } from '../members/members.service';
+import { withTaskNumber } from '../tasks/tasks.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
 
@@ -38,6 +39,10 @@ export class ProjectsService {
       where: { projectId: id },
       include: {
         status: true,
+        // withTaskNumber derives `taskNumber: '<identifier>-<number>'` from
+        // the board relation — include the identifier or every row maps to a
+        // null taskNumber and the detail page renders without it.
+        board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
         project: { select: { id: true, name: true, icon: true } },
@@ -52,7 +57,10 @@ export class ProjectsService {
     }
     return {
       ...project,
-      tasks,
+      // Map through the tasks.service house mapper so project task rows match
+      // every other task payload (taskNumber, blockedByCount, blockingCount).
+      // MCP projects_get delegates here and inherits this automatically.
+      tasks: tasks.map(withTaskNumber),
       progress: { total: tasks.length, completed, byStatus },
     };
   }
@@ -74,7 +82,11 @@ export class ProjectsService {
         status: dto.status ?? 'planned',
         startDate: dto.startDate ? new Date(dto.startDate) : null,
         targetDate: dto.targetDate ? new Date(dto.targetDate) : null,
-        position: (max._max.position ?? 0) + 1,
+        // Append at the end; the FIRST project must land on position 0 —
+        // statuses.service house pattern `(max._max.position ?? -1) + 1`
+        // (a `?? 0` base would put the first project at 1 and an aggregate
+        // null would make it 1, not 0).
+        position: (max._max.position ?? -1) + 1,
       },
     });
     this.events.emit('project:created', project, project.boardId);

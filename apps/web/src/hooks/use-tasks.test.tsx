@@ -240,4 +240,48 @@ describe('useCreateTask — optimistic rendering (TFG-9)', () => {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['tasks', 'parent-1'] });
     });
   });
+
+  it('invalidates the project detail query on success when the task carries a projectId (TFG-34)', async () => {
+    const { queryClient, wrapper } = createWrapper();
+
+    // The project detail page renders its embedded task list from the
+    // ['projects', id] cache — a task created into that project must
+    // invalidate it or the page stays stale after its own Add-task action.
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    queryClient.setQueryData(['projects', 'proj-1'], { id: 'proj-1', tasks: [] });
+
+    const { useCreateTask } = await import('./use-tasks');
+    const { result } = renderHook(() => useCreateTask(), { wrapper });
+
+    result.current.mutate({
+      statusId: STATUS_ID,
+      title: 'Project Task',
+      boardId: BOARD_ID,
+      projectId: 'proj-1',
+    });
+
+    await waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['projects', 'proj-1'] });
+    });
+  });
+
+  it('does not invalidate a project detail query when the task has no projectId', async () => {
+    const { queryClient, wrapper } = createWrapper();
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+    queryClient.setQueryData(['projects', 'proj-1'], { id: 'proj-1', tasks: [] });
+
+    const { useCreateTask } = await import('./use-tasks');
+    const { result } = renderHook(() => useCreateTask(), { wrapper });
+
+    result.current.mutate({
+      statusId: STATUS_ID,
+      title: 'Plain Task',
+      boardId: BOARD_ID,
+    });
+
+    await waitFor(() => {
+      expect(mockToastSuccess).toHaveBeenCalledWith('Task created');
+    });
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: ['projects', undefined] });
+  });
 });

@@ -169,7 +169,7 @@ const mockProject: ProjectDetail = {
       },
     },
   ],
-  progress: { total: 4, completed: 2, byStatus: { todo: 1, in_progress: 2, done: 1 } },
+  progress: { total: 4, completed: 1, byStatus: { todo: 1, in_progress: 2, done: 1 } },
 };
 
 // Mutable so each test can swap fixture data before rendering.
@@ -197,6 +197,9 @@ vi.mock('@/hooks/use-boards', () => ({
 }));
 vi.mock('@/hooks/use-users', () => ({
   useUserDirectory: () => ({ data: [{ id: 'u1', displayName: 'Alice' }] }),
+}));
+vi.mock('@/hooks/use-socket', () => ({
+  useSocket: () => ({ on: vi.fn() }),
 }));
 
 function renderPage() {
@@ -291,8 +294,8 @@ describe('ProjectDetailPage', () => {
     renderPage();
 
     const bar = screen.getByRole('progressbar', { name: 'Roadmap progress' });
-    expect(bar).toHaveAttribute('aria-valuenow', '50');
-    expect(screen.getByText('2/4')).toBeInTheDocument();
+    expect(bar).toHaveAttribute('aria-valuenow', '25');
+    expect(screen.getByText('1/4')).toBeInTheDocument();
   });
 
   it('renders nothing for the lead when the payload has none', () => {

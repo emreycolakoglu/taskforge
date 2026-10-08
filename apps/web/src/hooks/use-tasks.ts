@@ -79,6 +79,12 @@ export function useCreateTask() {
       if (variables.parentId) {
         queryClient.invalidateQueries({ queryKey: ['tasks', variables.parentId] });
       }
+      // TFG-34: the project detail payload embeds its task list — invalidate
+      // it too, or a task created via the project page's own "Add task"
+      // action is invisible there until a refetch from elsewhere.
+      if (variables.projectId) {
+        queryClient.invalidateQueries({ queryKey: ['projects', variables.projectId] });
+      }
       queryClient.invalidateQueries({ queryKey: ['boards'] });
       queryClient.invalidateQueries({ queryKey: ['boards', variables.boardId, 'full'] });
     },
