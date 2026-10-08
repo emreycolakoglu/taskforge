@@ -73,7 +73,7 @@ export class ProjectsService {
         status: dto.status ?? 'planned',
         startDate: dto.startDate ? new Date(dto.startDate) : null,
         targetDate: dto.targetDate ? new Date(dto.targetDate) : null,
-        position: dto.position ?? (max._max.position ?? 0) + 1,
+        position: (max._max.position ?? 0) + 1,
       },
     });
     this.events.emit('project:created', project, project.boardId);

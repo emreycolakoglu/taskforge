@@ -1,12 +1,4 @@
-import {
-  IsDateString,
-  IsIn,
-  IsNotEmpty,
-  IsNumber,
-  IsOptional,
-  IsString,
-  MaxLength,
-} from 'class-validator';
+import { IsDateString, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { PROJECT_STATUSES } from '../project-statuses';
 
 export class CreateProjectDto {
@@ -42,8 +34,4 @@ export class CreateProjectDto {
   @IsOptional()
   @IsDateString()
   targetDate?: string;
-
-  @IsOptional()
-  @IsNumber()
-  position?: number;
 }
