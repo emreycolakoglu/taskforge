@@ -9,9 +9,9 @@
  * (status/assignee/labels/project) + the progress summary.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter, Routes, Route } from 'react-router-dom';
+import { MemoryRouter, Routes, Route, useParams } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { ProjectDetailPage } from './project-detail-page';
@@ -35,13 +35,15 @@ function dialogProps() {
     open: boolean;
     projectId?: string;
     statuses?: { id: string }[];
+    boards?: { id: string }[];
+    boardId?: string;
+    onBoardChange?: (id: string) => void;
     onSubmit: (data: { title: string; projectId: string | null }) => void;
   };
 }
 
 const mockProject: ProjectDetail = {
   id: 'p1',
-  boardId: 'b1',
   name: 'Roadmap',
   description: 'Q3 planning',
   icon: '📦',
@@ -148,7 +150,7 @@ const mockProject: ProjectDetail = {
     {
       id: 't4',
       statusId: 's3',
-      boardId: 'b1',
+      boardId: 'b2',
       number: 104,
       taskNumber: 'TF-104',
       title: 'Ship settings import',
@@ -184,16 +186,24 @@ vi.mock('@/hooks/use-projects', () => ({
 vi.mock('@/hooks/use-tasks', () => ({
   useCreateTask: () => ({ mutate: createTaskMutate, isPending: false }),
 }));
+// Statuses per board — the page feeds the dialog the SELECTED board's
+// statuses via useBoardFull(selectedBoardId).
+const statusesByBoard: Record<string, { id: string; boardId: string; name: string }[]> = {
+  b1: [{ id: 's1', boardId: 'b1', name: 'Todo' }],
+  b2: [{ id: 's9', boardId: 'b2', name: 'Backlog' }],
+};
+const mockUseBoardFull = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/use-boards', () => ({
-  useBoardFull: () => ({
-    data: {
-      id: 'b1',
-      name: 'Sprint 1',
-      identifier: 'TF',
-      icon: '⭐',
-      statuses: [{ id: 's1', boardId: 'b1', name: 'Todo', type: 'todo', position: 0 }],
-    },
+  useBoards: () => ({
+    data: [
+      { id: 'b2', name: 'Infra', identifier: 'INF', icon: null },
+      { id: 'b1', name: 'Sprint 1', identifier: 'TF', icon: '⭐' },
+    ],
   }),
+  useBoardFull: (id: string) => {
+    mockUseBoardFull(id);
+    return { data: id ? { id, statuses: statusesByBoard[id] ?? [] } : undefined };
+  },
 }));
 vi.mock('@/hooks/use-users', () => ({
   useUserDirectory: () => ({ data: [{ id: 'u1', displayName: 'Alice' }] }),
@@ -202,16 +212,22 @@ vi.mock('@/hooks/use-socket', () => ({
   useSocket: () => ({ on: vi.fn() }),
 }));
 
+function TaskRouteProbe() {
+  const { boardId, taskId } = useParams();
+  return <p>{`task ${boardId}/${taskId}`}</p>;
+}
+
 function renderPage() {
   const queryClient = new QueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
       <SidebarProvider>
-        <MemoryRouter initialEntries={['/board/b1/projects/p1']}>
-          {/* The page sources both ids from useRouteParams — a matching Route
-              element is required for useParams to resolve them. */}
+        <MemoryRouter initialEntries={['/projects/p1']}>
+          {/* Global route (Projects v2) — no board in the URL. */}
           <Routes>
-            <Route path="/board/:boardId/projects/:projectId" element={<ProjectDetailPage />} />
+            <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
+            <Route path="/projects" element={<p>projects list</p>} />
+            <Route path="/board/:boardId/task/:taskId" element={<TaskRouteProbe />} />
           </Routes>
         </MemoryRouter>
       </SidebarProvider>
@@ -379,6 +395,57 @@ describe('ProjectDetailPage — Add task to project (TFG-34)', () => {
     // The picker's explicit null wins — the route param is only a default.
     expect(createTaskMutate).toHaveBeenCalledWith(
       expect.objectContaining({ projectId: null, boardId: 'b1' }),
+    );
+  });
+});
+
+describe('ProjectDetailPage — workspace-level project (Projects v2)', () => {
+  it('links each task row to its OWN board-scoped task route', async () => {
+    renderPage();
+
+    await userEvent.click(screen.getByText('Ship settings import'));
+    expect(screen.getByText('task b2/t4')).toBeInTheDocument();
+  });
+
+  it('navigates back to the global projects list', async () => {
+    renderPage();
+
+    await userEvent.click(screen.getByRole('link', { name: 'Projects' }));
+    expect(screen.getByText('projects list')).toBeInTheDocument();
+  });
+
+  it("defaults the dialog's board to the first task's board and passes the board list", () => {
+    renderPage();
+
+    const props = dialogProps();
+    expect(props.boardId).toBe('b1');
+    expect(props.boards?.map((b) => b.id)).toEqual(['b2', 'b1']);
+    expect(mockUseBoardFull).toHaveBeenLastCalledWith('b1');
+  });
+
+  it('falls back to the first listed board when the project has no tasks', () => {
+    data.project = {
+      ...mockProject,
+      tasks: [],
+      progress: { total: 0, completed: 0, byStatus: {} },
+    };
+    renderPage();
+
+    expect(dialogProps().boardId).toBe('b2');
+    expect(dialogProps().statuses?.[0]?.id).toBe('s9');
+    data.project = mockProject;
+  });
+
+  it('switches statuses and the create target when the dialog picks another board', () => {
+    renderPage();
+
+    act(() => dialogProps().onBoardChange!('b2'));
+
+    expect(dialogProps().boardId).toBe('b2');
+    expect(dialogProps().statuses?.[0]?.id).toBe('s9');
+    dialogProps().onSubmit({ title: 'On infra', projectId: 'p1' });
+    expect(createTaskMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'On infra', projectId: 'p1', boardId: 'b2' }),
     );
   });
 });

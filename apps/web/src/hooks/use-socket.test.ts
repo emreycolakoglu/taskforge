@@ -441,6 +441,11 @@ describe('useSocket', () => {
     expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: ['projects', 'proj-1'],
     });
+    // The list carries a per-project progress rollup — it goes stale too.
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['projects'],
+      exact: true,
+    });
   });
 
   it('does not invalidate a project query on task:created without projectId', () => {
@@ -579,8 +584,10 @@ describe('useSocket', () => {
     expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['documents'] });
   });
 
-  it('invalidates the board projects query on project:created/updated/deleted', () => {
-    renderHook(() => useSocket('b1'));
+  it('invalidates the global projects list + detail on project:* with no board room (v2)', () => {
+    // Projects are workspace-level and broadcast to every socket — a global
+    // page (no boardId) must still invalidate both keys.
+    renderHook(() => useSocket());
     const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
 
     for (const eventName of ['project:created', 'project:updated', 'project:deleted']) {
@@ -589,14 +596,18 @@ describe('useSocket', () => {
       expect(handler).toBeDefined();
 
       mockQueryClient.invalidateQueries.mockClear();
-      act(() => handler!({ id: 'p1', boardId: 'b1' }));
+      act(() => handler!({ id: 'p1' }));
       expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
-        queryKey: ['projects', 'b1'],
+        queryKey: ['projects'],
+        exact: true,
+      });
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+        queryKey: ['projects', 'p1'],
       });
     }
   });
 
-  it('falls back to the board room id when project:deleted carries no boardId', () => {
+  it('never keys project invalidation by board id (v2: no board fallback)', () => {
     renderHook(() => useSocket('b1'));
     const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
     const deletedHandler = calls.find((c) => c[0] === 'project:deleted')?.[1] as
@@ -604,21 +615,39 @@ describe('useSocket', () => {
 
     mockQueryClient.invalidateQueries.mockClear();
     act(() => deletedHandler!({ id: 'p1' }));
-    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+    expect(mockQueryClient.invalidateQueries).not.toHaveBeenCalledWith({
       queryKey: ['projects', 'b1'],
     });
   });
 
-  it('invalidates the project detail query by id on project:updated', () => {
-    renderHook(() => useSocket('b1'));
+  it('refreshes the projects list progress on task.project.updated from a global page', () => {
+    renderHook(() => useSocket());
     const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
-    const updatedHandler = calls.find((c) => c[0] === 'project:updated')?.[1] as
+    const handler = calls.find((c) => c[0] === 'task.project.updated')?.[1] as
       ((data: unknown) => void) | undefined;
 
     mockQueryClient.invalidateQueries.mockClear();
-    act(() => updatedHandler!({ id: 'p1', boardId: 'b1' }));
+    act(() => handler!({ id: 't1', projectId: 'p1', previousProjectId: null, boardId: 'b1' }));
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['projects'],
+      exact: true,
+    });
     expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: ['projects', 'p1'],
+    });
+  });
+
+  it('refreshes the projects list on task:deleted (payload has no projectId)', () => {
+    renderHook(() => useSocket());
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const handler = calls.find((c) => c[0] === 'task:deleted')?.[1] as
+      ((data: unknown) => void) | undefined;
+
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => handler!({ id: 't1', boardId: 'b1' }));
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['projects'],
+      exact: true,
     });
   });
 

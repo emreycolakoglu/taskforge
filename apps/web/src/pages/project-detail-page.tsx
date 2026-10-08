@@ -1,13 +1,13 @@
 /**
- * ProjectDetailPage — read-only project detail at
- * /board/:boardId/projects/:projectId (TFG-34, Task 6).
+ * ProjectDetailPage — read-only project detail at /projects/:projectId
+ * (TFG-34; global since Projects v2 — a project's tasks can span boards).
  *
  * Renders the GET /api/projects/:id rollup: header (icon, name, lifecycle
  * chip, lead via the user directory, dates, description), the project's
  * tasks grouped by status (the payload is ordered status.position then
  * position; grouping preserves first-appearance order), and the server's
- * progress rollup as a neutral bar. No mutations here — editing rides the
- * projects list page / MCP for v1.
+ * progress rollup as a neutral bar. Task rows link to their own board-scoped
+ * route (/board/:boardId/task/:taskId) — tasks stay board-scoped.
  *
  * design.md compliance: Obsidian card surfaces with 1px Graphite inset
  * borders, no bright fills, no gradients; the Add task button is the page's
@@ -19,7 +19,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
 import { ArrowLeft, FolderKanban, Plus } from 'lucide-react';
 import { useProject } from '@/hooks/use-projects';
-import { useBoardFull } from '@/hooks/use-boards';
+import { useBoardFull, useBoards } from '@/hooks/use-boards';
 import { useCreateTask } from '@/hooks/use-tasks';
 import { useUserDirectory } from '@/hooks/use-users';
 import { useSocket } from '@/hooks/use-socket';
@@ -81,17 +81,22 @@ function ProjectStatusChip({ status }: { status: ProjectStatus }) {
 }
 
 export function ProjectDetailPage() {
-  const { boardId, projectId } = useParams<{ boardId: string; projectId: string }>();
+  const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { data: project, isLoading, error } = useProject(projectId!);
   const { data: directory = [] } = useUserDirectory();
-  const { data: board } = useBoardFull(boardId!);
+  const { data: boards = [] } = useBoards();
+  // The project has no board of its own, so "Add task" needs a board pick.
+  // Until the user picks one in the dialog, default to the board of the
+  // project's first task, else the first board in the workspace.
+  const [pickedBoardId, setPickedBoardId] = useState<string | null>(null);
+  const boardId = pickedBoardId ?? project?.tasks?.[0]?.boardId ?? boards[0]?.id ?? '';
+  const { data: board } = useBoardFull(boardId);
   const createTask = useCreateTask();
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
-  // Board-room socket so task:created / task.project.updated invalidations
-  // (['projects', projectId]) reach this page — see the create-affordance
-  // comment below for the full freshness contract.
-  useSocket(boardId);
+  // Projects are workspace-level: project:* and task.project.updated are
+  // broadcast to every socket, so this page needs no board room.
+  useSocket();
 
   // The payload carries only leadId — resolve the display name through the
   // existing directory hook; no lead (or unknown id) renders nothing.
@@ -127,7 +132,7 @@ export function ProjectDetailPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-4 bg-background">
         <p className="text-sm text-foreground">Project not found.</p>
-        <Button variant="outline" onClick={() => navigate(`/board/${boardId}/projects`)}>
+        <Button variant="outline" onClick={() => navigate('/projects')}>
           <ArrowLeft className="size-4 mr-2" />
           Back to projects
         </Button>
@@ -139,8 +144,10 @@ export function ProjectDetailPage() {
     progress && progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
 
   // TFG-34 — the page's create affordance: the house New Issue dialog, preset
-  // to this project. Status defaults to the board's first status (the dialog
-  // already does that when no defaultStatusId is given). Freshness comes from
+  // to this project, in board-picker mode (the dialog lists the boards; the
+  // page owns the pick and feeds it that board's statuses). Status defaults to
+  // the board's first status (the dialog already does that when no
+  // defaultStatusId is given). Freshness comes from
   // two layers: (1) useCreateTask.onSuccess invalidates ['projects', id] for
   // the page's own mutation, and (2) the socket's task:created /
   // task.project.updated handlers invalidate ['projects', projectId] so tasks
@@ -176,7 +183,7 @@ export function ProjectDetailPage() {
           size="icon"
           className="size-7 text-muted-foreground hover:text-foreground"
           aria-label="Back to projects"
-          onClick={() => navigate(`/board/${boardId}/projects`)}
+          onClick={() => navigate('/projects')}
         >
           <ArrowLeft className="size-4" />
         </Button>
@@ -184,7 +191,7 @@ export function ProjectDetailPage() {
           aria-label="breadcrumb"
           className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
         >
-          <Link to={`/board/${boardId}/projects`} className="truncate hover:text-foreground">
+          <Link to="/projects" className="truncate hover:text-foreground">
             Projects
           </Link>
           <span aria-hidden="true" className="text-muted-foreground/50">
@@ -304,7 +311,7 @@ export function ProjectDetailPage() {
                       <li key={task.id}>
                         <button
                           type="button"
-                          onClick={() => navigate(`/board/${boardId}/task/${task.id}`)}
+                          onClick={() => navigate(`/board/${task.boardId}/task/${task.id}`)}
                           className="flex w-full items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left cursor-pointer transition-colors hover:bg-accent/30"
                         >
                           <ProgressIcon
@@ -356,6 +363,9 @@ export function ProjectDetailPage() {
         statuses={board?.statuses ?? []}
         users={directory}
         projectId={projectId}
+        boards={boards}
+        boardId={boardId}
+        onBoardChange={setPickedBoardId}
         onSubmit={handleCreateTask}
       />
     </div>

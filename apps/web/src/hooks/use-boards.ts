@@ -21,6 +21,8 @@ export function useBoardFull(id: string) {
   return useQuery({
     queryKey: ['boards', id, 'full'],
     queryFn: () => api.boards.getFull(id),
+    // Global pages (project detail) resolve their board id asynchronously.
+    enabled: !!id,
   });
 }
 

@@ -122,7 +122,7 @@ export function KanbanBoard() {
 
   const createTask = useCreateTask();
   const { data: users = [] } = useUserDirectory();
-  const { data: projects = [] } = useProjects(id ?? '');
+  const { data: projects = [] } = useProjects();
 
   const { ref: boardScrollRef, isDragging: isPanning } = useDragScroll<HTMLDivElement>();
 

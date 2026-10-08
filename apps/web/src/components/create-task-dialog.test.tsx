@@ -106,3 +106,58 @@ describe('CreateTaskDialog — project picker (TFG-34)', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ projectId: 'p1' }));
   });
 });
+
+describe('CreateTaskDialog — board picker mode (Projects v2)', () => {
+  const boards = [
+    { id: 'b1', name: 'Sprint', icon: '⭐' },
+    { id: 'b2', name: 'Infra', icon: null },
+  ];
+
+  it('shows no board picker when boards are not passed (board pages)', () => {
+    renderDialog({ projects });
+
+    expect(screen.queryByRole('combobox', { name: 'Board' })).toBeNull();
+  });
+
+  it('shows the selected board when boards are passed', () => {
+    renderDialog({ boards, boardId: 'b2', onBoardChange: vi.fn() });
+
+    expect(screen.getByRole('combobox', { name: 'Board' })).toHaveTextContent('Infra');
+  });
+
+  it('reports a board pick to the caller (statuses stay caller-owned)', async () => {
+    const user = userEvent.setup();
+    const onBoardChange = vi.fn();
+    renderDialog({ boards, boardId: 'b1', onBoardChange });
+
+    await user.click(screen.getByRole('combobox', { name: 'Board' }));
+    await user.click(await screen.findByRole('option', { name: /infra/i }));
+
+    expect(onBoardChange).toHaveBeenCalledWith('b2');
+  });
+
+  it('resets the status to the first of the new statuses when they change', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const otherStatuses: Status[] = [
+      { id: 's9', boardId: 'b2', name: 'Backlog', type: 'backlog', position: 0 },
+    ];
+    const props = {
+      open: true,
+      onOpenChange: noop,
+      users,
+      onSubmit,
+      boards,
+      onBoardChange: vi.fn(),
+    };
+    const { rerender } = render(<CreateTaskDialog {...props} statuses={statuses} boardId="b1" />);
+    await user.type(screen.getByPlaceholderText('Issue title...'), 'Cross-board');
+    rerender(<CreateTaskDialog {...props} statuses={otherStatuses} boardId="b2" />);
+    await user.click(screen.getByRole('button', { name: /create issue/i }));
+
+    // The typed title survives the board switch; the status follows the board.
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Cross-board', statusId: 's9' }),
+    );
+  });
+});

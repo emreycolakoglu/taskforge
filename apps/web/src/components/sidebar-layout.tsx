@@ -11,6 +11,7 @@ import {
   Plus,
   Inbox,
   LayoutGrid,
+  FolderKanban,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -56,6 +57,7 @@ const PRIMARY_NAV = [
   { label: 'Inbox', icon: Inbox, to: '/inbox' },
   { label: 'My Issues', icon: ListChecks, to: '/tasks' },
   { label: 'Boards', icon: LayoutGrid, to: '/boards' },
+  { label: 'Projects', icon: FolderKanban, to: '/projects' },
 ];
 
 /**
@@ -126,7 +128,9 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
             <SidebarGroupContent>
               <SidebarMenu>
                 {PRIMARY_NAV.map((item) => {
-                  const isActive = location.pathname === item.to;
+                  // Prefix match keeps Projects lit on /projects/:projectId.
+                  const isActive =
+                    location.pathname === item.to || location.pathname.startsWith(`${item.to}/`);
                   return (
                     <SidebarMenuItem key={item.label}>
                       <SidebarMenuButton asChild isActive={isActive} tooltip={item.label}>
@@ -189,12 +193,8 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                         const docsActive =
                           location.pathname === `/board/${board.id}/docs` ||
                           location.pathname.startsWith(`/board/${board.id}/doc/`);
-                        const projectsActive =
-                          location.pathname === `/board/${board.id}/projects` ||
-                          location.pathname.startsWith(`/board/${board.id}/projects/`);
                         const settingsActive = location.pathname === `/board/${board.id}/settings`;
-                        const boardActive =
-                          issuesActive || projectsActive || docsActive || settingsActive;
+                        const boardActive = issuesActive || docsActive || settingsActive;
                         return (
                           <Collapsible
                             key={board.id}
@@ -228,14 +228,6 @@ export function SidebarLayout({ children }: SidebarLayoutProps) {
                                     className="pl-2"
                                   >
                                     <Link to={`/board/${board.id}/docs`}>Docs</Link>
-                                  </SidebarMenuButton>
-                                  <SidebarMenuButton
-                                    asChild
-                                    isActive={projectsActive}
-                                    size="sm"
-                                    className="pl-2"
-                                  >
-                                    <Link to={`/board/${board.id}/projects`}>Projects</Link>
                                   </SidebarMenuButton>
                                   <SidebarMenuButton
                                     asChild

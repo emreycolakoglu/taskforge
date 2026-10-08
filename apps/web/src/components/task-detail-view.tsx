@@ -68,7 +68,7 @@ export function TaskDetailView({
   const { data: comments = [] } = useComments(taskId);
   const { data: users = [] } = useUserDirectory();
   const { data: _labels = [] } = useLabels(boardId);
-  const { data: projects = [] } = useProjects(boardId);
+  const { data: projects = [] } = useProjects();
   const { data: boardTasks = [] } = useTasksByBoard(boardId);
   useSocket(boardId);
 

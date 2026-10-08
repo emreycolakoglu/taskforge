@@ -26,6 +26,7 @@ import {
   ViewFilters,
   Project,
   ProjectDetail,
+  ProjectListItem,
   ProjectStatus,
   Attachment,
   AttachmentSubjectType,
@@ -421,13 +422,13 @@ export const api = {
     delete: (id: string) => request<void>(`/views/${id}`, { method: 'DELETE' }),
   },
 
-  // Projects (TFG-34). The list endpoint returns plain Project rows; the
-  // detail endpoint embeds tasks + the progress rollup.
+  // Projects (workspace-level since v2). The list endpoint returns rows with a
+  // { total, completed } progress rollup; the detail endpoint embeds tasks
+  // (across boards) + the full rollup.
   projects: {
-    list: (boardId: string) => request<Project[]>(`/boards/${boardId}/projects`),
+    list: () => request<ProjectListItem[]>('/projects'),
     get: (id: string) => request<ProjectDetail>(`/projects/${id}`),
     create: (data: {
-      boardId: string;
       name: string;
       description?: string;
       icon?: string;
@@ -436,7 +437,7 @@ export const api = {
       startDate?: string;
       targetDate?: string;
     }) =>
-      request<Project>(`/boards/${data.boardId}/projects`, {
+      request<Project>('/projects', {
         method: 'POST',
         body: JSON.stringify(data),
       }),

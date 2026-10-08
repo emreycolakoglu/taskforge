@@ -110,7 +110,7 @@ function AuthedRoutes() {
           }
         />
         <Route
-          path="/board/:boardId/projects"
+          path="/projects"
           element={
             <SidebarLayout>
               <ProjectsPage />
@@ -118,7 +118,7 @@ function AuthedRoutes() {
           }
         />
         <Route
-          path="/board/:boardId/projects/:projectId"
+          path="/projects/:projectId"
           element={
             <SidebarLayout>
               <ProjectDetailPage />

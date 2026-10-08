@@ -142,6 +142,13 @@ export function useSocket(boardId?: string) {
         if (task.projectId) {
           queryClient.invalidateQueries({ queryKey: ['projects', task.projectId] });
         }
+        // The projects list carries a per-project progress rollup. A linked
+        // task appearing changes it; task:deleted carries no projectId, so any
+        // deletion may have. Plain updates don't — linked-task status moves
+        // also emit task.project.updated, handled below.
+        if ((eventName === 'task:created' && task.projectId) || eventName === 'task:deleted') {
+          queryClient.invalidateQueries({ queryKey: ['projects'], exact: true });
+        }
         if (task.boardId) {
           queryClient.invalidateQueries({ queryKey: ['tasks', 'board', task.boardId] });
         }
@@ -253,15 +260,11 @@ export function useSocket(boardId?: string) {
         eventName === 'project:updated' ||
         eventName === 'project:deleted'
       ) {
-        // project:deleted carries only { id } — no boardId — so it needs the
-        // board-room fallback (bid) the view block uses.
-        const p = eventData as { id?: string; boardId?: string };
-        const target = p.boardId ?? bid;
-        if (target) {
-          queryClient.invalidateQueries({ queryKey: ['projects', target] });
-        }
-        // The detail page's query is keyed by project id, not board id — key
-        // the updated row's id too or the project detail header goes stale.
+        // Projects are workspace-level (v2) and broadcast to every socket, so
+        // no board room is involved: refresh the global list and the row's
+        // own detail key (project:deleted carries only { id }).
+        const p = eventData as { id?: string };
+        queryClient.invalidateQueries({ queryKey: ['projects'], exact: true });
         if (p.id) {
           queryClient.invalidateQueries({ queryKey: ['projects', p.id] });
         }
@@ -282,6 +285,8 @@ export function useSocket(boardId?: string) {
         if (task.id) {
           queryClient.invalidateQueries({ queryKey: ['tasks', task.id] });
         }
+        // Broadcast globally (v2) — the list's progress rollup moves with it.
+        queryClient.invalidateQueries({ queryKey: ['projects'], exact: true });
         if (task.projectId) {
           queryClient.invalidateQueries({ queryKey: ['projects', task.projectId] });
         }

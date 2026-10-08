@@ -206,41 +206,37 @@ describe('SidebarLayout', () => {
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
-  it('renders Docs and Projects links under an expanded board, above Settings', () => {
+  it('renders Docs under an expanded board, with no per-board Projects item (v2)', () => {
     renderSidebar('/board/b1');
 
     const docsLink = screen.getByRole('link', { name: 'Docs' });
     expect(docsLink).toHaveAttribute('href', '/board/b1/docs');
+    expect(document.querySelector('a[href="/board/b1/projects"]')).toBeNull();
+  });
 
-    // Projects sits between Docs and Settings (TFG-34).
+  it('renders a top-level Projects nav link right after Boards', () => {
+    renderSidebar();
+
     const projectsLink = screen.getByRole('link', { name: 'Projects' });
-    expect(projectsLink).toHaveAttribute('href', '/board/b1/projects');
-
-    const boardSettingsLink = screen
-      .getAllByRole('link', { name: 'Settings' })
-      .find((l) => l.getAttribute('href') === '/board/b1/settings');
-    expect(boardSettingsLink).toBeDefined();
+    expect(projectsLink).toHaveAttribute('href', '/projects');
+    const boardsLink = screen.getByRole('link', { name: 'Boards' });
     expect(
-      docsLink.compareDocumentPosition(projectsLink!) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).not.toBe(0);
-    expect(
-      projectsLink.compareDocumentPosition(boardSettingsLink!) & Node.DOCUMENT_POSITION_FOLLOWING,
+      boardsLink.compareDocumentPosition(projectsLink) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).not.toBe(0);
   });
 
-  it('highlights the Projects link when on the board projects page', () => {
-    renderSidebar('/board/b1/projects');
+  it('highlights the Projects nav link on the projects list page', () => {
+    renderSidebar('/projects');
 
     const projectsLink = screen.getByRole('link', { name: 'Projects' });
-    expect(projectsLink).toHaveAttribute('href', '/board/b1/projects');
-    expect(projectsLink.closest('[data-active="true"]')).not.toBeNull();
+    expect(projectsLink).toHaveAttribute('aria-current', 'page');
   });
 
-  it('highlights the Projects link when on a project detail page', () => {
-    renderSidebar('/board/b1/projects/p1');
+  it('highlights the Projects nav link on a project detail page', () => {
+    renderSidebar('/projects/p1');
 
     const projectsLink = screen.getByRole('link', { name: 'Projects' });
-    expect(projectsLink.closest('[data-active="true"]')).not.toBeNull();
+    expect(projectsLink).toHaveAttribute('aria-current', 'page');
   });
 
   it('highlights the Docs link when on a board docs page', () => {

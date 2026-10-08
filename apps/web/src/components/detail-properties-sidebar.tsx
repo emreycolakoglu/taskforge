@@ -33,7 +33,7 @@ interface DetailPropertiesSidebarProps {
   users: AssigneeOption[];
   boardTasks: Task[];
   relations: TaskRelations | undefined;
-  /** Board projects (TFG-34) — enables the Project property row. */
+  /** Workspace projects (TFG-34) — enables the Project property row. */
   projects?: ProjectMeta[];
   onUpdate: (data: Partial<Task>) => void;
   onAddRelation: (otherTaskId: string, type: RelationType, direction?: 'source' | 'target') => void;
@@ -138,15 +138,14 @@ export function DetailPropertiesSidebar({
             />
 
             {/* TFG-34 — set / change / clear the project via the update
-                mutation; null un-assigns (API validates board membership). */}
+                mutation; null un-assigns. The row renders its own "Project"
+                subheader + open-project chevron (Projects v2). */}
             {projects && projects.length > 0 && (
-              <DetailPropertyRow label="Project">
-                <DetailProjectSelect
-                  value={task.projectId ?? null}
-                  projects={projects}
-                  onChange={(projectId) => onUpdate({ projectId })}
-                />
-              </DetailPropertyRow>
+              <DetailProjectSelect
+                value={task.projectId ?? null}
+                projects={projects}
+                onChange={(projectId) => onUpdate({ projectId })}
+              />
             )}
           </DetailGroup>
 

@@ -11,10 +11,16 @@
  *
  * The dialog stays dumb: statuses and projects both arrive as props from the
  * caller (the board page lists them) — no data hooks inside.
+ *
+ * Board picker mode (Projects v2): workspace-level callers with no board of
+ * their own (the project detail page) pass `boards` + `boardId` +
+ * `onBoardChange`. The caller owns the selection and swaps `statuses` to the
+ * picked board's; the dialog only keeps the status pick valid for whatever
+ * statuses it currently has. Board pages omit `boards` and see no picker.
  */
 
 import { useState, useEffect } from 'react';
-import type { Status, Task, ProjectMeta } from '@/types';
+import type { Board, Status, Task, ProjectMeta } from '@/types';
 import type { AssigneeOption } from '@/components/detail-assignee-select';
 import {
   Dialog,
@@ -40,11 +46,15 @@ interface CreateTaskDialogProps {
   onOpenChange: (open: boolean) => void;
   statuses: Status[];
   users: AssigneeOption[];
-  /** Board projects for the picker (Task 7). Omit when the caller has none. */
+  /** Workspace projects for the picker. Omit when the caller has none. */
   projects?: ProjectMeta[];
   /** Preselects the project picker (project-detail page's Add task CTA). */
   projectId?: string;
   defaultStatusId?: string;
+  /** Board picker mode — omit on board pages (no picker rendered). */
+  boards?: Pick<Board, 'id' | 'name' | 'icon'>[];
+  boardId?: string;
+  onBoardChange?: (boardId: string) => void;
   onSubmit: (data: {
     title: string;
     description?: string;
@@ -70,6 +80,9 @@ export function CreateTaskDialog({
   projects,
   projectId,
   defaultStatusId,
+  boards,
+  boardId,
+  onBoardChange,
   onSubmit,
 }: CreateTaskDialogProps) {
   const [title, setTitle] = useState('');
@@ -88,7 +101,15 @@ export function CreateTaskDialog({
       setAssigneeId(null);
       setSelectedProjectId(projectId ?? null);
     }
-  }, [open, defaultStatusId, statuses, projectId]);
+    // Reset only on open — a statuses swap (board picker) must not wipe the
+    // typed fields; the effect below keeps the status pick valid instead.
+  }, [open]);
+
+  useEffect(() => {
+    setStatusId((current) =>
+      statuses.some((s) => s.id === current) ? current : (defaultStatusId ?? statuses[0]?.id ?? ''),
+    );
+  }, [statuses, defaultStatusId]);
 
   const handleSubmit = () => {
     if (!title.trim() || !statusId) return;
@@ -114,6 +135,23 @@ export function CreateTaskDialog({
           <DialogTitle>New issue</DialogTitle>
         </DialogHeader>
         <div className="flex flex-col gap-3 py-2">
+          {boards && (
+            <Select value={boardId ?? ''} onValueChange={(v) => onBoardChange?.(v)}>
+              <SelectTrigger className="flex-1" aria-label="Board">
+                <SelectValue placeholder="Board" />
+              </SelectTrigger>
+              <SelectContent>
+                {boards.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>
+                    <span className="flex items-center gap-1.5">
+                      <span aria-hidden="true">{b.icon ?? '⭐'}</span>
+                      {b.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Input
             autoFocus
             value={title}

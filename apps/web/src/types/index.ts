@@ -332,7 +332,7 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
 };
 
 /**
- * Minimal project reference for pickers and card badges: the board's project
+ * Minimal project reference for pickers and card badges: the workspace project
  * list hydrates these (id/name/icon), pickers pass them down as props.
  */
 export interface ProjectMeta {
@@ -341,9 +341,9 @@ export interface ProjectMeta {
   icon?: string | null;
 }
 
+/** Workspace-level project row (Projects v2 — no boardId; tasks span boards). */
 export interface Project {
   id: string;
-  boardId: string;
   name: string;
   description?: string | null;
   icon?: string | null;
@@ -355,6 +355,15 @@ export interface Project {
   position: number;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * GET /api/projects list row: the project plus a { total, completed } rollup
+ * (completed = tasks whose status.type === 'done'), computed server-side
+ * because the list page has no board to fetch tasks from.
+ */
+export interface ProjectListItem extends Project {
+  progress: { total: number; completed: number };
 }
 
 /**

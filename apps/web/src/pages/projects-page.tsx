@@ -1,21 +1,21 @@
 /**
- * ProjectsPage — per-board project list at /board/:boardId/projects (TFG-34).
+ * ProjectsPage — workspace project list at /projects (TFG-34; global since
+ * Projects v2).
  *
- * Lists every project on the board (icon, name, status chip, lead display
+ * Lists every project in the workspace (icon, name, status chip, lead display
  * name, progress bar, target date) and offers a single "New project" CTA —
- * the screen's one Lime action per design.md. Progress is computed from the
- * board's task list client-side (status.type === 'done'), scoped per project.
+ * the screen's one Lime action per design.md. Progress comes from the list
+ * payload's server-side rollup (status.type === 'done'), since a project's
+ * tasks can span boards and this page has no board to fetch them from.
  *
  * design.md compliance: Obsidian card surfaces with 1px Graphite inset
  * borders, neutral progress fill (no Lime — the CTA owns it), status chip is
  * an outline Badge in Fog, JetBrains Mono for dates.
  */
 import { useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { FolderKanban, Plus } from 'lucide-react';
 import { useProjects, useCreateProject } from '@/hooks/use-projects';
-import { useBoardFull } from '@/hooks/use-boards';
-import { useTasksByBoard } from '@/hooks/use-tasks';
 import { useUserDirectory } from '@/hooks/use-users';
 import { useSocket } from '@/hooks/use-socket';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -33,7 +33,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { Project, ProjectStatus } from '@/types';
+import type { ProjectListItem, ProjectStatus } from '@/types';
 import { PROJECT_STATUS_LABELS } from '@/types';
 
 interface CreateProjectFormData {
@@ -164,28 +164,14 @@ function CreateProjectDialog({
 }
 
 export function ProjectsPage() {
-  const { boardId } = useParams<{ boardId: string }>();
   const navigate = useNavigate();
-  const { data: board } = useBoardFull(boardId!);
-  const { data: projects = [], isLoading } = useProjects(boardId!);
-  const { data: tasks = [] } = useTasksByBoard(boardId!);
+  const { data: projects = [], isLoading } = useProjects();
   const { data: directory = [] } = useUserDirectory();
-  const createProject = useCreateProject(boardId!);
+  const createProject = useCreateProject();
   const [createOpen, setCreateOpen] = useState(false);
-  // Board-room socket so project:created/updated/deleted + task.project.updated
-  // invalidations reach this page without a kanban/task-detail page mounted.
-  useSocket(boardId);
-
-  // Progress rollup: completed = tasks whose status.type === 'done', scoped
-  // per project. Tasks with no project don't contribute anywhere.
-  const progressByProject = new Map<string, { now: number; total: number }>();
-  for (const task of tasks) {
-    if (!task.projectId) continue;
-    const entry = progressByProject.get(task.projectId) ?? { now: 0, total: 0 };
-    entry.total += 1;
-    if (task.status?.type === 'done') entry.now += 1;
-    progressByProject.set(task.projectId, entry);
-  }
+  // Projects are workspace-level: project:* and task.project.updated are
+  // broadcast to every socket, so no board room is needed.
+  useSocket();
 
   const leadName = (leadId: string | null | undefined) =>
     directory.find((u) => u.id === leadId)?.displayName ?? null;
@@ -205,9 +191,7 @@ export function ProjectsPage() {
             className="md:hidden text-muted-foreground hover:text-foreground"
             aria-label="Toggle sidebar"
           />
-          <h1 className="text-sm font-medium text-foreground truncate">
-            {board?.icon ?? '⭐'} {board?.name ?? 'Board'} — Projects
-          </h1>
+          <h1 className="text-sm font-medium text-foreground truncate">Projects</h1>
         </div>
         <Button size="sm" onClick={() => setCreateOpen(true)}>
           <Plus className="size-4 mr-1.5" />
@@ -228,16 +212,16 @@ export function ProjectsPage() {
           </div>
         ) : (
           <div className="space-y-2">
-            {projects.map((project: Project) => {
-              const progress = progressByProject.get(project.id) ?? { now: 0, total: 0 };
+            {projects.map((project: ProjectListItem) => {
+              const progress = project.progress ?? { completed: 0, total: 0 };
               const pct =
-                progress.total > 0 ? Math.round((progress.now / progress.total) * 100) : 0;
+                progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
               const lead = leadName(project.leadId);
               return (
                 <button
                   key={project.id}
                   type="button"
-                  onClick={() => navigate(`/board/${boardId}/projects/${project.id}`)}
+                  onClick={() => navigate(`/projects/${project.id}`)}
                   className="flex w-full items-center gap-4 rounded-lg border border-border bg-card px-4 py-3 text-left shadow-sm transition-colors hover:border-foreground/20 hover:bg-accent/30"
                   data-testid="project-row"
                 >
@@ -266,7 +250,7 @@ export function ProjectsPage() {
                         />
                       </span>
                       <span className="text-xs text-muted-foreground tabular-nums">
-                        {progress.now}/{progress.total}
+                        {progress.completed}/{progress.total}
                       </span>
                     </span>
                   </span>
