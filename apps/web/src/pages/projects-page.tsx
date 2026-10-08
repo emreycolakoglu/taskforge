@@ -7,6 +7,7 @@
  * the screen's one Lime action per design.md. Progress comes from the list
  * payload's server-side rollup (status.type === 'done'), since a project's
  * tasks can span boards and this page has no board to fetch them from.
+ * Each row carries a ghost pencil button that opens EditProjectDialog.
  *
  * design.md compliance: Obsidian card surfaces with 1px Graphite inset
  * borders, neutral progress fill (no Lime — the CTA owns it), status chip is
@@ -14,7 +15,7 @@
  */
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FolderKanban, Plus } from 'lucide-react';
+import { FolderKanban, Pencil, Plus } from 'lucide-react';
 import { useProjects, useCreateProject } from '@/hooks/use-projects';
 import { useUserDirectory } from '@/hooks/use-users';
 import { useSocket } from '@/hooks/use-socket';
@@ -25,6 +26,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { EmojiPicker } from '@/components/emoji-picker';
+import { UserSelect } from '@/components/user-select';
+import { EditProjectDialog } from '@/components/edit-project-dialog';
+import type { AssigneeOption } from '@/components/detail-assignee-select';
 import {
   Dialog,
   DialogContent,
@@ -41,25 +45,29 @@ interface CreateProjectFormData {
   description: string;
   icon: string;
   status: ProjectStatus;
+  leadId: string | null;
   targetDate: string;
 }
 
-/** Small create dialog (name, description, icon, status, target date). */
+/** Small create dialog (name, description, icon, status, lead, target date). */
 function CreateProjectDialog({
   open,
   onOpenChange,
   onCreate,
   isPending,
+  users,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCreate: (data: CreateProjectFormData, onSuccess: () => void) => void;
   isPending: boolean;
+  users: AssigneeOption[];
 }) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [icon, setIcon] = useState('📦');
   const [status, setStatus] = useState<ProjectStatus>('planned');
+  const [leadId, setLeadId] = useState<string | null>(null);
   const [targetDate, setTargetDate] = useState('');
 
   const isValid = name.trim().length > 0;
@@ -72,6 +80,7 @@ function CreateProjectDialog({
         description: description.trim() || '',
         icon: icon || '📦',
         status,
+        leadId,
         targetDate: targetDate || '',
       },
       () => {
@@ -80,6 +89,7 @@ function CreateProjectDialog({
         setDescription('');
         setIcon('📦');
         setStatus('planned');
+        setLeadId(null);
         setTargetDate('');
       },
     );
@@ -140,6 +150,18 @@ function CreateProjectDialog({
               </select>
             </div>
             <div className="flex flex-col gap-2">
+              <Label htmlFor="project-lead">Lead</Label>
+              <UserSelect
+                id="project-lead"
+                value={leadId}
+                users={users}
+                onChange={setLeadId}
+                noneLabel="No lead"
+                ariaLabel="Lead"
+                className="w-full"
+              />
+            </div>
+            <div className="flex flex-col gap-2">
               <Label htmlFor="project-target-date">Target date</Label>
               <Input
                 id="project-target-date"
@@ -169,6 +191,11 @@ export function ProjectsPage() {
   const { data: directory = [] } = useUserDirectory();
   const createProject = useCreateProject();
   const [createOpen, setCreateOpen] = useState(false);
+  // editOpen is separate from editingId so the dialog stays mounted after it
+  // closes — its delete confirm lives in it and opens as the form closes.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+  const editing = projects.find((p) => p.id === editingId) ?? null;
   // Projects are workspace-level: project:* and task.project.updated are
   // broadcast to every socket, so no board room is needed.
   useSocket();
@@ -217,50 +244,65 @@ export function ProjectsPage() {
               const pct =
                 progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
               const lead = leadName(project.leadId);
+              // The edit button is a sibling overlaid on the row, not a child —
+              // a <button> can't nest inside the row's <button>.
               return (
-                <button
-                  key={project.id}
-                  type="button"
-                  onClick={() => navigate(`/projects/${project.id}`)}
-                  className="flex w-full items-center gap-4 rounded-lg border border-border bg-card px-4 py-3 text-left shadow-sm transition-colors hover:border-foreground/20 hover:bg-accent/30"
-                  data-testid="project-row"
-                >
-                  <span className="text-base leading-none shrink-0">{project.icon ?? '📦'}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className="truncate text-sm font-medium text-foreground">
-                        {project.name}
+                <div key={project.id} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/projects/${project.id}`)}
+                    className="flex w-full items-center gap-4 rounded-lg border border-border bg-card py-3 pl-4 pr-12 text-left shadow-sm transition-colors hover:border-foreground/20 hover:bg-accent/30"
+                    data-testid="project-row"
+                  >
+                    <span className="text-base leading-none shrink-0">{project.icon ?? '📦'}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2">
+                        <span className="truncate text-sm font-medium text-foreground">
+                          {project.name}
+                        </span>
+                        <Badge variant="outline" className="text-muted-foreground">
+                          {PROJECT_STATUS_LABELS[project.status as ProjectStatus] ?? project.status}
+                        </Badge>
                       </span>
-                      <Badge variant="outline" className="text-muted-foreground">
-                        {PROJECT_STATUS_LABELS[project.status as ProjectStatus] ?? project.status}
-                      </Badge>
-                    </span>
-                    <span className="mt-1.5 flex items-center gap-2">
-                      <span
-                        role="progressbar"
-                        aria-label={`${project.name} progress`}
-                        aria-valuenow={pct}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        className="h-1.5 w-40 max-w-full overflow-hidden rounded-full border border-border bg-secondary"
-                      >
+                      <span className="mt-1.5 flex items-center gap-2">
                         <span
-                          className="block h-full rounded-full bg-muted-foreground/40 transition-[width]"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </span>
-                      <span className="text-xs text-muted-foreground tabular-nums">
-                        {progress.completed}/{progress.total}
+                          role="progressbar"
+                          aria-label={`${project.name} progress`}
+                          aria-valuenow={pct}
+                          aria-valuemin={0}
+                          aria-valuemax={100}
+                          className="h-1.5 w-40 max-w-full overflow-hidden rounded-full border border-border bg-secondary"
+                        >
+                          <span
+                            className="block h-full rounded-full bg-muted-foreground/40 transition-[width]"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </span>
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {progress.completed}/{progress.total}
+                        </span>
                       </span>
                     </span>
-                  </span>
-                  {lead && <span className="text-xs text-muted-foreground shrink-0">{lead}</span>}
-                  {project.targetDate && (
-                    <span className="font-mono text-xs text-muted-foreground shrink-0">
-                      {formatDate(project.targetDate)}
-                    </span>
-                  )}
-                </button>
+                    {lead && <span className="text-xs text-muted-foreground shrink-0">{lead}</span>}
+                    {project.targetDate && (
+                      <span className="font-mono text-xs text-muted-foreground shrink-0">
+                        {formatDate(project.targetDate)}
+                      </span>
+                    )}
+                  </button>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-2 top-1/2 size-7 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    aria-label={`Edit ${project.name}`}
+                    onClick={() => {
+                      setEditingId(project.id);
+                      setEditOpen(true);
+                    }}
+                  >
+                    <Pencil className="size-3.5" />
+                  </Button>
+                </div>
               );
             })}
           </div>
@@ -271,6 +313,7 @@ export function ProjectsPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         isPending={createProject.isPending}
+        users={directory}
         onCreate={(data, onSuccess) =>
           createProject.mutate(
             {
@@ -278,12 +321,17 @@ export function ProjectsPage() {
               description: data.description || undefined,
               icon: data.icon,
               status: data.status,
+              leadId: data.leadId ?? undefined,
               targetDate: data.targetDate || undefined,
             },
             { onSuccess },
           )
         }
       />
+
+      {editing && (
+        <EditProjectDialog project={editing} open={editOpen} onOpenChange={setEditOpen} />
+      )}
     </div>
   );
 }

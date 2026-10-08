@@ -1,5 +1,5 @@
 /**
- * ProjectDetailPage — read-only project detail at /projects/:projectId
+ * ProjectDetailPage — project detail at /projects/:projectId
  * (TFG-34; global since Projects v2 — a project's tasks can span boards).
  *
  * Renders the GET /api/projects/:id rollup: header (icon, name, lifecycle
@@ -7,7 +7,9 @@
  * tasks grouped by status (the payload is ordered status.position then
  * position; grouping preserves first-appearance order), and the server's
  * progress rollup as a neutral bar. Task rows link to their own board-scoped
- * route (/board/:boardId/task/:taskId) — tasks stay board-scoped.
+ * route (/board/:boardId/task/:taskId) — tasks stay board-scoped. The
+ * header's outline "Edit" button opens EditProjectDialog (deleting from it
+ * navigates back to /projects).
  *
  * design.md compliance: Obsidian card surfaces with 1px Graphite inset
  * borders, no bright fills, no gradients; the Add task button is the page's
@@ -17,7 +19,7 @@
  */
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useState } from 'react';
-import { ArrowLeft, FolderKanban, Plus } from 'lucide-react';
+import { ArrowLeft, FolderKanban, Pencil, Plus } from 'lucide-react';
 import { useProject } from '@/hooks/use-projects';
 import { useBoardFull, useBoards } from '@/hooks/use-boards';
 import { useCreateTask } from '@/hooks/use-tasks';
@@ -29,6 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProgressIcon } from '@/components/progress-icon';
 import { CreateTaskDialog } from '@/components/create-task-dialog';
+import { EditProjectDialog } from '@/components/edit-project-dialog';
 import type { ProjectDetail, ProjectStatus, Task } from '@/types';
 import { PROJECT_STATUS_LABELS } from '@/types';
 
@@ -94,6 +97,7 @@ export function ProjectDetailPage() {
   const { data: board } = useBoardFull(boardId);
   const createTask = useCreateTask();
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
   // Projects are workspace-level: project:* and task.project.updated are
   // broadcast to every socket, so this page needs no board room.
   useSocket();
@@ -199,10 +203,21 @@ export function ProjectDetailPage() {
           </span>
           <span className="truncate text-foreground">{project.name}</span>
         </nav>
+        {/* Secondary action — outline, so Add task stays the only Lime CTA */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="ml-auto shrink-0"
+          aria-label="Edit project"
+          onClick={() => setEditOpen(true)}
+        >
+          <Pencil className="size-4" />
+          <span className="hidden sm:inline">Edit</span>
+        </Button>
         {/* The page's single primary CTA — Acid Lime (design.md) */}
         <Button
           size="sm"
-          className="ml-auto shrink-0"
+          className="shrink-0"
           aria-label="Add task"
           onClick={() => setCreateTaskOpen(true)}
         >
@@ -327,16 +342,24 @@ export function ProjectDetailPage() {
                           <span className="text-sm text-foreground truncate flex-1">
                             {task.title}
                           </span>
-                          {(task.labels ?? []).map((tl) => (
-                            <Badge key={tl.labelId} variant="outline" className="shrink-0">
-                              <span
-                                className="size-2 shrink-0 rounded-sm"
-                                style={{ backgroundColor: tl.label.color }}
-                                aria-hidden="true"
-                              />
-                              {tl.label.name}
-                            </Badge>
-                          ))}
+                          {(task.labels ?? []).length > 0 && (
+                            <span className="flex min-w-0 max-w-[50%] flex-wrap justify-end gap-1">
+                              {(task.labels ?? []).map((tl) => (
+                                <Badge
+                                  key={tl.labelId}
+                                  variant="outline"
+                                  className="min-w-0 max-w-full shrink"
+                                >
+                                  <span
+                                    className="size-2 shrink-0 rounded-sm"
+                                    style={{ backgroundColor: tl.label.color }}
+                                    aria-hidden="true"
+                                  />
+                                  <span className="truncate">{tl.label.name}</span>
+                                </Badge>
+                              ))}
+                            </span>
+                          )}
                           {task.assignee && (
                             <span
                               className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-[9px] font-semibold"
@@ -367,6 +390,13 @@ export function ProjectDetailPage() {
         boardId={boardId}
         onBoardChange={setPickedBoardId}
         onSubmit={handleCreateTask}
+      />
+
+      <EditProjectDialog
+        project={project}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onDeleted={() => navigate('/projects')}
       />
     </div>
   );

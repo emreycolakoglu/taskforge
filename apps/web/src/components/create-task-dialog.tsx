@@ -4,7 +4,7 @@
  * Opened from the board header "New Issue" CTA (and, preset to a project, from
  * the project detail page's "Add task" CTA). Fields: title (autofocus, Enter
  * submits), description (Textarea), status (Select), priority (Select), assignee
- * (Select with avatar initial, reuses the DetailAssigneeSelect visual), and the
+ * (the shared UserSelect, also used by the project lead pickers), and the
  * project picker (TFG-34). The submit button is the Acid Lime
  * primary CTA — the modal is a focused conversion moment (design.md: a modal is
  * arguably a second screen, so Lime is permitted here).
@@ -22,6 +22,7 @@
 import { useState, useEffect } from 'react';
 import type { Board, Status, Task, ProjectMeta } from '@/types';
 import type { AssigneeOption } from '@/components/detail-assignee-select';
+import { UserSelect } from '@/components/user-select';
 import {
   Dialog,
   DialogContent,
@@ -39,7 +40,6 @@ import {
   SelectItem,
   SelectValue,
 } from '@/components/ui/select';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 
 interface CreateTaskDialogProps {
   open: boolean;
@@ -125,8 +125,6 @@ export function CreateTaskDialog({
     });
     onOpenChange(false);
   };
-
-  const selectedUser = users.find((u) => u.id === assigneeId) ?? null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -221,34 +219,13 @@ export function CreateTaskDialog({
               </SelectContent>
             </Select>
           )}
-          <Select
-            value={assigneeId ?? '__none__'}
-            onValueChange={(v) => setAssigneeId(v === '__none__' ? null : v)}
-          >
-            <SelectTrigger className="flex-1">
-              <Avatar className="size-5 border-0">
-                <AvatarFallback className="text-[9px] font-semibold bg-muted text-muted-foreground">
-                  {selectedUser ? selectedUser.displayName.charAt(0).toUpperCase() : '+'}
-                </AvatarFallback>
-              </Avatar>
-              <SelectValue placeholder="Assignee" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__none__">Unassigned</SelectItem>
-              {users.map((u) => (
-                <SelectItem key={u.id} value={u.id}>
-                  <span className="flex items-center gap-1.5">
-                    <Avatar className="size-5 border-0">
-                      <AvatarFallback className="text-[9px] font-semibold bg-muted text-muted-foreground">
-                        {u.displayName.charAt(0).toUpperCase()}
-                      </AvatarFallback>
-                    </Avatar>
-                    {u.displayName}
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <UserSelect
+            value={assigneeId}
+            users={users}
+            onChange={setAssigneeId}
+            placeholder="Assignee"
+            ariaLabel="Assignee"
+          />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

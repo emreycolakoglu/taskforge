@@ -29,6 +29,25 @@ vi.mock('@/components/create-task-dialog', () => ({
   },
 }));
 
+// The edit dialog is tested on its own; the page pins the entry point and
+// the post-delete navigation.
+const mockEditProjectDialog = vi.hoisted(() => vi.fn());
+vi.mock('@/components/edit-project-dialog', () => ({
+  EditProjectDialog: (props: unknown) => {
+    mockEditProjectDialog(props);
+    return null;
+  },
+}));
+
+function editDialogProps() {
+  return mockEditProjectDialog.mock.calls.at(-1)?.[0] as {
+    open: boolean;
+    project: { id: string };
+    onOpenChange: (open: boolean) => void;
+    onDeleted?: () => void;
+  };
+}
+
 // Latest dialog props, as captured from the last render.
 function dialogProps() {
   return mockCreateTaskDialog.mock.calls.at(-1)?.[0] as {
@@ -447,5 +466,34 @@ describe('ProjectDetailPage — workspace-level project (Projects v2)', () => {
     expect(createTaskMutate).toHaveBeenCalledWith(
       expect.objectContaining({ title: 'On infra', projectId: 'p1', boardId: 'b2' }),
     );
+  });
+});
+
+describe('ProjectDetailPage — edit entry point (Projects v2)', () => {
+  it('opens the edit dialog for this project from the header', async () => {
+    renderPage();
+    expect(editDialogProps().open).toBe(false);
+
+    await userEvent.click(screen.getByRole('button', { name: 'Edit project' }));
+
+    expect(editDialogProps().open).toBe(true);
+    expect(editDialogProps().project.id).toBe('p1');
+  });
+
+  it('returns to the projects list after the project is deleted', () => {
+    renderPage();
+
+    act(() => editDialogProps().onDeleted!());
+
+    expect(screen.getByText('projects list')).toBeInTheDocument();
+  });
+
+  it('wraps and truncates task-row labels instead of overflowing the row', () => {
+    renderPage();
+
+    const badge = screen.getByText('Bug').closest('div') as HTMLElement;
+    expect(badge.className).toMatch(/\bmin-w-0\b/);
+    expect(badge.parentElement!.className).toMatch(/\bflex-wrap\b/);
+    expect(badge.parentElement!.className).toMatch(/\bmin-w-0\b/);
   });
 });

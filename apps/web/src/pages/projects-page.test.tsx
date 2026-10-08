@@ -49,6 +49,8 @@ vi.mock('@/hooks/use-projects', () => ({
   useProjects: () => ({ data: data.projects, isLoading: false }),
   useProject: () => ({ data: undefined, isLoading: false }),
   useCreateProject: () => ({ mutate: createMutate, isPending: false }),
+  useUpdateProject: () => ({ mutate: vi.fn(), isPending: false }),
+  useDeleteProject: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 // The list page is global (Projects v2): progress comes from the API payload,
 // so no board-scoped hook may be touched. These mocks fail loudly if one is.
@@ -149,5 +151,32 @@ describe('ProjectsPage', () => {
       expect.objectContaining({ name: 'Roadmap', icon: '📦', status: 'planned' }),
       expect.anything(),
     );
+  });
+
+  it('picks a lead in the create dialog from the user directory', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: /new project/i }));
+    await user.type(screen.getByLabelText('Name'), 'Led');
+    await user.click(screen.getByRole('combobox', { name: 'Lead' }));
+    await user.click(await screen.findByRole('option', { name: /alice/i }));
+    await user.click(screen.getByRole('button', { name: 'Create project' }));
+
+    expect(createMutate).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: 'Led', leadId: 'u1' }),
+      expect.anything(),
+    );
+  });
+
+  it('opens the edit dialog from a row without navigating', async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole('button', { name: 'Edit Roadmap' }));
+
+    expect(screen.getByRole('heading', { name: 'Edit project' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Name')).toHaveValue('Roadmap');
+    expect(screen.queryByText('project detail')).toBeNull();
   });
 });

@@ -109,4 +109,50 @@ describe('TaskCard', () => {
 
     expect(screen.queryByLabelText(/Project:/)).not.toBeInTheDocument();
   });
+
+  // Browser feedback: the badge row overflowed the card when its chips didn't
+  // fit. It must wrap, and long project/label names must truncate.
+  describe('badge row wrapping', () => {
+    const longTask = () =>
+      makeTask({
+        estimate: 5,
+        blockedByCount: 1,
+        project: { id: 'p1', name: 'A very long project name that cannot fit', icon: '📦' },
+        labels: [
+          {
+            taskId: 't1',
+            labelId: 'l1',
+            assignedAt: '2026-01-01T00:00:00Z',
+            label: {
+              id: 'l1',
+              boardId: 'b1',
+              name: 'An extremely long label name',
+              color: '#f00',
+              createdAt: '2026-01-01T00:00:00Z',
+              updatedAt: '2026-01-01T00:00:00Z',
+            },
+          },
+        ],
+      });
+
+    it('wraps the badge row and its chip group', () => {
+      renderWithClient(<TaskCard task={longTask()} />);
+      const row = screen.getByTestId('task-card-badges');
+      expect(row.className).toMatch(/\bflex-wrap\b/);
+      expect(row.className).toMatch(/\bmin-w-0\b/);
+      const group = screen.getByLabelText(/^Project:/).parentElement!;
+      expect(group.className).toMatch(/\bflex-wrap\b/);
+      expect(group.className).toMatch(/\bmin-w-0\b/);
+      expect(group.className).not.toMatch(/\bshrink-0\b/);
+    });
+
+    it('truncates long project and label chips', () => {
+      renderWithClient(<TaskCard task={longTask()} />);
+      const projectName = screen.getByText('A very long project name that cannot fit');
+      expect(projectName.className).toMatch(/\btruncate\b/);
+      expect(screen.getByLabelText(/^Project:/).className).toMatch(/\bmin-w-0\b/);
+      const labelName = screen.getByText('An extremely long label name');
+      expect(labelName.className).toMatch(/\btruncate\b/);
+    });
+  });
 });

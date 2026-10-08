@@ -12,6 +12,7 @@
  * Row 1: priority icon → task number (mono) → parent task name (if any, truncate) → assignee avatar.
  * Title row: task title, clamped to two lines (weight 400).
  * Row 3 (only if metadata exists): parent ref → label pills → comments → blocked → label manager (+).
+ *   Wraps onto extra lines when the chips don't fit; long project/label names truncate.
  *
  * design.md compliance: no Lime anywhere on the card. Border-defined edges
  * (Graphite inset border), no bright fills. Priority uses Crimson/Indigo —
@@ -86,12 +87,12 @@ export function TaskCard({
   const projectChip = task.project ? (
     <Badge
       variant={'outline'}
-      className="text-muted-foreground"
+      className="min-w-0 max-w-full shrink text-muted-foreground"
       aria-label={`Project: ${task.project.name}`}
       title={`Project: ${task.project.name}`}
     >
       {task.project.icon && <span aria-hidden="true">{task.project.icon}</span>}
-      {task.project.name}
+      <span className="truncate">{task.project.name}</span>
     </Badge>
   ) : null;
 
@@ -138,15 +139,19 @@ export function TaskCard({
         <span className="text-sm text-foreground line-clamp-2">{task.title}</span>
       </div>
 
-      {/* Row 3  */}
-      <div className="flex items-center gap-1.5 text-muted-foreground text-xs min-w-0">
-        <div className="flex items-center gap-1 shrink-0">
+      {/* Row 3 — wraps instead of overflowing the card; long chips truncate */}
+      <div
+        data-testid="task-card-badges"
+        className="flex flex-wrap items-center gap-1.5 text-muted-foreground text-xs min-w-0"
+      >
+        <div className="flex flex-wrap items-center gap-1 min-w-0 max-w-full">
           {priorityIcon()}
           {projectChip}
           {visibleLabels.map((tl) => (
             <Badge
               key={tl.labelId}
               variant={'outline'}
+              className="min-w-0 max-w-full shrink"
               style={{
                 color: '#f7f8f8',
               }}
@@ -155,7 +160,7 @@ export function TaskCard({
                 data-icon="inline-start"
                 style={{ color: tl.label.color, fill: tl.label.color }}
               />
-              {tl.label.name}
+              <span className="truncate">{tl.label.name}</span>
             </Badge>
           ))}
           {overflowCount > 0 && (

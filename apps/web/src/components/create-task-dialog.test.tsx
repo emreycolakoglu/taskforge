@@ -161,3 +161,15 @@ describe('CreateTaskDialog — board picker mode (Projects v2)', () => {
     );
   });
 });
+
+describe('CreateTaskDialog — assignee (shared UserSelect)', () => {
+  it('sends the picked assignee', async () => {
+    const user = userEvent.setup();
+    const { onSubmit } = renderDialog();
+    await user.type(screen.getByPlaceholderText('Issue title...'), 'Assigned');
+    await user.click(screen.getByRole('combobox', { name: 'Assignee' }));
+    await user.click(await screen.findByRole('option', { name: /grace hopper/i }));
+    await user.click(screen.getByRole('button', { name: 'Create issue' }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ assigneeId: 'u2' }));
+  });
+});
