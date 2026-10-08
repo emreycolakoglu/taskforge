@@ -13,6 +13,7 @@ import { MembersModule } from '../members/members.module';
 import { LabelsModule } from '../labels/labels.module';
 import { StatusesModule } from '../statuses/statuses.module';
 import { ViewsModule } from '../views/views.module';
+import { ProjectsModule } from '../projects/projects.module';
 import { AttachmentsModule } from '../attachments/attachments.module';
 
 @Module({
@@ -28,6 +29,7 @@ import { AttachmentsModule } from '../attachments/attachments.module';
     LabelsModule,
     StatusesModule,
     ViewsModule,
+    ProjectsModule,
     AttachmentsModule,
   ],
   controllers: [McpTransportController],

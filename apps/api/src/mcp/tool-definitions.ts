@@ -161,12 +161,18 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       labelIds: z.array(z.string()).optional(),
       position: z.number().optional(),
       metadata: z.record(z.unknown()).optional(),
+      projectId: z
+        .string()
+        .nullable()
+        .optional()
+        .describe('Project id to link the task to (must be on the same board)'),
     },
   },
   {
     name: 'tasks_update',
     title: 'Update task',
-    description: 'Update one or more task fields. parentId: null un-nests.',
+    description:
+      'Update one or more task fields. parentId: null un-nests. projectId: null un-links.',
     inputSchema: {
       id: idField('Task'),
       title: z.string().optional(),
@@ -178,6 +184,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
       statusId: z.string().optional(),
       position: z.number().optional(),
       parentId: z.string().nullable().optional(),
+      projectId: z.string().nullable().optional().describe('Project id to link; null to un-link'),
       labelIds: z.array(z.string()).optional(),
     },
   },
@@ -324,6 +331,64 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     description:
       'Delete a saved view. Personal views: owner only. Shared views: owner or board admins.',
     inputSchema: { id: idField('View') },
+  },
+
+  // projects
+  {
+    name: 'projects_list',
+    title: 'List projects',
+    description: 'List projects on a board, ordered by position.',
+    inputSchema: { boardId: idField('Board') },
+  },
+  {
+    name: 'projects_get',
+    title: 'Get project',
+    description:
+      'Get a single project with its linked tasks and a progress rollup ({ total, completed, byStatus }).',
+    inputSchema: { id: idField('Project') },
+  },
+  {
+    name: 'projects_create',
+    title: 'Create project',
+    description:
+      'Create a project on a board. Requires board admin (or a legacy board with no members). Icon defaults to 📦, status defaults to planned; position is appended at the end of the board.',
+    inputSchema: {
+      boardId: idField('Board'),
+      name: z.string(),
+      description: z.string().optional(),
+      icon: z.string().optional().describe('Emoji icon for the project, defaults to 📦'),
+      leadId: optionalId('Lead user'),
+      status: z
+        .enum(['planned', 'started', 'completed', 'paused', 'canceled'])
+        .optional()
+        .describe('Defaults to planned'),
+      startDate: z.string().optional().describe('ISO date string'),
+      targetDate: z.string().optional().describe('ISO date string'),
+    },
+  },
+  {
+    name: 'projects_update',
+    title: 'Update project',
+    description:
+      "Update a project's name, description, icon, lead, status, dates, or position. Requires board admin. Moving status into/out of completed stamps/clears completedAt.",
+    inputSchema: {
+      id: idField('Project'),
+      name: z.string().optional(),
+      description: z.string().optional(),
+      icon: z.string().optional(),
+      leadId: optionalId('Lead user'),
+      status: z.enum(['planned', 'started', 'completed', 'paused', 'canceled']).optional(),
+      startDate: z.string().optional().describe('ISO date string'),
+      targetDate: z.string().optional().describe('ISO date string'),
+      position: z.number().optional(),
+    },
+  },
+  {
+    name: 'projects_delete',
+    title: 'Delete project',
+    description:
+      'Delete a project. Linked tasks survive with their project link cleared (SetNull). Requires board admin.',
+    inputSchema: { id: idField('Project') },
   },
 
   // activity

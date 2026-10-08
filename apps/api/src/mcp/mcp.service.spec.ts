@@ -15,6 +15,7 @@ import { MembersService } from '../members/members.service';
 import { LabelsService } from '../labels/labels.service';
 import { StatusesService } from '../statuses/statuses.service';
 import { ViewsService } from '../views/views.service';
+import { ProjectsService } from '../projects/projects.service';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { LocalDiskDriver } from '../storage/local-disk.driver';
 import {
@@ -27,6 +28,7 @@ import {
   seedRelation,
   seedDocument,
   seedView,
+  seedProject,
   seedAttachment,
 } from '../../test/setup';
 
@@ -58,6 +60,7 @@ describe('McpService', () => {
         LabelsService,
         StatusesService,
         ViewsService,
+        ProjectsService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
         { provide: SubscriptionsService, useValue: new SubscriptionsService(prisma) },
@@ -95,6 +98,7 @@ describe('McpService', () => {
     await prisma.document.deleteMany();
     await prisma.view.deleteMany();
     await prisma.task.deleteMany();
+    await prisma.project.deleteMany();
     await prisma.label.deleteMany();
     await prisma.status.deleteMany();
     await prisma.member.deleteMany();
@@ -441,6 +445,93 @@ describe('McpService', () => {
         user,
       );
       expect(res.result.estimate).toBeNull();
+    });
+
+    it('tasks_update with projectId links the task and logs project activity', async () => {
+      const project = await seedProject(prisma, board.id, { name: 'Roadmap' });
+      const task = await seedTask(prisma, board.statuses[0].id, { title: 'Linkable' });
+      const emitted: Array<{
+        event: string;
+        data: { id?: string; previousProjectId?: string | null };
+      }> = [];
+      const subscription = events.observe().subscribe((payload) => {
+        if (payload.event === 'task.project.updated') emitted.push(payload);
+      });
+      const res = await service.handleRequest(
+        {
+          method: 'tasks_update',
+          params: { id: task.id, projectId: project.id },
+          id: 25,
+        },
+        user,
+      );
+      subscription.unsubscribe();
+      expect(res.error).toBeUndefined();
+      expect(res.result.projectId).toBe(project.id);
+      expect(res.result.project).toMatchObject({ id: project.id, name: 'Roadmap' });
+      // TasksService parity: dedicated event scoped to the board, carrying the
+      // project the task moved away from (null here).
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].data.id).toBe(task.id);
+      expect(emitted[0].data.previousProjectId).toBeNull();
+      const activity = await prisma.activity.findFirst({
+        where: { taskId: task.id, action: 'updated' },
+        orderBy: { createdAt: 'desc' },
+      });
+      const detail = JSON.parse(activity!.detail ?? '{}');
+      expect(detail.changes).toEqual(['added to project: Roadmap']);
+    });
+
+    it('tasks_update with projectId: null clears the link and logs removal', async () => {
+      const project = await seedProject(prisma, board.id, { name: 'Roadmap' });
+      const task = await seedTask(prisma, board.statuses[0].id, {
+        title: 'Linked',
+        projectId: project.id,
+      });
+      const res = await service.handleRequest(
+        { method: 'tasks_update', params: { id: task.id, projectId: null }, id: 26 },
+        user,
+      );
+      expect(res.error).toBeUndefined();
+      expect(res.result.projectId).toBeNull();
+      expect(res.result.project).toBeNull();
+      const activity = await prisma.activity.findFirst({
+        where: { taskId: task.id, action: 'updated' },
+        orderBy: { createdAt: 'desc' },
+      });
+      const detail = JSON.parse(activity!.detail ?? '{}');
+      expect(detail.changes).toEqual(['removed from project']);
+    });
+
+    it('tasks_update with a foreign-board project → error result', async () => {
+      const otherBoard = await seedBoard(prisma);
+      const foreignProject = await seedProject(prisma, otherBoard.id, { name: 'Foreign' });
+      const task = await seedTask(prisma, board.statuses[0].id, { title: 'Local' });
+      const res = await service.handleRequest(
+        {
+          method: 'tasks_update',
+          params: { id: task.id, projectId: foreignProject.id },
+          id: 27,
+        },
+        user,
+      );
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('Project is on a different board');
+    });
+
+    it('tasks_create with projectId creates the task already linked', async () => {
+      const project = await seedProject(prisma, board.id, { name: 'Roadmap' });
+      const res = await service.handleRequest(
+        {
+          method: 'tasks_create',
+          params: { statusId: board.statuses[0].id, title: 'Born linked', projectId: project.id },
+          id: 28,
+        },
+        user,
+      );
+      expect(res.error).toBeUndefined();
+      expect(res.result.projectId).toBe(project.id);
+      expect(res.result.project).toMatchObject({ id: project.id, name: 'Roadmap' });
     });
   });
 
@@ -1134,6 +1225,217 @@ describe('McpService', () => {
       expect(await prisma.view.findUnique({ where: { id: view.id } })).toBeNull();
       expect(res.result).toBeUndefined();
     });
+  });
+
+  // ─── Projects ───
+
+  describe('projects_list', () => {
+    it('should list projects for a board in position order', async () => {
+      await seedProject(prisma, board.id, { name: 'Roadmap', position: 1 });
+      await seedProject(prisma, board.id, { name: 'Infra', position: 0 });
+      await seedProject(prisma, (await seedBoard(prisma)).id, { name: 'Elsewhere' });
+
+      const res = await service.handleRequest(
+        { method: 'projects_list', params: { boardId: board.id }, id: 610 },
+        user,
+      );
+      expect(res.error).toBeUndefined();
+      expect(res.result.map((p: any) => p.name)).toEqual(['Infra', 'Roadmap']);
+    });
+
+    it('should require boardId', async () => {
+      const res = await service.handleRequest(
+        { method: 'projects_list', params: {}, id: 611 },
+        user,
+      );
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('boardId is required');
+    });
+  });
+
+  describe('projects_get', () => {
+    it('should return a project with tasks and progress', async () => {
+      const project = await seedProject(prisma, board.id, { name: 'Roadmap' });
+      await seedTask(prisma, board.statuses[0].id, { title: 'Linked', projectId: project.id });
+      const res = await service.handleRequest(
+        { method: 'projects_get', params: { id: project.id }, id: 612 },
+        user,
+      );
+      expect(res.error).toBeUndefined();
+      expect(res.result.name).toBe('Roadmap');
+      expect(res.result.tasks).toHaveLength(1);
+      expect(res.result.tasks[0].projectId).toBe(project.id);
+      expect(res.result.progress).toEqual({ total: 1, completed: 0, byStatus: { backlog: 1 } });
+    });
+
+    it('should error for a non-existent project', async () => {
+      const res = await service.handleRequest(
+        { method: 'projects_get', params: { id: 'nonexistent' }, id: 613 },
+        user,
+      );
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('Project not found');
+    });
+  });
+
+  describe('projects_create', () => {
+    it('should create a project and emit project:created', async () => {
+      const emitted: any[] = [];
+      const subscription = events.observe().subscribe((payload) => {
+        if (payload.event === 'project:created') emitted.push(payload);
+      });
+      const res = await service.handleRequest(
+        {
+          method: 'projects_create',
+          params: {
+            boardId: board.id,
+            name: 'MCP Project',
+            description: 'via MCP',
+            icon: '🚀',
+            status: 'started',
+            startDate: '2026-10-01',
+            targetDate: '2026-12-31',
+          },
+          id: 614,
+        },
+        user,
+      );
+      subscription.unsubscribe();
+      expect(res.error).toBeUndefined();
+      expect(res.result.name).toBe('MCP Project');
+      expect(res.result.icon).toBe('🚀');
+      expect(res.result.status).toBe('started');
+      expect(res.result.boardId).toBe(board.id);
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].data.boardId).toBe(board.id);
+    });
+
+    it('should default icon to 📦 and status to planned', async () => {
+      const res = await service.handleRequest(
+        { method: 'projects_create', params: { boardId: board.id, name: 'Defaults' }, id: 615 },
+        user,
+      );
+      expect(res.result.icon).toBe('📦');
+      expect(res.result.status).toBe('planned');
+    });
+
+    it('should reject a non-admin board member', async () => {
+      const b = await seedBoard(prisma);
+      const admin = await seedUser(prisma, { displayName: 'Admin' });
+      await prisma.member.create({ data: { boardId: b.id, userId: admin.id, role: 'admin' } });
+      const member = await seedUser(prisma, { displayName: 'Member' });
+      await prisma.member.create({ data: { boardId: b.id, userId: member.id, role: 'member' } });
+      const res = await service.handleRequest(
+        { method: 'projects_create', params: { boardId: b.id, name: 'Sneaky' }, id: 616 },
+        { id: member.id, displayName: member.displayName, role: member.role },
+      );
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('Only board admins can manage projects');
+    });
+  });
+
+  describe('projects_update', () => {
+    it('should update a project as a board admin', async () => {
+      const project = await seedProject(prisma, board.id, { name: 'Before' });
+      const emitted: any[] = [];
+      const subscription = events.observe().subscribe((payload) => {
+        if (payload.event === 'project:updated') emitted.push(payload);
+      });
+      const res = await service.handleRequest(
+        {
+          method: 'projects_update',
+          params: { id: project.id, name: 'After', status: 'completed' },
+          id: 617,
+        },
+        user,
+      );
+      subscription.unsubscribe();
+      expect(res.error).toBeUndefined();
+      expect(res.result.name).toBe('After');
+      expect(res.result.status).toBe('completed');
+      expect(res.result.completedAt).not.toBeNull();
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].data.boardId).toBe(board.id);
+    });
+
+    it('should clear completedAt when leaving completed', async () => {
+      const project = await seedProject(prisma, board.id, {
+        name: 'Done once',
+        status: 'completed',
+        completedAt: new Date(),
+      });
+      const res = await service.handleRequest(
+        { method: 'projects_update', params: { id: project.id, status: 'started' }, id: 618 },
+        user,
+      );
+      expect(res.result.completedAt).toBeNull();
+    });
+
+    it('should reject the update from a non-admin member', async () => {
+      const b = await seedBoard(prisma);
+      const admin = await seedUser(prisma, { displayName: 'Admin' });
+      await prisma.member.create({ data: { boardId: b.id, userId: admin.id, role: 'admin' } });
+      const member = await seedUser(prisma, { displayName: 'Member' });
+      await prisma.member.create({ data: { boardId: b.id, userId: member.id, role: 'member' } });
+      const project = await seedProject(prisma, b.id, { name: 'Locked' });
+      const res = await service.handleRequest(
+        { method: 'projects_update', params: { id: project.id, name: 'Hacked' }, id: 619 },
+        { id: member.id, displayName: member.displayName, role: member.role },
+      );
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('Only board admins can manage projects');
+    });
+  });
+
+  describe('projects_delete', () => {
+    it('should delete a project and unlink its tasks (SetNull)', async () => {
+      const project = await seedProject(prisma, board.id, { name: 'Doomed' });
+      const task = await seedTask(prisma, board.statuses[0].id, {
+        title: 'Survivor',
+        projectId: project.id,
+      });
+      const emitted: any[] = [];
+      const subscription = events.observe().subscribe((payload) => {
+        if (payload.event === 'project:deleted') emitted.push(payload);
+      });
+      const res = await service.handleRequest(
+        { method: 'projects_delete', params: { id: project.id }, id: 620 },
+        user,
+      );
+      subscription.unsubscribe();
+      expect(res.error).toBeUndefined();
+      expect(await prisma.project.findUnique({ where: { id: project.id } })).toBeNull();
+      const survivor = await prisma.task.findUnique({ where: { id: task.id } });
+      expect(survivor).not.toBeNull();
+      expect(survivor!.projectId).toBeNull();
+      expect(emitted).toHaveLength(1);
+      expect(emitted[0].data).toEqual({ id: project.id });
+      expect(emitted[0].boardId).toBe(board.id);
+    });
+
+    it('should error for a non-existent project', async () => {
+      const res = await service.handleRequest(
+        { method: 'projects_delete', params: { id: 'nonexistent' }, id: 621 },
+        user,
+      );
+      expect(res.error).toBeDefined();
+      expect(res.error.message).toContain('Project not found');
+    });
+  });
+
+  it('projects dispatch with unknown action → error result', async () => {
+    const res = await service.handleRequest(
+      { method: 'projects_frobnicate', params: {}, id: 622 },
+      user,
+    );
+    expect(res.error).toBeDefined();
+    expect(res.error.message).toContain('Unknown projects action');
+  });
+
+  it('projects_get without user → JSON-RPC error', async () => {
+    const res = await service.handleRequest({ method: 'projects_get', params: {}, id: 623 });
+    expect(res.error).toBeDefined();
+    expect(res.error.message).toContain('Authentication required');
   });
 
   // ─── Activity ───

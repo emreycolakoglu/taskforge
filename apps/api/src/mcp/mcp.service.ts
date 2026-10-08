@@ -11,6 +11,7 @@ import { MembersService } from '../members/members.service';
 import { LabelsService } from '../labels/labels.service';
 import { StatusesService } from '../statuses/statuses.service';
 import { ViewsService } from '../views/views.service';
+import { ProjectsService } from '../projects/projects.service';
 import { AttachmentsService, SubjectType } from '../attachments/attachments.service';
 import { DEFAULT_STATUSES } from '../statuses/status-defaults';
 import { isTerminalType, stampsDoneAt } from '../statuses/status-types';
@@ -49,6 +50,25 @@ async function validateParent(
   }
 }
 
+/**
+ * Inline mirror of TasksService.validateProject (project rules P1-P2).
+ * P1: project must exist. P2: project must belong to the same board as the
+ * task. `projectId: null` is always allowed (un-assign).
+ */
+async function validateProject(
+  prisma: PrismaService,
+  projectId: string | null,
+  boardId: string,
+): Promise<{ id: string; name: string } | null> {
+  if (projectId === null) return null;
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  if (!project) throw new NotFoundException('Project not found');
+  if (project.boardId !== boardId) {
+    throw new BadRequestException('Project is on a different board');
+  }
+  return project;
+}
+
 interface McpRequest {
   method: string;
   params: any;
@@ -83,6 +103,7 @@ export class McpService {
     private labelsService: LabelsService,
     private statusesService: StatusesService,
     private views: ViewsService,
+    private projects: ProjectsService,
     private attachments: AttachmentsService,
   ) {}
 
@@ -114,6 +135,9 @@ export class McpService {
           break;
         case 'views':
           result = await this.handleViews(action, req.params, user);
+          break;
+        case 'projects':
+          result = await this.handleProjects(action, req.params, user);
           break;
         case 'activity':
           result = await this.handleActivity(action, req.params);
@@ -278,6 +302,7 @@ export class McpService {
             status: true,
             board: { select: { identifier: true } },
             labels: { include: { label: true } },
+            project: { select: { id: true, name: true, icon: true } },
             _count: {
               select: {
                 comments: true,
@@ -312,6 +337,7 @@ export class McpService {
                 board: { select: { identifier: true } },
               },
             },
+            project: { select: { id: true, name: true, icon: true } },
             _count: {
               select: {
                 comments: true,
@@ -377,6 +403,10 @@ export class McpService {
             where: { id: status.boardId },
           });
 
+          // Project linkage (P1, P2). Null passes through. Runs before
+          // numbering so a bad projectId never burns a task number.
+          await validateProject(this.prisma, params.projectId ?? null, board.id);
+
           const taskNumber = board.nextTaskNum;
           await tx.board.update({
             where: { id: board.id },
@@ -402,6 +432,7 @@ export class McpService {
               estimate: params.estimate ?? null,
               metadata: params.metadata ? JSON.stringify(params.metadata) : null,
               parentId: params.parentId ?? null,
+              projectId: params.projectId ?? null,
               labels: params.labelIds?.length
                 ? { create: params.labelIds.map((id: string) => ({ labelId: id })) }
                 : undefined,
@@ -410,6 +441,7 @@ export class McpService {
               labels: { include: { label: true } },
               status: { include: { board: true } },
               board: { select: { identifier: true } },
+              project: { select: { id: true, name: true, icon: true } },
             },
           });
         });
@@ -450,6 +482,19 @@ export class McpService {
           parentChanged = true;
         }
 
+        // Project linkage (P1, P2). projectId: null is always allowed
+        // (un-assign) — never truthy-gate this field, or clearing would
+        // silently skip the write.
+        let project: { id: string; name: string } | null = null;
+        let projectChanged = false;
+        if (params.projectId !== undefined) {
+          data.projectId = params.projectId;
+          if (params.projectId !== null) {
+            project = await validateProject(this.prisma, params.projectId, existing.boardId);
+          }
+          projectChanged = params.projectId !== existing.projectId;
+        }
+
         if (params.labelIds !== undefined) {
           await this.prisma.taskLabel.deleteMany({ where: { taskId: params.id } });
           if (params.labelIds.length > 0) {
@@ -466,6 +511,7 @@ export class McpService {
             labels: { include: { label: true } },
             status: { include: { board: true } },
             board: { select: { identifier: true } },
+            project: { select: { id: true, name: true, icon: true } },
           },
         });
 
@@ -480,6 +526,10 @@ export class McpService {
         if (parentChanged) {
           if (params.parentId === null) changes.push('un-nested from parent');
           else changes.push(`set parent: ${params.parentId}`);
+        }
+        if (projectChanged) {
+          if (params.projectId === null) changes.push('removed from project');
+          else changes.push(`added to project: ${project!.name}`);
         }
 
         if (changes.length > 0) {
@@ -505,6 +555,16 @@ export class McpService {
           );
         } else {
           this.events.emit('task:updated', task, task.status?.boardId);
+        }
+        // TFG-34: dedicated project-change event, mirroring TasksService.update —
+        // room scope alone doesn't identify the project, and clients need
+        // previousProjectId to invalidate the project the task moved away from.
+        if (projectChanged) {
+          this.events.emit(
+            'task.project.updated',
+            { ...task, previousProjectId: existing.projectId },
+            task.status?.boardId,
+          );
         }
         if (params.description !== undefined && params.description !== existing.description) {
           await this.mentions.processMentions(params.id, params.description, user);
@@ -756,6 +816,41 @@ export class McpService {
       }
       default:
         throw new BadRequestException(`Unknown views action: ${action}`);
+    }
+  }
+
+  // Thin delegation to ProjectsService — gating, defaults, events, and the
+  // completedAt lifecycle live there; MCP only validates required params.
+  private async handleProjects(action: string, params: any, user?: AuthUser) {
+    if (!user) throw new BadRequestException('Authentication required');
+    switch (action) {
+      case 'list': {
+        if (!params.boardId) throw new BadRequestException('boardId is required');
+        return this.projects.findAll(params.boardId);
+      }
+      case 'get':
+        return this.projects.findOne(params.id);
+      case 'create':
+        return this.projects.create(
+          {
+            boardId: params.boardId,
+            name: params.name,
+            description: params.description,
+            icon: params.icon,
+            leadId: params.leadId,
+            status: params.status,
+            startDate: params.startDate,
+            targetDate: params.targetDate,
+          },
+          user,
+        );
+      case 'update':
+        return this.projects.update(params.id, params, user);
+      case 'delete':
+        await this.projects.remove(params.id, user);
+        return { deleted: true };
+      default:
+        throw new BadRequestException(`Unknown projects action: ${action}`);
     }
   }
 

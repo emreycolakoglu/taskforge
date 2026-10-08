@@ -14,6 +14,7 @@ import { MembersService } from '../members/members.service';
 import { LabelsService } from '../labels/labels.service';
 import { StatusesService } from '../statuses/statuses.service';
 import { ViewsService } from '../views/views.service';
+import { ProjectsService } from '../projects/projects.service';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { LocalDiskDriver } from '../storage/local-disk.driver';
 import { PrismaService } from '../prisma/prisma.service';
@@ -178,6 +179,7 @@ describe('McpTransportController', () => {
       new LabelsService(prisma as any, events, new MembersService(prisma as any)),
       new StatusesService(prisma as any, events, new MembersService(prisma as any), attachments),
       new ViewsService(prisma as any, events, new MembersService(prisma as any)),
+      new ProjectsService(prisma as any, events, new MembersService(prisma as any)),
       attachments,
     );
     const factory = new McpServerFactory(mcpService);
@@ -255,7 +257,7 @@ describe('McpTransportController', () => {
     expect(r.status).toBeLessThan(300);
   });
 
-  it('tools/list with session id → 200 with 28 tools', async () => {
+  it('tools/list with session id → 200 with every advertised tool', async () => {
     const init = await post({
       jsonrpc: '2.0',
       id: 1,
