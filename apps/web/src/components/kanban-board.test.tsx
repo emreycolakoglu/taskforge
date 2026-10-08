@@ -109,6 +109,10 @@ vi.mock('@/hooks/use-users', () => ({
 
 const useUserDirectoryMock = vi.fn().mockReturnValue({ data: [], isLoading: false });
 
+vi.mock('@/hooks/use-projects', () => ({
+  useProjects: () => ({ data: [] }),
+}));
+
 vi.mock('@/hooks/use-socket', () => ({
   useSocket: vi.fn(),
 }));

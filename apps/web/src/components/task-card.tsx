@@ -81,6 +81,20 @@ export function TaskCard({
   const visibleLabels = labels.slice(0, 2);
   const overflowCount = labels.length > 2 ? labels.length - 2 : 0;
 
+  // TFG-34 — muted project chip (icon + name), monochrome per design.md:
+  // no Lime, no bright fills; the project's identity is the icon + text.
+  const projectChip = task.project ? (
+    <Badge
+      variant={'outline'}
+      className="text-muted-foreground"
+      aria-label={`Project: ${task.project.name}`}
+      title={`Project: ${task.project.name}`}
+    >
+      {task.project.icon && <span aria-hidden="true">{task.project.icon}</span>}
+      {task.project.name}
+    </Badge>
+  ) : null;
+
   return (
     <div
       className={cn(
@@ -128,6 +142,7 @@ export function TaskCard({
       <div className="flex items-center gap-1.5 text-muted-foreground text-xs min-w-0">
         <div className="flex items-center gap-1 shrink-0">
           {priorityIcon()}
+          {projectChip}
           {visibleLabels.map((tl) => (
             <Badge
               key={tl.labelId}

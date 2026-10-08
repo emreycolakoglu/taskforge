@@ -11,7 +11,7 @@
  */
 
 import { ScrollArea } from '@/components/ui/scroll-area';
-import type { Board, RelationType, Task, TaskRelations } from '@/types';
+import type { Board, ProjectMeta, RelationType, Task, TaskRelations } from '@/types';
 import type { AssigneeOption } from './detail-assignee-select';
 import { Calendar, X } from 'lucide-react';
 import { DetailAssigneeSelect } from './detail-assignee-select';
@@ -19,6 +19,7 @@ import { DetailGroup } from './detail-group';
 import { DetailGroupTitle } from './detail-group-title';
 import { DetailPrioritySelect } from './detail-priority-select';
 import { DetailEstimateInput } from './detail-estimate-input';
+import { DetailProjectSelect } from './detail-project-select';
 import { DetailPropertyRow } from './detail-property-row';
 import { DetailStatusSelect } from './detail-status-select';
 import { DetailAddParentPopover } from './detail-add-parent-popover';
@@ -32,6 +33,8 @@ interface DetailPropertiesSidebarProps {
   users: AssigneeOption[];
   boardTasks: Task[];
   relations: TaskRelations | undefined;
+  /** Board projects (TFG-34) — enables the Project property row. */
+  projects?: ProjectMeta[];
   onUpdate: (data: Partial<Task>) => void;
   onAddRelation: (otherTaskId: string, type: RelationType, direction?: 'source' | 'target') => void;
   onRemoveRelation: (relationId: string) => void;
@@ -46,6 +49,7 @@ export function DetailPropertiesSidebar({
   users,
   boardTasks,
   relations,
+  projects,
   onUpdate,
   onAddRelation,
   onRemoveRelation,
@@ -132,6 +136,18 @@ export function DetailPropertiesSidebar({
               users={users}
               onChange={(assigneeId) => onUpdate({ assigneeId })}
             />
+
+            {/* TFG-34 — set / change / clear the project via the update
+                mutation; null un-assigns (API validates board membership). */}
+            {projects && projects.length > 0 && (
+              <DetailPropertyRow label="Project">
+                <DetailProjectSelect
+                  value={task.projectId ?? null}
+                  projects={projects}
+                  onChange={(projectId) => onUpdate({ projectId })}
+                />
+              </DetailPropertyRow>
+            )}
           </DetailGroup>
 
           {/* Group 2 — Labels */}

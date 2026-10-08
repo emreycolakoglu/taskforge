@@ -10,6 +10,8 @@ const mockCreateComment = vi.hoisted(() => vi.fn());
 const mockUpdateComment = vi.hoisted(() => vi.fn());
 const mockUploadAttachment = vi.hoisted(() => vi.fn());
 const mockDetailComments = vi.hoisted(() => vi.fn());
+const mockDetailPropertiesSidebar = vi.hoisted(() => vi.fn());
+const mockUpdateTaskMutate = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/use-socket', () => ({
   useSocket: mockUseSocket,
@@ -30,7 +32,7 @@ vi.mock('@/hooks/use-tasks', () => ({
       updatedAt: '2026-01-01',
     },
   }),
-  useUpdateTask: () => ({ mutate: vi.fn() }),
+  useUpdateTask: () => ({ mutate: mockUpdateTaskMutate }),
   useTasksByBoard: () => ({ data: [] }),
   useCreateTask: () => ({ mutate: vi.fn() }),
 }));
@@ -64,6 +66,10 @@ vi.mock('@/hooks/use-users', () => ({
 
 vi.mock('@/hooks/use-labels', () => ({
   useLabels: () => ({ data: [] }),
+}));
+
+vi.mock('@/hooks/use-projects', () => ({
+  useProjects: () => ({ data: [{ id: 'p1', name: 'Roadmap', icon: '📦' }] }),
 }));
 
 vi.mock('@/hooks/use-mobile', () => ({
@@ -101,7 +107,10 @@ vi.mock('@/components/detail-comments', () => ({
   },
 }));
 vi.mock('@/components/detail-properties-sidebar', () => ({
-  DetailPropertiesSidebar: () => null,
+  DetailPropertiesSidebar: (props: unknown) => {
+    mockDetailPropertiesSidebar(props);
+    return null;
+  },
 }));
 
 describe('TaskDetailView', () => {
@@ -136,6 +145,38 @@ describe('TaskDetailView', () => {
 
     expect(mockUseUserDirectory).toHaveBeenCalled();
     expect(mockUseUsers).not.toHaveBeenCalled();
+  });
+
+  it('feeds the sidebar the board projects for the Project property row (TFG-34)', () => {
+    render(<TaskDetailView taskId="task-1" boardId="board-1" />);
+
+    const props = mockDetailPropertiesSidebar.mock.calls.at(-1)?.[0] as {
+      projects?: { id: string; name: string }[];
+    };
+    expect(props.projects).toEqual([{ id: 'p1', name: 'Roadmap', icon: '📦' }]);
+  });
+
+  it('routes the sidebar onUpdate (project pick / clear) through the task update mutation', () => {
+    render(<TaskDetailView taskId="task-1" boardId="board-1" />);
+
+    const props = mockDetailPropertiesSidebar.mock.calls.at(-1)?.[0] as {
+      onUpdate: (data: Record<string, unknown>) => void;
+    };
+    // Clearing sends explicit null — the API's update-diff treats a missing
+    // key as untouched, so the un-assign must be a present null.
+    props.onUpdate({ projectId: null });
+
+    expect(mockUpdateTaskMutate).toHaveBeenCalledWith({
+      id: 'task-1',
+      boardId: 'board-1',
+      data: { projectId: null },
+    });
+    props.onUpdate({ projectId: 'p1' });
+    expect(mockUpdateTaskMutate).toHaveBeenCalledWith({
+      id: 'task-1',
+      boardId: 'board-1',
+      data: { projectId: 'p1' },
+    });
   });
 
   it('places task attachments after documents and before activity', () => {

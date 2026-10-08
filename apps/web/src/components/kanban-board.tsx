@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { api } from '@/hooks/api';
 import { useBoardFull } from '@/hooks/use-boards';
 import { useCreateTask } from '@/hooks/use-tasks';
+import { useProjects } from '@/hooks/use-projects';
 import { useUserDirectory } from '@/hooks/use-users';
 import { useAuth } from '@/contexts/auth-context';
 import { useSocket } from '@/hooks/use-socket';
@@ -121,6 +122,7 @@ export function KanbanBoard() {
 
   const createTask = useCreateTask();
   const { data: users = [] } = useUserDirectory();
+  const { data: projects = [] } = useProjects(id ?? '');
 
   const { ref: boardScrollRef, isDragging: isPanning } = useDragScroll<HTMLDivElement>();
 
@@ -217,6 +219,7 @@ export function KanbanBoard() {
     statusId: string;
     priority: string;
     assigneeId?: string | null;
+    projectId?: string | null;
   }) => {
     if (!id) return;
     createTask.mutate({ ...data, boardId: id });
@@ -602,6 +605,7 @@ export function KanbanBoard() {
         onOpenChange={setCreateDialogOpen}
         statuses={statuses}
         users={users}
+        projects={projects}
         onSubmit={handleCreateTaskDialog}
       />
 

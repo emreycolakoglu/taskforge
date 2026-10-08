@@ -93,4 +93,20 @@ describe('TaskCard', () => {
 
     expect(screen.getByLabelText('1 attachment')).not.toHaveAttribute('style');
   });
+
+  it('shows a muted project badge when the task carries a project (TFG-34)', () => {
+    renderWithClient(
+      <TaskCard task={makeTask({ project: { id: 'p1', name: 'Roadmap', icon: '📦' } })} />,
+    );
+
+    const badge = screen.getByLabelText('Project: Roadmap');
+    expect(badge).toHaveTextContent('📦');
+    expect(badge).toHaveTextContent('Roadmap');
+  });
+
+  it('hides the project badge when the task has none', () => {
+    renderWithClient(<TaskCard task={makeTask({ project: null })} />);
+
+    expect(screen.queryByLabelText(/Project:/)).not.toBeInTheDocument();
+  });
 });

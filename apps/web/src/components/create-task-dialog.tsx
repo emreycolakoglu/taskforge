@@ -1,15 +1,20 @@
 /**
  * CreateTaskDialog — full create-issue dialog (Linear-style).
  *
- * Opened from the board header "New Issue" CTA. Fields: title (autofocus, Enter
+ * Opened from the board header "New Issue" CTA (and, preset to a project, from
+ * the project detail page's "Add task" CTA). Fields: title (autofocus, Enter
  * submits), description (Textarea), status (Select), priority (Select), assignee
- * (Select with avatar initial, reuses the DetailAssigneeSelect visual). The submit button is the Acid Lime
+ * (Select with avatar initial, reuses the DetailAssigneeSelect visual), and the
+ * project picker (TFG-34). The submit button is the Acid Lime
  * primary CTA — the modal is a focused conversion moment (design.md: a modal is
  * arguably a second screen, so Lime is permitted here).
+ *
+ * The dialog stays dumb: statuses and projects both arrive as props from the
+ * caller (the board page lists them) — no data hooks inside.
  */
 
 import { useState, useEffect } from 'react';
-import type { Status, Task } from '@/types';
+import type { Status, Task, ProjectMeta } from '@/types';
 import type { AssigneeOption } from '@/components/detail-assignee-select';
 import {
   Dialog,
@@ -35,6 +40,10 @@ interface CreateTaskDialogProps {
   onOpenChange: (open: boolean) => void;
   statuses: Status[];
   users: AssigneeOption[];
+  /** Board projects for the picker (Task 7). Omit when the caller has none. */
+  projects?: ProjectMeta[];
+  /** Preselects the project picker (project-detail page's Add task CTA). */
+  projectId?: string;
   defaultStatusId?: string;
   onSubmit: (data: {
     title: string;
@@ -42,6 +51,7 @@ interface CreateTaskDialogProps {
     statusId: string;
     priority: Task['priority'];
     assigneeId?: string | null;
+    projectId?: string | null;
   }) => void;
 }
 
@@ -57,6 +67,8 @@ export function CreateTaskDialog({
   onOpenChange,
   statuses,
   users,
+  projects,
+  projectId,
   defaultStatusId,
   onSubmit,
 }: CreateTaskDialogProps) {
@@ -65,6 +77,7 @@ export function CreateTaskDialog({
   const [statusId, setStatusId] = useState(defaultStatusId ?? statuses[0]?.id ?? '');
   const [priority, setPriority] = useState<Task['priority']>('medium');
   const [assigneeId, setAssigneeId] = useState<string | null>(null);
+  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(projectId ?? null);
 
   useEffect(() => {
     if (open) {
@@ -73,8 +86,9 @@ export function CreateTaskDialog({
       setStatusId(defaultStatusId ?? statuses[0]?.id ?? '');
       setPriority('medium');
       setAssigneeId(null);
+      setSelectedProjectId(projectId ?? null);
     }
-  }, [open, defaultStatusId, statuses]);
+  }, [open, defaultStatusId, statuses, projectId]);
 
   const handleSubmit = () => {
     if (!title.trim() || !statusId) return;
@@ -84,6 +98,9 @@ export function CreateTaskDialog({
       statusId,
       priority,
       assigneeId,
+      // Always send the picker's value (default null) so a preselected project
+      // persists and an explicitly picked "No project" un-assigns.
+      projectId: selectedProjectId,
     });
     onOpenChange(false);
   };
@@ -142,6 +159,30 @@ export function CreateTaskDialog({
               </SelectContent>
             </Select>
           </div>
+          {/* Project picker (TFG-34) — the sentinel maps back to explicit null
+              so "No project" un-assigns through the API's null-vs-undefined
+              contract. Hidden entirely when the caller has no projects. */}
+          {projects && projects.length > 0 && (
+            <Select
+              value={selectedProjectId ?? '__noproject__'}
+              onValueChange={(v) => setSelectedProjectId(v === '__noproject__' ? null : v)}
+            >
+              <SelectTrigger className="flex-1" aria-label="Project">
+                <SelectValue placeholder="No project" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__noproject__">No project</SelectItem>
+                {projects.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    <span className="flex items-center gap-1.5">
+                      {p.icon && <span aria-hidden="true">{p.icon}</span>}
+                      {p.name}
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Select
             value={assigneeId ?? '__none__'}
             onValueChange={(v) => setAssigneeId(v === '__none__' ? null : v)}

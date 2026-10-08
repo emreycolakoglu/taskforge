@@ -17,14 +17,18 @@
  * dates; status dots take the status row's own color.
  */
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FolderKanban } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, FolderKanban, Plus } from 'lucide-react';
 import { useProject } from '@/hooks/use-projects';
+import { useBoardFull } from '@/hooks/use-boards';
+import { useCreateTask } from '@/hooks/use-tasks';
 import { useUserDirectory } from '@/hooks/use-users';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ProgressIcon } from '@/components/progress-icon';
+import { CreateTaskDialog } from '@/components/create-task-dialog';
 import type { ProjectDetail, ProjectStatus, Task } from '@/types';
 import { PROJECT_STATUS_LABELS } from '@/types';
 
@@ -81,6 +85,9 @@ export function ProjectDetailPage() {
   const navigate = useNavigate();
   const { data: project, isLoading, error } = useProject(projectId!);
   const { data: directory = [] } = useUserDirectory();
+  const { data: board } = useBoardFull(boardId!);
+  const createTask = useCreateTask();
+  const [createTaskOpen, setCreateTaskOpen] = useState(false);
 
   // The payload carries only leadId — resolve the display name through the
   // existing directory hook; no lead (or unknown id) renders nothing.
@@ -127,6 +134,29 @@ export function ProjectDetailPage() {
   const pct =
     progress && progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
 
+  // TFG-34 — the page's create affordance: the house New Issue dialog, preset
+  // to this project. Status defaults to the board's first status (the dialog
+  // already does that when no defaultStatusId is given); tasks land here
+  // immediately because the socket's task.project.updated / task:created
+  // events invalidate ['projects', id].
+  const handleCreateTask = (data: {
+    title: string;
+    description?: string;
+    statusId: string;
+    priority: Task['priority'];
+    assigneeId?: string | null;
+    projectId?: string | null;
+  }) => {
+    if (!boardId) return;
+    // The dialog always sends the picker's value (null = No project); fall
+    // back to the route param only if the caller's dialog lacks the key.
+    createTask.mutate({
+      ...data,
+      projectId: data.projectId !== undefined ? data.projectId : projectId!,
+      boardId,
+    });
+  };
+
   return (
     <div className="flex h-full flex-col bg-background">
       {/* Breadcrumb bar — mirrors the board-header-bar pattern */}
@@ -156,6 +186,16 @@ export function ProjectDetailPage() {
           </span>
           <span className="truncate text-foreground">{project.name}</span>
         </nav>
+        {/* The page's single primary CTA — Acid Lime (design.md) */}
+        <Button
+          size="sm"
+          className="ml-auto shrink-0"
+          aria-label="Add task"
+          onClick={() => setCreateTaskOpen(true)}
+        >
+          <Plus className="size-4" />
+          <span className="hidden sm:inline">Add task</span>
+        </Button>
       </header>
 
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
@@ -302,6 +342,16 @@ export function ProjectDetailPage() {
           )}
         </div>
       </div>
+
+      {/* Add-task dialog — preset to this project (TFG-34) */}
+      <CreateTaskDialog
+        open={createTaskOpen}
+        onOpenChange={setCreateTaskOpen}
+        statuses={board?.statuses ?? []}
+        users={directory}
+        projectId={projectId}
+        onSubmit={handleCreateTask}
+      />
     </div>
   );
 }

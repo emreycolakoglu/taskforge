@@ -23,6 +23,7 @@ import {
 } from '@/hooks/use-comments';
 import { useUserDirectory } from '@/hooks/use-users';
 import { useLabels } from '@/hooks/use-labels';
+import { useProjects } from '@/hooks/use-projects';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useSocket } from '@/hooks/use-socket';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -67,6 +68,7 @@ export function TaskDetailView({
   const { data: comments = [] } = useComments(taskId);
   const { data: users = [] } = useUserDirectory();
   const { data: _labels = [] } = useLabels(boardId);
+  const { data: projects = [] } = useProjects(boardId);
   const { data: boardTasks = [] } = useTasksByBoard(boardId);
   useSocket(boardId);
 
@@ -224,6 +226,7 @@ export function TaskDetailView({
       users={users}
       boardTasks={boardTasks}
       relations={relations}
+      projects={projects}
       onUpdate={handleUpdate}
       onAddRelation={handleAddRelation}
       onRemoveRelation={handleRemoveRelation}

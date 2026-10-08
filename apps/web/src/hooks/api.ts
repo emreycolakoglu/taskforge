@@ -266,8 +266,12 @@ export const api = {
       assigneeId?: string | null;
       labelIds?: string[];
       parentId?: string | null;
+      projectId?: string | null;
     }) => request<Task>('/tasks', { method: 'POST', body: JSON.stringify(data) }),
     update: (id: string, data: Partial<Task>) =>
+      // Partial<Task> carries projectId: JSON.stringify keeps explicit nulls
+      // (un-assign) and drops undefined keys (untouched) — exactly the API's
+      // update-diff contract.
       request<Task>(`/tasks/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
     move: (id: string, data: { statusId: string; position?: number }) =>
       request<Task>(`/tasks/${id}/move`, { method: 'PUT', body: JSON.stringify(data) }),

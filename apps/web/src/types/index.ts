@@ -331,6 +331,16 @@ export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   canceled: 'Canceled',
 };
 
+/**
+ * Minimal project reference for pickers and card badges: the board's project
+ * list hydrates these (id/name/icon), pickers pass them down as props.
+ */
+export interface ProjectMeta {
+  id: string;
+  name: string;
+  icon?: string | null;
+}
+
 export interface Project {
   id: string;
   boardId: string;

@@ -10,11 +10,34 @@
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { ProjectDetailPage } from './project-detail-page';
 import type { ProjectDetail } from '@/types';
+
+// The create-task dialog is a tested component; the page test only pins the
+// wiring — open via the "Add task" button, preset to this project.
+const mockCreateTaskDialog = vi.hoisted(() => vi.fn());
+const createTaskMutate = vi.hoisted(() => vi.fn());
+
+vi.mock('@/components/create-task-dialog', () => ({
+  CreateTaskDialog: (props: unknown) => {
+    mockCreateTaskDialog(props);
+    return null;
+  },
+}));
+
+// Latest dialog props, as captured from the last render.
+function dialogProps() {
+  return mockCreateTaskDialog.mock.calls.at(-1)?.[0] as {
+    open: boolean;
+    projectId?: string;
+    statuses?: { id: string }[];
+    onSubmit: (data: { title: string; projectId: string | null }) => void;
+  };
+}
 
 const mockProject: ProjectDetail = {
   id: 'p1',
@@ -158,9 +181,18 @@ const data: { project: ProjectDetail | null; loading: boolean } = {
 vi.mock('@/hooks/use-projects', () => ({
   useProject: () => ({ data: data.project, isLoading: data.loading }),
 }));
+vi.mock('@/hooks/use-tasks', () => ({
+  useCreateTask: () => ({ mutate: createTaskMutate, isPending: false }),
+}));
 vi.mock('@/hooks/use-boards', () => ({
   useBoardFull: () => ({
-    data: { id: 'b1', name: 'Sprint 1', identifier: 'TF', icon: '⭐', statuses: [] },
+    data: {
+      id: 'b1',
+      name: 'Sprint 1',
+      identifier: 'TF',
+      icon: '⭐',
+      statuses: [{ id: 's1', boardId: 'b1', name: 'Todo', type: 'todo', position: 0 }],
+    },
   }),
 }));
 vi.mock('@/hooks/use-users', () => ({
@@ -173,7 +205,11 @@ function renderPage() {
     <QueryClientProvider client={queryClient}>
       <SidebarProvider>
         <MemoryRouter initialEntries={['/board/b1/projects/p1']}>
-          <ProjectDetailPage />
+          {/* The page sources both ids from useRouteParams — a matching Route
+              element is required for useParams to resolve them. */}
+          <Routes>
+            <Route path="/board/:boardId/projects/:projectId" element={<ProjectDetailPage />} />
+          </Routes>
         </MemoryRouter>
       </SidebarProvider>
     </QueryClientProvider>,
@@ -292,5 +328,54 @@ describe('ProjectDetailPage', () => {
     renderPage();
     expect(screen.getByText('No tasks yet')).toBeInTheDocument();
     data.project = mockProject;
+  });
+});
+
+describe('ProjectDetailPage — Add task to project (TFG-34)', () => {
+  it('opens the create-task dialog preset to this project', async () => {
+    renderPage();
+
+    await userEvent.click(screen.getByRole('button', { name: /add task/i }));
+
+    const props = mockCreateTaskDialog.mock.calls.at(-1)?.[0] as {
+      open: boolean;
+      projectId?: string;
+      statuses?: { id: string }[];
+    };
+    expect(props.open).toBe(true);
+    expect(props.projectId).toBe('p1');
+    // Tasks land in the board's first status — statuses passed through, no
+    // separate default logic in the page.
+    expect(props.statuses?.[0]?.id).toBe('s1');
+  });
+
+  it('does not render the dialog before the Add task button is used', () => {
+    renderPage();
+
+    const props = mockCreateTaskDialog.mock.calls.at(-1)?.[0] as { open?: boolean } | undefined;
+    expect(props?.open ?? false).toBe(false);
+  });
+
+  it('creates the task linked to this project when the dialog submits with it', () => {
+    renderPage();
+
+    const { onSubmit } = dialogProps();
+    onSubmit({ title: 'Fresh task', projectId: 'p1' });
+
+    expect(createTaskMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ title: 'Fresh task', projectId: 'p1', boardId: 'b1' }),
+    );
+  });
+
+  it('respects an explicit No project pick over the route param', () => {
+    renderPage();
+
+    const { onSubmit } = dialogProps();
+    onSubmit({ title: 'Fresh task', projectId: null });
+
+    // The picker's explicit null wins — the route param is only a default.
+    expect(createTaskMutate).toHaveBeenCalledWith(
+      expect.objectContaining({ projectId: null, boardId: 'b1' }),
+    );
   });
 });

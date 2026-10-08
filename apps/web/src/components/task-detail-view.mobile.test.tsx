@@ -62,6 +62,10 @@ vi.mock('@/hooks/use-labels', () => ({
   useLabels: () => ({ data: [] }),
 }));
 
+vi.mock('@/hooks/use-projects', () => ({
+  useProjects: () => ({ data: [] }),
+}));
+
 vi.mock('@/components/ui/scroll-area', () => ({
   ScrollArea: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
