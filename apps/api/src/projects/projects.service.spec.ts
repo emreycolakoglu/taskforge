@@ -65,7 +65,7 @@ describe('ProjectsService', () => {
   });
 
   // The v2 user shape reaching ProjectsService — `bot` rides the request's
-  // session flag (see ProjectsController.assertNotBot); services test the
+  // session flag (see `actor()` in projects.controller.ts); services test the
   // flag directly on the user object the controller passes through.
   const human = (u: any) => ({ id: u.id, displayName: u.displayName, bot: false });
   const bot = (u: any) => ({ id: u.id, displayName: u.displayName, bot: true });

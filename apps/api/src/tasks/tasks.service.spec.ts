@@ -1041,9 +1041,9 @@ describe('TasksService', () => {
       }) as any);
       return {
         emitted,
-        // finally-guarded so a failing assertion before restore() can't leak
-        // the spy into the next test (the v2 Task-2 red-state made this leak
-        // cascade spy-recursion RangeErrors across tests 6/7).
+        // Callers must restore in `finally` so a failing assertion can't leak
+        // the spy into the next test (a leaked spy cascades spy-recursion
+        // RangeErrors).
         restore: () => jest.restoreAllMocks(),
       };
     };
@@ -1175,16 +1175,17 @@ describe('TasksService', () => {
       );
     });
 
-    it('9. update with a project created while other boards exist → accepted, row updated (v2 pin: no board scoping)', async () => {
-      // v1 rejected cross-board links; v2 projects have no board, so linking a
-      // task to ANY existing project must succeed.
-      await seedBoard(prisma); // a second board exists — irrelevant to projects
+    it('9. update links a task on a second board to a project already holding a task on the first (v2 pin: no board scoping)', async () => {
+      // v1 rejected cross-board links; v2 projects have no board, so one
+      // project may hold tasks from several boards.
+      const otherBoard = await seedBoard(prisma);
       const project = await seedProject(prisma, { name: 'Anywhere' });
-      const task = await seedTask(prisma, board.statuses[0].id);
+      await seedTask(prisma, board.statuses[0].id, { projectId: project.id });
+      const task = await seedTask(prisma, otherBoard.statuses[0].id);
       const updated = await service.update(task.id, { projectId: project.id }, user);
       expect(updated.projectId).toBe(project.id);
-      const stored = await prisma.task.findUnique({ where: { id: task.id } });
-      expect(stored!.projectId).toBe(project.id);
+      const linked = await prisma.task.findMany({ where: { projectId: project.id } });
+      expect(new Set(linked.map((t) => t.boardId))).toEqual(new Set([board.id, otherBoard.id]));
     });
 
     it('10. update from one project to another logs the transition', async () => {
