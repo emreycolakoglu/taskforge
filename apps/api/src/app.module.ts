@@ -18,6 +18,7 @@ import { SubscriptionsModule } from './subscriptions/subscriptions.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { PublicModule } from './public/public.module';
 import { ViewsModule } from './views/views.module';
+import { ProjectsModule } from './projects/projects.module';
 
 import { MembersModule } from './members/members.module';
 import { AttachmentsModule } from './attachments/attachments.module';
@@ -45,6 +46,7 @@ import { AttachmentsModule } from './attachments/attachments.module';
     PublicModule,
     MembersModule,
     ViewsModule,
+    ProjectsModule,
   ],
 })
 export class AppModule {}
