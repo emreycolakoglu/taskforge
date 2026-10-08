@@ -16,6 +16,7 @@ import {
   seedLabel,
   seedComment,
   seedUser,
+  seedProject,
 } from '../../test/setup';
 
 describe('BoardsService', () => {
@@ -60,6 +61,7 @@ describe('BoardsService', () => {
     await prisma.comment.deleteMany();
     await prisma.document.deleteMany();
     await prisma.task.deleteMany();
+    await prisma.project.deleteMany();
     await prisma.label.deleteMany();
     await prisma.status.deleteMany();
     await prisma.member.deleteMany();
@@ -163,6 +165,22 @@ describe('BoardsService', () => {
       expect(found.assignee).toBeNull();
       expect(found._count).toEqual({ comments: 0, relationsTo: 0, relationsFrom: 0 });
       expect(found.taskNumber).toBe(`${seeded.identifier}-${task.number}`);
+    });
+
+    it('should include project {id, name, icon} on tasks carrying the badge data', async () => {
+      const seeded = await seedBoard(prisma);
+      const status = seeded.statuses[0];
+      const project = await seedProject(prisma, seeded.id, { name: 'Roadmap' });
+      await seedTask(prisma, status.id, { projectId: project.id });
+      await seedTask(prisma, status.id, { title: 'No project' });
+
+      const board = await service.findFull(seeded.id);
+      const tasks = board.statuses.flatMap((s: any) => s.tasks);
+      const linked = tasks.find((t: any) => t.projectId === project.id);
+      const unlinked = tasks.find((t: any) => t.title === 'No project');
+
+      expect(linked.project).toMatchObject({ id: project.id, name: 'Roadmap', icon: '📦' });
+      expect(unlinked.project).toBeNull();
     });
 
     it('hydrates curated attachment metadata for all status tasks in one query', async () => {

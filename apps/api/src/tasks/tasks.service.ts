@@ -82,6 +82,31 @@ async function validateParent(
   }
 }
 
+/**
+ * Project linkage validation (board scoping).
+ *
+ * P1: project must exist
+ * P2: project must belong to the same board as the task
+ *
+ * `projectId: null` is always allowed (un-assign).
+ */
+async function validateProject(
+  prisma: PrismaService,
+  projectId: string | null,
+  boardId: string,
+): Promise<{ id: string; name: string } | null> {
+  if (projectId === null) return null;
+
+  const project = await prisma.project.findUnique({ where: { id: projectId } });
+  // P1 — existence
+  if (!project) throw new NotFoundException('Project not found');
+  // P2 — board scoping
+  if (project.boardId !== boardId) {
+    throw new BadRequestException('Project is on a different board');
+  }
+  return project;
+}
+
 @Injectable()
 export class TasksService {
   constructor(
@@ -109,6 +134,7 @@ export class TasksService {
         board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
+        project: { select: { id: true, name: true, icon: true } },
         _count: {
           select: {
             comments: true,
@@ -135,6 +161,7 @@ export class TasksService {
         board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
+        project: { select: { id: true, name: true, icon: true } },
         _count: {
           select: {
             comments: true,
@@ -162,6 +189,7 @@ export class TasksService {
           board: { select: { identifier: true } },
           assignee: { select: { id: true, email: true, displayName: true, role: true } },
           labels: { include: { label: true } },
+          project: { select: { id: true, name: true, icon: true } },
         },
         take: 20,
         orderBy: { updatedAt: 'desc' },
@@ -187,6 +215,7 @@ export class TasksService {
         board: { select: { identifier: true } },
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
+        project: { select: { id: true, name: true, icon: true } },
       },
       take: 50,
       orderBy: { updatedAt: 'desc' },
@@ -213,11 +242,13 @@ export class TasksService {
             status: true,
             board: { select: { identifier: true } },
             assignee: { select: { id: true, email: true, displayName: true, role: true } },
+            project: { select: { id: true, name: true, icon: true } },
           },
         },
         parent: {
           select: { id: true, number: true, title: true, board: { select: { identifier: true } } },
         },
+        project: { select: { id: true, name: true, icon: true } },
         _count: {
           select: {
             comments: true,
@@ -255,6 +286,9 @@ export class TasksService {
         where: { id: status.boardId },
       });
 
+      // Project linkage (P1, P2). Null passes through.
+      await validateProject(this.prisma, dto.projectId ?? null, board.id);
+
       const taskNumber = board.nextTaskNum;
       await tx.board.update({
         where: { id: board.id },
@@ -280,6 +314,7 @@ export class TasksService {
           estimate: dto.estimate ?? null,
           metadata: dto.metadata ?? null,
           parentId: dto.parentId ?? null,
+          projectId: dto.projectId ?? null,
           labels: dto.labelIds?.length
             ? { create: dto.labelIds.map((labelId: string) => ({ labelId })) }
             : undefined,
@@ -289,6 +324,7 @@ export class TasksService {
           labels: { include: { label: true } },
           status: { include: { board: true } },
           board: { select: { identifier: true } },
+          project: { select: { id: true, name: true, icon: true } },
         },
       });
     });
@@ -333,6 +369,18 @@ export class TasksService {
       parentChanged = true;
     }
 
+    // Project linkage (P1, P2). projectId: null is always allowed (un-assign) —
+    // never truthy-gate this field, or clearing would silently skip the write.
+    let project: { id: string; name: string } | null = null;
+    let projectChanged = false;
+    if (dto.projectId !== undefined) {
+      changes.projectId = dto.projectId;
+      if (dto.projectId !== null) {
+        project = await validateProject(this.prisma, dto.projectId, existing.boardId);
+      }
+      projectChanged = dto.projectId !== existing.projectId;
+    }
+
     // Handle label updates
     if (dto.labelIds !== undefined) {
       await this.prisma.taskLabel.deleteMany({ where: { taskId: id } });
@@ -351,6 +399,7 @@ export class TasksService {
         labels: { include: { label: true } },
         status: { include: { board: true } },
         board: { select: { identifier: true } },
+        project: { select: { id: true, name: true, icon: true } },
       },
     });
 
@@ -374,6 +423,10 @@ export class TasksService {
     if (parentChanged) {
       if (dto.parentId === null) detail.push('un-nested from parent');
       else detail.push(`set parent: ${dto.parentId}`);
+    }
+    if (projectChanged) {
+      if (dto.projectId === null) detail.push('removed from project');
+      else detail.push(`added to project: ${project!.name}`);
     }
 
     if (detail.length > 0) {
@@ -401,6 +454,18 @@ export class TasksService {
       );
     } else {
       this.events.emit('task:updated', task, task.status.boardId);
+    }
+    // TFG-34: when the task's project changed, also emit a dedicated event so
+    // clients can invalidate project-scoped queries (e.g. a project detail
+    // page's task list) — the room scope alone does not identify the project.
+    // previousProjectId mirrors the previousParentId precedent above: it tells
+    // the client which project the task moved AWAY from, including un-assign.
+    if (projectChanged) {
+      this.events.emit(
+        'task.project.updated',
+        { ...task, previousProjectId: existing.projectId },
+        task.status.boardId,
+      );
     }
     if (dto.description !== undefined && dto.description !== existing.description) {
       await this.mentions.processMentions(id, dto.description, user);
@@ -450,6 +515,7 @@ export class TasksService {
         labels: { include: { label: true } },
         status: { include: { board: true } },
         board: { select: { identifier: true } },
+        project: { select: { id: true, name: true, icon: true } },
       },
     });
 
@@ -532,6 +598,7 @@ export class TasksService {
       labels: { include: { label: true } },
       status: { include: { board: true } },
       board: { select: { identifier: true } },
+      project: { select: { id: true, name: true, icon: true } },
     };
 
     if (existing.isPublic === isPublic) {
@@ -584,6 +651,7 @@ export class TasksService {
             labels: { include: { label: true } },
             status: { include: { board: true } },
             board: { select: { identifier: true } },
+            project: { select: { id: true, name: true, icon: true } },
           },
         });
         if (refreshed) this.events.emit('task:updated', withTaskNumber(refreshed), boardId);

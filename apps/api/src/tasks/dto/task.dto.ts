@@ -43,6 +43,10 @@ export class CreateTaskDto {
 
   @IsOptional()
   @IsString()
+  projectId?: string | null;
+
+  @IsOptional()
+  @IsString()
   metadata?: string;
 }
 
@@ -88,6 +92,10 @@ export class UpdateTaskDto {
   @IsOptional()
   @IsString()
   parentId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  projectId?: string | null;
 
   @IsOptional()
   @IsString()

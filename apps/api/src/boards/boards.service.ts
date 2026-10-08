@@ -59,6 +59,7 @@ export class BoardsService {
               include: {
                 assignee: { select: { id: true, email: true, displayName: true, role: true } },
                 labels: { include: { label: true } },
+                project: { select: { id: true, name: true, icon: true } },
                 _count: {
                   select: {
                     comments: true,

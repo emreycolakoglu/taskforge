@@ -40,6 +40,7 @@ export class ProjectsService {
         status: true,
         assignee: { select: { id: true, email: true, displayName: true, role: true } },
         labels: { include: { label: true } },
+        project: { select: { id: true, name: true, icon: true } },
       },
       orderBy: [{ status: { position: 'asc' } }, { position: 'asc' }],
     });

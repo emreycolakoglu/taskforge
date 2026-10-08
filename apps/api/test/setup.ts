@@ -88,6 +88,7 @@ export async function seedTask(
     boardId: overrideBoardId,
     number: overrideNumber,
     parentId,
+    projectId,
     ...rest
   } = overrides;
   let boardId = overrideBoardId;
@@ -110,6 +111,7 @@ export async function seedTask(
       doneAt: rest.doneAt ?? null,
       estimate: rest.estimate ?? null,
       parentId: parentId ?? null,
+      projectId: projectId ?? null,
       isPublic: rest.isPublic ?? false,
     },
   });
