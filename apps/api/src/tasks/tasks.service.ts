@@ -100,8 +100,11 @@ async function validateProject(
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   // P1 — existence
   if (!project) throw new NotFoundException('Project not found');
-  // P2 — board scoping
-  if (project.boardId !== boardId) {
+  // P2 — board scoping. Projects v2 Task 2 dropped the `boardId` column, so
+  // the read rides a cast and compares undefined === boardId's board id →
+  // never equal → every project looks "foreign" until Task 3 removes P2. The
+  // throws below are the expected mid-plan state (known-red projects tests).
+  if ((project as any).boardId !== boardId) {
     throw new BadRequestException('Project is on a different board');
   }
   return project;

@@ -118,7 +118,6 @@ model Board {
   tasks     Task[]
   documents Document[]
   views     View[]
-  projects  Project[]
 }
 
 model Status {
@@ -198,21 +197,25 @@ model TaskRelation {
 
 model Document {
   id        String   @id @default(cuid())
-  boardId   String
-  taskId    String // every document belongs to exactly one task
-  number    Int // board-level counter: D-1, D-2, ...
+  boardId   String? // set for task documents; project documents leave it null
+  taskId    String? // a document belongs to exactly one task OR one project
+  projectId String?
+  number    Int // board-level (task docs) or project-level (project docs) counter
   title     String
   body      String // markdown, default ""
   isPublic  Boolean  @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  board   Board?   @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  task    Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@unique([boardId, number])
+  @@unique([projectId, number])
   @@index([boardId])
   @@index([taskId])
+  @@index([projectId])
   @@map("documents")
 }
 
@@ -383,7 +386,6 @@ model Attachment {
 
 model Project {
   id          String    @id @default(cuid())
-  boardId     String
   name        String
   description String?
   icon        String    @default("📦")
@@ -393,14 +395,14 @@ model Project {
   startDate   DateTime?
   targetDate  DateTime?
   position    Float     @default(0)
+  nextDocNum  Int       @default(1)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  board Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  lead  User?  @relation("ProjectLead", fields: [leadId], references: [id], onDelete: SetNull)
-  tasks Task[]
+  lead      User?      @relation("ProjectLead", fields: [leadId], references: [id], onDelete: SetNull)
+  tasks     Task[]
+  documents Document[]
 
-  @@index([boardId, status])
-  @@index([boardId, position])
+  @@index([position])
   @@map("projects")
 }

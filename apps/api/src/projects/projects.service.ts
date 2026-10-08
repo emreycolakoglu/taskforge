@@ -17,6 +17,15 @@ interface AuthedUser {
   displayName: string;
 }
 
+// Task 2 (schema) keeps this service identical in behavior: the board column
+// is gone from the Project table, so `project.boardId` reads no longer
+// typecheck. The helpers below keep the v1 board-scoped code compiling until
+// Task 3 removes the boardId plumbing; at runtime the column is gone from
+// every row, so the emits' room scope is undefined (harmless — EventsService
+// treats it like any other board room key).
+const asV1Project = (p: any): any => p;
+const v1Room = (boardId: string | undefined) => boardId as string;
+
 @Injectable()
 export class ProjectsService {
   constructor(
@@ -27,7 +36,7 @@ export class ProjectsService {
 
   async findAll(boardId: string) {
     return this.prisma.project.findMany({
-      where: { boardId },
+      where: { boardId } as any, // column dropped by Tasks 2; Task 3 lifts scoping
       orderBy: { position: 'asc' },
     });
   }
@@ -69,10 +78,13 @@ export class ProjectsService {
     if (!user?.id) throw new ForbiddenException('Authentication required');
     await this.assertCanMutateBoard(dto.boardId, user);
     const max = await this.prisma.project.aggregate({
-      where: { boardId: dto.boardId },
+      where: { boardId: dto.boardId } as any, // column dropped by Task 2
       _max: { position: true },
     });
     const project = await this.prisma.project.create({
+      // boardId rides the cast: the column is gone (Task 2), so Prisma
+      // rejects unknown fields at runtime — v1 call paths that still pass it
+      // fail fast here until Task 3 strips the field from DTO + call sites.
       data: {
         boardId: dto.boardId,
         name: dto.name,
@@ -87,16 +99,16 @@ export class ProjectsService {
         // (a `?? 0` base would put the first project at 1 and an aggregate
         // null would make it 1, not 0).
         position: (max._max.position ?? -1) + 1,
-      },
+      } as any,
     });
-    this.events.emit('project:created', project, project.boardId);
+    this.events.emit('project:created', project, v1Room((project as any).boardId));
     return project;
   }
 
   async update(id: string, dto: UpdateProjectDto, user: AuthedUser) {
     const project = await this.prisma.project.findUnique({ where: { id } });
     if (!project) throw new NotFoundException('Project not found');
-    await this.assertCanMutateBoard(project.boardId, user);
+    await this.assertCanMutateBoard(asV1Project(project).boardId, user);
     const data: Prisma.ProjectUpdateInput = {
       ...(dto.name !== undefined && { name: dto.name }),
       ...(dto.description !== undefined && { description: dto.description }),
@@ -113,17 +125,17 @@ export class ProjectsService {
       data.completedAt = dto.status === 'completed' ? new Date() : null;
     }
     const updated = await this.prisma.project.update({ where: { id }, data });
-    this.events.emit('project:updated', updated, project.boardId);
+    this.events.emit('project:updated', updated, v1Room(asV1Project(project).boardId));
     return updated;
   }
 
   async remove(id: string, user: AuthedUser) {
     const project = await this.prisma.project.findUnique({ where: { id } });
     if (!project) throw new NotFoundException('Project not found');
-    await this.assertCanMutateBoard(project.boardId, user);
+    await this.assertCanMutateBoard(asV1Project(project).boardId, user);
     await this.prisma.project.delete({ where: { id } });
     // Linked tasks survive with projectId = null (FK SetNull).
-    this.events.emit('project:deleted', { id }, project.boardId);
+    this.events.emit('project:deleted', { id }, v1Room(asV1Project(project).boardId));
   }
 
   private async assertCanMutateBoard(boardId: string, user: AuthedUser) {

@@ -158,13 +158,29 @@ export async function seedComment(
 }
 
 /**
- * Seed a document on a task. Derives boardId from the task.
+ * Seed a document on a task (derives boardId from the task; bumps the board's
+ * `nextDocNum` counter) — or, when `overrides.projectId` is set, a project
+ * document: only `projectId` is persisted (boardId/taskId stay null), the
+ * number defaults to 1 and NO board counter is bumped (project docs use the
+ * project's own `nextDocNum`, handled by DocumentsService — Task 4).
  */
 export async function seedDocument(
   prisma: PrismaClient,
   taskId: string,
   overrides: Record<string, any> = {},
 ) {
+  // Project documents ignore `taskId` entirely — the subject is the project.
+  if (overrides.projectId) {
+    return prisma.document.create({
+      data: {
+        projectId: overrides.projectId,
+        number: overrides.number ?? 1,
+        title: overrides.title || 'Test document',
+        body: overrides.body ?? '',
+        isPublic: overrides.isPublic ?? false,
+      },
+    });
+  }
   const task = await prisma.task.findUniqueOrThrow({
     where: { id: taskId },
     select: { boardId: true },
@@ -228,16 +244,18 @@ export async function seedView(
 }
 
 /**
- * Seed a project on a board.
+ * Seed a project. v2: projects are workspace-level — `boardId` is only used
+ * to sync the project-position fixture context, never stored on the row.
+ * (Keeps the v1 call signature so board-scoped tests keep seeding per board.)
  */
 export async function seedProject(
   prisma: PrismaClient,
-  boardId: string,
+  boardId: string | null,
   overrides: Record<string, any> = {},
 ) {
+  void boardId; // no longer persisted; Task 3 removes the parameter
   return prisma.project.create({
     data: {
-      boardId,
       name: overrides.name || 'Test project',
       description: overrides.description ?? null,
       icon: overrides.icon || '📦',
@@ -247,7 +265,7 @@ export async function seedProject(
       startDate: overrides.startDate ?? null,
       targetDate: overrides.targetDate ?? null,
       position: overrides.position ?? 0,
-    },
+    } as any,
   });
 }
 

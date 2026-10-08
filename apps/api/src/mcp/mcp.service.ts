@@ -63,7 +63,9 @@ async function validateProject(
   if (projectId === null) return null;
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) throw new NotFoundException('Project not found');
-  if (project.boardId !== boardId) {
+  // P2 mirror — same mid-plan cast story as tasks.service (column dropped by
+  // Task 2, comparison compares against undefined; Task 3 deletes the branch).
+  if ((project as any).boardId !== boardId) {
     throw new BadRequestException('Project is on a different board');
   }
   return project;
