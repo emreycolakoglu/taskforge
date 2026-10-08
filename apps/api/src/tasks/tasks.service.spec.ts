@@ -1,4 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { BadRequestException } from '@nestjs/common';
 import { mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
@@ -1214,6 +1215,156 @@ describe('TasksService', () => {
 
       const found = await service.findOne(seeded.id);
       expect(found.project).toMatchObject({ id: project.id, name: 'Hydrated', icon: '📦' });
+    });
+
+    // Projects v2 §4: a task may only move within its own board — task numbers,
+    // labels and doc numbers are board-scoped, so cross-board is BLOCKED.
+    describe('same-board status guard + project kanban emits', () => {
+      it('12. move to another board’s status → 400, row unchanged, no activity, no events', async () => {
+        const otherBoard = await seedBoard(prisma);
+        const task = await seedTask(prisma, board.statuses[0].id, { position: 7 });
+        const { emitted, restore } = captureEvents();
+
+        try {
+          await expect(
+            service.move(task.id, { statusId: otherBoard.statuses[1].id }, user),
+          ).rejects.toThrow(BadRequestException);
+          await expect(
+            service.move(task.id, { statusId: otherBoard.statuses[1].id }, user),
+          ).rejects.toThrow('Status belongs to a different board');
+
+          const stored = await prisma.task.findUnique({ where: { id: task.id } });
+          expect(stored!.statusId).toBe(board.statuses[0].id);
+          expect(stored!.boardId).toBe(board.id);
+          expect(stored!.position).toBe(7);
+          expect(await prisma.activity.count({ where: { taskId: task.id } })).toBe(0);
+          expect(emitted).toHaveLength(0);
+        } finally {
+          restore();
+        }
+      });
+
+      it('13. update with another board’s statusId → 400 before ANY write (labels, row, activity, events)', async () => {
+        const otherBoard = await seedBoard(prisma);
+        const label = await seedLabel(prisma, board.id);
+        const task = await seedTask(prisma, board.statuses[0].id, { title: 'Stay' });
+        await prisma.taskLabel.create({ data: { taskId: task.id, labelId: label.id } });
+        const { emitted, restore } = captureEvents();
+
+        try {
+          await expect(
+            service.update(
+              task.id,
+              { statusId: otherBoard.statuses[1].id, title: 'Moved?', labelIds: [] },
+              user,
+            ),
+          ).rejects.toThrow('Status belongs to a different board');
+
+          const stored = await prisma.task.findUnique({ where: { id: task.id } });
+          expect(stored!.statusId).toBe(board.statuses[0].id);
+          expect(stored!.boardId).toBe(board.id);
+          expect(stored!.title).toBe('Stay');
+          expect(await prisma.taskLabel.count({ where: { taskId: task.id } })).toBe(1);
+          expect(await prisma.activity.count({ where: { taskId: task.id } })).toBe(0);
+          expect(emitted).toHaveLength(0);
+        } finally {
+          restore();
+        }
+      });
+
+      it('14. same-board update to a new status still works', async () => {
+        const task = await seedTask(prisma, board.statuses[0].id);
+        const updated = await service.update(task.id, { statusId: board.statuses[2].id }, user);
+        expect(updated.statusId).toBe(board.statuses[2].id);
+      });
+
+      it('15. moving a project-linked task also emits task.project.updated (previousProjectId = projectId)', async () => {
+        const project = await seedProject(prisma, { name: 'Kanban' });
+        const task = await seedTask(prisma, board.statuses[0].id, { projectId: project.id });
+        const { emitted, restore } = captureEvents();
+
+        try {
+          await service.move(task.id, { statusId: board.statuses[2].id, position: 3 }, user);
+
+          expect(emitted.filter((e) => e.event === 'task:moved')).toHaveLength(1);
+          const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
+          expect(projectEvents).toHaveLength(1);
+          expect(projectEvents[0].boardId).toBe(board.id);
+          expect(projectEvents[0].data.id).toBe(task.id);
+          expect(projectEvents[0].data.statusId).toBe(board.statuses[2].id);
+          expect(projectEvents[0].data.projectId).toBe(project.id);
+          expect(projectEvents[0].data.previousProjectId).toBe(project.id);
+        } finally {
+          restore();
+        }
+      });
+
+      it('16. moving an unlinked task does NOT emit task.project.updated', async () => {
+        const task = await seedTask(prisma, board.statuses[0].id);
+        const { emitted, restore } = captureEvents();
+
+        try {
+          await service.move(task.id, { statusId: board.statuses[2].id }, user);
+          expect(emitted.filter((e) => e.event === 'task:moved')).toHaveLength(1);
+          expect(emitted.filter((e) => e.event === 'task.project.updated')).toHaveLength(0);
+        } finally {
+          restore();
+        }
+      });
+
+      it('17. update changing the status of a linked task emits task.project.updated', async () => {
+        const project = await seedProject(prisma, { name: 'Kanban' });
+        const task = await seedTask(prisma, board.statuses[0].id, { projectId: project.id });
+        const { emitted, restore } = captureEvents();
+
+        try {
+          await service.update(task.id, { statusId: board.statuses[1].id }, user);
+          const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
+          expect(projectEvents).toHaveLength(1);
+          expect(projectEvents[0].data.projectId).toBe(project.id);
+          expect(projectEvents[0].data.previousProjectId).toBe(project.id);
+        } finally {
+          restore();
+        }
+      });
+
+      it('18. update of a linked task that touches neither status nor position does NOT emit it', async () => {
+        const project = await seedProject(prisma, { name: 'Kanban' });
+        const task = await seedTask(prisma, board.statuses[0].id, { projectId: project.id });
+        const { emitted, restore } = captureEvents();
+
+        try {
+          await service.update(
+            task.id,
+            { title: 'Renamed', statusId: board.statuses[0].id, position: task.position },
+            user,
+          );
+          expect(emitted.filter((e) => e.event === 'task.project.updated')).toHaveLength(0);
+        } finally {
+          restore();
+        }
+      });
+
+      it('19. update changing projectId AND statusId emits task.project.updated exactly once', async () => {
+        const projectA = await seedProject(prisma, { name: 'Alpha' });
+        const projectB = await seedProject(prisma, { name: 'Beta' });
+        const task = await seedTask(prisma, board.statuses[0].id, { projectId: projectA.id });
+        const { emitted, restore } = captureEvents();
+
+        try {
+          await service.update(
+            task.id,
+            { projectId: projectB.id, statusId: board.statuses[2].id },
+            user,
+          );
+          const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
+          expect(projectEvents).toHaveLength(1);
+          expect(projectEvents[0].data.projectId).toBe(projectB.id);
+          expect(projectEvents[0].data.previousProjectId).toBe(projectA.id);
+        } finally {
+          restore();
+        }
+      });
     });
   });
 });

@@ -465,7 +465,17 @@ export class McpService {
         if (params.assigneeId !== undefined) data.assigneeId = params.assigneeId;
         if (params.dueDate !== undefined) data.dueDate = new Date(params.dueDate);
         if (params.estimate !== undefined) data.estimate = params.estimate;
-        if (params.statusId !== undefined) data.statusId = params.statusId;
+        if (params.statusId !== undefined) {
+          // Projects v2 §4 (TasksService.update parity): status changes stay
+          // on the task's own board; checked before the label writes below.
+          const status = params.statusId
+            ? await this.prisma.status.findUnique({ where: { id: params.statusId } })
+            : null;
+          if (status && status.boardId !== existing.boardId) {
+            throw new BadRequestException('Status belongs to a different board');
+          }
+          data.statusId = params.statusId;
+        }
         if (params.position !== undefined) data.position = params.position;
 
         // Sub-task validation (C1-C5). parentId: null is always allowed (un-nest).
@@ -556,7 +566,11 @@ export class McpService {
         // TFG-34: dedicated project-change event, mirroring TasksService.update —
         // room scope alone doesn't identify the project, and clients need
         // previousProjectId to invalidate the project the task moved away from.
-        if (projectChanged) {
+        // Projects v2 §4: also fired when a linked task changes status/position.
+        const kanbanChanged =
+          (params.statusId !== undefined && params.statusId !== existing.statusId) ||
+          (params.position !== undefined && params.position !== existing.position);
+        if (projectChanged || (task.projectId !== null && kanbanChanged)) {
           this.events.emit(
             'task.project.updated',
             { ...task, previousProjectId: existing.projectId },
@@ -577,6 +591,10 @@ export class McpService {
         const targetStatus = await this.prisma.status.findUniqueOrThrow({
           where: { id: params.statusId },
         });
+        // Projects v2 §4: cross-board moves are blocked, not re-boarded.
+        if (targetStatus.boardId !== existing.boardId) {
+          throw new BadRequestException('Status belongs to a different board');
+        }
         const sourceStatus = await this.prisma.status.findUnique({
           where: { id: existing.statusId },
         });
@@ -657,6 +675,14 @@ export class McpService {
           },
         });
         this.events.emit('task:moved', task, task.status?.boardId);
+        // Projects v2 §4: project kanban freshness (TasksService.move parity).
+        if (task.projectId !== null) {
+          this.events.emit(
+            'task.project.updated',
+            { ...task, previousProjectId: existing.projectId },
+            task.status?.boardId,
+          );
+        }
         return withTaskNumber(task);
       }
       case 'delete': {

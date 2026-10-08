@@ -354,7 +354,18 @@ export class TasksService {
     if (dto.dueDate !== undefined) changes.dueDate = new Date(dto.dueDate);
     if (dto.estimate !== undefined) changes.estimate = dto.estimate;
     if (dto.metadata !== undefined) changes.metadata = dto.metadata;
-    if (dto.statusId !== undefined) changes.statusId = dto.statusId;
+    if (dto.statusId !== undefined) {
+      // Projects v2 §4: status changes stay on the task's own board — task
+      // numbers, labels and doc numbers are board-scoped. Checked before any
+      // write (labels below) so a rejected update leaves no trace.
+      const status = dto.statusId
+        ? await this.prisma.status.findUnique({ where: { id: dto.statusId } })
+        : null;
+      if (status && status.boardId !== existing.boardId) {
+        throw new BadRequestException('Status belongs to a different board');
+      }
+      changes.statusId = dto.statusId;
+    }
     if (dto.position !== undefined) changes.position = dto.position;
 
     // Sub-task validation (C1-C5). parentId: null is always allowed (un-nest).
@@ -456,7 +467,12 @@ export class TasksService {
     // page's task list) — the room scope alone does not identify the project.
     // previousProjectId mirrors the previousParentId precedent above: it tells
     // the client which project the task moved AWAY from, including un-assign.
-    if (projectChanged) {
+    // Projects v2 §4: a linked task changing status/position also emits it so
+    // the project kanban refreshes — one emit even if the project changed too.
+    const kanbanChanged =
+      (dto.statusId !== undefined && dto.statusId !== existing.statusId) ||
+      (dto.position !== undefined && dto.position !== existing.position);
+    if (projectChanged || (task.projectId !== null && kanbanChanged)) {
       this.events.emit(
         'task.project.updated',
         { ...task, previousProjectId: existing.projectId },
@@ -479,6 +495,10 @@ export class TasksService {
     const targetStatus = await this.prisma.status.findUniqueOrThrow({
       where: { id: dto.statusId },
     });
+    // Projects v2 §4: cross-board moves are blocked, not re-boarded.
+    if (targetStatus.boardId !== existing.boardId) {
+      throw new BadRequestException('Status belongs to a different board');
+    }
     const sourceStatus = await this.prisma.status.findUnique({ where: { id: existing.statusId } });
     const now = new Date();
     const isClosedTarget = isTerminalType(targetStatus.type);
@@ -566,6 +586,15 @@ export class TasksService {
     await this.notifications.dispatchFromActivity(activity);
 
     this.events.emit('task:moved', task, task.status.boardId);
+    // Projects v2 §4: project kanban freshness — same payload shape as the
+    // project-change emit in update(); the project itself did not change.
+    if (task.projectId !== null) {
+      this.events.emit(
+        'task.project.updated',
+        { ...task, previousProjectId: existing.projectId },
+        task.status.boardId,
+      );
+    }
     return withTaskNumber(task);
   }
 
