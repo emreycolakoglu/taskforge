@@ -263,6 +263,8 @@ describe('useCreateTask — optimistic rendering (TFG-9)', () => {
     await waitFor(() => {
       expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['projects', 'proj-1'] });
     });
+    // The /projects list carries a progress rollup that counts this task too.
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: ['projects'], exact: true });
   });
 
   it('does not invalidate a project detail query when the task has no projectId', async () => {
@@ -283,5 +285,6 @@ describe('useCreateTask — optimistic rendering (TFG-9)', () => {
       expect(mockToastSuccess).toHaveBeenCalledWith('Task created');
     });
     expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: ['projects', undefined] });
+    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: ['projects'], exact: true });
   });
 });

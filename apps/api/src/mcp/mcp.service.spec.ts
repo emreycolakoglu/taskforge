@@ -655,6 +655,42 @@ describe('McpService', () => {
       return { emitted, stop: () => subscription.unsubscribe() };
     };
 
+    it('tasks_create / tasks_delete of a project-linked task emit a global task.project.updated', async () => {
+      const project = await seedProject(prisma);
+      const { emitted, stop } = captureAll();
+      try {
+        const created = await service.handleRequest(
+          {
+            method: 'tasks_create',
+            params: { statusId: board.statuses[0].id, title: 'Linked', projectId: project.id },
+            id: 810,
+          },
+          user,
+        );
+        const taskId = (created.result as any).id;
+        await service.handleRequest(
+          { method: 'tasks_delete', params: { id: taskId }, id: 811 },
+          user,
+        );
+        const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
+        expect(projectEvents).toHaveLength(2);
+        expect(projectEvents[0].data).toMatchObject({
+          id: taskId,
+          projectId: project.id,
+          previousProjectId: null,
+        });
+        expect(projectEvents[1].data).toEqual({
+          id: taskId,
+          boardId: board.id,
+          projectId: null,
+          previousProjectId: project.id,
+        });
+        expect(projectEvents.every((e) => e.boardId === undefined)).toBe(true);
+      } finally {
+        stop();
+      }
+    });
+
     it('tasks_move to another board’s status → error, row unchanged, no activity, no events', async () => {
       const otherBoard = await seedBoard(prisma);
       const task = await seedTask(prisma, board.statuses[0].id, { position: 7 });

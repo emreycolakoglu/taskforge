@@ -84,6 +84,7 @@ export function useCreateTask() {
       // action is invisible there until a refetch from elsewhere.
       if (variables.projectId) {
         queryClient.invalidateQueries({ queryKey: ['projects', variables.projectId] });
+        queryClient.invalidateQueries({ queryKey: ['projects'], exact: true });
       }
       queryClient.invalidateQueries({ queryKey: ['boards'] });
       queryClient.invalidateQueries({ queryKey: ['boards', variables.boardId, 'full'] });

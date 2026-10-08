@@ -452,6 +452,10 @@ export class McpService {
           },
         });
         this.events.emit('task:created', task, task.status?.boardId);
+        // TasksService.create parity: project pages hold no board room.
+        if (task.projectId !== null) {
+          this.events.emit('task.project.updated', { ...task, previousProjectId: null });
+        }
         return withTaskNumber(task);
       }
       case 'update': {
@@ -686,7 +690,7 @@ export class McpService {
       case 'delete': {
         const existingTask = await this.prisma.task.findUnique({
           where: { id: params.id },
-          select: { boardId: true },
+          select: { boardId: true, projectId: true },
         });
         await this.relations.cleanupForTask(params.id);
         await this.prisma.task.delete({ where: { id: params.id } });
@@ -697,6 +701,14 @@ export class McpService {
           { id: params.id, boardId: existingTask?.boardId },
           existingTask?.boardId,
         );
+        if (existingTask?.projectId) {
+          this.events.emit('task.project.updated', {
+            id: params.id,
+            boardId: existingTask.boardId,
+            projectId: null,
+            previousProjectId: existingTask.projectId,
+          });
+        }
         return { deleted: true };
       }
       case 'subscribe': {

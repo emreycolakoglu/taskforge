@@ -1059,6 +1059,45 @@ describe('TasksService', () => {
       expect(task.project).toMatchObject({ id: project.id, name: 'Roadmap', icon: '📦' });
     });
 
+    it('1b. create / remove of a project-linked task emit a global task.project.updated', async () => {
+      const project = await seedProject(prisma);
+      const { emitted, restore } = captureEvents();
+      try {
+        const task = await service.create(
+          { statusId: board.statuses[0].id, title: 'Linked', projectId: project.id },
+          user,
+        );
+        await service.remove(task.id, user);
+        const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
+        expect(projectEvents).toHaveLength(2);
+        expect(projectEvents[0].data).toMatchObject({
+          id: task.id,
+          projectId: project.id,
+          previousProjectId: null,
+        });
+        expect(projectEvents[1].data).toEqual({
+          id: task.id,
+          boardId: board.id,
+          projectId: null,
+          previousProjectId: project.id,
+        });
+        expect(projectEvents.every((e) => e.boardId === undefined)).toBe(true);
+      } finally {
+        restore();
+      }
+    });
+
+    it('1c. create / remove of an unlinked task emit no task.project.updated', async () => {
+      const { emitted, restore } = captureEvents();
+      try {
+        const task = await service.create({ statusId: board.statuses[0].id, title: 'Free' }, user);
+        await service.remove(task.id, user);
+        expect(emitted.filter((e) => e.event === 'task.project.updated')).toHaveLength(0);
+      } finally {
+        restore();
+      }
+    });
+
     it('2. create with non-existent projectId → NotFoundException', async () => {
       await expect(
         service.create(

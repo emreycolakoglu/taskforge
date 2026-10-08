@@ -340,6 +340,10 @@ export class TasksService {
     }
 
     this.events.emit('task:created', task, task.status.boardId);
+    // Project pages hold no board room — they hear about linked tasks globally.
+    if (task.projectId !== null) {
+      this.events.emit('task.project.updated', { ...task, previousProjectId: null });
+    }
     return withTaskNumber(task);
   }
 
@@ -689,6 +693,14 @@ export class TasksService {
     // boardId in the payload lets clients invalidate ['tasks','board',boardId]
     // for deletions (the room scope alone does not identify the board).
     this.events.emit('task:deleted', { id, boardId }, boardId);
+    if (task.projectId !== null) {
+      this.events.emit('task.project.updated', {
+        id,
+        boardId,
+        projectId: null,
+        previousProjectId: task.projectId,
+      });
+    }
   }
 
   async attachLabel(taskId: string, labelId: string) {
