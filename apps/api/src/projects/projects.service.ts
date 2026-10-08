@@ -5,7 +5,12 @@
  * (bot sessions are rejected, mirroring the publish bot-gate); reads are
  * unscoped, matching the rest of the app.
  */
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
@@ -98,6 +103,7 @@ export class ProjectsService {
   async create(dto: CreateProjectDto, user: AuthedUser) {
     if (!user?.id) throw new ForbiddenException('Authentication required');
     if (user.bot) throw new ForbiddenException('Bot sessions cannot manage projects');
+    await this.assertLeadExists(dto.leadId);
     const max = await this.prisma.project.aggregate({
       _max: { position: true },
     });
@@ -128,14 +134,21 @@ export class ProjectsService {
     if (user.bot) throw new ForbiddenException('Bot sessions cannot manage projects');
     const project = await this.prisma.project.findUnique({ where: { id } });
     if (!project) throw new NotFoundException('Project not found');
+    await this.assertLeadExists(dto.leadId);
+    // null clears a field, undefined leaves it alone. Dates need the explicit
+    // null branch: `new Date(null)` is the 1970 epoch, not a cleared date.
     const data: Prisma.ProjectUpdateInput = {
       ...(dto.name !== undefined && { name: dto.name }),
       ...(dto.description !== undefined && { description: dto.description }),
       ...(dto.icon !== undefined && { icon: dto.icon }),
       ...(dto.leadId !== undefined && { leadId: dto.leadId }),
       ...(dto.status !== undefined && { status: dto.status }),
-      ...(dto.startDate !== undefined && { startDate: new Date(dto.startDate) }),
-      ...(dto.targetDate !== undefined && { targetDate: new Date(dto.targetDate) }),
+      ...(dto.startDate !== undefined && {
+        startDate: dto.startDate === null ? null : new Date(dto.startDate),
+      }),
+      ...(dto.targetDate !== undefined && {
+        targetDate: dto.targetDate === null ? null : new Date(dto.targetDate),
+      }),
       ...(dto.position !== undefined && { position: dto.position }),
     };
     if (dto.status !== undefined && dto.status !== project.status) {
@@ -146,6 +159,13 @@ export class ProjectsService {
     const updated = await this.prisma.project.update({ where: { id }, data });
     this.events.emit('project:updated', updated);
     return updated;
+  }
+
+  /** An unknown leadId would otherwise surface as an FK-violation 500. */
+  private async assertLeadExists(leadId: string | null | undefined) {
+    if (!leadId) return;
+    const lead = await this.prisma.user.findUnique({ where: { id: leadId }, select: { id: true } });
+    if (!lead) throw new BadRequestException('Lead user not found');
   }
 
   async remove(id: string, user: AuthedUser) {

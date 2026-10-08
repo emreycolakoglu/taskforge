@@ -18,6 +18,8 @@ import { ViewsService } from '../views/views.service';
 import { ProjectsService } from '../projects/projects.service';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { LocalDiskDriver } from '../storage/local-disk.driver';
+import { z } from 'zod';
+import { TOOL_DEFINITIONS } from './tool-definitions';
 import {
   createTestPrisma,
   seedBoard,
@@ -1580,6 +1582,41 @@ describe('McpService', () => {
         user,
       );
       expect(res.result.completedAt).toBeNull();
+    });
+
+    it('clears dates and lead on explicit null (not the 1970 epoch)', async () => {
+      const lead = await seedUser(prisma, { displayName: 'Lead' });
+      const project = await seedProject(prisma, {
+        leadId: lead.id,
+        startDate: new Date('2026-01-01T00:00:00.000Z'),
+        targetDate: new Date('2026-06-01T00:00:00.000Z'),
+      });
+      const res = await service.handleRequest(
+        {
+          method: 'projects_update',
+          params: { id: project.id, startDate: null, targetDate: null, leadId: null },
+          id: 620,
+        },
+        user,
+      );
+      expect(res.error).toBeUndefined();
+      expect(res.result.startDate).toBeNull();
+      expect(res.result.targetDate).toBeNull();
+      expect(res.result.leadId).toBeNull();
+    });
+
+    it('declares null as valid for the clearable fields in its zod schema', () => {
+      const schema = z.object(
+        TOOL_DEFINITIONS.find((t) => t.name === 'projects_update')!.inputSchema,
+      );
+      const parsed = schema.safeParse({
+        id: 'p1',
+        description: null,
+        leadId: null,
+        startDate: null,
+        targetDate: null,
+      });
+      expect(parsed.success).toBe(true);
     });
 
     it('allows update by a plain member (v2: all-members, no admin gate)', async () => {

@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { mkdtempSync, rmSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { ForbiddenException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
@@ -142,6 +142,18 @@ describe('ProjectsService', () => {
       expect(await prisma.project.count()).toBe(0);
     });
 
+    it('rejects a non-existent leadId with BadRequestException (not an FK 500)', async () => {
+      await expect(
+        service.create({ ...baseDto, leadId: 'no-such-user' }, human(owner)),
+      ).rejects.toThrow(BadRequestException);
+      expect(await prisma.project.count()).toBe(0);
+    });
+
+    it('stores the lead when it exists', async () => {
+      const created = await service.create({ ...baseDto, leadId: owner.id }, human(owner));
+      expect(created.leadId).toBe(owner.id);
+    });
+
     it('requires authentication', async () => {
       await expect(service.create({ ...baseDto }, undefined)).rejects.toThrow(
         'Authentication required',
@@ -271,6 +283,63 @@ describe('ProjectsService', () => {
       const project = await seedProject(prisma, { name: 'Editable' });
       const updated = await service.update(project.id, { name: 'Renamed' }, human(member));
       expect(updated.name).toBe('Renamed');
+    });
+
+    // Edit dialog clears fields with explicit null. `new Date(null)` is the
+    // epoch, so a naive `!== undefined` gate stored 1970-01-01 instead.
+    it('clears startDate, targetDate, leadId and description on explicit null', async () => {
+      const project = await seedProject(prisma, {
+        leadId: owner.id,
+        description: 'Some words',
+        startDate: new Date('2026-01-01T00:00:00.000Z'),
+        targetDate: new Date('2026-06-01T00:00:00.000Z'),
+      });
+      const updated = await service.update(
+        project.id,
+        { startDate: null, targetDate: null, leadId: null, description: null },
+        human(member),
+      );
+      expect(updated.startDate).toBeNull();
+      expect(updated.targetDate).toBeNull();
+      expect(updated.leadId).toBeNull();
+      expect(updated.description).toBeNull();
+    });
+
+    it('leaves dates, lead and description untouched when the fields are omitted', async () => {
+      const startDate = new Date('2026-01-01T00:00:00.000Z');
+      const targetDate = new Date('2026-06-01T00:00:00.000Z');
+      const project = await seedProject(prisma, {
+        leadId: owner.id,
+        description: 'Keep me',
+        startDate,
+        targetDate,
+      });
+      const updated = await service.update(project.id, { name: 'Renamed' }, human(member));
+      expect(updated.startDate!.toISOString()).toBe(startDate.toISOString());
+      expect(updated.targetDate!.toISOString()).toBe(targetDate.toISOString());
+      expect(updated.leadId).toBe(owner.id);
+      expect(updated.description).toBe('Keep me');
+    });
+
+    it('sets dates and lead from strings', async () => {
+      const project = await seedProject(prisma);
+      const updated = await service.update(
+        project.id,
+        { startDate: '2026-03-01', targetDate: '2026-04-01', leadId: owner.id },
+        human(member),
+      );
+      expect(updated.startDate!.toISOString()).toBe('2026-03-01T00:00:00.000Z');
+      expect(updated.targetDate!.toISOString()).toBe('2026-04-01T00:00:00.000Z');
+      expect(updated.leadId).toBe(owner.id);
+    });
+
+    it('rejects a non-existent leadId with BadRequestException (not an FK 500)', async () => {
+      const project = await seedProject(prisma, { leadId: owner.id });
+      await expect(
+        service.update(project.id, { leadId: 'no-such-user' }, human(member)),
+      ).rejects.toThrow(BadRequestException);
+      const stored = await prisma.project.findUnique({ where: { id: project.id } });
+      expect(stored!.leadId).toBe(owner.id);
     });
 
     it('rejects bot sessions', async () => {

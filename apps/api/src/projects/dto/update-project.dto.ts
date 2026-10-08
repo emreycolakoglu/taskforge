@@ -1,6 +1,9 @@
 import { IsDateString, IsIn, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
 import { PROJECT_STATUSES } from '../project-statuses';
 
+// description, leadId, startDate and targetDate accept null to clear the field
+// (@IsOptional skips validation for null as well as undefined — same as
+// UpdateTaskDto.projectId). ProjectsService maps null → null.
 export class UpdateProjectDto {
   @IsOptional()
   @IsString()
@@ -9,7 +12,7 @@ export class UpdateProjectDto {
 
   @IsOptional()
   @IsString()
-  description?: string;
+  description?: string | null;
 
   @IsOptional()
   @IsString()
@@ -17,7 +20,7 @@ export class UpdateProjectDto {
 
   @IsOptional()
   @IsString()
-  leadId?: string;
+  leadId?: string | null;
 
   @IsOptional()
   @IsIn(PROJECT_STATUSES)
@@ -25,11 +28,11 @@ export class UpdateProjectDto {
 
   @IsOptional()
   @IsDateString()
-  startDate?: string;
+  startDate?: string | null;
 
   @IsOptional()
   @IsDateString()
-  targetDate?: string;
+  targetDate?: string | null;
 
   @IsOptional()
   @IsNumber()
