@@ -322,6 +322,15 @@ export interface PublicDocument {
  */
 export type ProjectStatus = 'planned' | 'started' | 'completed' | 'paused' | 'canceled';
 
+/** Lifecycle chip label — capitalized status word, muted styling. Shared by the projects list + detail pages. */
+export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+  planned: 'Planned',
+  started: 'Started',
+  completed: 'Completed',
+  paused: 'Paused',
+  canceled: 'Canceled',
+};
+
 export interface Project {
   id: string;
   boardId: string;

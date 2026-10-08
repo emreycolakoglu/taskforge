@@ -1,37 +1,306 @@
 /**
- * ProjectDetailPage — placeholder for Task 6 (TFG-34).
+ * ProjectDetailPage — read-only project detail at
+ * /board/:boardId/projects/:projectId (TFG-34, Task 6).
  *
- * The route exists now so the sidebar link and router surface are complete;
- * the real deliverable (header, status-grouped task list, progress summary,
- * add-to-project) lands in Task 6 and replaces this body. Until then the page
- * renders the project name from the same `projects.get` fetch Task 6 will
- * consume, or a loading stub while the query is in flight.
+ * Renders the GET /api/projects/:id rollup: header (icon, name, lifecycle
+ * chip, lead via the user directory, dates, description), the project's
+ * tasks grouped by status (the payload is ordered status.position then
+ * position; grouping preserves first-appearance order), and the server's
+ * progress rollup as a neutral bar. No mutations here — editing rides the
+ * projects list page / MCP for v1.
+ *
+ * design.md compliance: Obsidian card surfaces with 1px Graphite inset
+ * borders, no bright fills, no gradients; the progress bar is neutral fill
+ * (muted-foreground) + border — no Lime, which stays reserved for a single
+ * CTA per screen (none on this page); Inter weights ≤590 via the house
+ * `font-medium` token; JetBrains Mono (`font-mono`) for task numbers and
+ * dates; status dots take the status row's own color.
  */
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { ArrowLeft, FolderKanban } from 'lucide-react';
 import { useProject } from '@/hooks/use-projects';
+import { useUserDirectory } from '@/hooks/use-users';
+import { SidebarTrigger } from '@/components/ui/sidebar';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ProgressIcon } from '@/components/progress-icon';
+import type { ProjectDetail, ProjectStatus, Task } from '@/types';
+import { PROJECT_STATUS_LABELS } from '@/types';
+
+const formatDate = (ts: string) =>
+  new Date(ts).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+interface StatusGroup {
+  key: string;
+  name: string;
+  color?: string;
+  tasks: Task[];
+}
+
+/**
+ * Group the payload's tasks by their status row, preserving the order the
+ * API already established (status.position asc, then position asc) — i.e.
+ * first appearance wins.
+ */
+function groupByStatus(tasks: Task[]): StatusGroup[] {
+  const groups = new Map<string, StatusGroup>();
+  for (const task of tasks) {
+    const status = task.status;
+    const key = status?.id ?? 'none';
+    const existing = groups.get(key);
+    if (existing) {
+      existing.tasks.push(task);
+    } else {
+      groups.set(key, {
+        key,
+        name: status?.name ?? 'No status',
+        color: status?.color,
+        tasks: [task],
+      });
+    }
+  }
+  return [...groups.values()];
+}
+
+/** Lifecycle chip for the project status — outline Badge, capitalized word. */
+function ProjectStatusChip({ status }: { status: ProjectStatus }) {
+  return (
+    <Badge variant="outline" className="text-muted-foreground">
+      {PROJECT_STATUS_LABELS[status] ?? status}
+    </Badge>
+  );
+}
 
 export function ProjectDetailPage() {
   const { boardId, projectId } = useParams<{ boardId: string; projectId: string }>();
-  const { data: project, isLoading } = useProject(projectId!);
+  const navigate = useNavigate();
+  const { data: project, isLoading, error } = useProject(projectId!);
+  const { data: directory = [] } = useUserDirectory();
+
+  // The payload carries only leadId — resolve the display name through the
+  // existing directory hook; no lead (or unknown id) renders nothing.
+  const leadName = project?.leadId
+    ? (directory.find((u) => u.id === project.leadId)?.displayName ?? null)
+    : null;
+
+  const groups = groupByStatus(project?.tasks ?? []);
+  const progress = project?.progress;
+
+  // ── Loading ────────────────────────────────────────────────────────────────
+  if (isLoading) {
+    return (
+      <div className="flex h-full flex-col bg-background">
+        <header className="flex h-12 shrink-0 items-center border-b border-border bg-secondary px-3 sm:px-6">
+          <SidebarTrigger
+            className="md:hidden text-muted-foreground hover:text-foreground"
+            aria-label="Toggle sidebar"
+          />
+        </header>
+        <div className="flex-1 space-y-6 p-4 sm:p-6">
+          <Skeleton className="h-8 w-2/3" />
+          <Skeleton className="h-4 w-48" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-4 w-5/6" />
+        </div>
+      </div>
+    );
+  }
+
+  // ── Not found ──────────────────────────────────────────────────────────────
+  if (error || !project) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-4 bg-background">
+        <p className="text-sm text-foreground">Project not found.</p>
+        <Button variant="outline" onClick={() => navigate(`/board/${boardId}/projects`)}>
+          <ArrowLeft className="size-4 mr-2" />
+          Back to projects
+        </Button>
+      </div>
+    );
+  }
+
+  const pct =
+    progress && progress.total > 0 ? Math.round((progress.completed / progress.total) * 100) : 0;
 
   return (
     <div className="flex h-full flex-col bg-background">
-      <header className="flex h-12 shrink-0 items-center border-b border-border bg-secondary px-6">
-        <Link
-          to={`/board/${boardId}/projects`}
-          className="text-sm text-muted-foreground hover:text-foreground"
+      {/* Breadcrumb bar — mirrors the board-header-bar pattern */}
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border bg-secondary px-3 sm:px-6">
+        <SidebarTrigger
+          className="md:hidden text-muted-foreground hover:text-foreground"
+          aria-label="Toggle sidebar"
+        />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7 text-muted-foreground hover:text-foreground"
+          aria-label="Back to projects"
+          onClick={() => navigate(`/board/${boardId}/projects`)}
         >
-          Projects
-        </Link>
+          <ArrowLeft className="size-4" />
+        </Button>
+        <nav
+          aria-label="breadcrumb"
+          className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground"
+        >
+          <Link to={`/board/${boardId}/projects`} className="truncate hover:text-foreground">
+            Projects
+          </Link>
+          <span aria-hidden="true" className="text-muted-foreground/50">
+            ›
+          </span>
+          <span className="truncate text-foreground">{project.name}</span>
+        </nav>
       </header>
+
       <div className="flex-1 overflow-y-auto p-4 sm:p-6">
-        {isLoading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
-        ) : (
-          <h1 className="text-lg font-medium text-foreground">
-            {project ? `${project.icon ?? '📦'} ${project.name}` : 'Project not found'}
-          </h1>
-        )}
+        <div className="mx-auto max-w-3xl space-y-8">
+          {/* ── Header ─────────────────────────────────────────────────────── */}
+          <div className="space-y-3">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl leading-none">{project.icon ?? '📦'}</span>
+              <div className="min-w-0 space-y-1.5">
+                <h1 className="text-[24px] font-medium tracking-tight text-foreground">
+                  {project.name}
+                </h1>
+                <div className="flex flex-wrap items-center gap-2">
+                  <ProjectStatusChip status={project.status as ProjectStatus} />
+                  {leadName && (
+                    <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <span
+                        className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-[9px] font-semibold"
+                        title={leadName}
+                        aria-hidden="true"
+                      >
+                        {leadName.charAt(0).toUpperCase()}
+                      </span>
+                      <span className="truncate">{leadName}</span>
+                    </span>
+                  )}
+                  {progress && progress.total > 0 && (
+                    <span className="flex items-center gap-2">
+                      <span
+                        role="progressbar"
+                        aria-label={`${project.name} progress`}
+                        aria-valuenow={pct}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        className="h-1.5 w-40 max-w-full overflow-hidden rounded-full border border-border bg-secondary"
+                      >
+                        <span
+                          className="block h-full rounded-full bg-muted-foreground/40 transition-[width]"
+                          style={{ width: `${pct}%` }}
+                        />
+                      </span>
+                      <span className="text-xs text-muted-foreground tabular-nums">
+                        {progress.completed}/{progress.total}
+                      </span>
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            {(project.startDate || project.targetDate) && (
+              <p className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                {project.startDate && (
+                  <span>
+                    <span className="text-muted-foreground/70">Start </span>
+                    <span className="font-mono">{formatDate(project.startDate)}</span>
+                  </span>
+                )}
+                {project.targetDate && (
+                  <span>
+                    <span className="text-muted-foreground/70">Target </span>
+                    <span className="font-mono">{formatDate(project.targetDate)}</span>
+                  </span>
+                )}
+              </p>
+            )}
+            {project.description && (
+              <p className="max-w-prose text-sm leading-relaxed text-muted-foreground">
+                {project.description}
+              </p>
+            )}
+          </div>
+
+          {/* ── Tasks grouped by status ────────────────────────────────────── */}
+          {groups.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <FolderKanban className="h-12 w-12 text-muted-foreground" />
+              <h2 className="mt-4 text-lg font-medium text-foreground">No tasks yet</h2>
+              <p className="text-sm text-muted-foreground">
+                Add tasks to this project from the board.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {groups.map((group) => (
+                <section key={group.key} className="space-y-2" aria-label={`${group.name} tasks`}>
+                  {/* Group header — dot in the status color + name + count, mirrors BoardColumn header */}
+                  <h2 className="flex items-center gap-2 text-sm font-medium text-foreground">
+                    <span
+                      className="size-2 shrink-0 rounded-full"
+                      style={{ backgroundColor: group.color ?? '#94a3b8' }}
+                      aria-hidden="true"
+                    />
+                    {group.name}
+                    <span className="text-xs font-mono text-muted-foreground">
+                      {group.tasks.length}
+                    </span>
+                  </h2>
+                  <ul className="space-y-1.5">
+                    {group.tasks.map((task) => (
+                      <li key={task.id}>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/board/${boardId}/task/${task.id}`)}
+                          className="flex w-full items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left cursor-pointer transition-colors hover:bg-accent/30"
+                        >
+                          <ProgressIcon
+                            progress={task.status?.progress ?? 0}
+                            type={task.status?.type}
+                            size={16}
+                          />
+                          {task.taskNumber && (
+                            <span className="font-mono text-xs text-muted-foreground shrink-0">
+                              {task.taskNumber}
+                            </span>
+                          )}
+                          <span className="text-sm text-foreground truncate flex-1">
+                            {task.title}
+                          </span>
+                          {(task.labels ?? []).map((tl) => (
+                            <Badge key={tl.labelId} variant="outline" className="shrink-0">
+                              <span
+                                className="size-2 shrink-0 rounded-sm"
+                                style={{ backgroundColor: tl.label.color }}
+                                aria-hidden="true"
+                              />
+                              {tl.label.name}
+                            </Badge>
+                          ))}
+                          {task.assignee && (
+                            <span
+                              className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-[9px] font-semibold"
+                              title={task.assignee.displayName}
+                            >
+                              {task.assignee.displayName.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

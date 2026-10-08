@@ -33,15 +33,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import type { Project, ProjectStatus } from '@/types';
-
-/** Lifecycle chip label — capitalized status word, muted styling. */
-const STATUS_LABELS: Record<ProjectStatus, string> = {
-  planned: 'Planned',
-  started: 'Started',
-  completed: 'Completed',
-  paused: 'Paused',
-  canceled: 'Canceled',
-};
+import { PROJECT_STATUS_LABELS } from '@/types';
 
 interface CreateProjectFormData {
   name: string;
@@ -139,9 +131,9 @@ function CreateProjectDialog({
                 onChange={(e) => setStatus(e.target.value as ProjectStatus)}
                 className="rounded-md border border-border bg-input px-3 py-2 text-sm"
               >
-                {(Object.keys(STATUS_LABELS) as ProjectStatus[]).map((s) => (
+                {(Object.keys(PROJECT_STATUS_LABELS) as ProjectStatus[]).map((s) => (
                   <option key={s} value={s}>
-                    {STATUS_LABELS[s]}
+                    {PROJECT_STATUS_LABELS[s]}
                   </option>
                 ))}
               </select>
@@ -252,7 +244,7 @@ export function ProjectsPage() {
                         {project.name}
                       </span>
                       <Badge variant="outline" className="text-muted-foreground">
-                        {STATUS_LABELS[project.status as ProjectStatus] ?? project.status}
+                        {PROJECT_STATUS_LABELS[project.status as ProjectStatus] ?? project.status}
                       </Badge>
                     </span>
                     <span className="mt-1.5 flex items-center gap-2">

@@ -1,0 +1,296 @@
+/**
+ * ProjectDetailPage tests (TFG-34, Task 6).
+ *
+ * Mirrors pages/projects-page.test.tsx mocking style: vi.mock the hook
+ * modules (every hook the page imports from a mocked module is in the
+ * factory) and keep a mutable `data` fixture so each test can swap the
+ * GET /api/projects/:id payload before rendering. The payload is the full
+ * rollup shape from the API: project fields + hydrated tasks
+ * (status/assignee/labels/project) + the progress summary.
+ */
+import { describe, it, expect, vi } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { SidebarProvider } from '@/components/ui/sidebar';
+import { ProjectDetailPage } from './project-detail-page';
+import type { ProjectDetail } from '@/types';
+
+const mockProject: ProjectDetail = {
+  id: 'p1',
+  boardId: 'b1',
+  name: 'Roadmap',
+  description: 'Q3 planning',
+  icon: '📦',
+  leadId: 'u1',
+  status: 'started',
+  completedAt: null,
+  startDate: '2026-07-01',
+  targetDate: '2026-09-30',
+  position: 1,
+  createdAt: '2026-01-01T00:00:00Z',
+  updatedAt: '2026-01-02T00:00:00Z',
+  // Payload order = status.position then position; the page groups in
+  // first-appearance order, so groups must land Todo → In Progress → Done.
+  tasks: [
+    {
+      id: 't1',
+      statusId: 's1',
+      boardId: 'b1',
+      number: 101,
+      taskNumber: 'TF-101',
+      title: 'Fix login loop',
+      position: 0,
+      priority: 'high',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-02T00:00:00Z',
+      projectId: 'p1',
+      project: { id: 'p1', name: 'Roadmap', icon: '📦' },
+      status: {
+        id: 's1',
+        boardId: 'b1',
+        name: 'Todo',
+        type: 'todo',
+        color: '#62666d',
+        position: 0,
+      },
+      labels: [
+        {
+          taskId: 't1',
+          labelId: 'l1',
+          assignedAt: '2026-01-01',
+          label: {
+            id: 'l1',
+            boardId: 'b1',
+            name: 'Bug',
+            color: '#eb5757',
+            createdAt: '2026-01-01',
+            updatedAt: '2026-01-01',
+          },
+        },
+      ],
+    },
+    {
+      id: 't2',
+      statusId: 's2',
+      boardId: 'b1',
+      number: 102,
+      taskNumber: 'TF-102',
+      title: 'Wire offline-safe export',
+      position: 0,
+      priority: 'medium',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-02T00:00:00Z',
+      projectId: 'p1',
+      project: { id: 'p1', name: 'Roadmap', icon: '📦' },
+      status: {
+        id: 's2',
+        boardId: 'b1',
+        name: 'In Progress',
+        type: 'in_progress',
+        color: '#eb5757',
+        position: 1,
+      },
+      assignee: {
+        id: 'u2',
+        email: 'bob@example.com',
+        displayName: 'Bob',
+        role: 'member',
+        createdAt: '2026-01-01',
+        updatedAt: '2026-01-01',
+      },
+    },
+    {
+      id: 't3',
+      statusId: 's2',
+      boardId: 'b1',
+      number: 103,
+      taskNumber: 'TF-103',
+      title: 'Polish board empty states',
+      position: 1,
+      priority: 'low',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-02T00:00:00Z',
+      projectId: 'p1',
+      project: { id: 'p1', name: 'Roadmap', icon: '📦' },
+      status: {
+        id: 's2',
+        boardId: 'b1',
+        name: 'In Progress',
+        type: 'in_progress',
+        color: '#eb5757',
+        position: 1,
+      },
+    },
+    {
+      id: 't4',
+      statusId: 's3',
+      boardId: 'b1',
+      number: 104,
+      taskNumber: 'TF-104',
+      title: 'Ship settings import',
+      position: 0,
+      priority: 'urgent',
+      doneAt: '2026-01-03T00:00:00Z',
+      createdAt: '2026-01-01T00:00:00Z',
+      updatedAt: '2026-01-03T00:00:00Z',
+      projectId: 'p1',
+      project: { id: 'p1', name: 'Roadmap', icon: '📦' },
+      status: {
+        id: 's3',
+        boardId: 'b1',
+        name: 'Done',
+        type: 'done',
+        color: '#27a644',
+        position: 2,
+      },
+    },
+  ],
+  progress: { total: 4, completed: 2, byStatus: { todo: 1, in_progress: 2, done: 1 } },
+};
+
+// Mutable so each test can swap fixture data before rendering.
+const data: { project: ProjectDetail | null; loading: boolean } = {
+  project: mockProject,
+  loading: false,
+};
+
+vi.mock('@/hooks/use-projects', () => ({
+  useProject: () => ({ data: data.project, isLoading: data.loading }),
+}));
+vi.mock('@/hooks/use-boards', () => ({
+  useBoardFull: () => ({
+    data: { id: 'b1', name: 'Sprint 1', identifier: 'TF', icon: '⭐', statuses: [] },
+  }),
+}));
+vi.mock('@/hooks/use-users', () => ({
+  useUserDirectory: () => ({ data: [{ id: 'u1', displayName: 'Alice' }] }),
+}));
+
+function renderPage() {
+  const queryClient = new QueryClient();
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <SidebarProvider>
+        <MemoryRouter initialEntries={['/board/b1/projects/p1']}>
+          <ProjectDetailPage />
+        </MemoryRouter>
+      </SidebarProvider>
+    </QueryClientProvider>,
+  );
+}
+
+const formatDate = (ts: string) =>
+  new Date(ts).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+
+describe('ProjectDetailPage', () => {
+  it('renders the header fields from the payload', () => {
+    renderPage();
+
+    // Name appears in both the h1 and the breadcrumb's current page crumb.
+    expect(screen.getAllByText('Roadmap').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText('📦')).toBeInTheDocument();
+    expect(screen.getByText('Started')).toBeInTheDocument();
+    // leadId resolves through the user directory (the payload has only the id).
+    expect(screen.getByText('Alice')).toBeInTheDocument();
+    expect(screen.getByText('Q3 planning')).toBeInTheDocument();
+    expect(screen.getByText(formatDate('2026-07-01'))).toBeInTheDocument();
+    expect(screen.getByText(formatDate('2026-09-30'))).toBeInTheDocument();
+  });
+
+  it('groups tasks by status in status order with counts', () => {
+    renderPage();
+
+    const todo = screen.getByText('Todo');
+    const inProgress = screen.getByText('In Progress');
+    const done = screen.getByText('Done');
+
+    // Groups follow the payload's status order (status.position).
+    expect(
+      todo.compareDocumentPosition(inProgress) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      inProgress.compareDocumentPosition(done) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    // Count badge inside the group heading.
+    const todoHeading = todo.closest('h2')!;
+    const inProgressHeading = inProgress.closest('h2')!;
+    expect(within(todoHeading).getByText('1')).toBeInTheDocument();
+    expect(within(inProgressHeading).getByText('2')).toBeInTheDocument();
+
+    // Group dot takes the status color.
+    expect(inProgressHeading.querySelector('span')).toHaveStyle({
+      backgroundColor: '#eb5757',
+    });
+
+    // Rows stay inside their own group.
+    const todoSection = todo.closest('section')!;
+    expect(within(todoSection).getByText('Fix login loop')).toBeInTheDocument();
+    expect(within(todoSection).queryByText('Ship settings import')).toBeNull();
+    const inProgressSection = inProgress.closest('section')!;
+    expect(within(inProgressSection).getByText('Wire offline-safe export')).toBeInTheDocument();
+    expect(within(inProgressSection).getByText('Polish board empty states')).toBeInTheDocument();
+    expect(within(inProgressSection).queryByText('Fix login loop')).toBeNull();
+    const doneSection = done.closest('section')!;
+    expect(within(doneSection).getByText('Ship settings import')).toBeInTheDocument();
+  });
+
+  it('renders task rows with their hydration: number, label and assignee', () => {
+    renderPage();
+
+    const row = screen.getByText('Wire offline-safe export').closest('button')!;
+    expect(within(row).getByText('TF-102')).toBeInTheDocument();
+    expect(within(row).getByTitle('Bob')).toBeInTheDocument(); // avatar fallback
+
+    const labeledRow = screen.getByText('Fix login loop').closest('button')!;
+    expect(within(labeledRow).getByText('Bug')).toBeInTheDocument();
+  });
+
+  it('renders the server progress rollup as a neutral bar and count', () => {
+    renderPage();
+
+    const bar = screen.getByRole('progressbar', { name: 'Roadmap progress' });
+    expect(bar).toHaveAttribute('aria-valuenow', '50');
+    expect(screen.getByText('2/4')).toBeInTheDocument();
+  });
+
+  it('renders nothing for the lead when the payload has none', () => {
+    data.project = { ...mockProject, leadId: null };
+    renderPage();
+    expect(screen.getByText('Started')).toBeInTheDocument(); // page still renders
+    expect(screen.queryByText('Alice')).not.toBeInTheDocument();
+    data.project = mockProject;
+  });
+
+  it('shows the not-found state for a missing project', () => {
+    data.project = null;
+    renderPage();
+    expect(screen.getByText('Project not found.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /back to projects/i })).toBeInTheDocument();
+    data.project = mockProject;
+  });
+
+  it('shows skeletons while loading', () => {
+    data.loading = true;
+    const { container } = renderPage();
+    expect(screen.queryByText('Roadmap')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('.animate-pulse').length).toBeGreaterThan(0);
+    data.loading = false;
+  });
+
+  it('shows an empty state when the project has no tasks', () => {
+    data.project = {
+      ...mockProject,
+      tasks: [],
+      progress: { total: 0, completed: 0, byStatus: {} },
+    };
+    renderPage();
+    expect(screen.getByText('No tasks yet')).toBeInTheDocument();
+    data.project = mockProject;
+  });
+});
