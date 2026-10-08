@@ -179,7 +179,7 @@ describe('McpTransportController', () => {
       new LabelsService(prisma as any, events, new MembersService(prisma as any)),
       new StatusesService(prisma as any, events, new MembersService(prisma as any), attachments),
       new ViewsService(prisma as any, events, new MembersService(prisma as any)),
-      new ProjectsService(prisma as any, events, new MembersService(prisma as any)),
+      new ProjectsService(prisma as any, events),
       attachments,
     );
     const factory = new McpServerFactory(mcpService);

@@ -1,11 +1,11 @@
 import { IsDateString, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
 import { PROJECT_STATUSES } from '../project-statuses';
 
+/**
+ * Projects v2: projects are workspace-level — no boardId. Any authenticated
+ * (non-bot) user may create one.
+ */
 export class CreateProjectDto {
-  @IsNotEmpty()
-  @IsString()
-  boardId: string;
-
   @IsNotEmpty()
   @IsString()
   @MaxLength(100)

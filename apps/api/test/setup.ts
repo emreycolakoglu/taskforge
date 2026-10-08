@@ -244,16 +244,10 @@ export async function seedView(
 }
 
 /**
- * Seed a project. v2: projects are workspace-level — `boardId` is only used
- * to sync the project-position fixture context, never stored on the row.
- * (Keeps the v1 call signature so board-scoped tests keep seeding per board.)
+ * Seed a workspace-level project (Projects v2: no boardId — the row carries
+ * only global fields; `position` defaults to 0 unless overridden).
  */
-export async function seedProject(
-  prisma: PrismaClient,
-  boardId: string | null,
-  overrides: Record<string, any> = {},
-) {
-  void boardId; // no longer persisted; Task 3 removes the parameter
+export async function seedProject(prisma: PrismaClient, overrides: Record<string, any> = {}) {
   return prisma.project.create({
     data: {
       name: overrides.name || 'Test project',
@@ -265,7 +259,7 @@ export async function seedProject(
       startDate: overrides.startDate ?? null,
       targetDate: overrides.targetDate ?? null,
       position: overrides.position ?? 0,
-    } as any,
+    },
   });
 }
 

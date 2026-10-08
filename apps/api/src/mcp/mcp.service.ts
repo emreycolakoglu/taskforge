@@ -51,23 +51,18 @@ async function validateParent(
 }
 
 /**
- * Inline mirror of TasksService.validateProject (project rules P1-P2).
- * P1: project must exist. P2: project must belong to the same board as the
- * task. `projectId: null` is always allowed (un-assign).
+ * Inline mirror of TasksService.validateProject (project rule P1).
+ * P1: project must exist. Projects v2: the P2 same-board check is gone —
+ * projects are workspace-level, so a task on ANY board may link to ANY
+ * project. `projectId: null` is always allowed (un-assign).
  */
 async function validateProject(
   prisma: PrismaService,
   projectId: string | null,
-  boardId: string,
 ): Promise<{ id: string; name: string } | null> {
   if (projectId === null) return null;
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   if (!project) throw new NotFoundException('Project not found');
-  // P2 mirror — same mid-plan cast story as tasks.service (column dropped by
-  // Task 2, comparison compares against undefined; Task 3 deletes the branch).
-  if ((project as any).boardId !== boardId) {
-    throw new BadRequestException('Project is on a different board');
-  }
   return project;
 }
 
@@ -405,9 +400,9 @@ export class McpService {
             where: { id: status.boardId },
           });
 
-          // Project linkage (P1, P2). Null passes through. Runs before
+          // Project linkage (P1). Null passes through. Runs before
           // numbering so a bad projectId never burns a task number.
-          await validateProject(this.prisma, params.projectId ?? null, board.id);
+          await validateProject(this.prisma, params.projectId ?? null);
 
           const taskNumber = board.nextTaskNum;
           await tx.board.update({
@@ -484,7 +479,7 @@ export class McpService {
           parentChanged = true;
         }
 
-        // Project linkage (P1, P2). projectId: null is always allowed
+        // Project linkage (P1). projectId: null is always allowed
         // (un-assign) — never truthy-gate this field, or clearing would
         // silently skip the write.
         let project: { id: string; name: string } | null = null;
@@ -492,7 +487,7 @@ export class McpService {
         if (params.projectId !== undefined) {
           data.projectId = params.projectId;
           if (params.projectId !== null) {
-            project = await validateProject(this.prisma, params.projectId, existing.boardId);
+            project = await validateProject(this.prisma, params.projectId);
           }
           projectChanged = params.projectId !== existing.projectId;
         }
@@ -822,21 +817,20 @@ export class McpService {
     }
   }
 
-  // Thin delegation to ProjectsService — gating, defaults, events, and the
+  // Thin delegation to ProjectsService — bot gate, defaults, events, and the
   // completedAt lifecycle live there; MCP only validates required params.
+  // Projects v2: workspace-level — no boardId anywhere.
   private async handleProjects(action: string, params: any, user?: AuthUser) {
     if (!user) throw new BadRequestException('Authentication required');
     switch (action) {
       case 'list': {
-        if (!params.boardId) throw new BadRequestException('boardId is required');
-        return this.projects.findAll(params.boardId);
+        return this.projects.findAll();
       }
       case 'get':
         return this.projects.findOne(params.id);
       case 'create':
         return this.projects.create(
           {
-            boardId: params.boardId,
             name: params.name,
             description: params.description,
             icon: params.icon,

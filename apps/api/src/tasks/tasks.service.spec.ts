@@ -1029,7 +1029,7 @@ describe('TasksService', () => {
     });
   });
 
-  // ─── Task ↔ project linkage (TFG-34) ────────────────────────────────────────
+  // ─── Task ↔ project linkage (TFG-34; Projects v2: workspace-wide) ─────────
 
   describe('task ↔ project linkage', () => {
     const captureEvents = () => {
@@ -1041,12 +1041,15 @@ describe('TasksService', () => {
       }) as any);
       return {
         emitted,
+        // finally-guarded so a failing assertion before restore() can't leak
+        // the spy into the next test (the v2 Task-2 red-state made this leak
+        // cascade spy-recursion RangeErrors across tests 6/7).
         restore: () => jest.restoreAllMocks(),
       };
     };
 
     it('1. create with projectId links the task and includes project in the payload', async () => {
-      const project = await seedProject(prisma, board.id, { name: 'Roadmap' });
+      const project = await seedProject(prisma, { name: 'Roadmap' });
       const task = await service.create(
         { statusId: board.statuses[0].id, title: 'Linked', projectId: project.id },
         user,
@@ -1064,15 +1067,20 @@ describe('TasksService', () => {
       ).rejects.toThrow('Project not found');
     });
 
-    it('3. create with projectId from a different board → BadRequestException', async () => {
+    it('3. create with ANY project id — projects are workspace-level (P2 removed, v2 pin)', async () => {
+      // The project "belongs" to no board; a task on any board may link to it.
+      const project = await seedProject(prisma, { name: 'Global roadmap' });
       const otherBoard = await seedBoard(prisma);
-      const foreignProject = await seedProject(prisma, otherBoard.id, { name: 'Foreign' });
-      await expect(
-        service.create(
-          { statusId: board.statuses[0].id, title: 'Task', projectId: foreignProject.id },
-          user,
-        ),
-      ).rejects.toThrow('Project is on a different board');
+      const taskOnOtherBoard = await service.create(
+        {
+          statusId: otherBoard.statuses[0].id,
+          title: 'Linked to global project',
+          projectId: project.id,
+        },
+        user,
+      );
+      expect(taskOnOtherBoard.projectId).toBe(project.id);
+      expect(taskOnOtherBoard.project).toMatchObject({ id: project.id, name: 'Global roadmap' });
     });
 
     it('4. create without projectId leaves it null and includes null project', async () => {
@@ -1082,73 +1090,82 @@ describe('TasksService', () => {
     });
 
     it('5. update with projectId set → row updated, activity "added to project", event emitted', async () => {
-      const project = await seedProject(prisma, board.id, { name: 'Roadmap' });
+      const project = await seedProject(prisma, { name: 'Roadmap' });
       const task = await seedTask(prisma, board.statuses[0].id);
       const { emitted, restore } = captureEvents();
 
-      const updated = await service.update(task.id, { projectId: project.id }, user);
+      try {
+        const updated = await service.update(task.id, { projectId: project.id }, user);
 
-      expect(updated.projectId).toBe(project.id);
-      expect(updated.project).toMatchObject({ id: project.id, name: 'Roadmap' });
-      const stored = await prisma.task.findUnique({ where: { id: task.id } });
-      expect(stored!.projectId).toBe(project.id);
+        expect(updated.projectId).toBe(project.id);
+        expect(updated.project).toMatchObject({ id: project.id, name: 'Roadmap' });
+        const stored = await prisma.task.findUnique({ where: { id: task.id } });
+        expect(stored!.projectId).toBe(project.id);
 
-      const activity = await prisma.activity.findFirst({
-        where: { taskId: task.id, action: 'updated' },
-      });
-      expect(activity).not.toBeNull();
-      const changes = JSON.parse(activity!.detail!).changes as string[];
-      expect(changes).toContain('added to project: Roadmap');
+        const activity = await prisma.activity.findFirst({
+          where: { taskId: task.id, action: 'updated' },
+        });
+        expect(activity).not.toBeNull();
+        const changes = JSON.parse(activity!.detail!).changes as string[];
+        expect(changes).toContain('added to project: Roadmap');
 
-      const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
-      expect(projectEvents).toHaveLength(1);
-      expect(projectEvents[0].boardId).toBe(board.id);
-      expect(projectEvents[0].data.id).toBe(task.id);
-      expect(projectEvents[0].data.projectId).toBe(project.id);
-      restore();
+        const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
+        expect(projectEvents).toHaveLength(1);
+        expect(projectEvents[0].boardId).toBe(board.id);
+        expect(projectEvents[0].data.id).toBe(task.id);
+        expect(projectEvents[0].data.projectId).toBe(project.id);
+      } finally {
+        restore();
+      }
     });
 
     it('6. update with projectId: null clears it AND logs "removed from project" (regression pin)', async () => {
-      const project = await seedProject(prisma, board.id, { name: 'Doomed' });
+      const project = await seedProject(prisma, { name: 'Doomed' });
       const task = await seedTask(prisma, board.statuses[0].id, { projectId: project.id });
       const { emitted, restore } = captureEvents();
 
-      const updated = await service.update(task.id, { projectId: null }, user);
+      try {
+        const updated = await service.update(task.id, { projectId: null }, user);
 
-      expect(updated.projectId).toBeNull();
-      expect(updated.project).toBeNull();
-      const stored = await prisma.task.findUnique({ where: { id: task.id } });
-      expect(stored!.projectId).toBeNull();
+        expect(updated.projectId).toBeNull();
+        expect(updated.project).toBeNull();
+        const stored = await prisma.task.findUnique({ where: { id: task.id } });
+        expect(stored!.projectId).toBeNull();
 
-      const activity = await prisma.activity.findFirst({
-        where: { taskId: task.id, action: 'updated' },
-      });
-      expect(activity).not.toBeNull();
-      const changes = JSON.parse(activity!.detail!).changes as string[];
-      expect(changes).toContain('removed from project');
+        const activity = await prisma.activity.findFirst({
+          where: { taskId: task.id, action: 'updated' },
+        });
+        expect(activity).not.toBeNull();
+        const changes = JSON.parse(activity!.detail!).changes as string[];
+        expect(changes).toContain('removed from project');
 
-      const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
-      expect(projectEvents).toHaveLength(1);
-      expect(projectEvents[0].data.previousProjectId).toBe(project.id);
-      restore();
+        const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
+        expect(projectEvents).toHaveLength(1);
+        expect(projectEvents[0].data.previousProjectId).toBe(project.id);
+      } finally {
+        restore();
+      }
     });
 
     it('7. update with the same projectId → no project activity line, no task.project.updated event', async () => {
-      const project = await seedProject(prisma, board.id, { name: 'Roadmap' });
+      const project = await seedProject(prisma, { name: 'Roadmap' });
       const task = await seedTask(prisma, board.statuses[0].id, { projectId: project.id });
       const { emitted, restore } = captureEvents();
 
-      await service.update(task.id, { projectId: project.id }, user);
+      try {
+        await service.update(task.id, { projectId: project.id }, user);
 
-      const activity = await prisma.activity.findFirst({
-        where: { taskId: task.id, action: 'updated' },
-      });
-      // No activity at all — the update touched nothing else.
-      expect(activity).toBeNull();
+        const activity = await prisma.activity.findFirst({
+          where: { taskId: task.id, action: 'updated' },
+        });
+        // No activity at all — the update touched nothing else.
+        expect(activity).toBeNull();
 
-      const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
-      expect(projectEvents).toHaveLength(0);
-      restore();
+        const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
+        expect(projectEvents).toHaveLength(0);
+      } finally {
+        restore();
+      }
     });
 
     it('8. update with a non-existent projectId → NotFoundException', async () => {
@@ -1158,20 +1175,21 @@ describe('TasksService', () => {
       );
     });
 
-    it('9. update with other-board projectId → BadRequestException, row untouched', async () => {
-      const otherBoard = await seedBoard(prisma);
-      const foreignProject = await seedProject(prisma, otherBoard.id, { name: 'Foreign' });
+    it('9. update with a project created while other boards exist → accepted, row updated (v2 pin: no board scoping)', async () => {
+      // v1 rejected cross-board links; v2 projects have no board, so linking a
+      // task to ANY existing project must succeed.
+      await seedBoard(prisma); // a second board exists — irrelevant to projects
+      const project = await seedProject(prisma, { name: 'Anywhere' });
       const task = await seedTask(prisma, board.statuses[0].id);
-      await expect(service.update(task.id, { projectId: foreignProject.id }, user)).rejects.toThrow(
-        'Project is on a different board',
-      );
+      const updated = await service.update(task.id, { projectId: project.id }, user);
+      expect(updated.projectId).toBe(project.id);
       const stored = await prisma.task.findUnique({ where: { id: task.id } });
-      expect(stored!.projectId).toBeNull();
+      expect(stored!.projectId).toBe(project.id);
     });
 
     it('10. update from one project to another logs the transition', async () => {
-      const projectA = await seedProject(prisma, board.id, { name: 'Alpha' });
-      const projectB = await seedProject(prisma, board.id, { name: 'Beta' });
+      const projectA = await seedProject(prisma, { name: 'Alpha' });
+      const projectB = await seedProject(prisma, { name: 'Beta' });
       const task = await seedTask(prisma, board.statuses[0].id, { projectId: projectA.id });
 
       await service.update(task.id, { projectId: projectB.id }, user);
@@ -1184,7 +1202,7 @@ describe('TasksService', () => {
     });
 
     it('11. findByBoard / findByStatus / findOne hydrate project {id, name, icon}', async () => {
-      const project = await seedProject(prisma, board.id, { name: 'Hydrated' });
+      const project = await seedProject(prisma, { name: 'Hydrated' });
       const seeded = await seedTask(prisma, board.statuses[0].id, { projectId: project.id });
 
       const boardTasks = await service.findByBoard(board.id);

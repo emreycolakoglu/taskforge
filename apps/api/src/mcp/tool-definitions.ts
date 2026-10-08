@@ -338,8 +338,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'projects_list',
     title: 'List projects',
-    description: 'List projects on a board, ordered by position.',
-    inputSchema: { boardId: idField('Board') },
+    description: 'List all workspace projects, ordered by position.',
+    inputSchema: {},
   },
   {
     name: 'projects_get',
@@ -352,9 +352,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: 'projects_create',
     title: 'Create project',
     description:
-      'Create a project on a board. Requires board admin (or a legacy board with no members). Icon defaults to 📦, status defaults to planned; position is appended at the end of the board.',
+      'Create a workspace-level project. Icon defaults to 📦, status defaults to planned; position is appended at the end of the workspace. Bot sessions cannot manage projects.',
     inputSchema: {
-      boardId: idField('Board'),
       name: z.string(),
       description: z.string().optional(),
       icon: z.string().optional().describe('Emoji icon for the project, defaults to 📦'),
@@ -368,7 +367,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: 'projects_update',
     title: 'Update project',
     description:
-      "Update a project's name, description, icon, lead, status, dates, or position. Requires board admin. Moving status into/out of completed stamps/clears completedAt.",
+      "Update a project's name, description, icon, lead, status, dates, or position. Bot sessions cannot manage projects. Moving status into/out of completed stamps/clears completedAt.",
     inputSchema: {
       id: idField('Project'),
       name: z.string().optional(),
@@ -385,7 +384,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: 'projects_delete',
     title: 'Delete project',
     description:
-      'Delete a project. Linked tasks survive with their project link cleared (SetNull). Requires board admin.',
+      'Delete a project. Linked tasks survive with their project link cleared (SetNull). Bot sessions cannot manage projects.',
     inputSchema: { id: idField('Project') },
   },
 

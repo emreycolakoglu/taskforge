@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ProjectsService } from './projects.service';
-import { MembersService } from '../members/members.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { createTestPrisma, seedBoard, seedProject, seedTask, seedUser } from '../../test/setup';
@@ -13,7 +12,6 @@ describe('ProjectsService', () => {
   let board: any;
   let owner: any;
   let member: any;
-  let boardAdmin: any;
   let globalAdmin: any;
 
   beforeAll(async () => {
@@ -22,7 +20,6 @@ describe('ProjectsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ProjectsService,
-        MembersService,
         { provide: PrismaService, useValue: prisma },
         { provide: EventsService, useValue: events },
       ],
@@ -38,16 +35,12 @@ describe('ProjectsService', () => {
     board = await seedBoard(prisma);
     owner = await seedUser(prisma, { email: 'project-owner@example.com' });
     member = await seedUser(prisma, { email: 'project-member@example.com' });
-    boardAdmin = await seedUser(prisma, { email: 'project-board-admin@example.com' });
     globalAdmin = await seedUser(prisma, {
       email: 'project-global-admin@example.com',
       role: 'admin',
     });
     await prisma.member.create({ data: { boardId: board.id, userId: owner.id, role: 'member' } });
     await prisma.member.create({ data: { boardId: board.id, userId: member.id, role: 'member' } });
-    await prisma.member.create({
-      data: { boardId: board.id, userId: boardAdmin.id, role: 'admin' },
-    });
   });
 
   // Reverse dependency order per the brief; project deletes after task (tasks
@@ -71,164 +64,226 @@ describe('ProjectsService', () => {
     await prisma.settings.deleteMany();
   });
 
-  const baseDto = {
-    boardId: '', // set per-test
-    name: 'Roadmap v1',
-  };
+  // The v2 user shape reaching ProjectsService — `bot` rides the request's
+  // session flag (see ProjectsController.assertNotBot); services test the
+  // flag directly on the user object the controller passes through.
+  const human = (u: any) => ({ id: u.id, displayName: u.displayName, bot: false });
+  const bot = (u: any) => ({ id: u.id, displayName: u.displayName, bot: true });
+  const baseDto = { name: 'Roadmap v1' };
 
-  it('creates the FIRST project at position 0 (statuses house pattern, not ?? 0)', async () => {
-    const created = await service.create({ ...baseDto, boardId: board.id }, boardAdmin);
-    expect(created.position).toBe(0);
-  });
+  describe('create', () => {
+    it('creates the FIRST project at position 0 (statuses house pattern, not ?? 0)', async () => {
+      const created = await service.create({ ...baseDto }, human(owner));
+      expect(created.position).toBe(0);
+      expect('boardId' in created).toBe(false);
+    });
 
-  it('creates a project appending at the end of the board (position = max+1)', async () => {
-    await seedProject(prisma, board.id, { name: 'First', position: 3 });
-    const created = await service.create({ ...baseDto, boardId: board.id }, boardAdmin);
-    expect(created.name).toBe('Roadmap v1');
-    expect(created.position).toBe(4);
-    expect(created.icon).toBe('📦');
-    expect(created.status).toBe('planned');
-    expect(created.completedAt).toBeNull();
-  });
+    it('appends at the end of the workspace (position = global max+1, not per-board)', async () => {
+      await seedProject(prisma, { name: 'First', position: 3 });
+      const created = await service.create({ ...baseDto }, human(owner));
+      expect(created.name).toBe('Roadmap v1');
+      expect(created.position).toBe(4);
+      expect(created.icon).toBe('📦');
+      expect(created.status).toBe('planned');
+      expect(created.completedAt).toBeNull();
+    });
 
-  it('rejects project creation by a non-admin member', async () => {
-    await expect(service.create({ ...baseDto, boardId: board.id }, member)).rejects.toThrow(
-      ForbiddenException,
-    );
-  });
+    it('allows creation by ANY authenticated member (v2: all-members)', async () => {
+      // Plain member, no admin role anywhere, no membership needed at all —
+      // v1's board-admin gate is gone.
+      const created = await service.create({ ...baseDto }, human(member));
+      expect(created.name).toBe('Roadmap v1');
+    });
 
-  it('allows project creation by a board-admin member', async () => {
-    const created = await service.create({ ...baseDto, boardId: board.id }, boardAdmin);
-    expect(created.name).toBe('Roadmap v1');
-  });
+    it('allows creation by a member of a DIFFERENT board (workspace-wide)', async () => {
+      const otherBoard = await seedBoard(prisma);
+      const outsider = await seedUser(prisma, { email: 'project-outsider@example.com' });
+      await prisma.member.create({
+        data: { boardId: otherBoard.id, userId: outsider.id, role: 'member' },
+      });
+      const created = await service.create({ ...baseDto }, human(outsider));
+      expect(created.name).toBe('Roadmap v1');
+    });
 
-  it('allows project creation by a global admin (no board membership)', async () => {
-    const created = await service.create({ ...baseDto, boardId: board.id }, globalAdmin);
-    expect(created.name).toBe('Roadmap v1');
-  });
+    it('allows creation by a global admin', async () => {
+      const created = await service.create({ ...baseDto }, human(globalAdmin));
+      expect(created.name).toBe('Roadmap v1');
+    });
 
-  it('allows project creation on a legacy board (zero Member rows)', async () => {
-    const legacyBoard = await seedBoard(prisma);
-    const plainUser = await seedUser(prisma, { email: 'project-legacy-user@example.com' });
-    const created = await service.create({ ...baseDto, boardId: legacyBoard.id }, plainUser);
-    expect(created.name).toBe('Roadmap v1');
-  });
+    it('rejects bot sessions (ForbiddenException)', async () => {
+      await expect(service.create({ ...baseDto }, bot(owner))).rejects.toThrow(ForbiddenException);
+      await expect(service.create({ ...baseDto }, bot(owner))).rejects.toThrow(
+        'Bot sessions cannot manage projects',
+      );
+      // Nothing was written.
+      expect(await prisma.project.count()).toBe(0);
+    });
 
-  it('findAll orders projects by position asc', async () => {
-    await seedProject(prisma, board.id, { name: 'third', position: 2 });
-    await seedProject(prisma, board.id, { name: 'first', position: 0.5 });
-    await seedProject(prisma, board.id, { name: 'second', position: 1 });
-    const projects = await service.findAll(board.id);
-    expect(projects.map((p: any) => p.name)).toEqual(['first', 'second', 'third']);
-  });
-
-  it('findOne returns tasks and a progress rollup', async () => {
-    const doneStatus = board.statuses.find((s: any) => s.type === 'done');
-    const inProgressStatus = board.statuses.find((s: any) => s.type === 'in_progress');
-    const cancelledStatus = board.statuses.find((s: any) => s.type === 'cancelled');
-    const project = await seedProject(prisma, board.id, { name: 'With tasks' });
-    // seedTask does not forward projectId, so link after creation.
-    const link = (t: any) =>
-      prisma.task.update({ where: { id: t.id }, data: { projectId: project.id } });
-    await link(await seedTask(prisma, doneStatus.id, { position: 2 }));
-    await link(await seedTask(prisma, doneStatus.id, { position: 1, title: 'B' }));
-    await link(await seedTask(prisma, inProgressStatus.id, {}));
-    await link(await seedTask(prisma, cancelledStatus.id, {}));
-    const found = await service.findOne(project.id);
-    expect(found.tasks).toHaveLength(4);
-    expect(found.progress).toEqual({
-      total: 4,
-      completed: 2,
-      byStatus: { done: 2, in_progress: 1, cancelled: 1 },
+    it('requires authentication', async () => {
+      await expect(service.create({ ...baseDto }, undefined)).rejects.toThrow(
+        'Authentication required',
+      );
     });
   });
 
-  it('findOne task rows carry taskNumber matching identifier-number (detail page regression pin)', async () => {
-    const status = board.statuses[0];
-    const project = await seedProject(prisma, board.id, { name: 'Numbered' });
-    const task = await seedTask(prisma, status.id, { number: 101 });
-    await prisma.task.update({ where: { id: task.id }, data: { projectId: project.id } });
-
-    const found = await service.findOne(project.id);
-    // Same shape tasks.service payloads use — the detail page renders this
-    // chip with `task.taskNumber`.
-    expect(found.tasks[0].taskNumber).toBe(`${board.identifier}-101`);
-  });
-
-  it('update stamps completedAt when status becomes completed', async () => {
-    const project = await seedProject(prisma, board.id, { status: 'started' });
-    const updated = await service.update(project.id, { status: 'completed' }, boardAdmin);
-    expect(updated.completedAt).not.toBeNull();
-  });
-
-  it('update clears completedAt when moving away from completed', async () => {
-    const project = await seedProject(prisma, board.id, {
-      status: 'completed',
-      completedAt: new Date(),
+  describe('findAll', () => {
+    it('lists ALL projects workspace-wide, ordered by position asc', async () => {
+      await seedProject(prisma, { name: 'third', position: 2 });
+      await seedProject(prisma, { name: 'first', position: 0.5 });
+      await seedProject(prisma, { name: 'second', position: 1 });
+      // A second board existing must not affect the listing.
+      await seedBoard(prisma);
+      const projects = await service.findAll();
+      expect(projects.map((p: any) => p.name)).toEqual(['first', 'second', 'third']);
     });
-    const updated = await service.update(project.id, { status: 'started' }, boardAdmin);
-    expect(updated.completedAt).toBeNull();
   });
 
-  it('update leaves completedAt untouched when only the name changes', async () => {
-    const completedAt = new Date('2026-01-01T00:00:00.000Z');
-    const project = await seedProject(prisma, board.id, {
-      status: 'completed',
-      completedAt,
+  describe('findOne', () => {
+    it('returns tasks and a progress rollup', async () => {
+      const doneStatus = board.statuses.find((s: any) => s.type === 'done');
+      const inProgressStatus = board.statuses.find((s: any) => s.type === 'in_progress');
+      const cancelledStatus = board.statuses.find((s: any) => s.type === 'cancelled');
+      const project = await seedProject(prisma, { name: 'With tasks' });
+      // seedTask does not forward projectId, so link after creation.
+      const link = (t: any) =>
+        prisma.task.update({ where: { id: t.id }, data: { projectId: project.id } });
+      await link(await seedTask(prisma, doneStatus.id, { position: 2 }));
+      await link(await seedTask(prisma, doneStatus.id, { position: 1, title: 'B' }));
+      await link(await seedTask(prisma, inProgressStatus.id, {}));
+      await link(await seedTask(prisma, cancelledStatus.id, {}));
+      const found = await service.findOne(project.id);
+      expect(found.tasks).toHaveLength(4);
+      expect(found.progress).toEqual({
+        total: 4,
+        completed: 2,
+        byStatus: { done: 2, in_progress: 1, cancelled: 1 },
+      });
     });
-    const updated = await service.update(project.id, { name: 'Renamed' }, boardAdmin);
-    expect(updated.completedAt).not.toBeNull();
-    expect(updated.completedAt!.toISOString()).toBe(completedAt.toISOString());
+
+    it('task rows carry taskNumber matching identifier-number (detail page regression pin)', async () => {
+      const status = board.statuses[0];
+      const project = await seedProject(prisma, { name: 'Numbered' });
+      const task = await seedTask(prisma, status.id, { number: 101 });
+      await prisma.task.update({ where: { id: task.id }, data: { projectId: project.id } });
+
+      const found = await service.findOne(project.id);
+      // Same shape tasks.service payloads use — the detail page renders this
+      // chip with `task.taskNumber`.
+      expect(found.tasks[0].taskNumber).toBe(`${board.identifier}-101`);
+    });
+
+    it('throws NotFoundException for a missing project', async () => {
+      await expect(service.findOne('nonexistent')).rejects.toThrow(NotFoundException);
+    });
   });
 
-  it('update rejects a non-admin member', async () => {
-    const project = await seedProject(prisma, board.id, { name: 'Untouchable' });
-    await expect(service.update(project.id, { name: 'Nope' }, member)).rejects.toThrow(
-      ForbiddenException,
-    );
+  describe('update', () => {
+    it('stamps completedAt when status becomes completed', async () => {
+      const project = await seedProject(prisma, { status: 'started' });
+      const updated = await service.update(project.id, { status: 'completed' }, human(member));
+      expect(updated.completedAt).not.toBeNull();
+    });
+
+    it('clears completedAt when moving away from completed', async () => {
+      const project = await seedProject(prisma, {
+        status: 'completed',
+        completedAt: new Date(),
+      });
+      const updated = await service.update(project.id, { status: 'started' }, human(member));
+      expect(updated.completedAt).toBeNull();
+    });
+
+    it('leaves completedAt untouched when only the name changes', async () => {
+      const completedAt = new Date('2026-01-01T00:00:00.000Z');
+      const project = await seedProject(prisma, {
+        status: 'completed',
+        completedAt,
+      });
+      const updated = await service.update(project.id, { name: 'Renamed' }, human(member));
+      expect(updated.completedAt).not.toBeNull();
+      expect(updated.completedAt!.toISOString()).toBe(completedAt.toISOString());
+    });
+
+    it('allows update by any member (v2: all-members, no board-admin gate)', async () => {
+      const project = await seedProject(prisma, { name: 'Editable' });
+      const updated = await service.update(project.id, { name: 'Renamed' }, human(member));
+      expect(updated.name).toBe('Renamed');
+    });
+
+    it('rejects bot sessions', async () => {
+      const project = await seedProject(prisma, { name: 'Untouchable' });
+      await expect(service.update(project.id, { name: 'Nope' }, bot(owner))).rejects.toThrow(
+        'Bot sessions cannot manage projects',
+      );
+      const stored = await prisma.project.findUnique({ where: { id: project.id } });
+      expect(stored!.name).toBe('Untouchable');
+    });
   });
 
-  it('remove deletes the project and nulls linked tasks (SetNull), tasks still exist', async () => {
-    const project = await seedProject(prisma, board.id, { name: 'Doomed' });
-    const task = await seedTask(prisma, board.statuses[0].id, {});
-    await prisma.task.update({ where: { id: task.id }, data: { projectId: project.id } });
-    await service.remove(project.id, boardAdmin);
-    await expect(service.findOne(project.id)).rejects.toThrow(NotFoundException);
-    const stillThere = await prisma.task.findUnique({ where: { id: task.id } });
-    expect(stillThere).not.toBeNull();
-    expect(stillThere!.projectId).toBeNull();
+  describe('remove', () => {
+    it('deletes the project and nulls linked tasks (SetNull), tasks still exist', async () => {
+      const project = await seedProject(prisma, { name: 'Doomed' });
+      const task = await seedTask(prisma, board.statuses[0].id, {});
+      await prisma.task.update({ where: { id: task.id }, data: { projectId: project.id } });
+      await service.remove(project.id, human(member));
+      await expect(service.findOne(project.id)).rejects.toThrow(NotFoundException);
+      const stillThere = await prisma.task.findUnique({ where: { id: task.id } });
+      expect(stillThere).not.toBeNull();
+      expect(stillThere!.projectId).toBeNull();
+    });
+
+    it('rejects bot sessions', async () => {
+      const project = await seedProject(prisma, { name: 'Doomed' });
+      await expect(service.remove(project.id, bot(owner))).rejects.toThrow(
+        'Bot sessions cannot manage projects',
+      );
+      const stored = await prisma.project.findUnique({ where: { id: project.id } });
+      expect(stored).not.toBeNull();
+    });
   });
 
-  it('emits project:created, project:updated and project:deleted events with the boardId', async () => {
-    const emitted: any[] = [];
-    const orig = events.emit.bind(events);
-    (events as any).emit = (...args: any[]) => {
-      emitted.push({ event: args[0], data: args[1], boardId: args[2] });
-      return orig(...args);
-    };
-    const created = await service.create({ ...baseDto, boardId: board.id }, boardAdmin);
-    await service.update(created.id, { name: 'Renamed' }, boardAdmin);
-    await service.remove(created.id, boardAdmin);
-    expect(emitted).toHaveLength(3);
-    expect(emitted.map((e) => e.event)).toEqual([
-      'project:created',
-      'project:updated',
-      'project:deleted',
-    ]);
-    for (const e of emitted) {
-      expect(e.boardId).toBe(board.id);
-    }
-  });
+  describe('events', () => {
+    it('emits project:created/updated/deleted with NO board scope (global broadcast)', async () => {
+      const emitted: any[] = [];
+      const orig = events.emit.bind(events);
+      (events as any).emit = (...args: any[]) => {
+        emitted.push({ event: args[0], data: args[1], boardId: args[2] });
+        return orig(...args);
+      };
+      try {
+        const created = await service.create({ ...baseDto }, human(owner));
+        await service.update(created.id, { name: 'Renamed' }, human(owner));
+        await service.remove(created.id, human(owner));
+        expect(emitted).toHaveLength(3);
+        expect(emitted.map((e) => e.event)).toEqual([
+          'project:created',
+          'project:updated',
+          'project:deleted',
+        ]);
+        // v2: no third arg — projects are workspace-level, so EventsService
+        // broadcasts to every connected socket (undefined boardId = broadcast).
+        for (const e of emitted) {
+          expect(e.boardId).toBeUndefined();
+        }
+      } finally {
+        (events as any).emit = orig;
+      }
+    });
 
-  it('delete event carries only the id as its payload', async () => {
-    const emitted: any[] = [];
-    const orig = events.emit.bind(events);
-    (events as any).emit = (...args: any[]) => {
-      emitted.push(args[1]);
-      return orig(...args);
-    };
-    const created = await service.create({ ...baseDto, boardId: board.id }, boardAdmin);
-    await service.remove(created.id, boardAdmin);
-    expect(emitted[emitted.length - 1]).toEqual({ id: created.id });
+    it('delete event carries only the id as its payload', async () => {
+      const emitted: any[] = [];
+      const orig = events.emit.bind(events);
+      (events as any).emit = (...args: any[]) => {
+        emitted.push(args[1]);
+        return orig(...args);
+      };
+      try {
+        const created = await service.create({ ...baseDto }, human(owner));
+        await service.remove(created.id, human(owner));
+        expect(emitted[emitted.length - 1]).toEqual({ id: created.id });
+      } finally {
+        (events as any).emit = orig;
+      }
+    });
   });
 });

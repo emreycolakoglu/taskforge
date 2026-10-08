@@ -1,13 +1,14 @@
 /**
- * ProjectsService — groups the tasks of a board into named, orderable
- * containers (a lightweight roadmap). Writes are gated to board admins;
- * reads are unscoped, matching the rest of the app.
+ * ProjectsService — workspace-level project containers (Projects v2).
+ * Projects group tasks from ANY board into named, orderable containers (a
+ * lightweight roadmap). Writes are open to every authenticated human
+ * (bot sessions are rejected, mirroring the publish bot-gate); reads are
+ * unscoped, matching the rest of the app.
  */
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
-import { MembersService } from '../members/members.service';
 import { withTaskNumber } from '../tasks/tasks.service';
 import { CreateProjectDto } from './dto/create-project.dto';
 import { UpdateProjectDto } from './dto/update-project.dto';
@@ -15,28 +16,24 @@ import { UpdateProjectDto } from './dto/update-project.dto';
 interface AuthedUser {
   id: string;
   displayName: string;
+  /**
+   * Session flag folded in by ProjectsController (REST) — true when the
+   * request rides a 365-day bot token. Bot sessions may read projects but
+   * must not manage them. MCP passes no flag.
+   */
+  bot?: boolean;
 }
-
-// Task 2 (schema) keeps this service identical in behavior: the board column
-// is gone from the Project table, so `project.boardId` reads no longer
-// typecheck. The helpers below keep the v1 board-scoped code compiling until
-// Task 3 removes the boardId plumbing; at runtime the column is gone from
-// every row, so the emits' room scope is undefined (harmless — EventsService
-// treats it like any other board room key).
-const asV1Project = (p: any): any => p;
-const v1Room = (boardId: string | undefined) => boardId as string;
 
 @Injectable()
 export class ProjectsService {
   constructor(
     private prisma: PrismaService,
     private events: EventsService,
-    private members: MembersService,
   ) {}
 
-  async findAll(boardId: string) {
+  async findAll() {
+    // Workspace-wide: every project, position order. No board scoping.
     return this.prisma.project.findMany({
-      where: { boardId } as any, // column dropped by Tasks 2; Task 3 lifts scoping
       orderBy: { position: 'asc' },
     });
   }
@@ -76,17 +73,12 @@ export class ProjectsService {
 
   async create(dto: CreateProjectDto, user: AuthedUser) {
     if (!user?.id) throw new ForbiddenException('Authentication required');
-    await this.assertCanMutateBoard(dto.boardId, user);
+    if (user.bot) throw new ForbiddenException('Bot sessions cannot manage projects');
     const max = await this.prisma.project.aggregate({
-      where: { boardId: dto.boardId } as any, // column dropped by Task 2
       _max: { position: true },
     });
     const project = await this.prisma.project.create({
-      // boardId rides the cast: the column is gone (Task 2), so Prisma
-      // rejects unknown fields at runtime — v1 call paths that still pass it
-      // fail fast here until Task 3 strips the field from DTO + call sites.
       data: {
-        boardId: dto.boardId,
         name: dto.name,
         description: dto.description,
         icon: dto.icon ?? '📦',
@@ -94,21 +86,24 @@ export class ProjectsService {
         status: dto.status ?? 'planned',
         startDate: dto.startDate ? new Date(dto.startDate) : null,
         targetDate: dto.targetDate ? new Date(dto.targetDate) : null,
-        // Append at the end; the FIRST project must land on position 0 —
-        // statuses.service house pattern `(max._max.position ?? -1) + 1`
-        // (a `?? 0` base would put the first project at 1 and an aggregate
-        // null would make it 1, not 0).
+        // Append at the end of the workspace; the FIRST project must land on
+        // position 0 — statuses.service house pattern `(max._max.position ??
+        // -1) + 1` (a `?? 0` base would put the first project at 1 and an
+        // aggregate null would make it 1, not 0).
         position: (max._max.position ?? -1) + 1,
-      } as any,
+      },
     });
-    this.events.emit('project:created', project, v1Room((project as any).boardId));
+    // No third arg: projects are workspace-level, so this broadcasts to every
+    // connected socket (EventsService treats undefined boardId as broadcast).
+    this.events.emit('project:created', project);
     return project;
   }
 
   async update(id: string, dto: UpdateProjectDto, user: AuthedUser) {
+    if (!user?.id) throw new ForbiddenException('Authentication required');
+    if (user.bot) throw new ForbiddenException('Bot sessions cannot manage projects');
     const project = await this.prisma.project.findUnique({ where: { id } });
     if (!project) throw new NotFoundException('Project not found');
-    await this.assertCanMutateBoard(asV1Project(project).boardId, user);
     const data: Prisma.ProjectUpdateInput = {
       ...(dto.name !== undefined && { name: dto.name }),
       ...(dto.description !== undefined && { description: dto.description }),
@@ -125,29 +120,17 @@ export class ProjectsService {
       data.completedAt = dto.status === 'completed' ? new Date() : null;
     }
     const updated = await this.prisma.project.update({ where: { id }, data });
-    this.events.emit('project:updated', updated, v1Room(asV1Project(project).boardId));
+    this.events.emit('project:updated', updated);
     return updated;
   }
 
   async remove(id: string, user: AuthedUser) {
+    if (!user?.id) throw new ForbiddenException('Authentication required');
+    if (user.bot) throw new ForbiddenException('Bot sessions cannot manage projects');
     const project = await this.prisma.project.findUnique({ where: { id } });
     if (!project) throw new NotFoundException('Project not found');
-    await this.assertCanMutateBoard(asV1Project(project).boardId, user);
     await this.prisma.project.delete({ where: { id } });
     // Linked tasks survive with projectId = null (FK SetNull).
-    this.events.emit('project:deleted', { id }, v1Room(asV1Project(project).boardId));
-  }
-
-  private async assertCanMutateBoard(boardId: string, user: AuthedUser) {
-    if (user?.id && (await this.members.isBoardAdmin(boardId, user.id))) return;
-    // Legacy board fallback: boards with zero Member rows (pre-members era)
-    // allow all writes, mirroring BoardsService.
-    if (user?.id && (await this.isLegacyBoard(boardId))) return;
-    throw new ForbiddenException('Only board admins can manage projects');
-  }
-
-  private async isLegacyBoard(boardId: string): Promise<boolean> {
-    const count = await this.prisma.member.count({ where: { boardId } });
-    return count === 0;
+    this.events.emit('project:deleted', { id });
   }
 }

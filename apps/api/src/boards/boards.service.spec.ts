@@ -170,7 +170,7 @@ describe('BoardsService', () => {
     it('should include project {id, name, icon} on tasks carrying the badge data', async () => {
       const seeded = await seedBoard(prisma);
       const status = seeded.statuses[0];
-      const project = await seedProject(prisma, seeded.id, { name: 'Roadmap' });
+      const project = await seedProject(prisma, { name: 'Roadmap' });
       await seedTask(prisma, status.id, { projectId: project.id });
       await seedTask(prisma, status.id, { title: 'No project' });
 

@@ -448,7 +448,7 @@ describe('McpService', () => {
     });
 
     it('tasks_update with projectId links the task and logs project activity', async () => {
-      const project = await seedProject(prisma, board.id, { name: 'Roadmap' });
+      const project = await seedProject(prisma, { name: 'Roadmap' });
       const task = await seedTask(prisma, board.statuses[0].id, { title: 'Linkable' });
       const emitted: Array<{
         event: string;
@@ -483,7 +483,7 @@ describe('McpService', () => {
     });
 
     it('tasks_update with projectId: null clears the link and logs removal', async () => {
-      const project = await seedProject(prisma, board.id, { name: 'Roadmap' });
+      const project = await seedProject(prisma, { name: 'Roadmap' });
       const task = await seedTask(prisma, board.statuses[0].id, {
         title: 'Linked',
         projectId: project.id,
@@ -516,24 +516,27 @@ describe('McpService', () => {
       expect(detail.changes).toEqual(['removed from project']);
     });
 
-    it('tasks_update with a foreign-board project → error result', async () => {
+    it('tasks_update with any workspace project → accepted (v2 pin: P2 board check removed)', async () => {
+      // Projects have no board in v2 — a task on ANY board may link to ANY
+      // project. v1 rejected this with 'Project is on a different board'.
       const otherBoard = await seedBoard(prisma);
-      const foreignProject = await seedProject(prisma, otherBoard.id, { name: 'Foreign' });
-      const task = await seedTask(prisma, board.statuses[0].id, { title: 'Local' });
+      const project = await seedProject(prisma, { name: 'Global' });
+      const task = await seedTask(prisma, otherBoard.statuses[0].id, { title: 'Local' });
       const res = await service.handleRequest(
         {
           method: 'tasks_update',
-          params: { id: task.id, projectId: foreignProject.id },
+          params: { id: task.id, projectId: project.id },
           id: 27,
         },
         user,
       );
-      expect(res.error).toBeDefined();
-      expect(res.error.message).toContain('Project is on a different board');
+      expect(res.error).toBeUndefined();
+      expect(res.result.projectId).toBe(project.id);
+      expect(res.result.project).toMatchObject({ id: project.id, name: 'Global' });
     });
 
     it('tasks_create with projectId creates the task already linked', async () => {
-      const project = await seedProject(prisma, board.id, { name: 'Roadmap' });
+      const project = await seedProject(prisma, { name: 'Roadmap' });
       const res = await service.handleRequest(
         {
           method: 'tasks_create',
@@ -1243,32 +1246,33 @@ describe('McpService', () => {
   // ─── Projects ───
 
   describe('projects_list', () => {
-    it('should list projects for a board in position order', async () => {
-      await seedProject(prisma, board.id, { name: 'Roadmap', position: 1 });
-      await seedProject(prisma, board.id, { name: 'Infra', position: 0 });
-      await seedProject(prisma, (await seedBoard(prisma)).id, { name: 'Elsewhere' });
+    it('lists ALL workspace projects in position order (v2: no boardId param)', async () => {
+      await seedProject(prisma, { name: 'Roadmap', position: 1 });
+      await seedProject(prisma, { name: 'Infra', position: 0 });
+      await seedProject(prisma, { name: 'Elsewhere', position: 5 });
 
       const res = await service.handleRequest(
-        { method: 'projects_list', params: { boardId: board.id }, id: 610 },
+        { method: 'projects_list', params: {}, id: 610 },
         user,
       );
       expect(res.error).toBeUndefined();
-      expect(res.result.map((p: any) => p.name)).toEqual(['Infra', 'Roadmap']);
+      expect(res.result.map((p: any) => p.name)).toEqual(['Infra', 'Roadmap', 'Elsewhere']);
     });
 
-    it('should require boardId', async () => {
+    it('ignores a legacy boardId param (workspace-wide listing regardless)', async () => {
+      await seedProject(prisma, { name: 'Roadmap', position: 1 });
       const res = await service.handleRequest(
-        { method: 'projects_list', params: {}, id: 611 },
+        { method: 'projects_list', params: { boardId: 'whatever' }, id: 611 },
         user,
       );
-      expect(res.error).toBeDefined();
-      expect(res.error.message).toContain('boardId is required');
+      expect(res.error).toBeUndefined();
+      expect(res.result.map((p: any) => p.name)).toEqual(['Roadmap']);
     });
   });
 
   describe('projects_get', () => {
     it('should return a project with tasks and progress', async () => {
-      const project = await seedProject(prisma, board.id, { name: 'Roadmap' });
+      const project = await seedProject(prisma, { name: 'Roadmap' });
       await seedTask(prisma, board.statuses[0].id, { title: 'Linked', projectId: project.id });
       const res = await service.handleRequest(
         { method: 'projects_get', params: { id: project.id }, id: 612 },
@@ -1292,7 +1296,7 @@ describe('McpService', () => {
   });
 
   describe('projects_create', () => {
-    it('should create a project and emit project:created', async () => {
+    it('should create a workspace project (no boardId) and emit project:created globally', async () => {
       const emitted: any[] = [];
       const subscription = events.observe().subscribe((payload) => {
         if (payload.event === 'project:created') emitted.push(payload);
@@ -1301,7 +1305,6 @@ describe('McpService', () => {
         {
           method: 'projects_create',
           params: {
-            boardId: board.id,
             name: 'MCP Project',
             description: 'via MCP',
             icon: '🚀',
@@ -1318,38 +1321,38 @@ describe('McpService', () => {
       expect(res.result.name).toBe('MCP Project');
       expect(res.result.icon).toBe('🚀');
       expect(res.result.status).toBe('started');
-      expect(res.result.boardId).toBe(board.id);
+      expect('boardId' in res.result).toBe(false);
       expect(emitted).toHaveLength(1);
-      expect(emitted[0].data.boardId).toBe(board.id);
+      // Global broadcast — no board room scope on v2 project events.
+      expect(emitted[0].boardId).toBeUndefined();
+      expect(emitted[0].data.name).toBe('MCP Project');
     });
 
     it('should default icon to 📦 and status to planned', async () => {
       const res = await service.handleRequest(
-        { method: 'projects_create', params: { boardId: board.id, name: 'Defaults' }, id: 615 },
+        { method: 'projects_create', params: { name: 'Defaults' }, id: 615 },
         user,
       );
       expect(res.result.icon).toBe('📦');
       expect(res.result.status).toBe('planned');
     });
 
-    it('should reject a non-admin board member', async () => {
+    it('allows creation by a plain member of a board (v2: all-members)', async () => {
       const b = await seedBoard(prisma);
-      const admin = await seedUser(prisma, { displayName: 'Admin' });
-      await prisma.member.create({ data: { boardId: b.id, userId: admin.id, role: 'admin' } });
       const member = await seedUser(prisma, { displayName: 'Member' });
       await prisma.member.create({ data: { boardId: b.id, userId: member.id, role: 'member' } });
       const res = await service.handleRequest(
-        { method: 'projects_create', params: { boardId: b.id, name: 'Sneaky' }, id: 616 },
+        { method: 'projects_create', params: { name: 'Anyone can' }, id: 616 },
         { id: member.id, displayName: member.displayName, role: member.role },
       );
-      expect(res.error).toBeDefined();
-      expect(res.error.message).toContain('Only board admins can manage projects');
+      expect(res.error).toBeUndefined();
+      expect(res.result.name).toBe('Anyone can');
     });
   });
 
   describe('projects_update', () => {
-    it('should update a project as a board admin', async () => {
-      const project = await seedProject(prisma, board.id, { name: 'Before' });
+    it('should update a project as any member and emit project:updated globally', async () => {
+      const project = await seedProject(prisma, { name: 'Before' });
       const emitted: any[] = [];
       const subscription = events.observe().subscribe((payload) => {
         if (payload.event === 'project:updated') emitted.push(payload);
@@ -1368,11 +1371,11 @@ describe('McpService', () => {
       expect(res.result.status).toBe('completed');
       expect(res.result.completedAt).not.toBeNull();
       expect(emitted).toHaveLength(1);
-      expect(emitted[0].data.boardId).toBe(board.id);
+      expect(emitted[0].boardId).toBeUndefined();
     });
 
     it('should clear completedAt when leaving completed', async () => {
-      const project = await seedProject(prisma, board.id, {
+      const project = await seedProject(prisma, {
         name: 'Done once',
         status: 'completed',
         completedAt: new Date(),
@@ -1384,25 +1387,21 @@ describe('McpService', () => {
       expect(res.result.completedAt).toBeNull();
     });
 
-    it('should reject the update from a non-admin member', async () => {
-      const b = await seedBoard(prisma);
-      const admin = await seedUser(prisma, { displayName: 'Admin' });
-      await prisma.member.create({ data: { boardId: b.id, userId: admin.id, role: 'admin' } });
+    it('allows update by a plain member (v2: all-members, no admin gate)', async () => {
       const member = await seedUser(prisma, { displayName: 'Member' });
-      await prisma.member.create({ data: { boardId: b.id, userId: member.id, role: 'member' } });
-      const project = await seedProject(prisma, b.id, { name: 'Locked' });
+      const project = await seedProject(prisma, { name: 'Editable' });
       const res = await service.handleRequest(
-        { method: 'projects_update', params: { id: project.id, name: 'Hacked' }, id: 619 },
+        { method: 'projects_update', params: { id: project.id, name: 'Renamed' }, id: 619 },
         { id: member.id, displayName: member.displayName, role: member.role },
       );
-      expect(res.error).toBeDefined();
-      expect(res.error.message).toContain('Only board admins can manage projects');
+      expect(res.error).toBeUndefined();
+      expect(res.result.name).toBe('Renamed');
     });
   });
 
   describe('projects_delete', () => {
     it('should delete a project and unlink its tasks (SetNull)', async () => {
-      const project = await seedProject(prisma, board.id, { name: 'Doomed' });
+      const project = await seedProject(prisma, { name: 'Doomed' });
       const task = await seedTask(prisma, board.statuses[0].id, {
         title: 'Survivor',
         projectId: project.id,
@@ -1423,7 +1422,7 @@ describe('McpService', () => {
       expect(survivor!.projectId).toBeNull();
       expect(emitted).toHaveLength(1);
       expect(emitted[0].data).toEqual({ id: project.id });
-      expect(emitted[0].boardId).toBe(board.id);
+      expect(emitted[0].boardId).toBeUndefined();
     });
 
     it('should error for a non-existent project', async () => {

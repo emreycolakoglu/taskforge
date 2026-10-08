@@ -83,30 +83,23 @@ async function validateParent(
 }
 
 /**
- * Project linkage validation (board scoping).
+ * Project linkage validation.
  *
- * P1: project must exist
- * P2: project must belong to the same board as the task
+ * P1: project must exist.
  *
- * `projectId: null` is always allowed (un-assign).
+ * Projects v2: projects are workspace-level, so the v1 "same board" rule (P2)
+ * is gone — a task on ANY board may link to ANY project. `projectId: null`
+ * is always allowed (un-assign).
  */
 async function validateProject(
   prisma: PrismaService,
   projectId: string | null,
-  boardId: string,
 ): Promise<{ id: string; name: string } | null> {
   if (projectId === null) return null;
 
   const project = await prisma.project.findUnique({ where: { id: projectId } });
   // P1 — existence
   if (!project) throw new NotFoundException('Project not found');
-  // P2 — board scoping. Projects v2 Task 2 dropped the `boardId` column, so
-  // the read rides a cast and compares undefined === boardId's board id →
-  // never equal → every project looks "foreign" until Task 3 removes P2. The
-  // throws below are the expected mid-plan state (known-red projects tests).
-  if ((project as any).boardId !== boardId) {
-    throw new BadRequestException('Project is on a different board');
-  }
   return project;
 }
 
@@ -289,8 +282,8 @@ export class TasksService {
         where: { id: status.boardId },
       });
 
-      // Project linkage (P1, P2). Null passes through.
-      await validateProject(this.prisma, dto.projectId ?? null, board.id);
+      // Project linkage (P1). Null passes through.
+      await validateProject(this.prisma, dto.projectId ?? null);
 
       const taskNumber = board.nextTaskNum;
       await tx.board.update({
@@ -372,14 +365,14 @@ export class TasksService {
       parentChanged = true;
     }
 
-    // Project linkage (P1, P2). projectId: null is always allowed (un-assign) —
+    // Project linkage (P1). projectId: null is always allowed (un-assign) —
     // never truthy-gate this field, or clearing would silently skip the write.
     let project: { id: string; name: string } | null = null;
     let projectChanged = false;
     if (dto.projectId !== undefined) {
       changes.projectId = dto.projectId;
       if (dto.projectId !== null) {
-        project = await validateProject(this.prisma, dto.projectId, existing.boardId);
+        project = await validateProject(this.prisma, dto.projectId);
       }
       projectChanged = dto.projectId !== existing.projectId;
     }
