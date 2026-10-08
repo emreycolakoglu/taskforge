@@ -473,11 +473,7 @@ export class TasksService {
       (dto.statusId !== undefined && dto.statusId !== existing.statusId) ||
       (dto.position !== undefined && dto.position !== existing.position);
     if (projectChanged || (task.projectId !== null && kanbanChanged)) {
-      this.events.emit(
-        'task.project.updated',
-        { ...task, previousProjectId: existing.projectId },
-        task.status.boardId,
-      );
+      this.events.emit('task.project.updated', { ...task, previousProjectId: existing.projectId });
     }
     if (dto.description !== undefined && dto.description !== existing.description) {
       await this.mentions.processMentions(id, dto.description, user);
@@ -589,11 +585,7 @@ export class TasksService {
     // Projects v2 §4: project kanban freshness — same payload shape as the
     // project-change emit in update(); the project itself did not change.
     if (task.projectId !== null) {
-      this.events.emit(
-        'task.project.updated',
-        { ...task, previousProjectId: existing.projectId },
-        task.status.boardId,
-      );
+      this.events.emit('task.project.updated', { ...task, previousProjectId: existing.projectId });
     }
     return withTaskNumber(task);
   }

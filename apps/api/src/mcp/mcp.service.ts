@@ -571,11 +571,10 @@ export class McpService {
           (params.statusId !== undefined && params.statusId !== existing.statusId) ||
           (params.position !== undefined && params.position !== existing.position);
         if (projectChanged || (task.projectId !== null && kanbanChanged)) {
-          this.events.emit(
-            'task.project.updated',
-            { ...task, previousProjectId: existing.projectId },
-            task.status?.boardId,
-          );
+          this.events.emit('task.project.updated', {
+            ...task,
+            previousProjectId: existing.projectId,
+          });
         }
         if (params.description !== undefined && params.description !== existing.description) {
           await this.mentions.processMentions(params.id, params.description, user);
@@ -677,11 +676,10 @@ export class McpService {
         this.events.emit('task:moved', task, task.status?.boardId);
         // Projects v2 §4: project kanban freshness (TasksService.move parity).
         if (task.projectId !== null) {
-          this.events.emit(
-            'task.project.updated',
-            { ...task, previousProjectId: existing.projectId },
-            task.status?.boardId,
-          );
+          this.events.emit('task.project.updated', {
+            ...task,
+            previousProjectId: existing.projectId,
+          });
         }
         return withTaskNumber(task);
       }

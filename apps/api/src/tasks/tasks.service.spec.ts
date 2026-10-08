@@ -1112,7 +1112,7 @@ describe('TasksService', () => {
 
         const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
         expect(projectEvents).toHaveLength(1);
-        expect(projectEvents[0].boardId).toBe(board.id);
+        expect(projectEvents[0].boardId).toBeUndefined(); // global broadcast (spec §3)
         expect(projectEvents[0].data.id).toBe(task.id);
         expect(projectEvents[0].data.projectId).toBe(project.id);
       } finally {
@@ -1289,7 +1289,7 @@ describe('TasksService', () => {
           expect(emitted.filter((e) => e.event === 'task:moved')).toHaveLength(1);
           const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
           expect(projectEvents).toHaveLength(1);
-          expect(projectEvents[0].boardId).toBe(board.id);
+          expect(projectEvents[0].boardId).toBeUndefined(); // global broadcast (spec §3)
           expect(projectEvents[0].data.id).toBe(task.id);
           expect(projectEvents[0].data.statusId).toBe(board.statuses[2].id);
           expect(projectEvents[0].data.projectId).toBe(project.id);
