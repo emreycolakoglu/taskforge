@@ -159,6 +159,46 @@ describe('ProjectsService', () => {
       const projects = await service.findAll();
       expect(projects.map((p: any) => p.name)).toEqual(['first', 'second', 'third']);
     });
+
+    it('embeds a { total, completed } progress rollup per project, across boards', async () => {
+      const otherBoard = await seedBoard(prisma);
+      const done = board.statuses.find((s: any) => s.type === 'done');
+      const otherDone = otherBoard.statuses.find((s: any) => s.type === 'done');
+      const inProgress = board.statuses.find((s: any) => s.type === 'in_progress');
+      const cancelled = board.statuses.find((s: any) => s.type === 'cancelled');
+      const roadmap = await seedProject(prisma, { name: 'Roadmap', position: 0 });
+      const empty = await seedProject(prisma, { name: 'Empty', position: 1 });
+      const link = (t: any, projectId: string) =>
+        prisma.task.update({ where: { id: t.id }, data: { projectId } });
+      await link(await seedTask(prisma, done.id, {}), roadmap.id);
+      await link(await seedTask(prisma, otherDone.id, {}), roadmap.id);
+      await link(await seedTask(prisma, inProgress.id, {}), roadmap.id);
+      // Cancelled is terminal but not 'done' — same rule as findOne.
+      await link(await seedTask(prisma, cancelled.id, {}), roadmap.id);
+      // Unlinked tasks contribute nowhere.
+      await seedTask(prisma, done.id, {});
+
+      const projects = await service.findAll();
+      const byName = Object.fromEntries(projects.map((p: any) => [p.name, p.progress]));
+      expect(byName).toEqual({
+        Roadmap: { total: 4, completed: 2 },
+        Empty: { total: 0, completed: 0 },
+      });
+    });
+
+    it('computes progress in a constant number of queries (no N+1)', async () => {
+      for (let i = 0; i < 5; i++) await seedProject(prisma, { name: `p${i}`, position: i });
+      // `as any`: Prisma's groupBy generics trip TS2615 under jest.spyOn.
+      const taskDelegate = prisma.task as any;
+      const spies = ['findMany', 'groupBy', 'count'].map((m) => jest.spyOn(taskDelegate, m));
+      try {
+        await service.findAll();
+        const calls = spies.reduce((n, s) => n + s.mock.calls.length, 0);
+        expect(calls).toBeLessThanOrEqual(2);
+      } finally {
+        spies.forEach((s) => s.mockRestore());
+      }
+    });
   });
 
   describe('findOne', () => {

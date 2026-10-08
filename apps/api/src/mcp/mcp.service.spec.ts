@@ -1414,6 +1414,8 @@ describe('McpService', () => {
       );
       expect(res.error).toBeUndefined();
       expect(res.result.map((p: any) => p.name)).toEqual(['Infra', 'Roadmap', 'Elsewhere']);
+      // Delegates to ProjectsService.findAll, so the list progress rollup rides along.
+      expect(res.result[0].progress).toEqual({ total: 0, completed: 0 });
     });
 
     it('ignores a legacy boardId param (workspace-wide listing regardless)', async () => {

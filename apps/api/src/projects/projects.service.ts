@@ -35,9 +35,31 @@ export class ProjectsService {
 
   async findAll() {
     // Workspace-wide: every project, position order. No board scoping.
-    return this.prisma.project.findMany({
-      orderBy: { position: 'asc' },
-    });
+    // Each row carries a { total, completed } rollup (same 'done'-only rule as
+    // findOne) so the list page needs no per-board task fetch. Two groupBys
+    // cover every project at once — no N+1.
+    const [projects, totals, done] = await Promise.all([
+      this.prisma.project.findMany({ orderBy: { position: 'asc' } }),
+      this.prisma.task.groupBy({
+        by: ['projectId'],
+        where: { projectId: { not: null } },
+        _count: { _all: true },
+      }),
+      this.prisma.task.groupBy({
+        by: ['projectId'],
+        where: { projectId: { not: null }, status: { type: 'done' } },
+        _count: { _all: true },
+      }),
+    ]);
+    const totalById = new Map(totals.map((g) => [g.projectId, g._count._all]));
+    const doneById = new Map(done.map((g) => [g.projectId, g._count._all]));
+    return projects.map((project) => ({
+      ...project,
+      progress: {
+        total: totalById.get(project.id) ?? 0,
+        completed: doneById.get(project.id) ?? 0,
+      },
+    }));
   }
 
   async findOne(id: string) {
