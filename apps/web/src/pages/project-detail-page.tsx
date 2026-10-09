@@ -343,7 +343,7 @@ export function ProjectDetailPage() {
                   <FolderKanban className="h-12 w-12 text-muted-foreground" />
                   <h2 className="mt-4 text-lg font-medium text-foreground">No tasks yet</h2>
                   <p className="text-sm text-muted-foreground">
-                    Add tasks to this project from the board.
+                    Use Add task, or set the project from a task's detail page.
                   </p>
                 </div>
               ) : viewMode === 'kanban' ? null : (

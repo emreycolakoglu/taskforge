@@ -106,9 +106,9 @@ Every planning result — whether from a brainstorming session, a written plan, 
 
 **MCP service** routes via `resource_action` pattern parsed from the JSON-RPC method field (e.g., `boards_list`, `tasks_create`).
 
-**Events**: `EventsService` (an RxJS `Subject`, not EventEmitter2) broadcasts changes via the WebSocket gateway. Both REST controllers and MCP service call `events.emit()`. Scoping is opt-in by the emitter: `emit(event, data, boardId?)` without a `boardId` broadcasts to **every** connected socket.
+**Events**: `EventsService` (an RxJS `Subject`, not EventEmitter2) broadcasts changes via the WebSocket gateway. Both REST controllers and MCP service call `events.emit()`. Scoping is opt-in by the emitter: `emit(event, data, boardId?)` without a `boardId` broadcasts to every **authenticated** socket (the gateway's `authed` room, joined on successful `auth`) — never `server.emit`, which would reach sockets still inside the 5s auth window.
 
-**Web** (`apps/web/src/`): Path alias `@/` → `src/`. Components in `components/`, UI primitives in `components/ui/` (shadcn, `radix-nova` style). Routes are declared inline in `app.tsx`: `/`, `/board/:id`, `/board/:id/settings`, `/board/:boardId/task/:taskId`, `/tasks`, `/settings`, `/account`, `/inbox`, plus the unauthenticated `/login`, `/signup/:token`, `/onboarding` and `/public/:identifier/:number`.
+**Web** (`apps/web/src/`): Path alias `@/` → `src/`. Components in `components/`, UI primitives in `components/ui/` (shadcn, `radix-nova` style). Routes are declared inline in `app.tsx`: `/`, `/board/:id`, `/board/:id/settings`, `/board/:boardId/task/:taskId`, `/projects`, `/projects/:projectId`, `/doc/:docId`, `/tasks`, `/settings`, `/account`, `/inbox`, plus the unauthenticated `/login`, `/signup/:token`, `/onboarding` and `/public/:identifier/:number`.
 
 ## Public task sharing
 
@@ -183,6 +183,8 @@ via nullable `projectId` (FK SetNull).
   is created/deleted/moved (status or position), and on the `duplicate_of` auto-move. Web handlers
   invalidate `['projects']`, `['projects', id]` and `['boards', task.boardId, 'full']` — the last one
   matters: the project kanban plans drops from that cache and would otherwise go stale.
+  `project:updated/deleted` also invalidate `['tasks']` and `['boards']` (task payloads embed the
+  project). Status and board deletes emit `task.project.updated` for each cascaded linked task.
 - **Project documents**: a `Document` belongs to exactly one task **or** one project (XOR,
   `BadRequestException` otherwise). Project docs have `boardId`/`taskId` null, number from
   `Project.nextDocNum` (shown `D-<n>`), write **no** Activity rows (`Activity.taskId` is required),

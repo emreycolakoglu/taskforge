@@ -276,6 +276,12 @@ export function useSocket(boardId?: string) {
         if (p.id) {
           queryClient.invalidateQueries({ queryKey: ['projects', p.id] });
         }
+        // Task payloads embed project {id, name, icon} (kanban badge, detail
+        // picker) — a rename or delete must reach them too.
+        if (eventName !== 'project:created') {
+          queryClient.invalidateQueries({ queryKey: ['tasks'] });
+          queryClient.invalidateQueries({ queryKey: ['boards'] });
+        }
         // Deleting a project deletes its documents without emitting
         // document:deleted — this is their only signal.
         if (eventName === 'project:deleted' && p.id) {

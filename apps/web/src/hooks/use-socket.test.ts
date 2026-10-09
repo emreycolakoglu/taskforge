@@ -640,6 +640,29 @@ describe('useSocket', () => {
     }
   });
 
+  it('refreshes task payloads embedding the project on project:updated / project:deleted', () => {
+    // Kanban cards and task detail embed project {id, name, icon}; a rename or
+    // delete must reach them, or the badge/chevron goes stale (or 404s).
+    renderHook(() => useSocket('b1'));
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    for (const eventName of ['project:updated', 'project:deleted']) {
+      const handler = calls.find((c) => c[0] === eventName)?.[1] as (data: unknown) => void;
+      mockQueryClient.invalidateQueries.mockClear();
+      act(() => handler({ id: 'p1' }));
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['tasks'] });
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['boards'] });
+    }
+  });
+
+  it('does not refetch every task payload on project:created', () => {
+    renderHook(() => useSocket('b1'));
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const handler = calls.find((c) => c[0] === 'project:created')?.[1] as (data: unknown) => void;
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => handler({ id: 'p1' }));
+    expect(mockQueryClient.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: ['tasks'] });
+  });
+
   it('never keys project invalidation by board id (v2: no board fallback)', () => {
     renderHook(() => useSocket('b1'));
     const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
