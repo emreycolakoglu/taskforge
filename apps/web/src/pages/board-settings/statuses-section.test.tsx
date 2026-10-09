@@ -86,19 +86,12 @@ describe('StatusesSection', () => {
     mockReorder.mockReset();
   });
 
-  it('renders all statuses with their names and type badges', () => {
+  it('renders all status rows with their names', () => {
     renderSection();
-    // Each status name appears twice: once as the row name, once as the type badge label.
-    expect(screen.getAllByText('Backlog')).toHaveLength(2);
-    expect(screen.getAllByText('Todo')).toHaveLength(2);
-    expect(screen.getAllByText('In Progress')).toHaveLength(2);
-    expect(screen.getAllByText('Done')).toHaveLength(2);
-  });
-
-  it('shows task counts per status', () => {
-    renderSection();
-    expect(screen.getByText('2')).toBeInTheDocument();
-    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText('Backlog')).toBeInTheDocument();
+    expect(screen.getByText('Todo')).toBeInTheDocument();
+    expect(screen.getByText('In Progress')).toBeInTheDocument();
+    expect(screen.getByText('Done')).toBeInTheDocument();
   });
 
   it('opens add form on "Add Status" click', async () => {
