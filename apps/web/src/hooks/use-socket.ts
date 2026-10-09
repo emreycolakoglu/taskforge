@@ -314,9 +314,6 @@ export function useSocket(boardId?: string) {
         }
         if (task.boardId) {
           queryClient.invalidateQueries({ queryKey: ['tasks', 'board', task.boardId] });
-          // The project kanban plans drops from this cache and joins no board
-          // room, so task:moved never refreshes it there.
-          queryClient.invalidateQueries({ queryKey: ['boards', task.boardId, 'full'] });
         }
         if (bid) {
           queryClient.invalidateQueries({ queryKey: ['tasks', 'board', bid] });

@@ -39,6 +39,8 @@ All members: create/update/delete open to every authenticated user (bot sessions
 
 ## §4 Project kanban view
 
+> **Removed 2026-10-09** (human partner decision after using it): with tasks from 2+ boards the per-board status columns were confusing and the view unusable. The project page keeps only the grouped list. The section below is kept as history.
+
 - Project page gets a view toggle: Grouped list (current) | Kanban | (list view rides v2 if cheap, else defer).
 - Kanban columns: one column per DISTINCT status (id+name) present across the project's tasks (colored by status.color; empty statuses omitted). A card can only be dropped into a status of its OWN board; other boards' columns are not drop targets. Cross-board re-boarding is out of scope (decided 2026-10-08): task numbers, labels and doc numbers are board-scoped, so moving boards would change a task's identity. The API rejects a foreign statusId on move/update with 400.
 - Column header shows status name + count; card click navigates to the task (existing task route `/board/:boardId/task/:taskId` — still board-scoped because tasks stay board-scoped).

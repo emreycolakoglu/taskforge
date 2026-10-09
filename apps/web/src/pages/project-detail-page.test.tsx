@@ -39,16 +39,6 @@ vi.mock('@/components/edit-project-dialog', () => ({
   },
 }));
 
-// The kanban board is tested on its own (project-kanban-board.test.tsx); the
-// page pins the toggle and what it hands the board.
-const mockProjectKanbanBoard = vi.hoisted(() => vi.fn());
-vi.mock('@/components/project-kanban-board', () => ({
-  ProjectKanbanBoard: (props: unknown) => {
-    mockProjectKanbanBoard(props);
-    return <div data-testid="project-kanban" />;
-  },
-}));
-
 // The Documents tab content is tested on its own (project-documents.test.tsx);
 // the page pins the tab switch and what it hands the tab.
 const mockProjectDocuments = vi.hoisted(() => vi.fn());
@@ -58,9 +48,6 @@ vi.mock('@/components/project-documents', () => ({
     return <div data-testid="project-documents" />;
   },
 }));
-
-// The view choice persists in localStorage — keep tests independent.
-beforeEach(() => localStorage.clear());
 
 function editDialogProps() {
   return mockEditProjectDialog.mock.calls.at(-1)?.[0] as {
@@ -521,67 +508,24 @@ describe('ProjectDetailPage — edit entry point (Projects v2)', () => {
   });
 });
 
-describe('ProjectDetailPage — kanban view (Projects v2 §4)', () => {
-  it('defaults to the grouped list', () => {
+describe('ProjectDetailPage — no kanban', () => {
+  // A project spans boards, so a per-status kanban mixed several boards'
+  // columns and was removed; the grouped list is the only task view.
+  it('renders the grouped list with no view toggle', () => {
     renderPage();
 
-    expect(screen.getByRole('radio', { name: 'List view' })).toHaveAttribute(
-      'aria-checked',
-      'true',
-    );
     expect(screen.getByText('Todo').closest('section')).toBeInTheDocument();
-    expect(screen.queryByTestId('project-kanban')).not.toBeInTheDocument();
-  });
-
-  it('switches to the kanban board with the project tasks, keeping header and Add task', async () => {
-    renderPage();
-
-    await userEvent.click(screen.getByRole('radio', { name: 'Kanban view' }));
-
-    expect(screen.getByTestId('project-kanban')).toBeInTheDocument();
-    const props = mockProjectKanbanBoard.mock.calls.at(-1)?.[0] as {
-      projectId: string;
-      tasks: { id: string }[];
-    };
-    expect(props.projectId).toBe('p1');
-    expect(props.tasks.map((t) => t.id)).toEqual(['t1', 't2', 't3', 't4']);
-    // Grouped sections are gone; the progress header and the CTA stay.
-    expect(screen.queryByRole('region', { name: 'Todo tasks' })).not.toBeInTheDocument();
-    expect(screen.getByRole('progressbar', { name: 'Roadmap progress' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /add task/i })).toBeInTheDocument();
-  });
-
-  it('remembers the kanban choice for this project', async () => {
-    const { unmount } = renderPage();
-    await userEvent.click(screen.getByRole('radio', { name: 'Kanban view' }));
-    unmount();
-
-    renderPage();
-    expect(screen.getByTestId('project-kanban')).toBeInTheDocument();
-  });
-
-  it('keeps the empty state instead of an empty board when there are no tasks', async () => {
-    data.project = {
-      ...mockProject,
-      tasks: [],
-      progress: { total: 0, completed: 0, byStatus: {} },
-    };
-    renderPage();
-    await userEvent.click(screen.getByRole('radio', { name: 'Kanban view' }));
-
-    expect(screen.getByText('No tasks yet')).toBeInTheDocument();
-    expect(screen.queryByTestId('project-kanban')).not.toBeInTheDocument();
-    data.project = mockProject;
+    expect(screen.queryByLabelText('View mode')).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Kanban view' })).not.toBeInTheDocument();
   });
 });
 
 describe('ProjectDetailPage — Tasks | Documents tabs (Projects v2)', () => {
-  it('opens on the Tasks tab with the task list, view toggle and Add task', () => {
+  it('opens on the Tasks tab with the task list and Add task', () => {
     renderPage();
 
     expect(screen.getByRole('tab', { name: 'Tasks' })).toHaveAttribute('aria-selected', 'true');
     expect(screen.getByText('Fix login loop')).toBeInTheDocument();
-    expect(screen.getByLabelText('View mode')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /add task/i })).toBeInTheDocument();
     expect(screen.queryByTestId('project-documents')).not.toBeInTheDocument();
   });
@@ -594,10 +538,9 @@ describe('ProjectDetailPage — Tasks | Documents tabs (Projects v2)', () => {
     expect(screen.getByTestId('project-documents')).toBeInTheDocument();
     expect(mockProjectDocuments.mock.calls.at(-1)?.[0]).toEqual({ projectId: 'p1' });
     expect(screen.queryByText('Fix login loop')).not.toBeInTheDocument();
-    // The tab owns its own Lime "New document"; Add task and the List | Board
-    // toggle belong to the Tasks tab, so one Lime CTA is visible at a time.
+    // The tab owns its own Lime "New document"; Add task belongs to the Tasks
+    // tab, so one Lime CTA is visible at a time.
     expect(screen.queryByRole('button', { name: /add task/i })).not.toBeInTheDocument();
-    expect(screen.queryByLabelText('View mode')).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('tab', { name: 'Tasks' }));
     expect(screen.getByText('Fix login loop')).toBeInTheDocument();

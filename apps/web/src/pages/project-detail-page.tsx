@@ -9,13 +9,12 @@
  * progress rollup as a neutral bar. Task rows link to their own board-scoped
  * route (/board/:boardId/task/:taskId) — tasks stay board-scoped. The
  * header's outline "Edit" button opens EditProjectDialog (deleting from it
- * navigates back to /projects). The header's List | Board toggle swaps the
- * grouped list for ProjectKanbanBoard; the choice persists per project in
- * localStorage (useProjectViewMode).
+ * navigates back to /projects). There is deliberately no kanban: a project's
+ * tasks span boards, and mixing several boards' status columns was confusing.
  *
  * Projects v2: the body splits into "Tasks" | "Documents" tabs, kept in the
  * URL as ?tab=documents so the doc editor's back link lands on the right tab.
- * The List | Board toggle and Add task belong to the Tasks tab; the
+ * Add task belongs to the Tasks tab; the
  * Documents tab (ProjectDocuments) brings its own Lime "New document", so
  * exactly one Lime CTA is visible at a time. Tab triggers use the Graphite
  * active state, not the ui/tabs default Lime fill.
@@ -34,7 +33,6 @@ import { useBoardFull, useBoards } from '@/hooks/use-boards';
 import { useCreateTask } from '@/hooks/use-tasks';
 import { useUserDirectory } from '@/hooks/use-users';
 import { useSocket } from '@/hooks/use-socket';
-import { useProjectViewMode } from '@/hooks/use-project-view-mode';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -42,8 +40,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ProgressIcon } from '@/components/progress-icon';
 import { CreateTaskDialog } from '@/components/create-task-dialog';
 import { EditProjectDialog } from '@/components/edit-project-dialog';
-import { ProjectKanbanBoard } from '@/components/project-kanban-board';
-import { ViewModeToggle } from '@/components/view-mode-toggle';
 import { ProjectDocuments } from '@/components/project-documents';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ProjectDetail, ProjectStatus, Task } from '@/types';
@@ -118,7 +114,6 @@ export function ProjectDetailPage() {
   const createTask = useCreateTask();
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-  const [viewMode, setViewMode] = useProjectViewMode(projectId!);
   const [searchParams, setSearchParams] = useSearchParams();
   const tab: ProjectTab = searchParams.get('tab') === 'documents' ? 'documents' : 'tasks';
   const setTab = (next: string) =>
@@ -228,14 +223,11 @@ export function ProjectDetailPage() {
           </span>
           <span className="truncate text-foreground">{project.name}</span>
         </nav>
-        <div className="ml-auto">
-          {tab === 'tasks' && <ViewModeToggle value={viewMode} onValueChange={setViewMode} />}
-        </div>
         {/* Secondary action — outline, so Add task stays the only Lime CTA */}
         <Button
           variant="outline"
           size="sm"
-          className="shrink-0"
+          className="ml-auto shrink-0"
           aria-label="Edit project"
           onClick={() => setEditOpen(true)}
         >
@@ -346,7 +338,7 @@ export function ProjectDetailPage() {
                     Use Add task, or set the project from a task's detail page.
                   </p>
                 </div>
-              ) : viewMode === 'kanban' ? null : (
+              ) : (
                 <div className="space-y-6">
                   {groups.map((group) => (
                     <section
@@ -428,12 +420,6 @@ export function ProjectDetailPage() {
             </TabsContent>
           </div>
         </div>
-        {/* The kanban needs the full width, so it sits outside the max-w column */}
-        {tab === 'tasks' && viewMode === 'kanban' && groups.length > 0 && (
-          <div className="mt-8">
-            <ProjectKanbanBoard projectId={projectId!} tasks={project.tasks ?? []} />
-          </div>
-        )}
       </Tabs>
 
       {/* Add-task dialog — preset to this project (TFG-34) */}

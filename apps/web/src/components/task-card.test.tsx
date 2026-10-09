@@ -110,17 +110,6 @@ describe('TaskCard', () => {
     expect(screen.queryByLabelText(/Project:/)).not.toBeInTheDocument();
   });
 
-  it('hides the project badge on request (redundant on its own project page)', () => {
-    renderWithClient(
-      <TaskCard
-        task={makeTask({ project: { id: 'p1', name: 'Roadmap', icon: '📦' } })}
-        hideProject
-      />,
-    );
-
-    expect(screen.queryByLabelText(/Project:/)).not.toBeInTheDocument();
-  });
-
   // Browser feedback: the badge row overflowed the card when its chips didn't
   // fit. It must wrap, and long project/label names must truncate.
   describe('badge row wrapping', () => {

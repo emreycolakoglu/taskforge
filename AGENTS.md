@@ -180,9 +180,9 @@ via nullable `projectId` (FK SetNull).
 - **Socket — all project events are global** (`emit` with no room ⇒ every socket), because project
   pages join no board room: `project:created/updated/deleted`, and `task.project.updated`
   (`{ ...task, previousProjectId }`) fired when a task's project changes, when a project-linked task
-  is created/deleted/moved (status or position), and on the `duplicate_of` auto-move. Web handlers
-  invalidate `['projects']`, `['projects', id]` and `['boards', task.boardId, 'full']` — the last one
-  matters: the project kanban plans drops from that cache and would otherwise go stale.
+  is created/deleted/moved (status or position), and on the `duplicate_of` auto-move — the detail
+  page groups tasks by status, so moves must refresh it. Web handlers invalidate `['projects']` and
+  `['projects', id]`.
   `project:updated/deleted` also invalidate `['tasks']` and `['boards']` (task payloads embed the
   project). Status and board deletes emit `task.project.updated` for each cascaded linked task.
 - **Project documents**: a `Document` belongs to exactly one task **or** one project (XOR,
@@ -199,11 +199,10 @@ via nullable `projectId` (FK SetNull).
   `tasks_create` / `tasks_update`; MCP task payloads embed `project {id, name, icon}`.
 - **Web**: global routes `/projects` and `/projects/:projectId` (top-level sidebar item next to
   Boards); `hooks/use-projects.ts`. Detail page: Tasks | Documents tabs (`?tab=documents`); the Tasks
-  tab has a List | Board toggle (localStorage per project). The kanban
-  (`components/project-kanban-board.tsx`, `lib/project-kanban.ts`) shows every status of every board
-  represented in the project — empty ones included — interleaved across boards by status type
-  (backlog → done), then position, with a board identifier chip, and only accepts
-  drops into the card's own board's columns. "Add task" uses `CreateTaskDialog`'s board-picker mode
+  tab is a list grouped by status. **No project kanban** — it was built and removed (2026-10-09):
+  a project's tasks span boards and cross-board drops are blocked, so it rendered every board's
+  status columns side by side and was unusable with 2+ boards. Don't re-add it without a new design.
+  "Add task" uses `CreateTaskDialog`'s board-picker mode
   (`boards`/`boardId`/`onBoardChange` props). `EditProjectDialog` edits every field and deletes; it
   diffs against an open-time snapshot so a concurrent socket update isn't reverted on save. Lead and
   assignee share `components/user-select.tsx`. Task detail has a Project row with an "Open project"
