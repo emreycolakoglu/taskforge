@@ -31,7 +31,9 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
       } else if (boardId) {
         this.server.to(`board:${boardId}`).emit(event, data);
       } else {
-        this.server.emit(event, data);
+        // Not server.emit: sockets inside the 5s auth window must not hear
+        // roomless events, which carry full task/doc payloads.
+        this.server.to('authed').emit(event, data);
       }
     });
   }
@@ -116,6 +118,7 @@ export class EventsGateway implements OnGatewayInit, OnGatewayConnection, OnGate
       client.data.boardId = data.boardId;
 
       client.join(`user:${user.id}`);
+      client.join('authed');
 
       client.emit('auth_success', { user });
     } catch {

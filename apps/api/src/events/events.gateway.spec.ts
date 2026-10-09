@@ -7,6 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 describe('EventsGateway', () => {
   let gateway: EventsGateway;
   let authService: AuthService;
+  let events: EventsService;
 
   const mockAuthService = {
     validateSession: jest.fn(),
@@ -26,6 +27,7 @@ describe('EventsGateway', () => {
 
     gateway = module.get<EventsGateway>(EventsGateway);
     authService = module.get<AuthService>(AuthService);
+    events = module.get<EventsService>(EventsService);
 
     jest.useFakeTimers();
   });
@@ -47,6 +49,41 @@ describe('EventsGateway', () => {
       ...overrides,
     };
   }
+
+  describe('broadcast routing', () => {
+    // Roomless events (projects, project docs) carry full task/doc payloads;
+    // sockets still inside the 5s auth window must not receive them.
+    it('sends roomless events only to the authed room', () => {
+      const roomEmit = jest.fn();
+      const server = { emit: jest.fn(), to: jest.fn(() => ({ emit: roomEmit })) };
+      gateway.server = server as any;
+      gateway.afterInit();
+
+      events.emit('project:created', { id: 'p1' });
+
+      expect(server.emit).not.toHaveBeenCalled();
+      expect(server.to).toHaveBeenCalledWith('authed');
+      expect(roomEmit).toHaveBeenCalledWith('project:created', { id: 'p1' });
+    });
+
+    it('joins the authed room only after a successful auth', async () => {
+      const client = createMockSocket();
+      gateway.handleConnection(client);
+      expect(client.join).not.toHaveBeenCalledWith('authed');
+
+      mockAuthService.validateSession.mockResolvedValue({ id: 'user-1', displayName: 'U' });
+      await gateway.handleAuth(client, { token: 'valid-token' });
+      expect(client.join).toHaveBeenCalledWith('authed');
+    });
+
+    it('never joins the authed room on a rejected token', async () => {
+      const client = createMockSocket();
+      gateway.handleConnection(client);
+      mockAuthService.validateSession.mockResolvedValue(null);
+      await gateway.handleAuth(client, { token: 'bad' });
+      expect(client.join).not.toHaveBeenCalledWith('authed');
+    });
+  });
 
   describe('handleConnection', () => {
     it('should set an auth timeout that disconnects unauthenticated clients after 5 seconds', () => {
