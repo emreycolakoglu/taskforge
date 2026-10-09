@@ -199,10 +199,7 @@ via nullable `projectId` (FK SetNull).
   `tasks_create` / `tasks_update`; MCP task payloads embed `project {id, name, icon}`.
 - **Web**: global routes `/projects` and `/projects/:projectId` (top-level sidebar item next to
   Boards); `hooks/use-projects.ts`. Detail page: Tasks | Documents tabs (`?tab=documents`); the Tasks
-  tab is a list grouped by status. **No project kanban** — it was built and removed (2026-10-09):
-  a project's tasks span boards and cross-board drops are blocked, so it rendered every board's
-  status columns side by side and was unusable with 2+ boards. Don't re-add it without a new design.
-  "Add task" uses `CreateTaskDialog`'s board-picker mode
+  tab is a list grouped by status. "Add task" uses `CreateTaskDialog`'s board-picker mode
   (`boards`/`boardId`/`onBoardChange` props). `EditProjectDialog` edits every field and deletes; it
   diffs against an open-time snapshot so a concurrent socket update isn't reverted on save. Lead and
   assignee share `components/user-select.tsx`. Task detail has a Project row with an "Open project"
