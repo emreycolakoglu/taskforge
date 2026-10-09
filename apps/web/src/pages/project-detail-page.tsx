@@ -369,6 +369,7 @@ export function ProjectDetailPage() {
                               <ProgressIcon
                                 progress={task.status?.progress ?? 0}
                                 type={task.status?.type}
+                                color={task.status?.color}
                                 size={16}
                               />
                               {task.taskNumber && (

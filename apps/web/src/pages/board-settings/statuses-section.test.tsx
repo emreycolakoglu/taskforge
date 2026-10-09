@@ -201,11 +201,26 @@ describe('StatusesSection', () => {
     expect(screen.queryByText('Progress')).not.toBeInTheDocument();
   });
 
-  it('shows progress input for editable types (in_progress)', async () => {
+  it('never shows a progress input — progress is computed server-side', async () => {
+    const user = userEvent.setup();
+    renderSection();
+    const editButtons = screen.getAllByText('Edit');
+    await user.click(editButtons[2]); // the in_progress status
+    expect(screen.queryByText('Progress')).not.toBeInTheDocument();
+  });
+
+  it('saves color changes without a progress field', async () => {
+    mockUpdate.mockResolvedValueOnce({ id: 's3', name: 'In Progress', type: 'in_progress' });
     const user = userEvent.setup();
     renderSection();
     const editButtons = screen.getAllByText('Edit');
     await user.click(editButtons[2]);
-    expect(screen.getByText('Progress')).toBeInTheDocument();
+    await user.click(screen.getByText('Save'));
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith(
+        's3',
+        expect.not.objectContaining({ progress: expect.anything() }),
+      );
+    });
   });
 });

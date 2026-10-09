@@ -108,6 +108,7 @@ describe('StatusesService', () => {
       expect(status.name).toBe('New Status');
       expect(status.position).toBe(6);
       expect(status.type).toBe('todo');
+      // Non-in_progress types keep their type anchor (0), however many siblings.
       expect(status.progress).toBe(0);
     });
 
@@ -138,6 +139,8 @@ describe('StatusesService', () => {
     });
 
     it('should set progress from type default on create', async () => {
+      // Seeded In Progress is the only in_progress sibling so far → this joins
+      // the group as second, spread gives 75.
       const inProgress = await service.create(
         {
           boardId: board.id,
@@ -146,7 +149,7 @@ describe('StatusesService', () => {
         },
         adminUser,
       );
-      expect(inProgress.progress).toBe(50);
+      expect(inProgress.progress).toBe(75);
 
       const done = await service.create(
         { boardId: board.id, name: 'Shipped', type: 'done' },
@@ -163,6 +166,108 @@ describe('StatusesService', () => {
         adminUser,
       );
       expect(cancelled.progress).toBeNull();
+    });
+
+    it('should spread progress across sibling in_progress statuses, never 0 or 100', async () => {
+      // Remove the seeded In Progress so the three created below are the whole group.
+      await service.remove(board.statuses[2].id, adminUser);
+      const first = await service.create(
+        { boardId: board.id, name: 'Planning', type: 'in_progress', position: 6 },
+        adminUser,
+      );
+      const second = await service.create(
+        { boardId: board.id, name: 'Implementing', type: 'in_progress', position: 7 },
+        adminUser,
+      );
+      const third = await service.create(
+        { boardId: board.id, name: 'Reviewing', type: 'in_progress', position: 8 },
+        adminUser,
+      );
+      // (i + 0.5) / n — 3 siblings: 17 / 50 / 83. The lone first status was 50
+      // before the siblings arrived; all values avoid the 0/100 extremes.
+      expect((await service.findOne(first.id)).progress).toBe(17);
+      expect((await service.findOne(second.id)).progress).toBe(50);
+      expect(third.progress).toBe(83);
+    });
+
+    it('should recompute sibling progress after a reorder', async () => {
+      // Remove the seeded In Progress so the two created below are the whole group.
+      await service.remove(board.statuses[2].id, adminUser);
+      const first = await service.create(
+        { boardId: board.id, name: 'Planning', type: 'in_progress', position: 6 },
+        adminUser,
+      );
+      const second = await service.create(
+        { boardId: board.id, name: 'Implementing', type: 'in_progress', position: 7 },
+        adminUser,
+      );
+      expect((await service.findOne(first.id)).progress).toBe(25);
+      expect((await service.findOne(second.id)).progress).toBe(75);
+
+      await service.reorder(
+        {
+          items: [
+            { id: first.id, position: 8 },
+            { id: second.id, position: 6 },
+          ],
+        },
+        adminUser,
+      );
+      expect((await service.findOne(first.id)).progress).toBe(75);
+      expect((await service.findOne(second.id)).progress).toBe(25);
+    });
+
+    it('should recompute sibling progress after deleting one', async () => {
+      // Remove the seeded In Progress so the two created below are the whole group.
+      await service.remove(board.statuses[2].id, adminUser);
+      const first = await service.create(
+        { boardId: board.id, name: 'Planning', type: 'in_progress', position: 6 },
+        adminUser,
+      );
+      const second = await service.create(
+        { boardId: board.id, name: 'Implementing', type: 'in_progress', position: 7 },
+        adminUser,
+      );
+      await service.remove(first.id, adminUser);
+      // Lone survivor returns to 50.
+      expect((await service.findOne(second.id)).progress).toBe(50);
+    });
+
+    it('should recompute sibling progress when position changes via update', async () => {
+      // Remove the seeded In Progress so the two created below are the whole group.
+      await service.remove(board.statuses[2].id, adminUser);
+      const first = await service.create(
+        { boardId: board.id, name: 'Planning', type: 'in_progress', position: 6 },
+        adminUser,
+      );
+      const second = await service.create(
+        { boardId: board.id, name: 'Implementing', type: 'in_progress', position: 7 },
+        adminUser,
+      );
+      const updated = await service.update(first.id, { position: 9 }, adminUser);
+      expect(updated.progress).toBe(75);
+      expect((await service.findOne(second.id)).progress).toBe(25);
+    });
+
+    it('should ignore a client-supplied progress value', async () => {
+      const status = await service.update(board.statuses[0].id, { progress: 75 } as any, adminUser);
+      expect(status.progress).toBe(0);
+    });
+
+    it('should keep type anchors for non-in_progress types regardless of siblings', async () => {
+      // Multiple todos stay at 0, not spread — only in_progress spreads.
+      const second = await service.create(
+        { boardId: board.id, name: 'Second Todo', type: 'todo', position: 6 },
+        adminUser,
+      );
+      expect(second.progress).toBe(0);
+      expect((await service.findOne(board.statuses[1].id)).progress).toBe(0);
+
+      const secondDone = await service.create(
+        { boardId: board.id, name: 'Second Done', position: 7, type: 'done' },
+        adminUser,
+      );
+      expect(secondDone.progress).toBe(100);
     });
 
     it('should reject create without type', async () => {
@@ -234,29 +339,17 @@ describe('StatusesService', () => {
       expect(status.progress).toBeNull();
     });
 
-    it('should allow progress update for in_progress type', async () => {
-      const inProgress = await service.create(
-        {
-          boardId: board.id,
-          name: 'WIP',
-          type: 'in_progress',
-        },
+    it('should recompute sibling progress when a status changes type into in_progress', async () => {
+      // Board seed: Backlog(pos 0), Todo(1), In Progress(2), Done... Turn Todo
+      // into a second in_progress status. Both siblings re-spread by position:
+      // Todo (pos 1) is first → 25, the seeded In Progress (pos 2) → 75.
+      const updated = await service.update(
+        board.statuses[1].id,
+        { type: 'in_progress' },
         adminUser,
       );
-      const updated = await service.update(inProgress.id, { progress: 75 }, adminUser);
-      expect(updated.progress).toBe(75);
-    });
-
-    it('should reject progress update for done type', async () => {
-      await expect(
-        service.update(board.statuses[3].id, { progress: 50 }, adminUser),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('should reject progress update for backlog type', async () => {
-      await expect(
-        service.update(board.statuses[0].id, { progress: 50 }, adminUser),
-      ).rejects.toThrow(BadRequestException);
+      expect(updated.progress).toBe(25);
+      expect((await service.findOne(board.statuses[2].id)).progress).toBe(75);
     });
 
     it('should reject status update by a non-admin member', async () => {

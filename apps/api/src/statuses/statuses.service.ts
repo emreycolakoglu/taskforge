@@ -9,7 +9,7 @@ import { EventsService } from '../events/events.service';
 import { MembersService } from '../members/members.service';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { CreateStatusDto, UpdateStatusDto, ReorderStatusesDto } from './dto/status.dto';
-import { STATUS_TYPES, defaultProgressForType, isProgressEditable } from './status-types';
+import { STATUS_TYPES, defaultProgressForType } from './status-types';
 
 interface AuthedUser {
   id: string;
@@ -55,49 +55,51 @@ export class StatusesService {
         type: dto.type,
         position: dto.position ?? (maxPos._max.position ?? -1) + 1,
         color: dto.color,
+        // Anchor first (type default), then spread across the new sibling group.
         progress: defaultProgressForType(dto.type),
       },
     });
+    await this.recomputeProgress(dto.boardId, dto.type);
     this.events.emit('status:created', status, dto.boardId);
-    return status;
+    // The recompute spread may have adjusted this status's own progress — refetch.
+    return this.findOne(status.id);
   }
 
   async update(id: string, dto: UpdateStatusDto, user?: AuthedUser) {
     const existing = await this.findOne(id);
     await this.assertBoardAdmin(existing.boardId, user, 'update statuses');
 
-    // Editability is evaluated against the TARGET type when changing type, not the
-    // existing one — otherwise a done→in_progress transition with progress would
-    // reject on the source type before the transition can apply.
-    const targetType = dto.type !== undefined ? dto.type : existing.type;
-
-    if (dto.progress !== undefined && !isProgressEditable(targetType)) {
-      throw new BadRequestException(`Progress is not editable for status type "${targetType}"`);
-    }
-
     const data: Record<string, any> = {};
     if (dto.name !== undefined) data.name = dto.name;
     if (dto.position !== undefined) data.position = dto.position;
     if (dto.color !== undefined) data.color = dto.color;
 
-    if (dto.type !== undefined) {
+    // Progress is server-managed (Linear-style position spread) — any
+    // client-supplied progress in the payload is deliberately ignored.
+
+    const typeChanged = dto.type !== undefined && dto.type !== existing.type;
+    const positionChanged = dto.position !== undefined && dto.position !== existing.position;
+    if (typeChanged) {
       data.type = dto.type;
-      if (!isProgressEditable(dto.type)) {
-        data.progress = defaultProgressForType(dto.type);
-      } else if (dto.progress !== undefined) {
-        data.progress = dto.progress;
-      } else {
-        // Type change to an editable type without an explicit progress: use the
-        // type default rather than carrying a stale value across the transition.
-        data.progress = defaultProgressForType(dto.type);
-      }
-    } else if (dto.progress !== undefined && isProgressEditable(existing.type)) {
-      data.progress = dto.progress;
+      // Anchor to the type default before the sibling spread recomputes it.
+      data.progress = defaultProgressForType(dto.type);
     }
 
     const status = await this.prisma.status.update({ where: { id }, data });
+    if (typeChanged || positionChanged) {
+      // Both the old and new type groups can shift when a status changes type.
+      await this.recomputeProgress(existing.boardId, existing.type);
+      if (typeChanged) await this.recomputeProgress(existing.boardId, dto.type);
+    }
     this.events.emit('status:updated', status, status.boardId);
-    return status;
+    if (typeChanged || positionChanged) {
+      // Broadcast the recomputed siblings too — payloads embed status.progress.
+      const boardId = status.boardId;
+      const siblings = await this.prisma.status.findMany({ where: { boardId } });
+      this.events.emit('status:updated', siblings, boardId);
+    }
+    // The recompute spread may have adjusted this status's own progress — refetch.
+    return this.findOne(id);
   }
 
   async reorder(dto: ReorderStatusesDto, user?: AuthedUser) {
@@ -112,8 +114,14 @@ export class StatusesService {
       this.prisma.status.update({ where: { id: item.id }, data: { position: item.position } }),
     );
     const result = await this.prisma.$transaction(updates);
-    this.events.emit('status:reordered', result, boardId);
-    return result;
+    // Reordering any status can change every same-type sibling's progress.
+    await this.recomputeProgress(boardId);
+    const refreshed = await this.prisma.status.findMany({
+      where: { boardId },
+      orderBy: { position: 'asc' },
+    });
+    this.events.emit('status:reordered', refreshed, boardId);
+    return refreshed;
   }
 
   async remove(id: string, user?: AuthedUser) {
@@ -138,6 +146,32 @@ export class StatusesService {
         previousProjectId: task.projectId,
       });
     }
+    // Survivors of the deleted status's type group shift a step.
+    await this.recomputeProgress(status.boardId, status.type);
+  }
+
+  /**
+   * Recompute progress for every status on a board (or one type), Linear-style:
+   * ONLY in_progress statuses participate in the sibling spread — within the
+   * type group ordered by position, progress is round(((index + 0.5) / n) * 100),
+   * never 0 or 100. Every other type keeps its fixed anchor (triage/backlog/todo
+   * 0, done 100, cancelled/duplicate null) regardless of position or count.
+   */
+  private async recomputeProgress(boardId: string, type?: string) {
+    if (type && type !== 'in_progress') return;
+    const statuses = await this.prisma.status.findMany({
+      where: { boardId, type: 'in_progress' },
+      orderBy: { position: 'asc' },
+    });
+    const n = statuses.length;
+    if (n === 0) return;
+    const updates = statuses.map((status, i) =>
+      this.prisma.status.update({
+        where: { id: status.id },
+        data: { progress: Math.round(((i + 0.5) / n) * 100) },
+      }),
+    );
+    await this.prisma.$transaction(updates);
   }
 
   private async assertBoardAdmin(boardId: string, user: AuthedUser | undefined, action: string) {

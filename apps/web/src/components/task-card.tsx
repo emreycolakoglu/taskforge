@@ -21,7 +21,6 @@
 
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/types';
@@ -129,13 +128,14 @@ export function TaskCard({
 
       {/* Title row — clamped to two lines */}
       <div className="flex items-start gap-2 min-w-0 mb-1">
-        <span className="pt-1">
+        <div className="h-5 flex items-center">
           <ProgressIcon
             progress={task?.status?.progress ?? 0}
             type={task?.status?.type}
+            color={task?.status?.color}
             size={16}
           />
-        </span>
+        </div>
         <span className="text-sm text-foreground line-clamp-2">{task.title}</span>
       </div>
 
@@ -224,13 +224,6 @@ export function TaskCard({
               <TooltipContent side="top">Estimation: {task.estimate}</TooltipContent>
             </Tooltip>
           </TooltipProvider>
-        )}
-
-        {/* Label manager (+) — hover-revealed, far right */}
-        {boardId && (
-          <div className="opacity-0 group-hover/card:opacity-100 transition-opacity ml-auto shrink-0">
-            <LabelManager task={task} boardId={boardId} />
-          </div>
         )}
       </div>
     </div>

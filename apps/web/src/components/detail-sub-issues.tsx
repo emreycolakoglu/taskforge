@@ -102,7 +102,7 @@ export function DetailSubIssues({
   );
 
   return (
-    <section id="sub-issues" className="space-y-2">
+    <section id="sub-issues" className="space-y-2 mt-2">
       <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
         Sub-issues
         {subTasks.length > 0 && (
@@ -116,7 +116,12 @@ export function DetailSubIssues({
             className="flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 cursor-pointer hover:bg-accent/30"
             onClick={() => onNavigate(st.id)}
           >
-            <ProgressIcon progress={st?.status?.progress ?? 0} type={st?.status?.type} size={16} />
+            <ProgressIcon
+              progress={st?.status?.progress ?? 0}
+              type={st?.status?.type}
+              color={st?.status?.color}
+              size={16}
+            />
             {st.taskNumber && (
               <span className="text-xs text-muted-foreground font-mono shrink-0">
                 {st.taskNumber}

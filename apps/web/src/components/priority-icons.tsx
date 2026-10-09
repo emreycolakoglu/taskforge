@@ -18,6 +18,7 @@
 import { SignalHighIcon, SignalLowIcon, SignalMediumIcon, SignalZero } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Task } from '@/types';
+import clsx from 'clsx';
 
 const PRIORITY_ICONS: Record<Task['priority'], LucideIcon> = {
   low: SignalZero,
@@ -55,7 +56,7 @@ export function PriorityIcon({ priority, className, size = 14 }: PriorityIconPro
   return (
     <span
       title={PRIORITY_LABELS[priority]}
-      className={className ?? `${PRIORITY_COLORS[priority]} shrink-0`}
+      className={clsx(className, `${PRIORITY_COLORS[priority]} shrink-0`)}
     >
       <Icon size={size} strokeWidth={2} />
     </span>

@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsNumber, IsInt, Min, Max, IsArray, IsIn } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsArray, IsIn } from 'class-validator';
 import { STATUS_TYPES } from '../status-types';
 
 export class CreateStatusDto {
@@ -36,12 +36,6 @@ export class UpdateStatusDto {
   @IsOptional()
   @IsString()
   color?: string;
-
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(100)
-  progress?: number;
 }
 
 export class ReorderStatusesDto {

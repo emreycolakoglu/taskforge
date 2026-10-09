@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import { ArrowUp, ArrowDown, Trash2, Plus } from 'lucide-react';
 import { api } from '@/hooks/api';
 import type { Status, StatusType } from '@/types';
-import { defaultProgressForType, isProgressEditable } from '@/lib/status-type';
 import { ProgressIcon } from '@/components/progress-icon';
 import { Card, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -47,7 +46,6 @@ export function StatusesSection({ boardId, statuses }: { boardId: string; status
   const [editName, setEditName] = useState('');
   const [editType, setEditType] = useState<StatusType>('todo');
   const [editColor, setEditColor] = useState('#6366f1');
-  const [editProgress, setEditProgress] = useState(0);
   const [saving, setSaving] = useState(false);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
@@ -81,7 +79,6 @@ export function StatusesSection({ boardId, statuses }: { boardId: string; status
     setEditName(status.name);
     setEditType(status.type);
     setEditColor(status.color ?? '#6366f1');
-    setEditProgress(status.progress ?? 0);
   };
 
   const handleSaveEdit = async () => {
@@ -89,9 +86,6 @@ export function StatusesSection({ boardId, statuses }: { boardId: string; status
     setSaving(true);
     try {
       const data: Record<string, any> = { name: editName, type: editType, color: editColor };
-      if (isProgressEditable(editType)) {
-        data.progress = editProgress;
-      }
       await api.statuses.update(editingId, data);
       toast.success('Status updated');
       setEditingId(null);
@@ -145,7 +139,8 @@ export function StatusesSection({ boardId, statuses }: { boardId: string; status
       <div>
         <CardTitle className="text-base text-foreground">Statuses</CardTitle>
         <CardDescription className="text-sm text-muted-foreground mt-1">
-          Manage columns and their issue status types for this board.
+          Manage columns and their issue status types for this board. Status progress is computed
+          automatically from each status's position among statuses of the same type.
         </CardDescription>
       </div>
 
@@ -154,27 +149,13 @@ export function StatusesSection({ boardId, statuses }: { boardId: string; status
           <div key={status.id} className="border-b border-border last:border-0">
             <div className="flex items-center justify-between py-3">
               <div className="flex items-center gap-3">
-                <ProgressIcon progress={status.progress ?? 0} type={status.type} size={16} />
-                <span
-                  className="size-2.5 rounded-full shrink-0"
-                  style={{ backgroundColor: status.color ?? '#94a3b8' }}
-                  aria-label={`Color ${status.color ?? 'default'}`}
+                <ProgressIcon
+                  progress={status.progress ?? 0}
+                  type={status.type}
+                  color={status.color}
+                  size={16}
                 />
                 <span className="text-sm text-foreground">{status.name}</span>
-                <Badge
-                  variant="secondary"
-                  className="text-xs text-muted-foreground border-0 rounded-sm px-1.5 py-0.5 font-mono"
-                  style={{
-                    backgroundColor: 'transparent',
-                    border: `1px solid ${status.color ?? '#333'}`,
-                    color: status.color ?? '#94a3b8',
-                  }}
-                >
-                  {TYPE_OPTIONS.find((t) => t.value === status.type)?.label ?? status.type}
-                </Badge>
-                <span className="text-xs font-mono text-muted-foreground">
-                  {status._count?.tasks ?? 0}
-                </span>
               </div>
               <div className="flex items-center gap-1">
                 <Button
@@ -228,14 +209,7 @@ export function StatusesSection({ boardId, statuses }: { boardId: string; status
                   </div>
                   <div className="flex flex-col gap-1">
                     <UILabel className="text-xs text-muted-foreground">Type</UILabel>
-                    <Select
-                      value={editType}
-                      onValueChange={(v) => {
-                        const next = v as StatusType;
-                        setEditType(next);
-                        setEditProgress(defaultProgressForType(next) ?? 0);
-                      }}
-                    >
+                    <Select value={editType} onValueChange={(v) => setEditType(v as StatusType)}>
                       <SelectTrigger className="h-8 w-36">
                         <SelectValue />
                       </SelectTrigger>
@@ -257,19 +231,6 @@ export function StatusesSection({ boardId, statuses }: { boardId: string; status
                       className="h-8 w-9 rounded-md border border-border bg-background cursor-pointer"
                     />
                   </div>
-                  {isProgressEditable(editType) && (
-                    <div className="flex flex-col gap-1">
-                      <UILabel className="text-xs text-muted-foreground">Progress</UILabel>
-                      <Input
-                        type="number"
-                        min={0}
-                        max={100}
-                        value={editProgress}
-                        onChange={(e) => setEditProgress(parseInt(e.target.value, 10) || 0)}
-                        className="h-8 w-16 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                    </div>
-                  )}
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" onClick={handleSaveEdit} disabled={saving}>

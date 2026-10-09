@@ -48,8 +48,9 @@ export function DetailTitleBlock({ task, onSaveTitle, onNavigateParent }: Detail
 
   return (
     <div className="space-y-1">
-      <div className="flex items-center gap-2">
-        <PriorityIcon priority={task.priority} size={20} />
+      <div className="flex items-start gap-2">
+        <PriorityIcon priority={task.priority} size={20} className="mt-2" />
+
         {editing ? (
           <Input
             autoFocus

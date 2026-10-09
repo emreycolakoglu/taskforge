@@ -1,5 +1,9 @@
 import type { StatusType } from '@/types';
 
+// Progress is computed server-side from the status's position among its
+// same-type siblings (Linear-style — never 0 or 100 for in-flight types).
+// These are the fixed anchors: done is always full, cancelled/duplicate have
+// no progress at all.
 const PROGRESS_BY_TYPE: Record<StatusType, number | null> = {
   triage: 0,
   backlog: 0,
@@ -12,10 +16,6 @@ const PROGRESS_BY_TYPE: Record<StatusType, number | null> = {
 
 export function defaultProgressForType(type: StatusType): number | null {
   return PROGRESS_BY_TYPE[type] ?? 0;
-}
-
-export function isProgressEditable(type: StatusType): boolean {
-  return type === 'triage' || type === 'in_progress';
 }
 
 export function isTerminalType(type: StatusType): boolean {

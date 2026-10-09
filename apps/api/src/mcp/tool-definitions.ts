@@ -88,7 +88,8 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
   {
     name: 'statuses_update',
     title: 'Update status',
-    description: 'Update a status name, type, color, or progress.',
+    description:
+      'Update a status name, type, color, or position. Progress is computed automatically from the status position among same-type siblings.',
     inputSchema: {
       id: idField('Status'),
       name: z.string().optional(),
@@ -97,13 +98,6 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
         .optional(),
       color: z.string().optional(),
       position: z.number().optional(),
-      progress: z
-        .number()
-        .int()
-        .min(0)
-        .max(100)
-        .optional()
-        .describe('Progress percentage (0-100). Only editable for triage and in_progress types.'),
     },
   },
   {

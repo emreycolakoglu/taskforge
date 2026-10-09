@@ -62,7 +62,8 @@ async function main() {
 
   // Statuses — mirror the app's default set (backlog, todo, in_progress, done, cancelled,
   // duplicate) plus a Review column the seed uses for a task. `type` replaces the old
-  // isDone/isDuplicate booleans; progress defaults come from status-types.
+  // isDone/isDuplicate booleans; progress anchors come from status-types
+  // (spread among same-type siblings is computed server-side).
   const backlog = await prisma.status.create({
     data: {
       boardId: board.id,
@@ -80,7 +81,9 @@ async function main() {
       type: 'todo',
       position: 1,
       color: '#6366f1',
-      progress: defaultProgressForType('todo'),
+      // Non-in_progress types keep their type anchor (0) — only in_progress
+      // spreads among siblings (StatusesService.recomputeProgress).
+      progress: 0,
     },
   });
   const inProgress = await prisma.status.create({

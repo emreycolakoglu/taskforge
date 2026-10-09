@@ -264,7 +264,9 @@ export class McpService {
         );
       }
       case 'update': {
-        return this.statusesService.update(params.id, params, user);
+        // Progress is computed server-side; strip any client-supplied value.
+        const { progress: _ignored, ...statusParams } = params;
+        return this.statusesService.update(params.id, statusParams, user);
       }
       case 'delete': {
         await this.statusesService.remove(params.id, user);
