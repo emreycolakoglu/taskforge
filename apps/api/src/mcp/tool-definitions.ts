@@ -352,7 +352,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: 'projects_create',
     title: 'Create project',
     description:
-      'Create a workspace-level project. Icon defaults to 📦, status defaults to planned; position is appended at the end of the workspace. Bot sessions cannot manage projects.',
+      'Create a workspace-level project. Icon defaults to 📦, status defaults to planned; position is appended at the end of the workspace.',
     inputSchema: {
       name: z.string(),
       description: z.string().optional(),
@@ -367,7 +367,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: 'projects_update',
     title: 'Update project',
     description:
-      "Update a project's name, description, icon, lead, status, dates, or position. Bot sessions cannot manage projects. Moving status into/out of completed stamps/clears completedAt.",
+      "Update a project's name, description, icon, lead, status, dates, or position. Moving status into/out of completed stamps/clears completedAt.",
     inputSchema: {
       id: idField('Project'),
       name: z.string().optional(),
@@ -384,7 +384,7 @@ export const TOOL_DEFINITIONS: ToolDefinition[] = [
     name: 'projects_delete',
     title: 'Delete project',
     description:
-      'Delete a project. Linked tasks survive with their project link cleared (SetNull). Bot sessions cannot manage projects.',
+      'Delete a project. Linked tasks survive with their project link cleared (SetNull).',
     inputSchema: { id: idField('Project') },
   },
 

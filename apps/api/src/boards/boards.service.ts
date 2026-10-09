@@ -140,9 +140,22 @@ export class BoardsService {
     await this.findOne(id);
     // Attachment cleanup before the delete: the bare board delete cascades the
     // whole subtree at the DB level, which would orphan attachment rows.
+    const linked = await this.prisma.task.findMany({
+      where: { boardId: id, projectId: { not: null } },
+      select: { id: true, projectId: true },
+    });
     await this.attachments.removeByBoard(id);
     await this.prisma.board.delete({ where: { id } });
     this.events.emit('board:deleted', { id }, id);
+    // Project pages hold no board room — tell them which linked tasks vanished.
+    for (const task of linked) {
+      this.events.emit('task.project.updated', {
+        id: task.id,
+        boardId: id,
+        projectId: null,
+        previousProjectId: task.projectId,
+      });
+    }
   }
 
   /**

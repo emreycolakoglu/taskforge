@@ -1,11 +1,21 @@
-import { IsDateString, IsIn, IsNumber, IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsDateString,
+  IsIn,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateIf,
+} from 'class-validator';
 import { PROJECT_STATUSES } from '../project-statuses';
 
 // description, leadId, startDate and targetDate accept null to clear the field
 // (@IsOptional skips validation for null as well as undefined — same as
-// UpdateTaskDto.projectId). ProjectsService maps null → null.
+// UpdateTaskDto.projectId). ProjectsService maps null → null. name, icon and
+// status are NOT clearable: they validate whenever present, so null is a 400
+// instead of a NOT NULL constraint failure.
 export class UpdateProjectDto {
-  @IsOptional()
+  @ValidateIf((_, v) => v !== undefined)
   @IsString()
   @MaxLength(100)
   name?: string;
@@ -14,7 +24,7 @@ export class UpdateProjectDto {
   @IsString()
   description?: string | null;
 
-  @IsOptional()
+  @ValidateIf((_, v) => v !== undefined)
   @IsString()
   icon?: string;
 
@@ -22,7 +32,7 @@ export class UpdateProjectDto {
   @IsString()
   leadId?: string | null;
 
-  @IsOptional()
+  @ValidateIf((_, v) => v !== undefined)
   @IsIn(PROJECT_STATUSES)
   status?: string;
 

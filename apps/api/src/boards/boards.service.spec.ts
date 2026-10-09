@@ -23,12 +23,13 @@ describe('BoardsService', () => {
   let service: BoardsService;
   let prisma: PrismaService;
   let attachments: AttachmentsService;
+  let events: EventsService;
   let driver: LocalDiskDriver;
   let storageRoot: string;
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
-    const events = new EventsService();
+    events = new EventsService();
     const labelsService = new LabelsService(prisma, events, new MembersService(prisma));
     storageRoot = mkdtempSync(join(tmpdir(), 'tf-board-att-'));
     driver = new LocalDiskDriver(storageRoot);
@@ -412,6 +413,31 @@ describe('BoardsService', () => {
       await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
       await service.remove(seeded.id, { id: admin.id, displayName: admin.displayName });
       await expect(service.findOne(seeded.id)).rejects.toThrow('Board not found');
+    });
+
+    it('tells project pages about project-linked tasks the board delete cascades away', async () => {
+      const seeded = await seedBoard(prisma);
+      const admin = await seedUser(prisma);
+      await prisma.member.create({ data: { boardId: seeded.id, userId: admin.id, role: 'admin' } });
+      const project = await seedProject(prisma);
+      const linked = await seedTask(prisma, seeded.statuses[1].id, { projectId: project.id });
+      await seedTask(prisma, seeded.statuses[0].id);
+      const emitted: Array<{ event: string; data: any; boardId?: string }> = [];
+      const sub = events.observe().subscribe((e) => emitted.push(e));
+      try {
+        await service.remove(seeded.id, { id: admin.id, displayName: admin.displayName });
+      } finally {
+        sub.unsubscribe();
+      }
+      const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
+      expect(projectEvents).toHaveLength(1);
+      expect(projectEvents[0].data).toEqual({
+        id: linked.id,
+        boardId: seeded.id,
+        projectId: null,
+        previousProjectId: project.id,
+      });
+      expect(projectEvents[0].boardId).toBeUndefined();
     });
 
     it('should cascade delete statuses', async () => {

@@ -9,7 +9,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventsService } from '../events/events.service';
 import { AttachmentsService } from '../attachments/attachments.service';
 import { LocalDiskDriver } from '../storage/local-disk.driver';
-import { createTestPrisma, seedBoard, seedTask, seedUser } from '../../test/setup';
+import { createTestPrisma, seedBoard, seedProject, seedTask, seedUser } from '../../test/setup';
 
 describe('StatusesService', () => {
   let service: StatusesService;
@@ -19,10 +19,11 @@ describe('StatusesService', () => {
   let storageRoot: string;
   let board: any;
   let adminUser: any;
+  let events: EventsService;
 
   beforeAll(async () => {
     prisma = createTestPrisma() as unknown as PrismaService;
-    const events = new EventsService();
+    events = new EventsService();
     storageRoot = mkdtempSync(join(tmpdir(), 'tf-status-att-'));
     driver = new LocalDiskDriver(storageRoot);
     const module: TestingModule = await Test.createTestingModule({
@@ -59,6 +60,7 @@ describe('StatusesService', () => {
     await prisma.comment.deleteMany();
     await prisma.document.deleteMany();
     await prisma.task.deleteMany();
+    await prisma.project.deleteMany();
     await prisma.label.deleteMany();
     await prisma.status.deleteMany();
     await prisma.member.deleteMany();
@@ -321,6 +323,28 @@ describe('StatusesService', () => {
 
       expect(await prisma.attachment.findUnique({ where: { id: att.id } })).toBeNull();
       expect(await driver.stat(row.storageKey)).toBeNull();
+    });
+
+    it('tells project pages about project-linked tasks the status delete cascades away', async () => {
+      const project = await seedProject(prisma);
+      const linked = await seedTask(prisma, board.statuses[0].id, { projectId: project.id });
+      await seedTask(prisma, board.statuses[0].id);
+      const emitted: Array<{ event: string; data: any; boardId?: string }> = [];
+      const sub = events.observe().subscribe((e) => emitted.push(e));
+      try {
+        await service.remove(board.statuses[0].id, adminUser);
+      } finally {
+        sub.unsubscribe();
+      }
+      const projectEvents = emitted.filter((e) => e.event === 'task.project.updated');
+      expect(projectEvents).toHaveLength(1);
+      expect(projectEvents[0].data).toEqual({
+        id: linked.id,
+        boardId: board.id,
+        projectId: null,
+        previousProjectId: project.id,
+      });
+      expect(projectEvents[0].boardId).toBeUndefined();
     });
 
     it('should reject status delete by a non-admin member', async () => {

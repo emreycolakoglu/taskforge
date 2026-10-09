@@ -121,12 +121,23 @@ export class StatusesService {
     await this.assertBoardAdmin(status.boardId, user, 'delete statuses');
     // Attachment cleanup before the delete: status removal cascades its tasks
     // at the DB level, which would otherwise orphan their attachment rows.
-    const taskIds = (
-      await this.prisma.task.findMany({ where: { statusId: id }, select: { id: true } })
-    ).map((t) => t.id);
-    for (const taskId of taskIds) await this.attachments.removeByTask(taskId);
+    const tasks = await this.prisma.task.findMany({
+      where: { statusId: id },
+      select: { id: true, projectId: true },
+    });
+    for (const task of tasks) await this.attachments.removeByTask(task.id);
     await this.prisma.status.delete({ where: { id } });
     this.events.emit('status:deleted', { id }, status.boardId);
+    // Project pages hold no board room — tell them which linked tasks vanished.
+    for (const task of tasks) {
+      if (task.projectId === null) continue;
+      this.events.emit('task.project.updated', {
+        id: task.id,
+        boardId: status.boardId,
+        projectId: null,
+        previousProjectId: task.projectId,
+      });
+    }
   }
 
   private async assertBoardAdmin(boardId: string, user: AuthedUser | undefined, action: string) {
