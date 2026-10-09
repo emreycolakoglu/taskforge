@@ -9,7 +9,9 @@
  * progress rollup as a neutral bar. Task rows link to their own board-scoped
  * route (/board/:boardId/task/:taskId) — tasks stay board-scoped. The
  * header's outline "Edit" button opens EditProjectDialog (deleting from it
- * navigates back to /projects).
+ * navigates back to /projects). The header's List | Board toggle swaps the
+ * grouped list for ProjectKanbanBoard; the choice persists per project in
+ * localStorage (useProjectViewMode).
  *
  * design.md compliance: Obsidian card surfaces with 1px Graphite inset
  * borders, no bright fills, no gradients; the Add task button is the page's
@@ -25,6 +27,7 @@ import { useBoardFull, useBoards } from '@/hooks/use-boards';
 import { useCreateTask } from '@/hooks/use-tasks';
 import { useUserDirectory } from '@/hooks/use-users';
 import { useSocket } from '@/hooks/use-socket';
+import { useProjectViewMode } from '@/hooks/use-project-view-mode';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +35,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ProgressIcon } from '@/components/progress-icon';
 import { CreateTaskDialog } from '@/components/create-task-dialog';
 import { EditProjectDialog } from '@/components/edit-project-dialog';
+import { ProjectKanbanBoard } from '@/components/project-kanban-board';
+import { ViewModeToggle } from '@/components/view-mode-toggle';
 import type { ProjectDetail, ProjectStatus, Task } from '@/types';
 import { PROJECT_STATUS_LABELS } from '@/types';
 
@@ -98,6 +103,7 @@ export function ProjectDetailPage() {
   const createTask = useCreateTask();
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [viewMode, setViewMode] = useProjectViewMode(projectId!);
   // Projects are workspace-level: project:* and task.project.updated are
   // broadcast to every socket, so this page needs no board room.
   useSocket();
@@ -203,11 +209,14 @@ export function ProjectDetailPage() {
           </span>
           <span className="truncate text-foreground">{project.name}</span>
         </nav>
+        <div className="ml-auto">
+          <ViewModeToggle value={viewMode} onValueChange={setViewMode} />
+        </div>
         {/* Secondary action — outline, so Add task stays the only Lime CTA */}
         <Button
           variant="outline"
           size="sm"
-          className="ml-auto shrink-0"
+          className="shrink-0"
           aria-label="Edit project"
           onClick={() => setEditOpen(true)}
         >
@@ -305,7 +314,7 @@ export function ProjectDetailPage() {
                 Add tasks to this project from the board.
               </p>
             </div>
-          ) : (
+          ) : viewMode === 'kanban' ? null : (
             <div className="space-y-6">
               {groups.map((group) => (
                 <section key={group.key} className="space-y-2" aria-label={`${group.name} tasks`}>
@@ -377,6 +386,12 @@ export function ProjectDetailPage() {
             </div>
           )}
         </div>
+        {/* The kanban needs the full width, so it sits outside the max-w column */}
+        {viewMode === 'kanban' && groups.length > 0 && (
+          <div className="mt-8">
+            <ProjectKanbanBoard projectId={projectId!} tasks={project.tasks ?? []} />
+          </div>
+        )}
       </div>
 
       {/* Add-task dialog — preset to this project (TFG-34) */}

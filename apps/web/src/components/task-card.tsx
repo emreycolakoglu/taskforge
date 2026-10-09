@@ -54,6 +54,8 @@ interface TaskCardProps {
   parentTaskNumber?: string;
   parentTaskName?: string;
   onAddSubTask?: () => void;
+  /** Omit the project chip — redundant on that project's own page. */
+  hideProject?: boolean;
 }
 
 export function TaskCard({
@@ -63,6 +65,7 @@ export function TaskCard({
   parentTaskNumber,
   parentTaskName,
   onAddSubTask,
+  hideProject,
 }: TaskCardProps) {
   const labels = task.taskLabels ?? task.labels ?? [];
   const isSubTask = !!task.parentId;
@@ -84,17 +87,18 @@ export function TaskCard({
 
   // TFG-34 — muted project chip (icon + name), monochrome per design.md:
   // no Lime, no bright fills; the project's identity is the icon + text.
-  const projectChip = task.project ? (
-    <Badge
-      variant={'outline'}
-      className="min-w-0 max-w-full shrink text-muted-foreground"
-      aria-label={`Project: ${task.project.name}`}
-      title={`Project: ${task.project.name}`}
-    >
-      {task.project.icon && <span aria-hidden="true">{task.project.icon}</span>}
-      <span className="truncate">{task.project.name}</span>
-    </Badge>
-  ) : null;
+  const projectChip =
+    task.project && !hideProject ? (
+      <Badge
+        variant={'outline'}
+        className="min-w-0 max-w-full shrink text-muted-foreground"
+        aria-label={`Project: ${task.project.name}`}
+        title={`Project: ${task.project.name}`}
+      >
+        {task.project.icon && <span aria-hidden="true">{task.project.icon}</span>}
+        <span className="truncate">{task.project.name}</span>
+      </Badge>
+    ) : null;
 
   return (
     <div

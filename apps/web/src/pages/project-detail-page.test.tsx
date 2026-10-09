@@ -8,7 +8,7 @@
  * rollup shape from the API: project fields + hydrated tasks
  * (status/assignee/labels/project) + the progress summary.
  */
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useParams } from 'react-router-dom';
@@ -38,6 +38,19 @@ vi.mock('@/components/edit-project-dialog', () => ({
     return null;
   },
 }));
+
+// The kanban board is tested on its own (project-kanban-board.test.tsx); the
+// page pins the toggle and what it hands the board.
+const mockProjectKanbanBoard = vi.hoisted(() => vi.fn());
+vi.mock('@/components/project-kanban-board', () => ({
+  ProjectKanbanBoard: (props: unknown) => {
+    mockProjectKanbanBoard(props);
+    return <div data-testid="project-kanban" />;
+  },
+}));
+
+// The view choice persists in localStorage — keep tests independent.
+beforeEach(() => localStorage.clear());
 
 function editDialogProps() {
   return mockEditProjectDialog.mock.calls.at(-1)?.[0] as {
@@ -495,5 +508,59 @@ describe('ProjectDetailPage — edit entry point (Projects v2)', () => {
     expect(badge.className).toMatch(/\bmin-w-0\b/);
     expect(badge.parentElement!.className).toMatch(/\bflex-wrap\b/);
     expect(badge.parentElement!.className).toMatch(/\bmin-w-0\b/);
+  });
+});
+
+describe('ProjectDetailPage — kanban view (Projects v2 §4)', () => {
+  it('defaults to the grouped list', () => {
+    renderPage();
+
+    expect(screen.getByRole('radio', { name: 'List view' })).toHaveAttribute(
+      'aria-checked',
+      'true',
+    );
+    expect(screen.getByText('Todo').closest('section')).toBeInTheDocument();
+    expect(screen.queryByTestId('project-kanban')).not.toBeInTheDocument();
+  });
+
+  it('switches to the kanban board with the project tasks, keeping header and Add task', async () => {
+    renderPage();
+
+    await userEvent.click(screen.getByRole('radio', { name: 'Kanban view' }));
+
+    expect(screen.getByTestId('project-kanban')).toBeInTheDocument();
+    const props = mockProjectKanbanBoard.mock.calls.at(-1)?.[0] as {
+      projectId: string;
+      tasks: { id: string }[];
+    };
+    expect(props.projectId).toBe('p1');
+    expect(props.tasks.map((t) => t.id)).toEqual(['t1', 't2', 't3', 't4']);
+    // Grouped sections are gone; the progress header and the CTA stay.
+    expect(screen.queryByRole('region', { name: 'Todo tasks' })).not.toBeInTheDocument();
+    expect(screen.getByRole('progressbar', { name: 'Roadmap progress' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add task/i })).toBeInTheDocument();
+  });
+
+  it('remembers the kanban choice for this project', async () => {
+    const { unmount } = renderPage();
+    await userEvent.click(screen.getByRole('radio', { name: 'Kanban view' }));
+    unmount();
+
+    renderPage();
+    expect(screen.getByTestId('project-kanban')).toBeInTheDocument();
+  });
+
+  it('keeps the empty state instead of an empty board when there are no tasks', async () => {
+    data.project = {
+      ...mockProject,
+      tasks: [],
+      progress: { total: 0, completed: 0, byStatus: {} },
+    };
+    renderPage();
+    await userEvent.click(screen.getByRole('radio', { name: 'Kanban view' }));
+
+    expect(screen.getByText('No tasks yet')).toBeInTheDocument();
+    expect(screen.queryByTestId('project-kanban')).not.toBeInTheDocument();
+    data.project = mockProject;
   });
 });

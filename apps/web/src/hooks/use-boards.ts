@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueries, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { api } from './api';
 import type { Board } from '../types';
@@ -23,6 +23,21 @@ export function useBoardFull(id: string) {
     queryFn: () => api.boards.getFull(id),
     // Global pages (project detail) resolve their board id asynchronously.
     enabled: !!id,
+  });
+}
+
+/**
+ * Full payloads for several boards at once (the project kanban spans boards).
+ * Shares useBoardFull's ['boards', id, 'full'] cache entries; returns only
+ * the boards loaded so far, in `ids` order.
+ */
+export function useBoardsFull(ids: string[]) {
+  return useQueries({
+    queries: ids.map((id) => ({
+      queryKey: ['boards', id, 'full'],
+      queryFn: () => api.boards.getFull(id),
+    })),
+    combine: (results) => results.flatMap((r) => (r.data ? [r.data] : [])),
   });
 }
 

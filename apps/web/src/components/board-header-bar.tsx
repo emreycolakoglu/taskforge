@@ -8,13 +8,13 @@
  * save-view-trigger.tsx), gated on filter deviation per the spec.
  */
 
-import { List, Columns3, Plus, Settings } from 'lucide-react';
+import { Plus, Settings } from 'lucide-react';
 import type { Board, View } from '@/types';
 import type { ViewMode } from '@/hooks/use-board-view-state';
 import { Button } from '@/components/ui/button';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { ViewSelector } from './view-selector';
+import { ViewModeToggle } from './view-mode-toggle';
 
 interface BoardHeaderBarProps {
   board: Board;
@@ -68,34 +68,7 @@ export function BoardHeaderBar({
           onRename={onRenameView}
           onDelete={onDeleteView}
         />
-        <ToggleGroup
-          type="single"
-          value={viewMode}
-          onValueChange={(v) => {
-            if (v) onViewModeChange(v as ViewMode);
-          }}
-          aria-label="View mode"
-          variant="outline"
-          size="sm"
-          className="shrink-0"
-        >
-          <ToggleGroupItem
-            value="list"
-            aria-label="List view"
-            className="data-[state=on]:bg-accent data-[state=on]:text-foreground data-[state=on]:border-border"
-          >
-            <List className="size-3.5" />
-            List
-          </ToggleGroupItem>
-          <ToggleGroupItem
-            value="kanban"
-            aria-label="Kanban view"
-            className="data-[state=on]:bg-accent data-[state=on]:text-foreground data-[state=on]:border-border"
-          >
-            <Columns3 className="size-3.5" />
-            Board
-          </ToggleGroupItem>
-        </ToggleGroup>
+        <ViewModeToggle value={viewMode} onValueChange={onViewModeChange} />
       </div>
 
       {/* Right — toolbar + CTA */}
