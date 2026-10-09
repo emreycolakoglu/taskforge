@@ -637,6 +637,21 @@ describe('useSocket', () => {
     });
   });
 
+  it("refreshes the task's board-full cache on task.project.updated from a roomless page", () => {
+    // The project kanban plans drops from ['boards', id, 'full'] but joins no
+    // board room, so task:moved never reaches it — this global event must.
+    renderHook(() => useSocket());
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const handler = calls.find((c) => c[0] === 'task.project.updated')?.[1] as
+      ((data: unknown) => void) | undefined;
+
+    mockQueryClient.invalidateQueries.mockClear();
+    act(() => handler!({ id: 't1', projectId: 'p1', previousProjectId: 'p1', boardId: 'b9' }));
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['boards', 'b9', 'full'],
+    });
+  });
+
   it('refreshes the projects list on task:deleted (payload has no projectId)', () => {
     renderHook(() => useSocket());
     const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;

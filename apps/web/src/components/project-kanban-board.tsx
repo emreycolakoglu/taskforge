@@ -57,14 +57,27 @@ export function ProjectKanbanBoard({ projectId, tasks }: ProjectKanbanBoardProps
     // No destination, or a column of another board — nothing to do.
     if (!task || !board || !target || !result.destination) return;
 
+    const { source, destination } = result;
+    const isNoOp =
+      source.droppableId === destination.droppableId && source.index === destination.index;
+    if (isNoOp) return;
+
     const plan = planTaskMove(board.statuses ?? [], columns, result);
-    if (!plan) return;
+    if (!plan) {
+      // The board cache no longer matches the project payload (someone else
+      // moved the task) — refresh it rather than snapping back silently.
+      queryClient.invalidateQueries({ queryKey: ['boards', board.id, 'full'] });
+      toast.error('Board changed — try again');
+      return;
+    }
 
     const position =
       plan.kind === 'move'
         ? plan.position
         : (plan.items.find((i) => i.id === task.id)?.position ?? task.position);
     const queryKey = ['projects', projectId];
+    // Not awaited: the optimistic write must land before dnd's drop animation.
+    void queryClient.cancelQueries({ queryKey });
     const previous = queryClient.getQueryData<ProjectDetail>(queryKey);
     if (previous?.tasks) {
       queryClient.setQueryData<ProjectDetail>(queryKey, {
@@ -91,6 +104,7 @@ export function ProjectKanbanBoard({ projectId, tasks }: ProjectKanbanBoardProps
       queryClient.invalidateQueries({ queryKey: ['tasks', task.id] });
     } catch (error) {
       if (previous) queryClient.setQueryData(queryKey, previous);
+      queryClient.invalidateQueries({ queryKey });
       toast.error('Failed to move task', {
         description: error instanceof Error ? error.message : 'Unknown error',
       });

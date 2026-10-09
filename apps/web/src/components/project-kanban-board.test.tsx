@@ -214,6 +214,31 @@ beforeEach(() => {
 
 // ── Tests ────────────────────────────────────────────────────────────────────
 
+describe('ProjectKanbanBoard — stale board cache', () => {
+  it('refreshes the board and tells the user instead of silently snapping back', async () => {
+    // Someone else moved t1; the cached board no longer holds it anywhere.
+    boardsFull.current = [
+      {
+        ...tfg,
+        statuses: tfg.statuses!.map((s) => ({
+          ...s,
+          tasks: s.tasks!.filter((t) => t.id !== 't1'),
+        })),
+      },
+      inf,
+    ];
+    const queryClient = renderBoard();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+
+    await act(() => drop('t1', 'b1-todo', 0, 'b1-done', 0));
+
+    expect(api.tasks.move).not.toHaveBeenCalled();
+    expect(api.tasks.reorder).not.toHaveBeenCalled();
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['boards', 'b1', 'full'] });
+    expect(toast.error).toHaveBeenCalledWith('Board changed — try again');
+  });
+});
+
 describe('ProjectKanbanBoard — columns', () => {
   it("renders every status of the represented boards, including the board's empty ones", () => {
     renderBoard();
