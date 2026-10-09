@@ -1,6 +1,12 @@
 /**
  * DocumentEditorPage — full-page markdown editor for a document at
- * /board/:boardId/doc/:docId.
+ * /board/:boardId/doc/:docId (task docs) or the global /doc/:docId (any doc;
+ * the only route for project docs, which have no board).
+ *
+ * Links derive from the loaded doc, not the URL: a task doc links back to its
+ * task and deletes to its board's docs index; a project doc links back to the
+ * project's Documents tab, deletes to it, and has no Publish control or
+ * visibility chip (project docs can't be published — the API 400s).
  *
  * Title edits inline and the body uses the same MarkdownEditor + autosave
  * stack as the task description (createAutosaver, flush on blur/unmount).
@@ -38,7 +44,7 @@ import { AttachmentSection } from '@/components/attachment-section';
 const AUTOSAVE_DELAY_MS = 1000;
 
 export function DocumentEditorPage() {
-  const { boardId, docId } = useParams<{ boardId: string; docId: string }>();
+  const { boardId: routeBoardId, docId } = useParams<{ boardId?: string; docId: string }>();
   const navigate = useNavigate();
   const { data: doc, isLoading } = useDocument(docId!);
   const updateDocument = useUpdateDocument();
@@ -64,6 +70,7 @@ export function DocumentEditorPage() {
             id: d.id,
             boardId: d.boardId,
             taskId: d.taskId,
+            projectId: d.projectId,
             body,
           });
         }
@@ -80,6 +87,7 @@ export function DocumentEditorPage() {
       id: d.id,
       boardId: d.boardId,
       taskId: d.taskId,
+      projectId: d.projectId,
       title: title.trim(),
     });
   }, [title, updateDocument]);
@@ -115,14 +123,19 @@ export function DocumentEditorPage() {
     );
   }, [setPublic]);
 
+  const boardId = doc?.boardId ?? routeBoardId;
+  const projectHref = doc?.projectId ? `/projects/${doc.projectId}?tab=documents` : null;
+
   const handleDelete = useCallback(() => {
     const d = docRef.current;
     if (!d) return;
     deleteDocument.mutate(
-      { id: d.id, boardId: d.boardId, taskId: d.taskId },
-      { onSuccess: () => navigate(`/board/${boardId}/docs`) },
+      d.projectId
+        ? { id: d.id, boardId: null, taskId: null, projectId: d.projectId }
+        : { id: d.id, boardId: d.boardId, taskId: d.taskId },
+      { onSuccess: () => navigate(projectHref ?? `/board/${boardId}/docs`) },
     );
-  }, [deleteDocument, navigate, boardId]);
+  }, [deleteDocument, navigate, boardId, projectHref]);
 
   if (isLoading || !doc) {
     return (
@@ -142,12 +155,28 @@ export function DocumentEditorPage() {
             className="text-muted-foreground hover:text-foreground"
             asChild
           >
-            <Link to={`/board/${boardId}/task/${doc.taskId}`}>
-              <ArrowLeft className="size-4" />
-              Back to task
-            </Link>
+            {projectHref ? (
+              <Link to={projectHref}>
+                <ArrowLeft className="size-4" />
+                Back to project
+              </Link>
+            ) : (
+              <Link to={`/board/${boardId}/task/${doc.taskId}`}>
+                <ArrowLeft className="size-4" />
+                Back to task
+              </Link>
+            )}
           </Button>
           <span className="font-mono text-xs text-foreground">{doc.docNumber}</span>
+          {projectHref && doc.project && (
+            <Link
+              to={projectHref}
+              className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <span aria-hidden="true">{doc.project.icon ?? '📦'}</span>
+              <span className="truncate">{doc.project.name}</span>
+            </Link>
+          )}
           {doc.taskNumber && (
             <Link
               to={`/board/${boardId}/task/${doc.taskId}`}
@@ -156,18 +185,22 @@ export function DocumentEditorPage() {
               {doc.taskNumber}
             </Link>
           )}
-          <Badge variant="outline" className="shrink-0 text-[10px] border-indigo/40 text-indigo">
-            {doc.isPublic ? 'published' : 'private'}
-          </Badge>
+          {!projectHref && (
+            <Badge variant="outline" className="shrink-0 text-[10px] border-indigo/40 text-indigo">
+              {doc.isPublic ? 'published' : 'private'}
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          <Button
-            size="sm"
-            onClick={handlePublish}
-            title={doc.isPublic ? 'Make private' : 'Publish a public copy of this document'}
-          >
-            {doc.isPublic ? 'Make private' : 'Publish'}
-          </Button>
+          {!projectHref && (
+            <Button
+              size="sm"
+              onClick={handlePublish}
+              title={doc.isPublic ? 'Make private' : 'Publish a public copy of this document'}
+            >
+              {doc.isPublic ? 'Make private' : 'Publish'}
+            </Button>
+          )}
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button

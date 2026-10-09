@@ -534,6 +534,39 @@ describe('useSocket', () => {
     });
   });
 
+  it('invalidates the project documents list on a project document event', () => {
+    renderHook(() => useSocket());
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+
+    for (const eventName of ['document:created', 'document:updated', 'document:deleted']) {
+      const handler = calls.find((c) => c[0] === eventName)?.[1] as
+        ((data: unknown) => void) | undefined;
+      mockQueryClient.invalidateQueries.mockClear();
+      // Project docs carry projectId and null board/task (broadcast globally).
+      act(() => handler!({ id: 'd1', boardId: null, taskId: null, projectId: 'p1' }));
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+        queryKey: ['documents', 'project', 'p1'],
+      });
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+        queryKey: ['documents', 'd1'],
+      });
+    }
+  });
+
+  it('invalidates the project documents list on project:deleted', () => {
+    renderHook(() => useSocket());
+    const calls = mockSocket.on.mock.calls as Array<[string, ...unknown[]]>;
+    const handler = calls.find((c) => c[0] === 'project:deleted')?.[1] as
+      ((data: unknown) => void) | undefined;
+
+    mockQueryClient.invalidateQueries.mockClear();
+    // Project delete removes its docs without emitting document:deleted.
+    act(() => handler!({ id: 'p1' }));
+    expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ['documents', 'project', 'p1'],
+    });
+  });
+
   it('invalidates comment attachment queries through the parent task query prefixes', () => {
     renderHook(() => useSocket());
     const attachmentHandler = (mockSocket.on.mock.calls as Array<[string, ...unknown[]]>).find(

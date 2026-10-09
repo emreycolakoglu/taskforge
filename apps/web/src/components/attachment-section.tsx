@@ -27,8 +27,9 @@ import type { Attachment, AttachmentPolicy, AttachmentSubjectType } from '@/type
 interface AttachmentSectionProps {
   subjectType: AttachmentSubjectType;
   subjectId: string;
-  boardId: string;
-  taskId?: string;
+  /** null for a project document (Projects v2) — no board membership applies. */
+  boardId: string | null;
+  taskId?: string | null;
 }
 
 function formatSize(bytes: number): string {
@@ -76,7 +77,7 @@ export function AttachmentSection({
 }: AttachmentSectionProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { user } = useAuth();
-  const { data: members } = useMembers(boardId);
+  const { data: members } = useMembers(boardId ?? '');
   const { data: attachmentPolicy } = useAttachmentPolicy();
   const { data: attachments = [], isLoading: isLoadingAttachments } = useAttachments(
     subjectType,
@@ -85,8 +86,10 @@ export function AttachmentSection({
   const upload = useUploadAttachment();
   const remove = useDeleteAttachment();
   const member = members?.find((item) => item.userId === user?.id);
+  // Mirrors the API gate: project documents are writable by any signed-in user.
   const canUpload =
     user?.role === 'admin' ||
+    !boardId ||
     (members !== undefined &&
       (members.length === 0 || (member !== undefined && member.role !== 'viewer')));
 
@@ -104,8 +107,8 @@ export function AttachmentSection({
       {
         subjectType,
         subjectId,
-        boardId,
-        taskId,
+        boardId: boardId ?? undefined,
+        taskId: taskId ?? undefined,
         documentId: subjectType === 'document' ? subjectId : undefined,
         file,
       },
@@ -222,8 +225,8 @@ export function AttachmentSection({
                               id: attachment.id,
                               subjectType,
                               subjectId,
-                              boardId,
-                              taskId,
+                              boardId: boardId ?? undefined,
+                              taskId: taskId ?? undefined,
                               documentId: subjectType === 'document' ? subjectId : undefined,
                             },
                             {

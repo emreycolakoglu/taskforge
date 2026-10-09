@@ -49,6 +49,16 @@ vi.mock('@/components/project-kanban-board', () => ({
   },
 }));
 
+// The Documents tab content is tested on its own (project-documents.test.tsx);
+// the page pins the tab switch and what it hands the tab.
+const mockProjectDocuments = vi.hoisted(() => vi.fn());
+vi.mock('@/components/project-documents', () => ({
+  ProjectDocuments: (props: unknown) => {
+    mockProjectDocuments(props);
+    return <div data-testid="project-documents" />;
+  },
+}));
+
 // The view choice persists in localStorage — keep tests independent.
 beforeEach(() => localStorage.clear());
 
@@ -249,12 +259,12 @@ function TaskRouteProbe() {
   return <p>{`task ${boardId}/${taskId}`}</p>;
 }
 
-function renderPage() {
+function renderPage(path = '/projects/p1') {
   const queryClient = new QueryClient();
   return render(
     <QueryClientProvider client={queryClient}>
       <SidebarProvider>
-        <MemoryRouter initialEntries={['/projects/p1']}>
+        <MemoryRouter initialEntries={[path]}>
           {/* Global route (Projects v2) — no board in the URL. */}
           <Routes>
             <Route path="/projects/:projectId" element={<ProjectDetailPage />} />
@@ -562,5 +572,40 @@ describe('ProjectDetailPage — kanban view (Projects v2 §4)', () => {
     expect(screen.getByText('No tasks yet')).toBeInTheDocument();
     expect(screen.queryByTestId('project-kanban')).not.toBeInTheDocument();
     data.project = mockProject;
+  });
+});
+
+describe('ProjectDetailPage — Tasks | Documents tabs (Projects v2)', () => {
+  it('opens on the Tasks tab with the task list, view toggle and Add task', () => {
+    renderPage();
+
+    expect(screen.getByRole('tab', { name: 'Tasks' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByText('Fix login loop')).toBeInTheDocument();
+    expect(screen.getByLabelText('View mode')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /add task/i })).toBeInTheDocument();
+    expect(screen.queryByTestId('project-documents')).not.toBeInTheDocument();
+  });
+
+  it('switches to the Documents tab, handing it the project id', async () => {
+    renderPage();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Documents' }));
+
+    expect(screen.getByTestId('project-documents')).toBeInTheDocument();
+    expect(mockProjectDocuments.mock.calls.at(-1)?.[0]).toEqual({ projectId: 'p1' });
+    expect(screen.queryByText('Fix login loop')).not.toBeInTheDocument();
+    // The tab owns its own Lime "New document"; Add task and the List | Board
+    // toggle belong to the Tasks tab, so one Lime CTA is visible at a time.
+    expect(screen.queryByRole('button', { name: /add task/i })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('View mode')).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('tab', { name: 'Tasks' }));
+    expect(screen.getByText('Fix login loop')).toBeInTheDocument();
+  });
+
+  it('opens straight on the Documents tab from ?tab=documents', () => {
+    renderPage('/projects/p1?tab=documents');
+    expect(screen.getByRole('tab', { name: 'Documents' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('project-documents')).toBeInTheDocument();
   });
 });

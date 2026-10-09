@@ -304,9 +304,15 @@ export const api = {
   documents: {
     listByBoard: (boardId: string) => request<Document[]>(`/boards/${boardId}/documents`),
     listByTask: (taskId: string) => request<Document[]>(`/tasks/${taskId}/documents`),
+    listByProject: (projectId: string) => request<Document[]>(`/projects/${projectId}/documents`),
     get: (id: string) => request<Document>(`/documents/${id}`),
     create: (taskId: string, data: { title: string; body?: string }) =>
       request<Document>(`/tasks/${taskId}/documents`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    createForProject: (projectId: string, data: { title: string; body?: string }) =>
+      request<Document>(`/projects/${projectId}/documents`, {
         method: 'POST',
         body: JSON.stringify(data),
       }),

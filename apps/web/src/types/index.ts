@@ -256,15 +256,22 @@ export interface TaskSubscriptionState {
   subscribed: boolean;
 }
 
+/**
+ * A document hangs off exactly one subject: a task (boardId + taskId set,
+ * board-numbered) or a project (Projects v2: projectId set, boardId/taskId
+ * null, project-numbered, never publishable).
+ */
 export interface Document {
   id: string;
-  boardId: string;
-  taskId: string;
+  boardId: string | null;
+  taskId: string | null;
+  projectId?: string | null;
+  project?: { id: string; name: string; icon?: string | null } | null;
   number: number;
   docNumber: string;
-  boardIdentifier?: string;
-  taskNumber?: string;
-  taskTitle?: string;
+  boardIdentifier?: string | null;
+  taskNumber?: string | null;
+  taskTitle?: string | null;
   title: string;
   body: string;
   isPublic: boolean;

@@ -309,4 +309,24 @@ describe('AttachmentSection', () => {
     expect(input.labels).toHaveLength(1);
     expect(input.labels?.[0]).toHaveTextContent('Upload attachment');
   });
+
+  describe('project documents (no board)', () => {
+    function renderProjectDoc() {
+      return render(
+        <AttachmentSection subjectType="document" subjectId="d1" boardId={null} taskId={null} />,
+      );
+    }
+
+    it('lets any signed-in user upload, without consulting board membership', () => {
+      mocks.members.mockReturnValue({ data: undefined });
+      renderProjectDoc();
+      expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument();
+    });
+
+    it('shows delete only to the uploader or a global admin', () => {
+      mocks.members.mockReturnValue({ data: undefined });
+      renderProjectDoc();
+      expect(screen.queryByLabelText('Delete report.pdf')).not.toBeInTheDocument();
+    });
+  });
 });

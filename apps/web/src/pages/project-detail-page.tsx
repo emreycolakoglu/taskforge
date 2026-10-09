@@ -13,13 +13,20 @@
  * grouped list for ProjectKanbanBoard; the choice persists per project in
  * localStorage (useProjectViewMode).
  *
+ * Projects v2: the body splits into "Tasks" | "Documents" tabs, kept in the
+ * URL as ?tab=documents so the doc editor's back link lands on the right tab.
+ * The List | Board toggle and Add task belong to the Tasks tab; the
+ * Documents tab (ProjectDocuments) brings its own Lime "New document", so
+ * exactly one Lime CTA is visible at a time. Tab triggers use the Graphite
+ * active state, not the ui/tabs default Lime fill.
+ *
  * design.md compliance: Obsidian card surfaces with 1px Graphite inset
  * borders, no bright fills, no gradients; the Add task button is the page's
  * single primary CTA in Acid Lime; Inter weights ≤590 via the house
  * `font-medium` token; JetBrains Mono (`font-mono`) for task numbers and
  * dates; status dots take the status row's own color.
  */
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useState } from 'react';
 import { ArrowLeft, FolderKanban, Pencil, Plus } from 'lucide-react';
 import { useProject } from '@/hooks/use-projects';
@@ -37,8 +44,16 @@ import { CreateTaskDialog } from '@/components/create-task-dialog';
 import { EditProjectDialog } from '@/components/edit-project-dialog';
 import { ProjectKanbanBoard } from '@/components/project-kanban-board';
 import { ViewModeToggle } from '@/components/view-mode-toggle';
+import { ProjectDocuments } from '@/components/project-documents';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { ProjectDetail, ProjectStatus, Task } from '@/types';
 import { PROJECT_STATUS_LABELS } from '@/types';
+
+type ProjectTab = 'tasks' | 'documents';
+
+// Graphite active state — Lime is reserved for the screen's one CTA.
+const TAB_TRIGGER_CLASS =
+  'data-[state=active]:bg-accent data-[state=active]:text-foreground data-[state=active]:shadow-none';
 
 const formatDate = (ts: string) =>
   new Date(ts).toLocaleDateString(undefined, {
@@ -104,6 +119,10 @@ export function ProjectDetailPage() {
   const [createTaskOpen, setCreateTaskOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [viewMode, setViewMode] = useProjectViewMode(projectId!);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: ProjectTab = searchParams.get('tab') === 'documents' ? 'documents' : 'tasks';
+  const setTab = (next: string) =>
+    setSearchParams(next === 'documents' ? { tab: 'documents' } : {}, { replace: true });
   // Projects are workspace-level: project:* and task.project.updated are
   // broadcast to every socket, so this page needs no board room.
   useSocket();
@@ -210,7 +229,7 @@ export function ProjectDetailPage() {
           <span className="truncate text-foreground">{project.name}</span>
         </nav>
         <div className="ml-auto">
-          <ViewModeToggle value={viewMode} onValueChange={setViewMode} />
+          {tab === 'tasks' && <ViewModeToggle value={viewMode} onValueChange={setViewMode} />}
         </div>
         {/* Secondary action — outline, so Add task stays the only Lime CTA */}
         <Button
@@ -223,19 +242,21 @@ export function ProjectDetailPage() {
           <Pencil className="size-4" />
           <span className="hidden sm:inline">Edit</span>
         </Button>
-        {/* The page's single primary CTA — Acid Lime (design.md) */}
-        <Button
-          size="sm"
-          className="shrink-0"
-          aria-label="Add task"
-          onClick={() => setCreateTaskOpen(true)}
-        >
-          <Plus className="size-4" />
-          <span className="hidden sm:inline">Add task</span>
-        </Button>
+        {/* The Tasks tab's single primary CTA — Acid Lime (design.md) */}
+        {tab === 'tasks' && (
+          <Button
+            size="sm"
+            className="shrink-0"
+            aria-label="Add task"
+            onClick={() => setCreateTaskOpen(true)}
+          >
+            <Plus className="size-4" />
+            <span className="hidden sm:inline">Add task</span>
+          </Button>
+        )}
       </header>
 
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6">
+      <Tabs value={tab} onValueChange={setTab} className="flex-1 overflow-y-auto p-4 sm:p-6">
         <div className="mx-auto max-w-3xl space-y-8">
           {/* ── Header ─────────────────────────────────────────────────────── */}
           <div className="space-y-3">
@@ -305,94 +326,115 @@ export function ProjectDetailPage() {
             )}
           </div>
 
-          {/* ── Tasks grouped by status ────────────────────────────────────── */}
-          {groups.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-20 text-center">
-              <FolderKanban className="h-12 w-12 text-muted-foreground" />
-              <h2 className="mt-4 text-lg font-medium text-foreground">No tasks yet</h2>
-              <p className="text-sm text-muted-foreground">
-                Add tasks to this project from the board.
-              </p>
-            </div>
-          ) : viewMode === 'kanban' ? null : (
-            <div className="space-y-6">
-              {groups.map((group) => (
-                <section key={group.key} className="space-y-2" aria-label={`${group.name} tasks`}>
-                  {/* Group header — dot in the status color + name + count, mirrors BoardColumn header */}
-                  <h2 className="flex items-center gap-2 text-sm font-medium text-foreground">
-                    <span
-                      className="size-2 shrink-0 rounded-full"
-                      style={{ backgroundColor: group.color ?? '#94a3b8' }}
-                      aria-hidden="true"
-                    />
-                    {group.name}
-                    <span className="text-xs font-mono text-muted-foreground">
-                      {group.tasks.length}
-                    </span>
-                  </h2>
-                  <ul className="space-y-1.5">
-                    {group.tasks.map((task) => (
-                      <li key={task.id}>
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/board/${task.boardId}/task/${task.id}`)}
-                          className="flex w-full items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left cursor-pointer transition-colors hover:bg-accent/30"
-                        >
-                          <ProgressIcon
-                            progress={task.status?.progress ?? 0}
-                            type={task.status?.type}
-                            size={16}
-                          />
-                          {task.taskNumber && (
-                            <span className="font-mono text-xs text-muted-foreground shrink-0">
-                              {task.taskNumber}
-                            </span>
-                          )}
-                          <span className="text-sm text-foreground truncate flex-1">
-                            {task.title}
-                          </span>
-                          {(task.labels ?? []).length > 0 && (
-                            <span className="flex min-w-0 max-w-[50%] flex-wrap justify-end gap-1">
-                              {(task.labels ?? []).map((tl) => (
-                                <Badge
-                                  key={tl.labelId}
-                                  variant="outline"
-                                  className="min-w-0 max-w-full shrink"
-                                >
-                                  <span
-                                    className="size-2 shrink-0 rounded-sm"
-                                    style={{ backgroundColor: tl.label.color }}
-                                    aria-hidden="true"
-                                  />
-                                  <span className="truncate">{tl.label.name}</span>
-                                </Badge>
-                              ))}
-                            </span>
-                          )}
-                          {task.assignee && (
-                            <span
-                              className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-[9px] font-semibold"
-                              title={task.assignee.displayName}
+          <div className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="tasks" className={TAB_TRIGGER_CLASS}>
+                Tasks
+              </TabsTrigger>
+              <TabsTrigger value="documents" className={TAB_TRIGGER_CLASS}>
+                Documents
+              </TabsTrigger>
+            </TabsList>
+
+            {/* ── Tasks grouped by status ──────────────────────────────────── */}
+            <TabsContent value="tasks" className="mt-0">
+              {groups.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center">
+                  <FolderKanban className="h-12 w-12 text-muted-foreground" />
+                  <h2 className="mt-4 text-lg font-medium text-foreground">No tasks yet</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Add tasks to this project from the board.
+                  </p>
+                </div>
+              ) : viewMode === 'kanban' ? null : (
+                <div className="space-y-6">
+                  {groups.map((group) => (
+                    <section
+                      key={group.key}
+                      className="space-y-2"
+                      aria-label={`${group.name} tasks`}
+                    >
+                      {/* Group header — dot in the status color + name + count, mirrors BoardColumn header */}
+                      <h2 className="flex items-center gap-2 text-sm font-medium text-foreground">
+                        <span
+                          className="size-2 shrink-0 rounded-full"
+                          style={{ backgroundColor: group.color ?? '#94a3b8' }}
+                          aria-hidden="true"
+                        />
+                        {group.name}
+                        <span className="text-xs font-mono text-muted-foreground">
+                          {group.tasks.length}
+                        </span>
+                      </h2>
+                      <ul className="space-y-1.5">
+                        {group.tasks.map((task) => (
+                          <li key={task.id}>
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/board/${task.boardId}/task/${task.id}`)}
+                              className="flex w-full items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-left cursor-pointer transition-colors hover:bg-accent/30"
                             >
-                              {task.assignee.displayName.charAt(0).toUpperCase()}
-                            </span>
-                          )}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ))}
-            </div>
-          )}
+                              <ProgressIcon
+                                progress={task.status?.progress ?? 0}
+                                type={task.status?.type}
+                                size={16}
+                              />
+                              {task.taskNumber && (
+                                <span className="font-mono text-xs text-muted-foreground shrink-0">
+                                  {task.taskNumber}
+                                </span>
+                              )}
+                              <span className="text-sm text-foreground truncate flex-1">
+                                {task.title}
+                              </span>
+                              {(task.labels ?? []).length > 0 && (
+                                <span className="flex min-w-0 max-w-[50%] flex-wrap justify-end gap-1">
+                                  {(task.labels ?? []).map((tl) => (
+                                    <Badge
+                                      key={tl.labelId}
+                                      variant="outline"
+                                      className="min-w-0 max-w-full shrink"
+                                    >
+                                      <span
+                                        className="size-2 shrink-0 rounded-sm"
+                                        style={{ backgroundColor: tl.label.color }}
+                                        aria-hidden="true"
+                                      />
+                                      <span className="truncate">{tl.label.name}</span>
+                                    </Badge>
+                                  ))}
+                                </span>
+                              )}
+                              {task.assignee && (
+                                <span
+                                  className="flex size-5 shrink-0 items-center justify-center rounded-full border border-border bg-secondary text-[9px] font-semibold"
+                                  title={task.assignee.displayName}
+                                >
+                                  {task.assignee.displayName.charAt(0).toUpperCase()}
+                                </span>
+                              )}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+            <TabsContent value="documents" className="mt-0">
+              <ProjectDocuments projectId={projectId!} />
+            </TabsContent>
+          </div>
         </div>
         {/* The kanban needs the full width, so it sits outside the max-w column */}
-        {viewMode === 'kanban' && groups.length > 0 && (
+        {tab === 'tasks' && viewMode === 'kanban' && groups.length > 0 && (
           <div className="mt-8">
             <ProjectKanbanBoard projectId={projectId!} tasks={project.tasks ?? []} />
           </div>
         )}
-      </div>
+      </Tabs>
 
       {/* Add-task dialog — preset to this project (TFG-34) */}
       <CreateTaskDialog

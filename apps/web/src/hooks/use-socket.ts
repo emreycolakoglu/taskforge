@@ -177,12 +177,20 @@ export function useSocket(boardId?: string) {
         eventName === 'document:updated' ||
         eventName === 'document:deleted'
       ) {
-        const doc = eventData as { id?: string; boardId?: string; taskId?: string };
+        const doc = eventData as {
+          id?: string;
+          boardId?: string | null;
+          taskId?: string | null;
+          projectId?: string | null;
+        };
         if (doc.id) queryClient.invalidateQueries({ queryKey: ['documents', doc.id] });
         if (doc.boardId)
           queryClient.invalidateQueries({ queryKey: ['documents', 'board', doc.boardId] });
         if (doc.taskId)
           queryClient.invalidateQueries({ queryKey: ['documents', 'task', doc.taskId] });
+        // Project docs (v2) have no board/task and broadcast to every socket.
+        if (doc.projectId)
+          queryClient.invalidateQueries({ queryKey: ['documents', 'project', doc.projectId] });
       }
 
       if (eventName === 'attachment:created' || eventName === 'attachment:deleted') {
@@ -267,6 +275,11 @@ export function useSocket(boardId?: string) {
         queryClient.invalidateQueries({ queryKey: ['projects'], exact: true });
         if (p.id) {
           queryClient.invalidateQueries({ queryKey: ['projects', p.id] });
+        }
+        // Deleting a project deletes its documents without emitting
+        // document:deleted — this is their only signal.
+        if (eventName === 'project:deleted' && p.id) {
+          queryClient.invalidateQueries({ queryKey: ['documents', 'project', p.id] });
         }
       }
 

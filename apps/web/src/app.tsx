@@ -101,6 +101,15 @@ function AuthedRoutes() {
             </SidebarLayout>
           }
         />
+        {/* Any doc by id — the only route for project docs, which have no board. */}
+        <Route
+          path="/doc/:docId"
+          element={
+            <SidebarLayout>
+              <DocumentEditorPage />
+            </SidebarLayout>
+          }
+        />
         <Route
           path="/board/:boardId/task/:taskId"
           element={

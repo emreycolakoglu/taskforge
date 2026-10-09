@@ -7,6 +7,8 @@ export function useMembers(boardId: string) {
   return useQuery({
     queryKey: ['members', boardId],
     queryFn: () => api.members.list(boardId),
+    // Project documents have no board — callers pass '' and get no fetch.
+    enabled: !!boardId,
   });
 }
 
