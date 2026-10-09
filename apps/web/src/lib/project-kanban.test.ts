@@ -57,7 +57,13 @@ describe('buildProjectColumns', () => {
   it("emits every status of each represented board, including that board's empty ones", () => {
     const columns = buildProjectColumns([t1, t2, t3, t4], [tfg, inf]);
 
-    expect(columns.map((c) => c.id)).toEqual(['b1-todo', 'b1-ip', 'b1-done', 'b2-ip', 'b2-done']);
+    expect(columns.map((c) => c.id).sort()).toEqual([
+      'b1-done',
+      'b1-ip',
+      'b1-todo',
+      'b2-done',
+      'b2-ip',
+    ]);
     expect(columns.find((c) => c.id === 'b1-done')!.tasks).toEqual([]);
   });
 
@@ -65,7 +71,7 @@ describe('buildProjectColumns', () => {
     const columns = buildProjectColumns([t1, t2, t3], [tfg, inf]);
 
     const inProgress = columns.filter((c) => c.name === 'In Progress');
-    expect(inProgress.map((c) => c.boardIdentifier)).toEqual(['TFG', 'INF']);
+    expect(inProgress.map((c) => c.boardIdentifier).sort()).toEqual(['INF', 'TFG']);
   });
 
   it('places tasks in their status column in payload order', () => {
@@ -75,11 +81,23 @@ describe('buildProjectColumns', () => {
     expect(columns.find((c) => c.id === 'b2-ip')!.tasks.map((t) => t.id)).toEqual(['t2']);
   });
 
-  it('orders boards by first appearance in the task list', () => {
-    const columns = buildProjectColumns([t2, t1], [tfg, inf]);
+  it('interleaves boards: orders every column by status type, then position', () => {
+    const columns = buildProjectColumns([t1, t2, t3, t4], [tfg, inf]);
 
-    expect(columns[0].boardId).toBe('b2');
-    expect(columns.at(-1)!.boardId).toBe('b1');
+    // b2-ip is named "In Progress" but typed todo, so it sits in the todo band.
+    expect(columns.map((c) => c.id)).toEqual(['b1-todo', 'b2-ip', 'b1-ip', 'b2-done', 'b1-done']);
+  });
+
+  it('breaks type + position ties by board first appearance in the task list', () => {
+    const a = makeStatus({ id: 'a-done', boardId: 'b1', type: 'done', position: 3 });
+    const b = makeStatus({ id: 'b-done', boardId: 'b2', type: 'done', position: 3 });
+    const boards = [
+      { ...tfg, statuses: [a] },
+      { ...inf, statuses: [b] },
+    ];
+
+    expect(buildProjectColumns([t2, t1], boards).map((c) => c.id)).toEqual(['b-done', 'a-done']);
+    expect(buildProjectColumns([t1, t2], boards).map((c) => c.id)).toEqual(['a-done', 'b-done']);
   });
 
   it('omits boards with no task in the project and boards not loaded yet', () => {

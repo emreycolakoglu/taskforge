@@ -1,4 +1,4 @@
-import type { Board, Status, Task } from '@/types';
+import type { Board, Status, StatusType, Task } from '@/types';
 
 /**
  * Pure helpers behind the project kanban (Projects v2 §4).
@@ -16,29 +16,48 @@ export interface ProjectColumn extends Status {
   tasks: Task[];
 }
 
+const TYPE_RANK: Record<StatusType, number> = {
+  triage: 0,
+  backlog: 1,
+  todo: 2,
+  in_progress: 3,
+  done: 4,
+  cancelled: 5,
+  duplicate: 6,
+};
+
 /**
  * One column per status of every board with at least one task in the
  * project — including that board's empty statuses, otherwise a card could
- * never be dropped into its own board's empty "Done". Boards are ordered by
- * first appearance in `tasks`; statuses by position within the board. Tasks
- * keep payload order inside a column. Boards not in `boards` (not loaded yet)
- * are skipped.
+ * never be dropped into its own board's empty "Done". Columns from all boards
+ * are interleaved by status: type (backlog → done), then position within the
+ * board, then the board's first appearance in `tasks`. Tasks keep payload
+ * order inside a column. Boards not in `boards` (not loaded yet) are skipped.
  */
 export function buildProjectColumns(tasks: Task[], boards: Board[]): ProjectColumn[] {
   const boardById = new Map(boards.map((b) => [b.id, b]));
   const boardOrder = [...new Set(tasks.map((t) => t.boardId))];
 
-  return boardOrder.flatMap((boardId) => {
-    const board = boardById.get(boardId);
-    if (!board) return [];
-    return [...(board.statuses ?? [])]
-      .sort((a, b) => a.position - b.position)
-      .map((status) => ({
-        ...status,
-        boardIdentifier: board.identifier,
-        tasks: tasks.filter((t) => t.statusId === status.id),
+  return boardOrder
+    .flatMap((boardId, boardRank) => {
+      const board = boardById.get(boardId);
+      if (!board) return [];
+      return (board.statuses ?? []).map((status) => ({
+        column: {
+          ...status,
+          boardIdentifier: board.identifier,
+          tasks: tasks.filter((t) => t.statusId === status.id),
+        },
+        boardRank,
       }));
-  });
+    })
+    .sort(
+      (a, b) =>
+        TYPE_RANK[a.column.type] - TYPE_RANK[b.column.type] ||
+        a.column.position - b.column.position ||
+        a.boardRank - b.boardRank,
+    )
+    .map(({ column }) => column);
 }
 
 /** Whether `column` accepts the card being dragged (null = no drag in progress). */

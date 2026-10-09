@@ -201,7 +201,8 @@ via nullable `projectId` (FK SetNull).
   Boards); `hooks/use-projects.ts`. Detail page: Tasks | Documents tabs (`?tab=documents`); the Tasks
   tab has a List | Board toggle (localStorage per project). The kanban
   (`components/project-kanban-board.tsx`, `lib/project-kanban.ts`) shows every status of every board
-  represented in the project — empty ones included — with a board identifier chip, and only accepts
+  represented in the project — empty ones included — interleaved across boards by status type
+  (backlog → done), then position, with a board identifier chip, and only accepts
   drops into the card's own board's columns. "Add task" uses `CreateTaskDialog`'s board-picker mode
   (`boards`/`boardId`/`onBoardChange` props). `EditProjectDialog` edits every field and deletes; it
   diffs against an open-time snapshot so a concurrent socket update isn't reverted on save. Lead and
