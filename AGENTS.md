@@ -70,7 +70,7 @@ Schema migrations run automatically on container startup via `apps/api/docker-en
 - **Authentication is global and on by default** — `AuthModule` binds `AuthGuard` as an `APP_GUARD`, so _every_ route requires an `Authorization: Bearer <token>` matching a live `Session` row unless it carries `@Public()`. Tokens are opaque `crypto.randomUUID()` session tokens (not JWTs); passwords are bcrypt cost 12. `@Admin()` gates admin-only routes on `user.role`. The public surface is small and deliberate: `auth/status`, `auth/onboard`, `auth/login`, `auth/forgot-password`, `auth/reset-password`, `auth/signup/:token`, two settings routes, and `public/tasks/:identifier/:number`.
 - **Per-board authorization is write-gating only** — the `Member` model (`admin`/`member`/`viewer`) is enforced for **writes**: board update/delete (`BoardsService.assertBoardAdmin`), labels create/update/delete, statuses create/update/reorder/delete, and member management (`MembersService`). Global admins (`user.role === 'admin'`) pass every board gate; a board with zero admin Member rows ("legacy board") allows all writes as a fallback. **Reads are not scoped** — any authenticated user can read any board, task, comment, or label. `viewer` role is stored but gives no read restriction.
 - **No ESLint config file** — lint scripts reference `eslint` but it's not installed in either app. `pnpm lint` will fail. CI does not run lint.
-- **The web build does NOT typecheck** — `@taskforge/web`'s `build` script is bare `vite build`, which only transpiles. A passing build proves nothing about types. Run `cd apps/web && npx tsc --noEmit` explicitly. Note it currently reports **6 pre-existing errors** — check the count hasn't grown rather than expecting zero.
+- **The web build does NOT typecheck** — `@taskforge/web`'s `build` script is bare `vite build`, which only transpiles. A passing build proves nothing about types. Run `cd apps/web && npx tsc --noEmit` explicitly. Note it currently reports **5 pre-existing errors** — check the count hasn't grown rather than expecting zero.
 - **Board identifiers must be exactly 3 uppercase letters** — enforced by a `Matches` rule in `CreateBoardDto`. `TF` is rejected; `TFG` is fine.
 - **CI gates releases** — `release.yml` triggers via `workflow_run` on `ci` success. A broken main push won't publish to Docker Hub.
 - **`packages/` directory doesn't exist yet** — the workspace config includes it, but nothing is there.
@@ -150,18 +150,22 @@ Users can persist a board's filter/group/sort/layout state as named views. The `
 
 ## Projects
 
-Board-scoped containers that group tasks into a lightweight roadmap. The `Project` row lives on
-`boardId` and carries `name`, `description?`, `icon` (default 📦), `leadId?`, `status`
+Workspace-level containers that group tasks from **any** board into a lightweight roadmap (v2 —
+v1 was board-scoped; the `boardId` column is gone). The `Project` row carries `name`,
+`description?`, `icon` (default 📦), `leadId?`, `status`
 (`planned`/`started`/`completed`/`paused`/`canceled`), `completedAt?`, `startDate?`, `targetDate?`,
-and a float `position` (append = max+1). Tasks link via nullable `projectId` (FK SetNull).
+a float `position` (append = global max+1) and `nextDocNum` (its own document counter). Tasks link
+via nullable `projectId` (FK SetNull).
 
-- **REST**: `GET/POST /api/boards/:boardId/projects`, `GET/PUT/DELETE /api/projects/:id` → `projects/`
-  module. `GET /api/projects/:id` embeds the board's tasks (ordered by status position, then
-  position) plus a progress rollup `{ total, completed, byStatus }`.
-- **Write-gating follows the views pattern**: create requires `boardId` (so board vs project id
-  mismatch can't sneak through), update/delete resolve the gate from the project's own board. Gate =
-  board admin (`MembersService.isBoardAdmin`) or global admin; legacy boards (zero Member rows) fall
-  open. Reads are unscoped.
+- **REST**: `GET/POST /api/projects`, `GET/PUT/DELETE /api/projects/:id` → `projects/` module. The
+  list carries `progress { total, completed }` per project (grouped queries, no N+1);
+  `GET /api/projects/:id` embeds the project's tasks across boards plus
+  `{ total, completed, byStatus }`. `PUT` accepts `null` for `startDate`/`targetDate`/`leadId`/
+  `description` to clear them (they used to become 1970); an unknown `leadId` is a 400.
+- **Gating = all members**: any authenticated human may create/update/delete. No board-admin gate,
+  no `MembersService`. Bot sessions are rejected on **REST only** — `ProjectsController.actor()`
+  folds `req.session.bot` into the user shape and `ProjectsService` throws. MCP passes no bot flag on
+  purpose: agents managing projects over MCP is intended. Reads are unscoped.
 - **Progress counts only `status.type === 'done'`** — other terminal types (cancel, duplicate) do not
   contribute to `completed`. `completedAt` is stamped when status moves to `completed` and cleared on
   leaving; untouched when status doesn't change.
@@ -169,15 +173,39 @@ and a float `position` (append = max+1). Tasks link via nullable `projectId` (FK
   `projectId` with `!== undefined` checks and `=== null` comparisons — a truthy gate would silently
   drop both the write and the activity log for un-assign, the same bug class as publish-on-UpdateTaskDto
   (regression pinned in tests). Activity reads `removed from project` / `added to project: <name>`.
-- **Socket**: `project:created/updated/deleted` and, when a task changes project, a dedicated
-  `task.project.updated` with `previousProjectId` (the room scope can't identify the losing project for
-  invalidation). Web: `hooks/use-projects.ts`, socket invalidation in `hooks/use-socket.ts`,
-  `/board/:boardId/projects` + detail pages, task-detail project picker, kanban card badge.
-- **MCP**: `projects_list | get | create | update | delete`; `projectId` rides `tasks_create` /
-  `tasks_update`; MCP task payloads embed `project {id, name, icon}`.
-- **No attachments-style cleanup on project delete** — tasks survive with `projectId = null` via
-  SetNull; there is no per-subject cascade to run because nothing is stored against a Project beyond
-  the Project row itself.
+  Any task may link to any project (the v1 same-board rule is deleted from both mirrors).
+- **No cross-board moves**: `move()`/`update()` (REST + MCP) reject a `statusId` from another board
+  with 400 `Status belongs to a different board`. Task numbers, labels and doc numbers are
+  board-scoped, so re-boarding would change a task's identity — deliberately not supported.
+- **Socket — all project events are global** (`emit` with no room ⇒ every socket), because project
+  pages join no board room: `project:created/updated/deleted`, and `task.project.updated`
+  (`{ ...task, previousProjectId }`) fired when a task's project changes, when a project-linked task
+  is created/deleted/moved (status or position), and on the `duplicate_of` auto-move. Web handlers
+  invalidate `['projects']`, `['projects', id]` and `['boards', task.boardId, 'full']` — the last one
+  matters: the project kanban plans drops from that cache and would otherwise go stale.
+- **Project documents**: a `Document` belongs to exactly one task **or** one project (XOR,
+  `BadRequestException` otherwise). Project docs have `boardId`/`taskId` null, number from
+  `Project.nextDocNum` (shown `D-<n>`), write **no** Activity rows (`Activity.taskId` is required),
+  cannot be published (`setPublic` → 400 — the public URL is board-identifier-addressed), and emit
+  `document:*` globally with `projectId`. REST: `GET/POST /api/projects/:projectId/documents`; MCP
+  `documents_create` takes `taskId` **or** `projectId`, `documents_list` filters by `projectId`.
+  Any authenticated user may write them and upload attachments to them.
+- **Project delete** deletes its documents and their attachments first (Document.projectId is
+  SetNull, which would leave subject-less docs), then the project; tasks survive with
+  `projectId = null`.
+- **MCP**: `projects_list | get | create | update | delete` (no `boardId` anywhere); `projectId` rides
+  `tasks_create` / `tasks_update`; MCP task payloads embed `project {id, name, icon}`.
+- **Web**: global routes `/projects` and `/projects/:projectId` (top-level sidebar item next to
+  Boards); `hooks/use-projects.ts`. Detail page: Tasks | Documents tabs (`?tab=documents`); the Tasks
+  tab has a List | Board toggle (localStorage per project). The kanban
+  (`components/project-kanban-board.tsx`, `lib/project-kanban.ts`) shows every status of every board
+  represented in the project — empty ones included — with a board identifier chip, and only accepts
+  drops into the card's own board's columns. "Add task" uses `CreateTaskDialog`'s board-picker mode
+  (`boards`/`boardId`/`onBoardChange` props). `EditProjectDialog` edits every field and deletes; it
+  diffs against an open-time snapshot so a concurrent socket update isn't reverted on save. Lead and
+  assignee share `components/user-select.tsx`. Task detail has a Project row with an "Open project"
+  chevron. Docs open at the global `/doc/:docId` route; `DocumentEditorPage` derives its links from
+  the loaded doc (project docs: back to project, no Publish).
 
 ## Attachments
 
